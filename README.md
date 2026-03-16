@@ -110,7 +110,7 @@ The schema captures the full chain from gene → protein → pathway → disease
 
 ---
 
-## Structural Enrichment (Phase 1.5)
+## Structural Enrichment
 
 Epistract doesn't just extract text — it **validates and enriches molecular structures and sequences**, creating first-class graph nodes from validated identifiers.
 
@@ -142,20 +142,29 @@ This means your knowledge graph contains **verified** molecular structures, not 
 
 Requires [Claude Code](https://claude.ai/claude-code) and Python 3.11+.
 
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/epistract.git
-cd epistract
+**Install as a Claude Code plugin** (recommended — no cloning needed):
 
-# Symlink as a Claude Code plugin
-ln -s $(pwd) ~/.claude/plugins/epistract
+```bash
+claude plugin add --from https://github.com/usathyan/epistract
 ```
 
-Inside a Claude Code session:
+That's it. The plugin is now available in all your Claude Code sessions.
+
+**Or install from a local clone** (for developers):
+
+```bash
+git clone https://github.com/usathyan/epistract.git
+cd epistract
+claude plugin add .
+```
+
+Then, inside any Claude Code session, run the setup to install the Python engine:
 
 ```
 /epistract-setup
 ```
+
+This installs [sift-kg](https://github.com/juanceresa/sift-kg) (the knowledge graph engine) and checks for optional molecular validation libraries ([RDKit](https://www.rdkit.org/), [Biopython](https://biopython.org/)).
 
 ### 2. Ingest Documents
 
@@ -329,18 +338,12 @@ For validation results and manual cross-reference checklists, see [VALIDATION_RE
 
 ---
 
-## Phases
+## Roadmap
 
-**Phase 1 (complete):** Document extraction, knowledge graph building, interactive visualization, static export formats. 17 entity types, 30 relation types.
-
-**Phase 1.5 (complete):** Structural enrichment — validated SMILES and sequences become first-class graph nodes with computed properties. InChIKey-based cross-document compound deduplication.
-
-**Phase 2 (planned):**
-1. **Neo4j Cypher exporter** — MERGE nodes/edges into Neo4j with constraints and indexes
-2. **Entity description embeddings** — sentence-transformers embeddings stored in Neo4j vector index
-3. **Morgan fingerprint embeddings** — RDKit molecular fingerprints as vectors for structural similarity
-4. **Combined RAG query** — `/epistract-ask "What compounds similar to sotorasib target KRAS?"` → vector + graph + structure similarity
-5. **External enrichment** — PubChem/ChEMBL/UniProt API lookups adding nodes from external knowledge bases
+- **Neo4j graph database export** — MERGE nodes/edges with constraints and indexes
+- **Vector embeddings** — entity description embeddings and Morgan fingerprints in Neo4j vector index
+- **Combined RAG query** — `/epistract-ask` for vector + graph + structure similarity in one query
+- **External enrichment** — PubChem/ChEMBL/UniProt API lookups adding nodes from external knowledge bases
 
 ---
 
@@ -348,7 +351,7 @@ For validation results and manual cross-reference checklists, see [VALIDATION_RE
 
 - **[DEVELOPER.md](DEVELOPER.md)** — Technical reference with 40+ ontology links, sift-kg integration details, data formats, and the full dependency tree
 - **[Domain Specification](docs/drug-discovery-domain-spec.md)** — Complete 2000-line schema specification with ontology alignment, extraction guidance, and validation criteria
-- **[Plugin Design](docs/epistract-plugin-design.md)** — Architecture, components, and phased delivery plan
+- **[Plugin Design](docs/epistract-plugin-design.md)** — Architecture and component design
 - **[Test Requirements](tests/TEST_REQUIREMENTS.md)** — 14 unit tests, 8 functional tests, 18 user acceptance tests with traceability matrix
 
 ---
