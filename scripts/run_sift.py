@@ -14,8 +14,22 @@ import sys
 from pathlib import Path
 
 
+def _import_sift(names: list[str]):
+    """Import sift-kg components with user-friendly error on missing install."""
+    try:
+        import sift_kg
+    except ImportError:
+        print(
+            "Error: sift-kg is not installed.\n"
+            "Run /epistract-setup or: uv pip install sift-kg",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    return tuple(getattr(sift_kg, n) for n in names)
+
+
 def cmd_build(output_dir: str, domain_path: str | None = None):
-    from sift_kg import run_build, load_domain
+    run_build, load_domain = _import_sift(["run_build", "load_domain"])
 
     domain = (
         load_domain(domain_path=Path(domain_path))
@@ -31,18 +45,18 @@ def cmd_build(output_dir: str, domain_path: str | None = None):
 
 
 def cmd_view(output_dir: str, **kwargs):
-    from sift_kg import run_view
+    (run_view,) = _import_sift(["run_view"])
     run_view(Path(output_dir), **{k: v for k, v in kwargs.items() if v is not None})
 
 
 def cmd_export(output_dir: str, fmt: str):
-    from sift_kg import run_export
+    (run_export,) = _import_sift(["run_export"])
     path = run_export(Path(output_dir), fmt)
     print(f"Exported: {path}")
 
 
 def cmd_info(output_dir: str):
-    from sift_kg import KnowledgeGraph
+    (KnowledgeGraph,) = _import_sift(["KnowledgeGraph"])
     graph_path = Path(output_dir) / "graph_data.json"
     if not graph_path.exists():
         print(json.dumps({"error": "No graph found"}))
@@ -53,8 +67,11 @@ def cmd_info(output_dir: str):
 
 
 def cmd_search(output_dir: str, query: str, entity_type: str | None = None):
-    from sift_kg import KnowledgeGraph
+    (KnowledgeGraph,) = _import_sift(["KnowledgeGraph"])
     graph_path = Path(output_dir) / "graph_data.json"
+    if not graph_path.exists():
+        print(json.dumps({"error": "No graph found"}))
+        return
     kg = KnowledgeGraph.load(graph_path)
     query_lower = query.lower()
     results = []

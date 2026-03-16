@@ -28,7 +28,7 @@ try:
     from validate_smiles import validate_smiles
 
     HAS_RDKIT = True
-except Exception:
+except ImportError:
     HAS_RDKIT = False
     validate_smiles = None  # type: ignore[assignment]
 
@@ -37,14 +37,13 @@ try:
     from validate_sequences import validate_sequence
 
     HAS_BIOPYTHON = True
-except Exception:
+except ImportError:
     HAS_BIOPYTHON = False
     validate_sequence = None  # type: ignore[assignment]
 
 # Pattern types that map to each validator
 SMILES_TYPES = {"SMILES", "SMILES_STANDALONE"}
 SEQUENCE_TYPES = {"DNA_SEQUENCE", "RNA_SEQUENCE", "AMINO_ACID_SEQ"}
-REPORT_ONLY_TYPES = {"CAS_NUMBER", "NCT_NUMBER", "US_PATENT", "PCT_PATENT", "InChI", "InChIKey", "SEQ_ID_NO"}
 
 
 def collect_texts(extraction: dict) -> list[tuple[str, str]]:
@@ -64,6 +63,24 @@ def collect_texts(extraction: dict) -> list[tuple[str, str]]:
     return texts
 
 
+def _status_from_validation(validation: dict) -> str:
+    """Derive a status string from a validation result dict."""
+    valid_flag = validation.get("valid")
+    if valid_flag is True:
+        return "valid"
+    if valid_flag is False:
+        return "invalid"
+    return "unvalidated"
+
+
+# Map pattern types to sequence type hints for Biopython validation
+_SEQUENCE_TYPE_HINTS: dict[str, str] = {
+    "DNA_SEQUENCE": "DNA",
+    "RNA_SEQUENCE": "RNA",
+    "AMINO_ACID_SEQ": "protein",
+}
+
+
 def validate_match(match: dict) -> dict:
     """Run appropriate validator on a pattern match and return enriched result."""
     result = {
@@ -79,13 +96,7 @@ def validate_match(match: dict) -> dict:
         if HAS_RDKIT and validate_smiles is not None:
             validation = validate_smiles(match["value"])
             result["validation"] = validation
-            valid_flag = validation.get("valid")
-            if valid_flag is True:
-                result["status"] = "valid"
-            elif valid_flag is False:
-                result["status"] = "invalid"
-            else:
-                result["status"] = "unvalidated"
+            result["status"] = _status_from_validation(validation)
         else:
             result["validation"] = None
             result["status"] = "unvalidated"
@@ -93,31 +104,14 @@ def validate_match(match: dict) -> dict:
 
     elif ptype in SEQUENCE_TYPES:
         if HAS_BIOPYTHON and validate_sequence is not None:
-            # Map pattern type to sequence type hint
-            type_hint = None
-            if ptype == "DNA_SEQUENCE":
-                type_hint = "DNA"
-            elif ptype == "RNA_SEQUENCE":
-                type_hint = "RNA"
-            elif ptype == "AMINO_ACID_SEQ":
-                type_hint = "protein"
+            type_hint = _SEQUENCE_TYPE_HINTS.get(ptype)
             validation = validate_sequence(match["value"], type_hint)
             result["validation"] = validation
-            valid_flag = validation.get("valid")
-            if valid_flag is True:
-                result["status"] = "valid"
-            elif valid_flag is False:
-                result["status"] = "invalid"
-            else:
-                result["status"] = "unvalidated"
+            result["status"] = _status_from_validation(validation)
         else:
             result["validation"] = None
             result["status"] = "unvalidated"
             result["note"] = "Biopython not available"
-
-    elif ptype in REPORT_ONLY_TYPES:
-        result["validation"] = None
-        result["status"] = "found"
 
     else:
         result["validation"] = None
@@ -131,18 +125,13 @@ def process_extraction(filepath: Path) -> dict:
     data = json.loads(filepath.read_text(encoding="utf-8"))
     texts = collect_texts(data)
 
-    matches: list[dict] = []
+    validated: list[dict] = []
     for field_path, text in texts:
         for match in scan_text(text):
-            match["source_field"] = field_path
-            matches.append(match)
-
-    validated: list[dict] = []
-    for match in matches:
-        result = validate_match(match)
-        result["source_file"] = filepath.name
-        result["source_field"] = match.get("source_field", "")
-        validated.append(result)
+            result = validate_match(match)
+            result["source_file"] = filepath.name
+            result["source_field"] = field_path
+            validated.append(result)
 
     return {
         "file": filepath.name,
