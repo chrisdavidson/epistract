@@ -1,0 +1,328 @@
+{
+  "document_id": "pmid_21167244",
+  "document_path": "pmid_21167244",
+  "chunks_processed": 1,
+  "entities": [
+    {
+      "name": "APOE",
+      "description": "Apolipoprotein E, major risk promoting gene in Alzheimer disease related to herpes simplex life cycle",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "CLU",
+      "description": "Clusterin gene, major risk promoting gene in Alzheimer disease",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "CR1",
+      "description": "Complement receptor 1 gene, major risk promoting gene in Alzheimer disease",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "PICALM",
+      "description": "Phosphatidylinositol binding clathrin assembly protein, major AD risk gene related to herpes simplex life cycle",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "APP",
+      "description": "Amyloid precursor protein gene, involved in processing and signalling disrupted by HSV-1",
+      "confidence": 0.9,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "MAPT",
+      "description": "Tau protein gene, involved in microtubule stability; tau phosphorylation is a core AD pathology",
+      "confidence": 0.85,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "ADNP",
+      "description": "Activity-dependent neuroprotective protein, sequestered by HSV-1",
+      "confidence": 0.9,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "Alzheimer disease",
+      "description": "Neurodegenerative disease characterized by amyloid plaques and neurofibrillary tangles",
+      "confidence": 1.0,
+      "entity_type": "DISEASE"
+    },
+    {
+      "name": "herpes simplex encephalitis",
+      "description": "HSV-1 infection of the brain, proposed contributor to Alzheimer disease pathology",
+      "confidence": 0.85,
+      "entity_type": "DISEASE"
+    },
+    {
+      "name": "amyloid beta",
+      "description": "Beta-amyloid peptide that accumulates in plaques in Alzheimer disease",
+      "confidence": 0.95,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "tau",
+      "description": "Microtubule-associated protein that becomes hyperphosphorylated in neurofibrillary tangles",
+      "confidence": 0.95,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "apolipoprotein E",
+      "description": "Protein encoded by APOE, major AD risk factor and HSV-1 related protein",
+      "confidence": 0.95,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "clusterin",
+      "description": "Complement-associated glycoprotein encoded by CLU",
+      "confidence": 0.9,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "complement receptor 1",
+      "description": "Complement receptor encoded by CR1",
+      "confidence": 0.9,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "complement membrane attack complex",
+      "description": "Terminal complement complex found in AD neurones suggesting complement-mediated neuronal lysis",
+      "confidence": 0.9,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "amyloid plaques",
+      "description": "Extracellular deposits of amyloid beta peptide, hallmark of Alzheimer disease",
+      "confidence": 0.95,
+      "entity_type": "PHENOTYPE"
+    },
+    {
+      "name": "neurofibrillary tangles",
+      "description": "Intraneuronal aggregates of hyperphosphorylated tau protein",
+      "confidence": 0.95,
+      "entity_type": "PHENOTYPE"
+    },
+    {
+      "name": "tau phosphorylation",
+      "description": "Hyperphosphorylation of tau protein, core pathology of AD increased by HSV-1 infection",
+      "confidence": 0.9,
+      "entity_type": "PHENOTYPE"
+    },
+    {
+      "name": "cortical neuronal loss",
+      "description": "Loss of cortical neurons observed in HSV-1 infected mice",
+      "confidence": 0.85,
+      "entity_type": "PHENOTYPE"
+    },
+    {
+      "name": "hippocampal neuronal loss",
+      "description": "Loss of hippocampal neurons observed in HSV-1 infected mice",
+      "confidence": 0.85,
+      "entity_type": "PHENOTYPE"
+    },
+    {
+      "name": "cerebral atrophy",
+      "description": "Brain shrinkage observed in HSV-1 infected mice",
+      "confidence": 0.85,
+      "entity_type": "PHENOTYPE"
+    },
+    {
+      "name": "memory deficits",
+      "description": "Memory impairment observed in HSV-1 infected mice",
+      "confidence": 0.85,
+      "entity_type": "PHENOTYPE"
+    },
+    {
+      "name": "complement activation",
+      "description": "Complement cascade pathway involved in immune-mediated neuronal destruction in AD",
+      "confidence": 0.9,
+      "entity_type": "PATHWAY"
+    },
+    {
+      "name": "endocytosis",
+      "description": "Cellular internalization pathway used by HSV-1 for entry",
+      "confidence": 0.85,
+      "entity_type": "PATHWAY"
+    },
+    {
+      "name": "ubiquitin-proteasome system",
+      "description": "Protein degradation pathway whose components bind HSV-1",
+      "confidence": 0.85,
+      "entity_type": "PATHWAY"
+    },
+    {
+      "name": "apoptosis",
+      "description": "Programmed cell death pathway; components bound by HSV-1",
+      "confidence": 0.8,
+      "entity_type": "PATHWAY"
+    },
+    {
+      "name": "complement-mediated neuronal lysis",
+      "description": "Proposed mechanism of neuronal destruction in AD via complement membrane attack complex",
+      "confidence": 0.9,
+      "entity_type": "MECHANISM_OF_ACTION"
+    },
+    {
+      "name": "immune-mediated neuroinflammation",
+      "description": "Inflammation-mediated neuronal destruction resulting from immune defence against HSV-1",
+      "confidence": 0.85,
+      "entity_type": "MECHANISM_OF_ACTION"
+    },
+    {
+      "name": "cortex",
+      "description": "Cerebral cortex, site of neuronal loss in HSV-1 mouse model",
+      "confidence": 0.85,
+      "entity_type": "CELL_OR_TISSUE"
+    },
+    {
+      "name": "hippocampus",
+      "description": "Hippocampal region, site of neuronal loss in HSV-1 mouse model",
+      "confidence": 0.85,
+      "entity_type": "CELL_OR_TISSUE"
+    }
+  ],
+  "relations": [
+    {
+      "source_entity": "APOE",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.95,
+      "evidence": "all of the major risk promoting genes in Alzheimers disease (apolipoprotein E, clusterin, complement receptor 1 and PICALM)"
+    },
+    {
+      "source_entity": "CLU",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.95,
+      "evidence": "all of the major risk promoting genes in Alzheimers disease"
+    },
+    {
+      "source_entity": "CR1",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.95,
+      "evidence": "all of the major risk promoting genes in Alzheimers disease"
+    },
+    {
+      "source_entity": "PICALM",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.95,
+      "evidence": "all of the major risk promoting genes in Alzheimers disease"
+    },
+    {
+      "source_entity": "APOE",
+      "target_entity": "apolipoprotein E",
+      "relation_type": "ENCODES",
+      "confidence": 0.95,
+      "evidence": "apolipoprotein E"
+    },
+    {
+      "source_entity": "CLU",
+      "target_entity": "clusterin",
+      "relation_type": "ENCODES",
+      "confidence": 0.95,
+      "evidence": "clusterin"
+    },
+    {
+      "source_entity": "CR1",
+      "target_entity": "complement receptor 1",
+      "relation_type": "ENCODES",
+      "confidence": 0.95,
+      "evidence": "complement receptor 1"
+    },
+    {
+      "source_entity": "APP",
+      "target_entity": "amyloid beta",
+      "relation_type": "ASSOCIATED_WITH",
+      "confidence": 0.9,
+      "evidence": "amyloid precursor protein processing and signalling as well as beta-amyloid processing"
+    },
+    {
+      "source_entity": "amyloid beta",
+      "target_entity": "amyloid plaques",
+      "relation_type": "ASSOCIATED_WITH",
+      "confidence": 0.95,
+      "evidence": "Amyloid-containing plaques"
+    },
+    {
+      "source_entity": "tau",
+      "target_entity": "neurofibrillary tangles",
+      "relation_type": "ASSOCIATED_WITH",
+      "confidence": 0.95,
+      "evidence": "neurofibrillary tangles"
+    },
+    {
+      "source_entity": "amyloid plaques",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "ASSOCIATED_WITH",
+      "confidence": 0.95,
+      "evidence": "the core pathologies of Alzheimers disease"
+    },
+    {
+      "source_entity": "neurofibrillary tangles",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "ASSOCIATED_WITH",
+      "confidence": 0.95,
+      "evidence": "the core pathologies of Alzheimers disease"
+    },
+    {
+      "source_entity": "tau phosphorylation",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "ASSOCIATED_WITH",
+      "confidence": 0.9,
+      "evidence": "microtubule stability and tau phosphorylation, the core pathologies of Alzheimers disease"
+    },
+    {
+      "source_entity": "complement membrane attack complex",
+      "target_entity": "complement-mediated neuronal lysis",
+      "relation_type": "HAS_MECHANISM",
+      "confidence": 0.9,
+      "evidence": "The presence of the complement membrane attack complex in AD neurones suggests complement mediated neuronal lysis"
+    },
+    {
+      "source_entity": "complement-mediated neuronal lysis",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.85,
+      "evidence": "complement mediated neuronal lysis may be a consequence of this struggle"
+    },
+    {
+      "source_entity": "complement activation",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.9,
+      "evidence": "plaques or tangles also contain a large number of complement, acute phase and immune-related proteins"
+    },
+    {
+      "source_entity": "PICALM",
+      "target_entity": "endocytosis",
+      "relation_type": "PARTICIPATES_IN",
+      "confidence": 0.85,
+      "evidence": "phosphatidylinositol binding clathrin assembly protein PICALM"
+    },
+    {
+      "source_entity": "cortical neuronal loss",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "ASSOCIATED_WITH",
+      "confidence": 0.8,
+      "evidence": "cortical and hippocampal neuronal loss, cerebral shrinkage and memory deficits in mice"
+    },
+    {
+      "source_entity": "hippocampal neuronal loss",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "ASSOCIATED_WITH",
+      "confidence": 0.8,
+      "evidence": "cortical and hippocampal neuronal loss"
+    }
+  ],
+  "cost_usd": 0.0,
+  "model_used": "claude-opus-4-6",
+  "domain_name": "Drug Discovery",
+  "chunk_size": 10000,
+  "extracted_at": "2026-03-16T21:17:08.661733+00:00",
+  "error": null
+}

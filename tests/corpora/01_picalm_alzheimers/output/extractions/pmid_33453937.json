@@ -1,0 +1,141 @@
+{
+  "document_id": "pmid_33453937",
+  "document_path": "pmid_33453937",
+  "chunks_processed": 1,
+  "entities": [
+    {
+      "name": "APP",
+      "description": "Amyloid precursor protein gene, post-endocytic trafficking defects linked to AD",
+      "evidence": "changes in post-endocytic trafficking of amyloid precursor protein (APP) in neurons leading to an increase in amyloidogenic processing",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "amyloid precursor protein",
+      "description": "Protein encoded by APP gene, undergoes amyloidogenic processing in endosomes",
+      "evidence": "post-endocytic trafficking of amyloid precursor protein (APP)",
+      "confidence": 0.95,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "amyloid beta",
+      "description": "A\u03b2 peptide generated from APP processing, accumulates intracellularly in AD",
+      "evidence": "deficits in amyloid beta (A\u03b2) clearance, increases in intracellular A\u03b2",
+      "confidence": 0.95,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "Alzheimer disease",
+      "description": "Neurodegenerative disorder with endocytic dysfunction as early initiating event",
+      "evidence": "multiple defects in endocytic functions as early events initiating various neurodegenerative disorders, including Alzheimer's disease (AD)",
+      "confidence": 0.95,
+      "entity_type": "DISEASE"
+    },
+    {
+      "name": "tau",
+      "description": "Tau protein, phosphorylation occurs downstream of endosomal dysfunction",
+      "evidence": "endosomal dysfunctions preceding A\u03b2 pathology and tau phosphorylation",
+      "confidence": 0.9,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "endosomal trafficking",
+      "description": "Endosomal and post-endosomal trafficking pathway regulating APP processing",
+      "evidence": "Multiple genetic factors regulate each segment of endosomal and post-endosomal trafficking",
+      "confidence": 0.9,
+      "entity_type": "PATHWAY"
+    },
+    {
+      "name": "amyloidogenic processing",
+      "description": "Proteolytic processing of APP generating amyloid beta peptides",
+      "evidence": "increase in amyloidogenic processing",
+      "confidence": 0.9,
+      "entity_type": "MECHANISM_OF_ACTION"
+    },
+    {
+      "name": "endosomal dysfunction",
+      "description": "Endosomal pathogenic phenotypes preceding A\u03b2 and tau pathology",
+      "evidence": "endosomal dysfunctions preceding A\u03b2 pathology and tau phosphorylation",
+      "confidence": 0.9,
+      "entity_type": "PHENOTYPE"
+    },
+    {
+      "name": "intracellular amyloid beta accumulation",
+      "description": "Increased intracellular A\u03b2 as consequence of trafficking defects",
+      "evidence": "increases in intracellular A\u03b2",
+      "confidence": 0.9,
+      "entity_type": "PHENOTYPE"
+    }
+  ],
+  "relations": [
+    {
+      "source_entity": "APP",
+      "target_entity": "amyloid precursor protein",
+      "relation_type": "ENCODES",
+      "evidence": "amyloid precursor protein (APP)",
+      "confidence": 0.95
+    },
+    {
+      "source_entity": "amyloid precursor protein",
+      "target_entity": "endosomal trafficking",
+      "relation_type": "PARTICIPATES_IN",
+      "evidence": "post-endocytic trafficking of amyloid precursor protein (APP) in neurons",
+      "confidence": 0.95
+    },
+    {
+      "source_entity": "endosomal trafficking",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "multiple defects in endocytic functions as early events initiating various neurodegenerative disorders, including Alzheimer's disease",
+      "confidence": 0.92
+    },
+    {
+      "source_entity": "amyloid precursor protein",
+      "target_entity": "amyloid beta",
+      "relation_type": "ASSOCIATED_WITH",
+      "evidence": "amyloidogenic processing...deficits in amyloid beta (A\u03b2) clearance",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "amyloidogenic processing",
+      "target_entity": "amyloid beta",
+      "relation_type": "ASSOCIATED_WITH",
+      "evidence": "increase in amyloidogenic processing...increases in intracellular A\u03b2",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "amyloid beta",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "A\u03b2 pathology",
+      "confidence": 0.95
+    },
+    {
+      "source_entity": "tau",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "tau phosphorylation",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "endosomal dysfunction",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "endosomal dysfunctions preceding A\u03b2 pathology and tau phosphorylation",
+      "confidence": 0.92
+    },
+    {
+      "source_entity": "endosomal dysfunction",
+      "target_entity": "intracellular amyloid beta accumulation",
+      "relation_type": "ASSOCIATED_WITH",
+      "evidence": "endosomal pathogenic phenotypes...increases in intracellular A\u03b2",
+      "confidence": 0.85
+    }
+  ],
+  "cost_usd": 0.0,
+  "model_used": "claude-opus-4-6",
+  "domain_name": "Drug Discovery",
+  "chunk_size": 10000,
+  "extracted_at": "2026-03-16T21:16:33.671731+00:00",
+  "error": null
+}

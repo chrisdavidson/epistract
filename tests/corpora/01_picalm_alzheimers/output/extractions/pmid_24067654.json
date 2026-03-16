@@ -1,0 +1,248 @@
+{
+  "document_id": "pmid_24067654",
+  "document_path": "pmid_24067654",
+  "chunks_processed": 1,
+  "entities": [
+    {
+      "name": "PICALM",
+      "description": "Phosphatidylinositol clathrin assembly lymphoid-myeloid leukemia gene, AD risk factor; PICALM protein forms complex with AP2 to function as autophagic cargo receptor",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "APP",
+      "description": "Amyloid precursor protein gene; its cleaved C-terminal fragment is degraded via autophagy mediated by AP2/PICALM",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "ATG5",
+      "description": "Autophagy related 5 gene; autophagy-mediated APP-CTF degradation is Atg5-dependent",
+      "confidence": 0.9,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "MAP1LC3",
+      "description": "Microtubule-associated protein 1 light chain 3 (LC3) gene; LC3 binds AP2/PICALM complex",
+      "confidence": 0.9,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "AP2A1",
+      "description": "Adaptor protein complex 2 subunit gene; AP2 regulates cellular levels of APP-CTF",
+      "confidence": 0.85,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "Alzheimer disease",
+      "description": "Neurodegenerative disease characterized by aggregates of amyloid-beta peptides and tau protein",
+      "confidence": 1.0,
+      "entity_type": "DISEASE"
+    },
+    {
+      "name": "amyloid beta",
+      "description": "Amyloid-beta peptide that aggregates in AD; clearance mediated by autophagy",
+      "confidence": 0.95,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "tau",
+      "description": "Tau protein that aggregates in Alzheimer disease",
+      "confidence": 0.9,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "APP-CTF",
+      "description": "Amyloid precursor protein cleaved C-terminal fragment; degraded via autophagy pathway mediated by AP2/PICALM-LC3 interaction",
+      "confidence": 0.95,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "LC3",
+      "description": "Microtubule-associated protein 1 light chain 3; autophagosome marker that binds AP2 and PICALM",
+      "confidence": 0.95,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "AP2",
+      "description": "Adaptor protein complex 2; identified as LC3 binding protein; regulates APP-CTF levels and mediates autophagy-dependent degradation",
+      "confidence": 0.95,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "PICALM protein",
+      "description": "Phosphatidylinositol clathrin assembly lymphoid-myeloid leukemia protein; forms complex with AP2 to cross-link LC3 with APP-CTF",
+      "confidence": 0.95,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "ATG5 protein",
+      "description": "Autophagy protein 5; required for autophagy-mediated APP-CTF degradation",
+      "confidence": 0.85,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "autophagy",
+      "description": "Major cellular pathway for removal of aggregated proteins; mediates APP-CTF degradation and amyloid beta clearance",
+      "confidence": 0.95,
+      "entity_type": "PATHWAY"
+    },
+    {
+      "name": "endocytic pathway",
+      "description": "Cellular endocytosis pathway from which APP-CTF is shipped to autophagic degradation",
+      "confidence": 0.9,
+      "entity_type": "PATHWAY"
+    },
+    {
+      "name": "clathrin-mediated endocytosis",
+      "description": "Endocytic pathway involving clathrin assembly, associated with PICALM function",
+      "confidence": 0.85,
+      "entity_type": "PATHWAY"
+    },
+    {
+      "name": "AP2/PICALM-mediated autophagic cargo recognition",
+      "description": "AP2/PICALM complex functions as autophagic cargo receptor for recognition and shipment of APP-CTF from endocytic pathway to LC3-marked autophagic degradation pathway",
+      "confidence": 0.95,
+      "entity_type": "MECHANISM_OF_ACTION"
+    },
+    {
+      "name": "amyloid plaques",
+      "description": "Aggregates of amyloid-beta peptides, hallmark of Alzheimer disease",
+      "confidence": 0.9,
+      "entity_type": "PHENOTYPE"
+    },
+    {
+      "name": "tau aggregation",
+      "description": "Aggregation of tau protein, hallmark of Alzheimer disease",
+      "confidence": 0.9,
+      "entity_type": "PHENOTYPE"
+    }
+  ],
+  "relations": [
+    {
+      "source_entity": "AP2",
+      "target_entity": "PICALM protein",
+      "relation_type": "FORMS_COMPLEX_WITH",
+      "confidence": 0.95,
+      "evidence": "adaptor protein (AP) 2 together with PICALM as binding proteins of LC3"
+    },
+    {
+      "source_entity": "AP2",
+      "target_entity": "LC3",
+      "relation_type": "BINDS_TO",
+      "confidence": 0.95,
+      "evidence": "we identified adaptor protein (AP) 2 together with PICALM as binding proteins of LC3"
+    },
+    {
+      "source_entity": "PICALM protein",
+      "target_entity": "LC3",
+      "relation_type": "BINDS_TO",
+      "confidence": 0.95,
+      "evidence": "we identified AP2 together with PICALM as binding proteins of LC3"
+    },
+    {
+      "source_entity": "AP2",
+      "target_entity": "APP-CTF",
+      "relation_type": "BINDS_TO",
+      "confidence": 0.9,
+      "evidence": "AP2 and PICALM cross-link LC3 with APP-CTF"
+    },
+    {
+      "source_entity": "PICALM protein",
+      "target_entity": "APP-CTF",
+      "relation_type": "BINDS_TO",
+      "confidence": 0.9,
+      "evidence": "AP2 and PICALM cross-link LC3 with APP-CTF"
+    },
+    {
+      "source_entity": "AP2",
+      "target_entity": "APP-CTF",
+      "relation_type": "REGULATES_EXPRESSION",
+      "confidence": 0.9,
+      "evidence": "AP2 regulated the cellular levels of APP-CTF. Knockdown of AP2 reduced autophagy-mediated APP-CTF degradation"
+    },
+    {
+      "source_entity": "autophagy",
+      "target_entity": "APP-CTF",
+      "relation_type": "ASSOCIATED_WITH",
+      "confidence": 0.95,
+      "evidence": "autophagy was responsible for APP-CTF degradation"
+    },
+    {
+      "source_entity": "ATG5 protein",
+      "target_entity": "autophagy",
+      "relation_type": "PARTICIPATES_IN",
+      "confidence": 0.9,
+      "evidence": "amyloid beta clearance in an Atg5-dependent manner"
+    },
+    {
+      "source_entity": "PICALM",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.95,
+      "evidence": "genetic evidence indicating a role for PICALM as a risk factor for AD"
+    },
+    {
+      "source_entity": "PICALM",
+      "target_entity": "PICALM protein",
+      "relation_type": "ENCODES",
+      "confidence": 0.95,
+      "evidence": "phosphatidylinositol clathrin assembly lymphoid-myeloid leukemia (PICALM)"
+    },
+    {
+      "source_entity": "APP",
+      "target_entity": "APP-CTF",
+      "relation_type": "ASSOCIATED_WITH",
+      "confidence": 0.95,
+      "evidence": "amyloid precursor protein cleaved C-terminal fragment (APP-CTF)"
+    },
+    {
+      "source_entity": "MAP1LC3",
+      "target_entity": "LC3",
+      "relation_type": "ENCODES",
+      "confidence": 0.9,
+      "evidence": "microtubule-associated protein 1 light chain 3 (LC3)"
+    },
+    {
+      "source_entity": "AP2/PICALM-mediated autophagic cargo recognition",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.9,
+      "evidence": "AP-2/PICALM complex functions as an autophagic cargo receptor... This molecular mechanism linking AP2/PICALM and AD"
+    },
+    {
+      "source_entity": "amyloid beta",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.95,
+      "evidence": "The hallmarks of AD are the aggregates of amyloid-beta peptides and tau protein"
+    },
+    {
+      "source_entity": "tau",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.95,
+      "evidence": "The hallmarks of AD are the aggregates of amyloid-beta peptides and tau protein"
+    },
+    {
+      "source_entity": "AP2",
+      "target_entity": "autophagy",
+      "relation_type": "PARTICIPATES_IN",
+      "confidence": 0.9,
+      "evidence": "Knockdown of AP2 reduced autophagy-mediated APP-CTF degradation"
+    },
+    {
+      "source_entity": "PICALM protein",
+      "target_entity": "endocytic pathway",
+      "relation_type": "PARTICIPATES_IN",
+      "confidence": 0.85,
+      "evidence": "recognition and shipment of APP-CTF from the endocytic pathway to the LC3-marked autophagic degradation pathway"
+    }
+  ],
+  "cost_usd": 0.0,
+  "model_used": "claude-opus-4-6",
+  "domain_name": "Drug Discovery",
+  "chunk_size": 10000,
+  "extracted_at": "2026-03-16T21:17:10.517611+00:00",
+  "error": null
+}

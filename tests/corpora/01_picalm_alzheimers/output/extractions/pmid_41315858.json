@@ -1,0 +1,554 @@
+{
+  "document_id": "pmid_41315858",
+  "document_path": "",
+  "chunks_processed": 1,
+  "entities": [
+    {
+      "name": "Alzheimer disease",
+      "description": "Neurodegenerative disease caused by dysregulated microglial phagocytosis",
+      "evidence": "Alzheimer disease (AD) is caused by dysregulated microglial phagocytosis",
+      "confidence": 0.95,
+      "entity_type": "DISEASE"
+    },
+    {
+      "name": "ABCA1",
+      "description": "AD genetic risk gene linked to microglial phagocytosis",
+      "evidence": "genetic risk for AD can be linked to microglial phagocytosis, including ABCA1",
+      "confidence": 0.9,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "ABI3",
+      "description": "AD genetic risk gene linked to microglial phagocytosis",
+      "evidence": "including... ABI3",
+      "confidence": 0.9,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "ACE",
+      "description": "AD genetic risk gene linked to microglial phagocytosis",
+      "evidence": "including... ACE",
+      "confidence": 0.9,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "ADAM17",
+      "description": "AD genetic risk gene linked to microglial phagocytosis",
+      "evidence": "including... ADAM17",
+      "confidence": 0.9,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "APOE",
+      "description": "AD genetic risk gene linked to microglial phagocytosis",
+      "evidence": "including... APOE",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "APP",
+      "description": "Amyloid precursor protein gene; AD risk gene",
+      "evidence": "including... APP",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "BIN1",
+      "description": "AD genetic risk gene linked to microglial phagocytosis",
+      "evidence": "including... BIN1",
+      "confidence": 0.9,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "BLNK",
+      "description": "AD genetic risk gene linked to microglial phagocytosis",
+      "evidence": "including... BLNK",
+      "confidence": 0.9,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "CD2AP",
+      "description": "AD genetic risk gene linked to microglial phagocytosis",
+      "evidence": "including... CD2AP",
+      "confidence": 0.9,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "CD33",
+      "description": "AD genetic risk gene; receptor mediating A\u03b2 phagocytosis",
+      "evidence": "microglial phagocytosis of A\u03b2 via... CD33",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "CLU",
+      "description": "Clusterin; AD genetic risk gene",
+      "evidence": "including... CLU",
+      "confidence": 0.9,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "CR1",
+      "description": "Complement receptor 1; AD genetic risk gene",
+      "evidence": "including... CR1",
+      "confidence": 0.9,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "CTSB",
+      "description": "Cathepsin B; AD genetic risk gene",
+      "evidence": "including... CTSB",
+      "confidence": 0.9,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "CTSH",
+      "description": "Cathepsin H; AD genetic risk gene",
+      "evidence": "including... CTSH",
+      "confidence": 0.9,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "EED",
+      "description": "AD genetic risk gene linked to microglial phagocytosis",
+      "evidence": "including... EED",
+      "confidence": 0.9,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "GRN",
+      "description": "Granulin; AD genetic risk gene",
+      "evidence": "including... GRN",
+      "confidence": 0.9,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "INPP5D",
+      "description": "AD genetic risk gene linked to microglial phagocytosis",
+      "evidence": "including... INPP5D",
+      "confidence": 0.9,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "LILRB2",
+      "description": "AD genetic risk gene linked to microglial phagocytosis",
+      "evidence": "including... LILRB2",
+      "confidence": 0.9,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "PICALM",
+      "description": "AD genetic risk gene linked to microglial phagocytosis",
+      "evidence": "including... PICALM",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "PLCG2",
+      "description": "AD genetic risk gene linked to microglial phagocytosis",
+      "evidence": "including... PLCG2",
+      "confidence": 0.9,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "PSEN1",
+      "description": "Presenilin 1; AD genetic risk gene",
+      "evidence": "including... PSEN1",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "PTK2B",
+      "description": "AD genetic risk gene linked to microglial phagocytosis",
+      "evidence": "including... PTK2B",
+      "confidence": 0.9,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "SIGLEC11",
+      "description": "AD genetic risk gene linked to microglial phagocytosis",
+      "evidence": "including... SIGLEC11",
+      "confidence": 0.9,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "SORL1",
+      "description": "AD genetic risk gene linked to microglial phagocytosis",
+      "evidence": "including... SORL1",
+      "confidence": 0.9,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "SPI1",
+      "description": "AD genetic risk gene linked to microglial phagocytosis",
+      "evidence": "including... SPI1",
+      "confidence": 0.9,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "TMEM106B",
+      "description": "AD genetic risk gene linked to microglial phagocytosis",
+      "evidence": "including... TMEM106B",
+      "confidence": 0.9,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "TREM2",
+      "description": "AD genetic risk gene; key receptor for microglial A\u03b2 phagocytosis and synapse phagocytosis",
+      "evidence": "microglial phagocytosis of A\u03b2 via TREM2... microglial phagocytosis of synapses and neurons... via... TREM2",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "P2RY6",
+      "description": "P2Y6 receptor gene; mediates microglial phagocytosis of synapses/neurons",
+      "evidence": "via complement, P2Y6 receptor and TREM2",
+      "confidence": 0.9,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "TREM2 protein",
+      "description": "Triggering receptor expressed on myeloid cells 2; mediates A\u03b2 phagocytosis",
+      "evidence": "Microglial phagocytosis of A\u03b2 via TREM2",
+      "confidence": 0.95,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "LRP1",
+      "description": "LDL receptor-related protein 1; mediates A\u03b2 phagocytosis",
+      "evidence": "Microglial phagocytosis of A\u03b2 via... LRP1",
+      "confidence": 0.9,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "CD33 protein",
+      "description": "Siglec-3; mediates microglial A\u03b2 phagocytosis",
+      "evidence": "phagocytosis of A\u03b2 via... CD33",
+      "confidence": 0.9,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "TAM receptors",
+      "description": "TAM receptor tyrosine kinases mediating A\u03b2 phagocytosis",
+      "evidence": "phagocytosis of A\u03b2 via... TAM receptors",
+      "confidence": 0.9,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "amyloid-beta",
+      "description": "Amyloid-beta peptide forming plaques in AD",
+      "evidence": "microglial phagocytosis of amyloid-\u03b2 (A\u03b2) plaques",
+      "confidence": 0.95,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "anti-amyloid-beta antibodies",
+      "description": "Disease-modifying AD treatments that increase microglial A\u03b2 phagocytosis",
+      "evidence": "anti-A\u03b2 antibodies - work by increasing microglial phagocytosis of A\u03b2 aggregates",
+      "confidence": 0.95,
+      "entity_type": "COMPOUND"
+    },
+    {
+      "name": "microglial phagocytosis",
+      "description": "Phagocytic clearance by microglia; dysregulated in AD",
+      "evidence": "AD is caused by dysregulated microglial phagocytosis",
+      "confidence": 0.95,
+      "entity_type": "MECHANISM_OF_ACTION"
+    },
+    {
+      "name": "complement-mediated synapse elimination",
+      "description": "Complement pathway driving microglial phagocytosis of synapses",
+      "evidence": "microglial phagocytosis of synapses and neurons... via complement",
+      "confidence": 0.9,
+      "entity_type": "MECHANISM_OF_ACTION"
+    },
+    {
+      "name": "phagocytosis",
+      "description": "Cellular process of engulfing and clearing debris, plaques, synapses",
+      "evidence": "dysregulated microglial phagocytosis",
+      "confidence": 0.95,
+      "entity_type": "PATHWAY"
+    },
+    {
+      "name": "amyloid-beta plaque accumulation",
+      "description": "A\u03b2 plaque deposition in AD brain",
+      "evidence": "microglial phagocytosis of amyloid-\u03b2 (A\u03b2) plaques",
+      "confidence": 0.9,
+      "entity_type": "PHENOTYPE"
+    },
+    {
+      "name": "synapse loss",
+      "description": "Microglial phagocytosis of synapses in later AD stages",
+      "evidence": "microglial phagocytosis of synapses and neurons seems detrimental in the later stages of AD",
+      "confidence": 0.9,
+      "entity_type": "PHENOTYPE"
+    },
+    {
+      "name": "neuronal loss",
+      "description": "Microglial phagocytosis of neurons in later AD stages",
+      "evidence": "microglial phagocytosis of synapses and neurons",
+      "confidence": 0.9,
+      "entity_type": "PHENOTYPE"
+    },
+    {
+      "name": "tau pathology",
+      "description": "Tau pathology restricted by plaque compaction",
+      "evidence": "restricting subsequent tau pathology",
+      "confidence": 0.85,
+      "entity_type": "PHENOTYPE"
+    },
+    {
+      "name": "microglia",
+      "description": "Brain resident macrophages; central to AD pathogenesis",
+      "evidence": "dysregulated microglial phagocytosis",
+      "confidence": 0.95,
+      "entity_type": "CELL_OR_TISSUE"
+    },
+    {
+      "name": "synapses",
+      "description": "Neural synapses phagocytosed by microglia in AD",
+      "evidence": "increasing microglial phagocytosis of synapses",
+      "confidence": 0.85,
+      "entity_type": "CELL_OR_TISSUE"
+    }
+  ],
+  "relations": [
+    {
+      "source_entity": "microglial phagocytosis",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "AD is caused by dysregulated microglial phagocytosis",
+      "confidence": 0.95
+    },
+    {
+      "source_entity": "ABCA1",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "genetic risk for AD can be linked to microglial phagocytosis, including ABCA1",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "ABI3",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "genetic risk for AD... including ABI3",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "APOE",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "genetic risk for AD... including APOE",
+      "confidence": 0.95
+    },
+    {
+      "source_entity": "APP",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "genetic risk for AD... including APP",
+      "confidence": 0.95
+    },
+    {
+      "source_entity": "BIN1",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "genetic risk for AD... including BIN1",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "CD33",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "genetic risk for AD... including CD33",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "CLU",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "genetic risk for AD... including CLU",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "CR1",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "genetic risk for AD... including CR1",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "GRN",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "genetic risk for AD... including GRN",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "INPP5D",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "genetic risk for AD... including INPP5D",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "PICALM",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "genetic risk for AD... including PICALM",
+      "confidence": 0.95
+    },
+    {
+      "source_entity": "PLCG2",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "genetic risk for AD... including PLCG2",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "PSEN1",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "genetic risk for AD... including PSEN1",
+      "confidence": 0.95
+    },
+    {
+      "source_entity": "SORL1",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "genetic risk for AD... including SORL1",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "SPI1",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "genetic risk for AD... including SPI1",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "TREM2",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "genetic risk for AD... including TREM2",
+      "confidence": 0.95
+    },
+    {
+      "source_entity": "TMEM106B",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "genetic risk for AD... including TMEM106B",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "TREM2 protein",
+      "target_entity": "amyloid-beta",
+      "relation_type": "TARGETS",
+      "evidence": "Microglial phagocytosis of A\u03b2 via TREM2",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "LRP1",
+      "target_entity": "amyloid-beta",
+      "relation_type": "TARGETS",
+      "evidence": "Microglial phagocytosis of A\u03b2 via... LRP1",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "CD33 protein",
+      "target_entity": "amyloid-beta",
+      "relation_type": "TARGETS",
+      "evidence": "phagocytosis of A\u03b2 via... CD33",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "TAM receptors",
+      "target_entity": "amyloid-beta",
+      "relation_type": "TARGETS",
+      "evidence": "phagocytosis of A\u03b2 via... TAM receptors",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "anti-amyloid-beta antibodies",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "INDICATED_FOR",
+      "evidence": "the only disease-modifying treatments for AD - anti-A\u03b2 antibodies",
+      "confidence": 0.95
+    },
+    {
+      "source_entity": "anti-amyloid-beta antibodies",
+      "target_entity": "amyloid-beta",
+      "relation_type": "TARGETS",
+      "evidence": "anti-A\u03b2 antibodies - work by increasing microglial phagocytosis of A\u03b2 aggregates",
+      "confidence": 0.95
+    },
+    {
+      "source_entity": "anti-amyloid-beta antibodies",
+      "target_entity": "microglial phagocytosis",
+      "relation_type": "HAS_MECHANISM",
+      "evidence": "work by increasing microglial phagocytosis of A\u03b2 aggregates",
+      "confidence": 0.95
+    },
+    {
+      "source_entity": "TREM2 protein",
+      "target_entity": "microglia",
+      "relation_type": "EXPRESSED_IN",
+      "evidence": "microglial phagocytosis... via TREM2",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "ABCA1",
+      "target_entity": "phagocytosis",
+      "relation_type": "PARTICIPATES_IN",
+      "evidence": "genetic risk for AD can be linked to microglial phagocytosis, including ABCA1",
+      "confidence": 0.85
+    },
+    {
+      "source_entity": "TREM2",
+      "target_entity": "phagocytosis",
+      "relation_type": "PARTICIPATES_IN",
+      "evidence": "microglial phagocytosis of A\u03b2 via TREM2... phagocytosis of synapses... via TREM2",
+      "confidence": 0.95
+    },
+    {
+      "source_entity": "CD33",
+      "target_entity": "phagocytosis",
+      "relation_type": "PARTICIPATES_IN",
+      "evidence": "phagocytosis of A\u03b2 via... CD33",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "PICALM",
+      "target_entity": "phagocytosis",
+      "relation_type": "PARTICIPATES_IN",
+      "evidence": "genetic risk for AD can be linked to microglial phagocytosis, including... PICALM",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "complement-mediated synapse elimination",
+      "target_entity": "synapse loss",
+      "relation_type": "CAUSES",
+      "evidence": "microglial phagocytosis of synapses and neurons... via complement",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "P2RY6",
+      "target_entity": "phagocytosis",
+      "relation_type": "PARTICIPATES_IN",
+      "evidence": "microglial phagocytosis of synapses and neurons... via... P2Y6 receptor",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "amyloid-beta",
+      "target_entity": "tau pathology",
+      "relation_type": "ASSOCIATED_WITH",
+      "evidence": "pruning and compacting plaques, restricting subsequent tau pathology",
+      "confidence": 0.85
+    }
+  ],
+  "cost_usd": 0.0,
+  "model_used": "claude-opus-4-6",
+  "domain_name": "Drug Discovery",
+  "chunk_size": 10000,
+  "extracted_at": "2026-03-16T21:18:29.477359+00:00",
+  "error": null
+}

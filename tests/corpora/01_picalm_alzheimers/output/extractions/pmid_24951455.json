@@ -1,0 +1,379 @@
+{
+  "document_id": "pmid_24951455",
+  "document_path": "pmid_24951455",
+  "chunks_processed": 1,
+  "entities": [
+    {
+      "name": "Alzheimer disease",
+      "description": "Late-onset neurodegenerative disease with genetic risk factors",
+      "confidence": 0.95,
+      "evidence": "genetic risk factors for late-onset Alzheimer's disease (AD)",
+      "entity_type": "DISEASE"
+    },
+    {
+      "name": "late onset Alzheimer disease",
+      "description": "AD with onset after age 65",
+      "confidence": 0.95,
+      "evidence": "late-onset Alzheimer's disease (AD)",
+      "entity_type": "DISEASE"
+    },
+    {
+      "name": "ABCA7",
+      "description": "ATP-binding cassette subfamily A member 7; AD risk gene",
+      "confidence": 0.9,
+      "evidence": "new genes associated with AD risk, including ABCA7",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "BIN1",
+      "description": "Bridging integrator 1; AD risk gene",
+      "confidence": 0.9,
+      "evidence": "including ... BIN1",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "CASS4",
+      "description": "Cas scaffolding protein family member 4; AD risk gene",
+      "confidence": 0.9,
+      "evidence": "including ... CASS4",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "CD33",
+      "description": "Siglec-3; AD risk gene",
+      "confidence": 0.9,
+      "evidence": "including ... CD33",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "CD2AP",
+      "description": "CD2 associated protein; AD risk gene",
+      "confidence": 0.9,
+      "evidence": "including ... CD2AP",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "CELF1",
+      "description": "CUGBP Elav-like family member 1; AD risk gene",
+      "confidence": 0.9,
+      "evidence": "including ... CELF1",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "CLU",
+      "description": "Clusterin; AD risk gene",
+      "confidence": 0.9,
+      "evidence": "including ... CLU",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "CR1",
+      "description": "Complement receptor 1; AD risk gene",
+      "confidence": 0.9,
+      "evidence": "including ... CR1",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "DSG2",
+      "description": "Desmoglein 2; AD risk gene",
+      "confidence": 0.9,
+      "evidence": "including ... DSG2",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "EPHA1",
+      "description": "EPH receptor A1; AD risk gene",
+      "confidence": 0.9,
+      "evidence": "including ... EPHA1",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "FERMT2",
+      "description": "FERM domain containing kindlin 2; AD risk gene",
+      "confidence": 0.9,
+      "evidence": "including ... FERMT2",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "HLA-DRB5",
+      "description": "Major histocompatibility complex class II DR beta 5; AD risk gene",
+      "confidence": 0.9,
+      "evidence": "including ... HLA-DRB5-DBR1",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "HLA-DRB1",
+      "description": "Major histocompatibility complex class II DR beta 1; AD risk gene",
+      "confidence": 0.9,
+      "evidence": "including ... HLA-DRB5-DBR1",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "INPP5D",
+      "description": "Inositol polyphosphate-5-phosphatase D; AD risk gene",
+      "confidence": 0.9,
+      "evidence": "including ... INPP5D",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "MS4A",
+      "description": "Membrane spanning 4-domains A gene cluster; AD risk gene",
+      "confidence": 0.9,
+      "evidence": "including ... MS4A",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "MEF2C",
+      "description": "Myocyte enhancer factor 2C; AD risk gene",
+      "confidence": 0.9,
+      "evidence": "including ... MEF2C",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "NME8",
+      "description": "NME/NM23 family member 8; AD risk gene",
+      "confidence": 0.9,
+      "evidence": "including ... NME8",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "PICALM",
+      "description": "Phosphatidylinositol binding clathrin assembly protein; AD risk gene",
+      "confidence": 0.9,
+      "evidence": "including ... PICALM",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "PTK2B",
+      "description": "Protein tyrosine kinase 2 beta; AD risk gene",
+      "confidence": 0.9,
+      "evidence": "including ... PTK2B",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "SLC24A4",
+      "description": "Solute carrier family 24 member 4; AD risk gene",
+      "confidence": 0.9,
+      "evidence": "including ... SLC24H4-RIN3",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "RIN3",
+      "description": "Ras and Rab interactor 3; AD risk gene",
+      "confidence": 0.9,
+      "evidence": "including ... SLC24H4-RIN3",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "SORL1",
+      "description": "Sortilin related receptor 1; AD risk gene",
+      "confidence": 0.9,
+      "evidence": "including ... SORL1",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "ZCWPW1",
+      "description": "Zinc finger CW-type and PWWP domain containing 1; AD risk gene",
+      "confidence": 0.9,
+      "evidence": "including ... ZCWPW1",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "PLD3",
+      "description": "Phospholipase D family member 3; coding variant increases AD risk",
+      "confidence": 0.9,
+      "evidence": "coding variants that increase AD risk: PLD3",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "TREM2",
+      "description": "Triggering receptor expressed on myeloid cells 2; coding variant increases AD risk",
+      "confidence": 0.9,
+      "evidence": "coding variants that increase AD risk: ... TREM2",
+      "entity_type": "GENE"
+    }
+  ],
+  "relations": [
+    {
+      "source_entity": "ABCA7",
+      "target_entity": "late onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.9,
+      "evidence": "new genes associated with AD risk, including ABCA7"
+    },
+    {
+      "source_entity": "BIN1",
+      "target_entity": "late onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.9,
+      "evidence": "new genes associated with AD risk, including ... BIN1"
+    },
+    {
+      "source_entity": "CASS4",
+      "target_entity": "late onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.9,
+      "evidence": "new genes associated with AD risk"
+    },
+    {
+      "source_entity": "CD33",
+      "target_entity": "late onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.9,
+      "evidence": "new genes associated with AD risk"
+    },
+    {
+      "source_entity": "CD2AP",
+      "target_entity": "late onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.9,
+      "evidence": "new genes associated with AD risk"
+    },
+    {
+      "source_entity": "CELF1",
+      "target_entity": "late onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.9,
+      "evidence": "new genes associated with AD risk"
+    },
+    {
+      "source_entity": "CLU",
+      "target_entity": "late onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.9,
+      "evidence": "new genes associated with AD risk"
+    },
+    {
+      "source_entity": "CR1",
+      "target_entity": "late onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.9,
+      "evidence": "new genes associated with AD risk"
+    },
+    {
+      "source_entity": "DSG2",
+      "target_entity": "late onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.9,
+      "evidence": "new genes associated with AD risk"
+    },
+    {
+      "source_entity": "EPHA1",
+      "target_entity": "late onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.9,
+      "evidence": "new genes associated with AD risk"
+    },
+    {
+      "source_entity": "FERMT2",
+      "target_entity": "late onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.9,
+      "evidence": "new genes associated with AD risk"
+    },
+    {
+      "source_entity": "HLA-DRB5",
+      "target_entity": "late onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.9,
+      "evidence": "new genes associated with AD risk"
+    },
+    {
+      "source_entity": "HLA-DRB1",
+      "target_entity": "late onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.9,
+      "evidence": "new genes associated with AD risk"
+    },
+    {
+      "source_entity": "INPP5D",
+      "target_entity": "late onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.9,
+      "evidence": "new genes associated with AD risk"
+    },
+    {
+      "source_entity": "MS4A",
+      "target_entity": "late onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.9,
+      "evidence": "new genes associated with AD risk"
+    },
+    {
+      "source_entity": "MEF2C",
+      "target_entity": "late onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.9,
+      "evidence": "new genes associated with AD risk"
+    },
+    {
+      "source_entity": "NME8",
+      "target_entity": "late onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.9,
+      "evidence": "new genes associated with AD risk"
+    },
+    {
+      "source_entity": "PICALM",
+      "target_entity": "late onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.9,
+      "evidence": "new genes associated with AD risk"
+    },
+    {
+      "source_entity": "PTK2B",
+      "target_entity": "late onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.9,
+      "evidence": "new genes associated with AD risk"
+    },
+    {
+      "source_entity": "SLC24A4",
+      "target_entity": "late onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.9,
+      "evidence": "new genes associated with AD risk"
+    },
+    {
+      "source_entity": "RIN3",
+      "target_entity": "late onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.9,
+      "evidence": "new genes associated with AD risk"
+    },
+    {
+      "source_entity": "SORL1",
+      "target_entity": "late onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.9,
+      "evidence": "new genes associated with AD risk"
+    },
+    {
+      "source_entity": "ZCWPW1",
+      "target_entity": "late onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.9,
+      "evidence": "new genes associated with AD risk"
+    },
+    {
+      "source_entity": "PLD3",
+      "target_entity": "late onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.9,
+      "evidence": "coding variants that increase AD risk: PLD3"
+    },
+    {
+      "source_entity": "TREM2",
+      "target_entity": "late onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.9,
+      "evidence": "coding variants that increase AD risk: ... TREM2"
+    }
+  ],
+  "cost_usd": 0.0,
+  "model_used": "claude-opus-4-6",
+  "domain_name": "Drug Discovery",
+  "chunk_size": 10000,
+  "extracted_at": "2026-03-16T21:15:56.574557+00:00",
+  "error": null
+}

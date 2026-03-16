@@ -1,0 +1,197 @@
+{
+  "document_id": "pmid_36552756",
+  "document_path": "pmid_36552756",
+  "chunks_processed": 1,
+  "entities": [
+    {
+      "name": "PICALM",
+      "description": "Phosphatidylinositol binding clathrin-assembly protein gene; most significant AD genetic susceptibility locus after APOE and BIN1",
+      "evidence": "PICALM (Phosphatidylinositol binding clathrin-assembly protein) gene as the most significant genetic susceptibility locus after APOE and BIN1",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "PICALM",
+      "description": "Clathrin-adaptor protein critical for clathrin-mediated endocytosis and autophagy",
+      "evidence": "PICALM is a clathrin-adaptor protein that plays a critical role in clathrin-mediated endocytosis and autophagy",
+      "confidence": 0.95,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "APOE",
+      "description": "Apolipoprotein E gene; top AD susceptibility locus",
+      "evidence": "the most significant genetic susceptibility locus after APOE and BIN1",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "BIN1",
+      "description": "Bridging integrator 1 gene; second most significant AD susceptibility locus after APOE",
+      "evidence": "the most significant genetic susceptibility locus after APOE and BIN1",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "APP",
+      "description": "Amyloid precursor protein gene; processing modulated by PICALM",
+      "evidence": "differential modulation of APP processing...by PICALM",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "amyloid precursor protein",
+      "description": "APP protein whose processing is modulated by PICALM",
+      "evidence": "differential modulation of APP processing",
+      "confidence": 0.95,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "amyloid beta",
+      "description": "A\u03b2 peptide; transcytosis modulated by PICALM",
+      "evidence": "A\u03b2 transcytosis by PICALM",
+      "confidence": 0.95,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "tau",
+      "description": "Tau protein; pathology progression modulated by PICALM",
+      "evidence": "significant effects of PICALM modulation of tau pathology progression",
+      "confidence": 0.9,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "Alzheimer disease",
+      "description": "Neurodegenerative disease; PICALM is major genetic risk factor",
+      "evidence": "PICALM and Alzheimer's Disease",
+      "confidence": 0.95,
+      "entity_type": "DISEASE"
+    },
+    {
+      "name": "clathrin-mediated endocytosis",
+      "description": "Endocytic pathway requiring PICALM as clathrin-adaptor protein",
+      "evidence": "PICALM is a clathrin-adaptor protein that plays a critical role in clathrin-mediated endocytosis",
+      "confidence": 0.95,
+      "entity_type": "PATHWAY"
+    },
+    {
+      "name": "autophagy",
+      "description": "Cellular degradation pathway regulated by PICALM",
+      "evidence": "plays a critical role in clathrin-mediated endocytosis and autophagy",
+      "confidence": 0.9,
+      "entity_type": "PATHWAY"
+    },
+    {
+      "name": "PICALM",
+      "description": "Genetic variants serve as AD susceptibility biomarker confirmed across independent cohorts",
+      "evidence": "effects of genetic variants of PICALM as AD-susceptibility loci have been confirmed by independent genetic studies in several distinct cohorts",
+      "confidence": 0.85,
+      "entity_type": "BIOMARKER"
+    },
+    {
+      "name": "amyloid beta transcytosis",
+      "description": "PICALM-mediated A\u03b2 transport across cellular barriers",
+      "evidence": "A\u03b2 transcytosis by PICALM",
+      "confidence": 0.9,
+      "entity_type": "MECHANISM_OF_ACTION"
+    },
+    {
+      "name": "tau pathology",
+      "description": "Tau pathology progression modulated by PICALM in AD models",
+      "evidence": "significant effects of PICALM modulation of tau pathology progression have also been evidenced in Alzheimer's disease models",
+      "confidence": 0.9,
+      "entity_type": "PHENOTYPE"
+    }
+  ],
+  "relations": [
+    {
+      "source_entity": "PICALM",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "PICALM gene as the most significant genetic susceptibility locus after APOE and BIN1",
+      "confidence": 0.95
+    },
+    {
+      "source_entity": "APOE",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "the most significant genetic susceptibility locus after APOE",
+      "confidence": 0.95
+    },
+    {
+      "source_entity": "BIN1",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "the most significant genetic susceptibility locus after APOE and BIN1",
+      "confidence": 0.95
+    },
+    {
+      "source_entity": "PICALM",
+      "target_entity": "clathrin-mediated endocytosis",
+      "relation_type": "PARTICIPATES_IN",
+      "evidence": "PICALM is a clathrin-adaptor protein that plays a critical role in clathrin-mediated endocytosis",
+      "confidence": 0.95
+    },
+    {
+      "source_entity": "PICALM",
+      "target_entity": "autophagy",
+      "relation_type": "PARTICIPATES_IN",
+      "evidence": "plays a critical role in clathrin-mediated endocytosis and autophagy",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "PICALM",
+      "target_entity": "amyloid precursor protein",
+      "relation_type": "REGULATES_EXPRESSION",
+      "evidence": "differential modulation of APP processing...by PICALM",
+      "confidence": 0.85
+    },
+    {
+      "source_entity": "PICALM",
+      "target_entity": "amyloid beta",
+      "relation_type": "ASSOCIATED_WITH",
+      "evidence": "A\u03b2 transcytosis by PICALM has been reported",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "PICALM",
+      "target_entity": "tau",
+      "relation_type": "ASSOCIATED_WITH",
+      "evidence": "significant effects of PICALM modulation of tau pathology progression have also been evidenced in Alzheimer's disease models",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "APP",
+      "target_entity": "amyloid precursor protein",
+      "relation_type": "ENCODES",
+      "evidence": "amyloid precursor protein (APP)",
+      "confidence": 0.95
+    },
+    {
+      "source_entity": "amyloid beta",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "A\u03b2 transcytosis...AD risk",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "tau",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "tau pathology progression...in Alzheimer's disease models",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "tau pathology",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "ASSOCIATED_WITH",
+      "evidence": "PICALM modulation of tau pathology progression have also been evidenced in Alzheimer's disease models",
+      "confidence": 0.9
+    }
+  ],
+  "cost_usd": 0.0,
+  "model_used": "claude-opus-4-6",
+  "domain_name": "Drug Discovery",
+  "chunk_size": 10000,
+  "extracted_at": "2026-03-16T21:17:11.228288+00:00",
+  "error": null
+}

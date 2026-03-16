@@ -1,0 +1,23 @@
+review_threshold: 0.7
+relations:
+- source_id: gene:gab2
+  source_name: GAB2
+  target_id: disease:alzheimer_disease
+  target_name: Alzheimer disease
+  relation_type: ASSOCIATED_WITH
+  confidence: 0.5
+  evidence: no significant association between SNPs of GAB2 rs2373115 (G > T) and
+    AD
+  source_document: pmid_26611835
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: sequence_variant:picalm_rs592297
+  source_name: PICALM rs592297
+  target_id: disease:alzheimer_disease
+  target_name: Alzheimer disease
+  relation_type: ASSOCIATED_WITH
+  confidence: 0.4
+  evidence: No association was observed for rs592297
+  source_document: pmid_31385771
+  status: DRAFT
+  flag_reason: Low confidence (0.40 < 0.7)

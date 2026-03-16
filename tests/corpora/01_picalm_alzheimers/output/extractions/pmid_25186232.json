@@ -1,0 +1,176 @@
+{
+  "document_id": "pmid_25186232",
+  "document_path": "pmid_25186232",
+  "chunks_processed": 1,
+  "entities": [
+    {
+      "name": "Alzheimer disease",
+      "description": "Highly heritable neurodegenerative disease with heritability up to 76%",
+      "confidence": 0.95,
+      "evidence": "Alzheimer's disease (AD) is a highly heritable disease (with heritability up to 76%)",
+      "entity_type": "DISEASE"
+    },
+    {
+      "name": "late onset Alzheimer disease",
+      "description": "Late-onset form of AD; PICALM is a susceptibility locus",
+      "confidence": 0.95,
+      "evidence": "susceptibility locus for late-onset Alzheimer's disease (LOAD)",
+      "entity_type": "DISEASE"
+    },
+    {
+      "name": "PICALM",
+      "description": "Phosphatidylinositol-binding clathrin assembly protein gene; LOAD susceptibility locus",
+      "confidence": 0.95,
+      "evidence": "phosphatidylinositol-binding clathrin assembly protein (PICALM) gene as a susceptibility locus for late-onset Alzheimer's disease",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "PICALM",
+      "description": "Phosphatidylinositol-binding clathrin assembly protein; modulates amyloid-beta production, transport, and clearance",
+      "confidence": 0.95,
+      "evidence": "PICALM affects AD risk primarily by modulating production, transportation, and clearance of beta-amyloid (Abeta) peptide",
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "amyloid-beta",
+      "description": "Beta-amyloid peptide; its production, transport, and clearance are modulated by PICALM",
+      "confidence": 0.95,
+      "evidence": "modulating production, transportation, and clearance of beta-amyloid (Abeta) peptide",
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "tau",
+      "description": "Tau protein implicated in tauopathy pathway of AD",
+      "confidence": 0.8,
+      "evidence": "other Abeta-independent pathways are discussed, including tauopathy",
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "tauopathy",
+      "description": "Tau-related pathology discussed as Abeta-independent pathway in PICALM-mediated AD",
+      "confidence": 0.8,
+      "evidence": "including tauopathy",
+      "entity_type": "PHENOTYPE"
+    },
+    {
+      "name": "synaptic dysfunction",
+      "description": "Disruption of synaptic function; Abeta-independent pathway in PICALM-mediated AD",
+      "confidence": 0.8,
+      "evidence": "including ... synaptic dysfunction",
+      "entity_type": "PHENOTYPE"
+    },
+    {
+      "name": "clathrin-mediated endocytosis",
+      "description": "Endocytic pathway involving clathrin assembly; PICALM participates in this pathway",
+      "confidence": 0.85,
+      "evidence": "phosphatidylinositol-binding clathrin assembly protein",
+      "entity_type": "PATHWAY"
+    },
+    {
+      "name": "amyloid-beta clearance",
+      "description": "Clearance mechanism for amyloid-beta peptide modulated by PICALM",
+      "confidence": 0.9,
+      "evidence": "modulating production, transportation, and clearance of beta-amyloid (Abeta) peptide",
+      "entity_type": "MECHANISM_OF_ACTION"
+    },
+    {
+      "name": "lipid metabolism",
+      "description": "Lipid metabolism pathway disrupted in PICALM-associated AD",
+      "confidence": 0.75,
+      "evidence": "disorganized lipid metabolism",
+      "entity_type": "PATHWAY"
+    },
+    {
+      "name": "iron homeostasis",
+      "description": "Iron homeostasis pathway disrupted in PICALM-associated AD",
+      "confidence": 0.75,
+      "evidence": "disrupted iron homeostasis",
+      "entity_type": "PATHWAY"
+    },
+    {
+      "name": "immune response",
+      "description": "Immune disorder pathway discussed in PICALM-associated AD",
+      "confidence": 0.75,
+      "evidence": "immune disorder",
+      "entity_type": "PATHWAY"
+    }
+  ],
+  "relations": [
+    {
+      "source_entity": "PICALM",
+      "target_entity": "late onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.95,
+      "evidence": "PICALM gene as a susceptibility locus for late-onset Alzheimer's disease (LOAD) incidence"
+    },
+    {
+      "source_entity": "PICALM",
+      "target_entity": "amyloid-beta",
+      "relation_type": "REGULATES_EXPRESSION",
+      "confidence": 0.85,
+      "evidence": "PICALM affects AD risk primarily by modulating production, transportation, and clearance of beta-amyloid (Abeta) peptide"
+    },
+    {
+      "source_entity": "PICALM",
+      "target_entity": "clathrin-mediated endocytosis",
+      "relation_type": "PARTICIPATES_IN",
+      "confidence": 0.9,
+      "evidence": "phosphatidylinositol-binding clathrin assembly protein"
+    },
+    {
+      "source_entity": "PICALM",
+      "target_entity": "amyloid-beta clearance",
+      "relation_type": "HAS_MECHANISM",
+      "confidence": 0.9,
+      "evidence": "PICALM affects AD risk primarily by modulating production, transportation, and clearance of beta-amyloid (Abeta) peptide"
+    },
+    {
+      "source_entity": "PICALM",
+      "target_entity": "tauopathy",
+      "relation_type": "ASSOCIATED_WITH",
+      "confidence": 0.75,
+      "evidence": "other Abeta-independent pathways are discussed, including tauopathy"
+    },
+    {
+      "source_entity": "PICALM",
+      "target_entity": "synaptic dysfunction",
+      "relation_type": "ASSOCIATED_WITH",
+      "confidence": 0.75,
+      "evidence": "other Abeta-independent pathways are discussed, including ... synaptic dysfunction"
+    },
+    {
+      "source_entity": "PICALM",
+      "target_entity": "lipid metabolism",
+      "relation_type": "PARTICIPATES_IN",
+      "confidence": 0.7,
+      "evidence": "disorganized lipid metabolism"
+    },
+    {
+      "source_entity": "PICALM",
+      "target_entity": "iron homeostasis",
+      "relation_type": "PARTICIPATES_IN",
+      "confidence": 0.7,
+      "evidence": "disrupted iron homeostasis"
+    },
+    {
+      "source_entity": "PICALM",
+      "target_entity": "immune response",
+      "relation_type": "PARTICIPATES_IN",
+      "confidence": 0.7,
+      "evidence": "immune disorder"
+    },
+    {
+      "source_entity": "amyloid-beta",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.9,
+      "evidence": "modulating production, transportation, and clearance of beta-amyloid (Abeta) peptide"
+    }
+  ],
+  "cost_usd": 0.0,
+  "model_used": "claude-opus-4-6",
+  "domain_name": "Drug Discovery",
+  "chunk_size": 10000,
+  "extracted_at": "2026-03-16T21:16:09.182499+00:00",
+  "error": null
+}

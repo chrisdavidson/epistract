@@ -1,0 +1,413 @@
+{
+  "generated_at": "2026-03-16T21:18:49.690566+00:00",
+  "output_dir": "/Users/umeshbhatt/code/epistract/tests/corpora/01_picalm_alzheimers/output",
+  "stats": {
+    "files_scanned": 15,
+    "total_matches": 21,
+    "valid": 0,
+    "invalid": 21,
+    "unvalidated": 0,
+    "found": 0,
+    "by_type": {
+      "SMILES": 21
+    },
+    "rdkit_available": true,
+    "biopython_available": true,
+    "enrichment": {
+      "entities_added": 0,
+      "relations_added": 0
+    }
+  },
+  "files": [
+    {
+      "file": "pmid_21167244.json",
+      "document_id": "pmid_21167244",
+      "matches_found": 1,
+      "results": [
+        {
+          "pattern_type": "SMILES",
+          "value": "(apolipoprotein",
+          "entity_type": "CHEMICAL_STRUCTURE",
+          "context": " major risk promoting genes in Alzheimers disease (apolipoprotein E, clusterin, complement receptor 1 and PICALM)",
+          "validation": {
+            "valid": false,
+            "input": "(apolipoprotein",
+            "error": "Invalid SMILES"
+          },
+          "status": "invalid",
+          "source_file": "pmid_21167244.json",
+          "source_field": "relations[0].evidence"
+        }
+      ]
+    },
+    {
+      "file": "pmid_21300948.json",
+      "document_id": "pmid_21300948",
+      "matches_found": 3,
+      "results": [
+        {
+          "pattern_type": "SMILES",
+          "value": "(PICALM)",
+          "entity_type": "CHEMICAL_STRUCTURE",
+          "context": "hatidylinositol binding clathrin assembly protein (PICALM)",
+          "validation": {
+            "valid": false,
+            "input": "(PICALM)",
+            "error": "Invalid SMILES"
+          },
+          "status": "invalid",
+          "source_file": "pmid_21300948.json",
+          "source_field": "relations[5].evidence"
+        },
+        {
+          "pattern_type": "SMILES",
+          "value": "(2-tailed",
+          "entity_type": "CHEMICAL_STRUCTURE",
+          "context": "e is associated with decreased CSF Abeta42 levels (2-tailed P = .002)",
+          "validation": {
+            "valid": false,
+            "input": "(2-tailed",
+            "error": "Invalid SMILES"
+          },
+          "status": "invalid",
+          "source_file": "pmid_21300948.json",
+          "source_field": "relations[7].evidence"
+        },
+        {
+          "pattern_type": "SMILES",
+          "value": "(CSF)-Abeta42",
+          "entity_type": "CHEMICAL_STRUCTURE",
+          "context": "he impact of these markers on cerebrospinal fluid (CSF)-Abeta42 and total-tau protein levels",
+          "validation": {
+            "valid": false,
+            "input": "(CSF)-Abeta42",
+            "error": "Invalid SMILES"
+          },
+          "status": "invalid",
+          "source_file": "pmid_21300948.json",
+          "source_field": "relations[10].evidence"
+        }
+      ]
+    },
+    {
+      "file": "pmid_24067654.json",
+      "document_id": "pmid_24067654",
+      "matches_found": 4,
+      "results": [
+        {
+          "pattern_type": "SMILES",
+          "value": "(PICALM)",
+          "entity_type": "CHEMICAL_STRUCTURE",
+          "context": "sitol clathrin assembly lymphoid-myeloid leukemia (PICALM)",
+          "validation": {
+            "valid": false,
+            "input": "(PICALM)",
+            "error": "Invalid SMILES"
+          },
+          "status": "invalid",
+          "source_file": "pmid_24067654.json",
+          "source_field": "relations[9].evidence"
+        },
+        {
+          "pattern_type": "SMILES",
+          "value": "(APP-CTF)",
+          "entity_type": "CHEMICAL_STRUCTURE",
+          "context": "oid precursor protein cleaved C-terminal fragment (APP-CTF)",
+          "validation": {
+            "valid": false,
+            "input": "(APP-CTF)",
+            "error": "Invalid SMILES"
+          },
+          "status": "invalid",
+          "source_file": "pmid_24067654.json",
+          "source_field": "relations[10].evidence"
+        },
+        {
+          "pattern_type": "SMILES",
+          "value": "AP-2/PICALM",
+          "entity_type": "CHEMICAL_STRUCTURE",
+          "context": "AP-2/PICALM complex functions as an autophagic cargo receptor",
+          "validation": {
+            "valid": false,
+            "input": "AP-2/PICALM",
+            "error": "Invalid SMILES"
+          },
+          "status": "invalid",
+          "source_file": "pmid_24067654.json",
+          "source_field": "relations[12].evidence"
+        },
+        {
+          "pattern_type": "SMILES",
+          "value": "AP2/PICALM",
+          "entity_type": "CHEMICAL_STRUCTURE",
+          "context": "argo receptor... This molecular mechanism linking AP2/PICALM and AD",
+          "validation": {
+            "valid": false,
+            "input": "AP2/PICALM",
+            "error": "Invalid SMILES"
+          },
+          "status": "invalid",
+          "source_file": "pmid_24067654.json",
+          "source_field": "relations[12].evidence"
+        }
+      ]
+    },
+    {
+      "file": "pmid_24729694.json",
+      "document_id": "pmid_24729694",
+      "matches_found": 0,
+      "results": []
+    },
+    {
+      "file": "pmid_24951455.json",
+      "document_id": "pmid_24951455",
+      "matches_found": 0,
+      "results": []
+    },
+    {
+      "file": "pmid_25186232.json",
+      "document_id": "pmid_25186232",
+      "matches_found": 0,
+      "results": []
+    },
+    {
+      "file": "pmid_25311924.json",
+      "document_id": "pmid_25311924",
+      "matches_found": 5,
+      "results": [
+        {
+          "pattern_type": "SMILES",
+          "value": "(PICALM)",
+          "entity_type": "CHEMICAL_STRUCTURE",
+          "context": "hatidylinositol-binding clathrin assembly protein (PICALM)",
+          "validation": {
+            "valid": false,
+            "input": "(PICALM)",
+            "error": "Invalid SMILES"
+          },
+          "status": "invalid",
+          "source_file": "pmid_25311924.json",
+          "source_field": "relations[9].evidence"
+        },
+        {
+          "pattern_type": "SMILES",
+          "value": "MS4A4/MS4A6",
+          "entity_type": "CHEMICAL_STRUCTURE",
+          "context": "MS4A4/MS4A6",
+          "validation": {
+            "valid": false,
+            "input": "MS4A4/MS4A6",
+            "error": "Invalid SMILES"
+          },
+          "status": "invalid",
+          "source_file": "pmid_25311924.json",
+          "source_field": "relations[12].evidence"
+        },
+        {
+          "pattern_type": "SMILES",
+          "value": "MS4A4/MS4A6",
+          "entity_type": "CHEMICAL_STRUCTURE",
+          "context": "MS4A4/MS4A6",
+          "validation": {
+            "valid": false,
+            "input": "MS4A4/MS4A6",
+            "error": "Invalid SMILES"
+          },
+          "status": "invalid",
+          "source_file": "pmid_25311924.json",
+          "source_field": "relations[13].evidence"
+        },
+        {
+          "pattern_type": "SMILES",
+          "value": "HLA-DRB5/DRB1",
+          "entity_type": "CHEMICAL_STRUCTURE",
+          "context": "HLA-DRB5/DRB1",
+          "validation": {
+            "valid": false,
+            "input": "HLA-DRB5/DRB1",
+            "error": "Invalid SMILES"
+          },
+          "status": "invalid",
+          "source_file": "pmid_25311924.json",
+          "source_field": "relations[16].evidence"
+        },
+        {
+          "pattern_type": "SMILES",
+          "value": "HLA-DRB5/DRB1",
+          "entity_type": "CHEMICAL_STRUCTURE",
+          "context": "HLA-DRB5/DRB1",
+          "validation": {
+            "valid": false,
+            "input": "HLA-DRB5/DRB1",
+            "error": "Invalid SMILES"
+          },
+          "status": "invalid",
+          "source_file": "pmid_25311924.json",
+          "source_field": "relations[17].evidence"
+        }
+      ]
+    },
+    {
+      "file": "pmid_26611835.json",
+      "document_id": "pmid_26611835",
+      "matches_found": 0,
+      "results": []
+    },
+    {
+      "file": "pmid_31385771.json",
+      "document_id": "pmid_31385771",
+      "matches_found": 0,
+      "results": []
+    },
+    {
+      "file": "pmid_33453937.json",
+      "document_id": "pmid_33453937",
+      "matches_found": 0,
+      "results": []
+    },
+    {
+      "file": "pmid_34130600.json",
+      "document_id": "pmid_34130600",
+      "matches_found": 6,
+      "results": [
+        {
+          "pattern_type": "SMILES",
+          "value": "disorders]",
+          "entity_type": "CHEMICAL_STRUCTURE",
+          "context": "[listed among autophagy-related neurodegenerative disorders]",
+          "validation": {
+            "valid": false,
+            "input": "disorders]",
+            "error": "Invalid SMILES"
+          },
+          "status": "invalid",
+          "source_file": "pmid_34130600.json",
+          "source_field": "relations[0].evidence"
+        },
+        {
+          "pattern_type": "SMILES",
+          "value": "disorders]",
+          "entity_type": "CHEMICAL_STRUCTURE",
+          "context": "Parkinson disease [listed among autophagy-related disorders]",
+          "validation": {
+            "valid": false,
+            "input": "disorders]",
+            "error": "Invalid SMILES"
+          },
+          "status": "invalid",
+          "source_file": "pmid_34130600.json",
+          "source_field": "relations[1].evidence"
+        },
+        {
+          "pattern_type": "SMILES",
+          "value": "disorders]",
+          "entity_type": "CHEMICAL_STRUCTURE",
+          "context": "temporal dementia [listed among autophagy-related disorders]",
+          "validation": {
+            "valid": false,
+            "input": "disorders]",
+            "error": "Invalid SMILES"
+          },
+          "status": "invalid",
+          "source_file": "pmid_34130600.json",
+          "source_field": "relations[2].evidence"
+        },
+        {
+          "pattern_type": "SMILES",
+          "value": "disorders]",
+          "entity_type": "CHEMICAL_STRUCTURE",
+          "context": "untington disease [listed among autophagy-related disorders]",
+          "validation": {
+            "valid": false,
+            "input": "disorders]",
+            "error": "Invalid SMILES"
+          },
+          "status": "invalid",
+          "source_file": "pmid_34130600.json",
+          "source_field": "relations[3].evidence"
+        },
+        {
+          "pattern_type": "SMILES",
+          "value": "regulator]",
+          "entity_type": "CHEMICAL_STRUCTURE",
+          "context": "anistic target of rapamycin kinase [key autophagy regulator]",
+          "validation": {
+            "valid": false,
+            "input": "regulator]",
+            "error": "Invalid SMILES"
+          },
+          "status": "invalid",
+          "source_file": "pmid_34130600.json",
+          "source_field": "relations[8].evidence"
+        },
+        {
+          "pattern_type": "SMILES",
+          "value": "context]",
+          "entity_type": "CHEMICAL_STRUCTURE",
+          "context": "ucocerebrosidase [known PD risk gene in autophagy context]",
+          "validation": {
+            "valid": false,
+            "input": "context]",
+            "error": "Invalid SMILES"
+          },
+          "status": "invalid",
+          "source_file": "pmid_34130600.json",
+          "source_field": "relations[9].evidence"
+        }
+      ]
+    },
+    {
+      "file": "pmid_36552756.json",
+      "document_id": "pmid_36552756",
+      "matches_found": 0,
+      "results": []
+    },
+    {
+      "file": "pmid_38915309.json",
+      "document_id": "pmid_38915309",
+      "matches_found": 2,
+      "results": [
+        {
+          "pattern_type": "SMILES",
+          "value": "(PICALM)",
+          "entity_type": "CHEMICAL_STRUCTURE",
+          "context": "ylinositol Binding Clathrin Assembly Protein gene (PICALM)",
+          "validation": {
+            "valid": false,
+            "input": "(PICALM)",
+            "error": "Invalid SMILES"
+          },
+          "status": "invalid",
+          "source_file": "pmid_38915309.json",
+          "source_field": "relations[2].evidence"
+        },
+        {
+          "pattern_type": "SMILES",
+          "value": "(ITSN1-L)",
+          "entity_type": "CHEMICAL_STRUCTURE",
+          "context": "ITSN1-long (ITSN1-L)",
+          "validation": {
+            "valid": false,
+            "input": "(ITSN1-L)",
+            "error": "Invalid SMILES"
+          },
+          "status": "invalid",
+          "source_file": "pmid_38915309.json",
+          "source_field": "relations[6].evidence"
+        }
+      ]
+    },
+    {
+      "file": "pmid_40903578.json",
+      "document_id": "pmid_40903578",
+      "matches_found": 0,
+      "results": []
+    },
+    {
+      "file": "pmid_41315858.json",
+      "document_id": "pmid_41315858",
+      "matches_found": 0,
+      "results": []
+    }
+  ]
+}

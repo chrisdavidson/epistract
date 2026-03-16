@@ -1,0 +1,246 @@
+{
+  "document_id": "pmid_34130600",
+  "document_path": "pmid_34130600",
+  "chunks_processed": 1,
+  "entities": [
+    {
+      "name": "autophagy",
+      "description": "Core cellular degradation pathway; primary dysfunction causes genetic neurodevelopmental and neurodegenerative disorders",
+      "evidence": "Primary dysfunction of autophagy due to Mendelian defects affecting core components of the autophagy machinery",
+      "confidence": 0.95,
+      "entity_type": "PATHWAY"
+    },
+    {
+      "name": "Alzheimer disease",
+      "description": "Neurodegenerative disorder abbreviated AD in context of autophagy disorders",
+      "evidence": "AD: Alzheimer disease",
+      "confidence": 0.95,
+      "entity_type": "DISEASE"
+    },
+    {
+      "name": "Parkinson disease",
+      "description": "Neurodegenerative disorder associated with autophagy defects",
+      "evidence": "PD: Parkinson disease",
+      "confidence": 0.95,
+      "entity_type": "DISEASE"
+    },
+    {
+      "name": "frontotemporal dementia",
+      "description": "Neurodegenerative disorder associated with autophagy dysfunction",
+      "evidence": "FTD: frontotemporal dementia",
+      "confidence": 0.95,
+      "entity_type": "DISEASE"
+    },
+    {
+      "name": "Huntington disease",
+      "description": "Neurodegenerative disorder abbreviated HD",
+      "evidence": "HD: Huntington disease",
+      "confidence": 0.95,
+      "entity_type": "DISEASE"
+    },
+    {
+      "name": "beta-propeller protein associated neurodegeneration",
+      "description": "BPAN, early-onset neurodegenerative disorder due to WDR45 defects",
+      "evidence": "BPAN: beta-propeller protein associated neurodegeneration",
+      "confidence": 0.95,
+      "entity_type": "DISEASE"
+    },
+    {
+      "name": "BIN1",
+      "description": "Bridging integrator 1 gene",
+      "evidence": "BIN1: bridging integrator 1",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "CHMP2B",
+      "description": "Charged multivesicular body protein 2B gene",
+      "evidence": "CHMP2B: charged multivesicular body protein 2B",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "EPG5",
+      "description": "Ectopic P-granules autophagy protein 5 homolog gene",
+      "evidence": "EPG5: ectopic P-granules autophagy protein 5 homolog",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "FIG4",
+      "description": "FIG4 phosphoinositide 5-phosphatase gene",
+      "evidence": "FIG4: FIG4 phosphoinositide 5-phosphatase",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "GBA",
+      "description": "Glucocerebrosidase gene",
+      "evidence": "GBA: glucocerebrosidase",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "MTOR",
+      "description": "Mechanistic target of rapamycin kinase gene",
+      "evidence": "MTOR: mechanistic target of rapamycin kinase",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "SQSTM1",
+      "description": "Sequestosome 1 gene encoding p62 protein",
+      "evidence": "SQSTM1: sequestosome 1",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "VCP",
+      "description": "Valosin-containing protein gene",
+      "evidence": "VCP: valosin-containing protein",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "WDR45",
+      "description": "WD repeat domain 45 gene, defects cause BPAN",
+      "evidence": "WDR45: WD repeat domain 45",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "MTOR",
+      "description": "Mechanistic target of rapamycin kinase protein, regulates autophagy",
+      "evidence": "MTOR: mechanistic target of rapamycin kinase",
+      "confidence": 0.9,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "spasticity",
+      "description": "Neurological feature of congenital autophagy disorders",
+      "evidence": "spasticity and peripheral nerve pathology are prominent neurological features",
+      "confidence": 0.9,
+      "entity_type": "PHENOTYPE"
+    },
+    {
+      "name": "peripheral nerve pathology",
+      "description": "Neurological manifestation in autophagy disorders",
+      "evidence": "peripheral nerve pathology are prominent neurological features",
+      "confidence": 0.9,
+      "entity_type": "PHENOTYPE"
+    },
+    {
+      "name": "cerebellar involvement",
+      "description": "CNS structural abnormality in autophagy disorders",
+      "evidence": "Structural CNS abnormalities, cerebellar involvement",
+      "confidence": 0.9,
+      "entity_type": "PHENOTYPE"
+    },
+    {
+      "name": "myopathy",
+      "description": "Associated neuromuscular manifestation in several autophagy disorders",
+      "evidence": "an associated myopathy has been characterized in several conditions",
+      "confidence": 0.9,
+      "entity_type": "PHENOTYPE"
+    },
+    {
+      "name": "lysosomal storage disorders",
+      "description": "Differential diagnosis for autophagy disorders",
+      "evidence": "mitochondrial, glycogen and lysosomal storage disorders",
+      "confidence": 0.85,
+      "entity_type": "DISEASE"
+    },
+    {
+      "name": "neurodevelopmental disorders",
+      "description": "Early-onset manifestation of autophagy dysfunction",
+      "evidence": "severe early-onset neurodevelopmental...disorders",
+      "confidence": 0.9,
+      "entity_type": "DISEASE"
+    }
+  ],
+  "relations": [
+    {
+      "source_entity": "autophagy",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "AD: Alzheimer disease [listed among autophagy-related neurodegenerative disorders]",
+      "confidence": 0.85
+    },
+    {
+      "source_entity": "autophagy",
+      "target_entity": "Parkinson disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "PD: Parkinson disease [listed among autophagy-related disorders]",
+      "confidence": 0.85
+    },
+    {
+      "source_entity": "autophagy",
+      "target_entity": "frontotemporal dementia",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "FTD: frontotemporal dementia [listed among autophagy-related disorders]",
+      "confidence": 0.85
+    },
+    {
+      "source_entity": "autophagy",
+      "target_entity": "Huntington disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "HD: Huntington disease [listed among autophagy-related disorders]",
+      "confidence": 0.85
+    },
+    {
+      "source_entity": "WDR45",
+      "target_entity": "beta-propeller protein associated neurodegeneration",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "BPAN: beta-propeller protein associated neurodegeneration; WDR45: WD repeat domain 45",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "autophagy",
+      "target_entity": "neurodevelopmental disorders",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "Primary dysfunction of autophagy...important cause of genetic disease...severe early-onset neurodevelopmental...disorders",
+      "confidence": 0.92
+    },
+    {
+      "source_entity": "autophagy",
+      "target_entity": "spasticity",
+      "relation_type": "ASSOCIATED_WITH",
+      "evidence": "spasticity...prominent neurological features, indicating a specific vulnerability of certain neuronal populations to autophagic disturbance",
+      "confidence": 0.88
+    },
+    {
+      "source_entity": "autophagy",
+      "target_entity": "myopathy",
+      "relation_type": "ASSOCIATED_WITH",
+      "evidence": "an associated myopathy has been characterized in several conditions",
+      "confidence": 0.85
+    },
+    {
+      "source_entity": "MTOR",
+      "target_entity": "autophagy",
+      "relation_type": "REGULATES_EXPRESSION",
+      "evidence": "MTOR: mechanistic target of rapamycin kinase [key autophagy regulator]",
+      "confidence": 0.85
+    },
+    {
+      "source_entity": "GBA",
+      "target_entity": "Parkinson disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "GBA: glucocerebrosidase [known PD risk gene in autophagy context]",
+      "confidence": 0.75
+    },
+    {
+      "source_entity": "CHMP2B",
+      "target_entity": "frontotemporal dementia",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "CHMP2B: charged multivesicular body protein 2B; FTD: frontotemporal dementia",
+      "confidence": 0.8
+    }
+  ],
+  "cost_usd": 0.0,
+  "model_used": "claude-opus-4-6",
+  "domain_name": "Drug Discovery",
+  "chunk_size": 10000,
+  "extracted_at": "2026-03-16T21:16:51.337914+00:00",
+  "error": null
+}

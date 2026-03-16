@@ -1,0 +1,114 @@
+{
+  "document_id": "pmid_31385771",
+  "document_path": "",
+  "chunks_processed": 1,
+  "entities": [
+    {
+      "name": "Alzheimer disease",
+      "description": "Neurodegenerative disease; PICALM gene polymorphisms examined for susceptibility",
+      "confidence": 0.95,
+      "evidence": "polymorphisms of the PICALM gene in susceptibility to Alzheimer's disease (AD)",
+      "entity_type": "DISEASE"
+    },
+    {
+      "name": "PICALM",
+      "description": "Phosphatidylinositol-binding clathrin assembly protein gene; three polymorphisms examined for AD susceptibility",
+      "confidence": 0.95,
+      "evidence": "three polymorphisms (rs3851179, rs541458, and rs592297) of the PICALM gene",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "PICALM rs3851179",
+      "description": "SNP in PICALM; A allele associated with decreased risk of AD (OR=0.88); significant across genetic models",
+      "confidence": 0.95,
+      "evidence": "A carriers of rs3851179 were associated with a decreased risk of AD (OR = 0.88; 95% CI 0.84, 0.91)",
+      "entity_type": "SEQUENCE_VARIANT"
+    },
+    {
+      "name": "PICALM rs541458",
+      "description": "SNP in PICALM; C allele inversely associated with AD risk (OR=0.86); protective effect only in Caucasians",
+      "confidence": 0.95,
+      "evidence": "C carriers of rs541458 were inversely associated with AD risk (OR = 0.86; 95% CI 0.81, 0.92)",
+      "entity_type": "SEQUENCE_VARIANT"
+    },
+    {
+      "name": "PICALM rs592297",
+      "description": "SNP in PICALM; no association with AD observed",
+      "confidence": 0.95,
+      "evidence": "No association was observed for rs592297",
+      "entity_type": "SEQUENCE_VARIANT"
+    }
+  ],
+  "relations": [
+    {
+      "source_entity": "PICALM",
+      "target_entity": "Alzheimer disease",
+      "confidence": 0.95,
+      "evidence": "three polymorphisms of the PICALM gene in susceptibility to Alzheimer's disease",
+      "properties": {
+        "context": "rs3851179 and rs541458 significantly associated"
+      },
+      "relation_type": "IMPLICATED_IN"
+    },
+    {
+      "source_entity": "PICALM",
+      "target_entity": "PICALM rs3851179",
+      "confidence": 0.95,
+      "evidence": "rs3851179 of the PICALM gene",
+      "properties": {},
+      "relation_type": "HAS_VARIANT"
+    },
+    {
+      "source_entity": "PICALM",
+      "target_entity": "PICALM rs541458",
+      "confidence": 0.95,
+      "evidence": "rs541458 of the PICALM gene",
+      "properties": {},
+      "relation_type": "HAS_VARIANT"
+    },
+    {
+      "source_entity": "PICALM",
+      "target_entity": "PICALM rs592297",
+      "confidence": 0.95,
+      "evidence": "rs592297 of the PICALM gene",
+      "properties": {},
+      "relation_type": "HAS_VARIANT"
+    },
+    {
+      "source_entity": "PICALM rs3851179",
+      "target_entity": "Alzheimer disease",
+      "confidence": 0.95,
+      "evidence": "A carriers of rs3851179 were associated with a decreased risk of AD (OR = 0.88; 95% CI 0.84, 0.91)",
+      "properties": {
+        "context": "Protective; A allele OR=0.88, 20 studies, 9017 cases/15448 controls"
+      },
+      "relation_type": "ASSOCIATED_WITH"
+    },
+    {
+      "source_entity": "PICALM rs541458",
+      "target_entity": "Alzheimer disease",
+      "confidence": 0.95,
+      "evidence": "C carriers of rs541458 were inversely associated with AD risk (OR = 0.86; 95% CI 0.81, 0.92)",
+      "properties": {
+        "context": "Protective; C allele OR=0.86, 12 studies, 8077 cases/12022 controls; Caucasians only"
+      },
+      "relation_type": "ASSOCIATED_WITH"
+    },
+    {
+      "source_entity": "PICALM rs592297",
+      "target_entity": "Alzheimer disease",
+      "confidence": 0.4,
+      "evidence": "No association was observed for rs592297",
+      "properties": {
+        "context": "Negative result; 4 studies, 2106 cases/2234 controls"
+      },
+      "relation_type": "ASSOCIATED_WITH"
+    }
+  ],
+  "cost_usd": 0.0,
+  "model_used": "claude-opus-4-6",
+  "domain_name": "Drug Discovery",
+  "chunk_size": 10000,
+  "extracted_at": "2026-03-16T21:17:47.196927+00:00",
+  "error": null
+}

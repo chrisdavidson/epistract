@@ -1,0 +1,267 @@
+{
+  "document_id": "pmid_38915309",
+  "document_path": "",
+  "chunks_processed": 1,
+  "entities": [
+    {
+      "name": "ITSN1",
+      "description": "Intersectin 1, a clathrin mediated endocytosis scaffolding protein",
+      "evidence": "Intersectin 1 (ITSN1)",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "PICALM",
+      "description": "Phosphatidylinositol Binding Clathrin Assembly Protein gene",
+      "evidence": "Phosphatidylinositol Binding Clathrin Assembly Protein gene (PICALM)",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "CLTC",
+      "description": "Clathrin Light Chain gene",
+      "evidence": "Clathrin Light Chain (CLT)",
+      "confidence": 0.9,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "FCHO1",
+      "description": "FCH and Mu Domain Containing Endocytic Adaptor 1",
+      "evidence": "FCH and Mu Domain Containing Endocytic Adaptor 1 (FCHO1)",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "AP2A1",
+      "description": "Adaptor Related Protein Complex 2 Subunit Alpha 1",
+      "evidence": "Adaptor Related Protein Complex 2 (AP2) Subunit Alpha 1 (AP2A1)",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "DNM2",
+      "description": "Dynamin 2",
+      "evidence": "Dynamin 2 (DNM2)",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "intersectin 1-long",
+      "description": "Long isoform of intersectin 1 protein (ITSN1-L)",
+      "evidence": "ITSN1-long (ITSN1-L) was decreased in the FC of males",
+      "confidence": 0.95,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "intersectin 1-short",
+      "description": "Short isoform of intersectin 1 protein (ITSN1-S)",
+      "evidence": "ITSN1-short was increased in the HP of both males and females",
+      "confidence": 0.95,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "amyloid-beta",
+      "description": "Amyloid-beta peptide, accumulates as plaques in AD",
+      "evidence": "accumulation of amyloid-beta (A\u03b2) plaques",
+      "confidence": 0.95,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "tau",
+      "description": "Tau protein forming neurofibrillary tangles in AD",
+      "evidence": "neurofibrillary Tau tangles in the brain",
+      "confidence": 0.95,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "Alzheimer disease",
+      "description": "Most common form of dementia characterized by A\u03b2 plaques and tau tangles",
+      "evidence": "Alzheimer's disease (AD) is the most common form of dementia",
+      "confidence": 0.95,
+      "entity_type": "DISEASE"
+    },
+    {
+      "name": "dementia",
+      "description": "Neurodegenerative condition; AD is most common form",
+      "evidence": "the most common form of dementia",
+      "confidence": 0.9,
+      "entity_type": "DISEASE"
+    },
+    {
+      "name": "clathrin mediated endocytosis",
+      "description": "Endocytic pathway altered in AD brain cells",
+      "evidence": "clathrin mediated endocytosis (CME) was selected for further investigation",
+      "confidence": 0.95,
+      "entity_type": "PATHWAY"
+    },
+    {
+      "name": "enlarged early endosomes",
+      "description": "Early cellular phenotype in AD related to CME dysfunction",
+      "evidence": "early cellular phenotypes such as enlarged early endosomes",
+      "confidence": 0.9,
+      "entity_type": "PHENOTYPE"
+    },
+    {
+      "name": "amyloid-beta plaque accumulation",
+      "description": "Accumulation of A\u03b2 plaques in the brain",
+      "evidence": "accumulation of amyloid-beta (A\u03b2) plaques",
+      "confidence": 0.95,
+      "entity_type": "PHENOTYPE"
+    },
+    {
+      "name": "neurofibrillary tangles",
+      "description": "Tau tangles characteristic of AD",
+      "evidence": "neurofibrillary Tau tangles in the brain",
+      "confidence": 0.95,
+      "entity_type": "PHENOTYPE"
+    },
+    {
+      "name": "frontal cortex",
+      "description": "Brain region examined in the study (FC)",
+      "evidence": "frontal cortex (FC; AD n = 22, CTL n = 23)",
+      "confidence": 0.95,
+      "entity_type": "CELL_OR_TISSUE"
+    },
+    {
+      "name": "hippocampus",
+      "description": "Brain region examined in the study (HP)",
+      "evidence": "hippocampus (HP; AD n = 34, CTL n = 22)",
+      "confidence": 0.95,
+      "entity_type": "CELL_OR_TISSUE"
+    },
+    {
+      "name": "hippocampal neurons",
+      "description": "Primary hippocampal neurons from 5xFAD mice",
+      "evidence": "immunofluorescent staining of 5xFAD primary HP neurons",
+      "confidence": 0.9,
+      "entity_type": "CELL_OR_TISSUE"
+    }
+  ],
+  "relations": [
+    {
+      "source_entity": "clathrin mediated endocytosis",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "CME is altered in multiple brain cell types in AD and is implicated in early cellular phenotypes",
+      "confidence": 0.95
+    },
+    {
+      "source_entity": "ITSN1",
+      "target_entity": "clathrin mediated endocytosis",
+      "relation_type": "PARTICIPATES_IN",
+      "evidence": "A clathrin mediated endocytosis scaffolding protein, Intersectin 1",
+      "confidence": 0.95
+    },
+    {
+      "source_entity": "PICALM",
+      "target_entity": "clathrin mediated endocytosis",
+      "relation_type": "PARTICIPATES_IN",
+      "evidence": "Phosphatidylinositol Binding Clathrin Assembly Protein gene (PICALM)",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "FCHO1",
+      "target_entity": "clathrin mediated endocytosis",
+      "relation_type": "PARTICIPATES_IN",
+      "evidence": "CME hub proteins... FCHO1",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "AP2A1",
+      "target_entity": "clathrin mediated endocytosis",
+      "relation_type": "PARTICIPATES_IN",
+      "evidence": "CME hub proteins... AP2A1",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "DNM2",
+      "target_entity": "clathrin mediated endocytosis",
+      "relation_type": "PARTICIPATES_IN",
+      "evidence": "CME hub proteins... Dynamin 2 (DNM2)",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "ITSN1",
+      "target_entity": "intersectin 1-long",
+      "relation_type": "ENCODES",
+      "evidence": "ITSN1-long (ITSN1-L)",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "ITSN1",
+      "target_entity": "intersectin 1-short",
+      "relation_type": "ENCODES",
+      "evidence": "ITSN1-short",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "intersectin 1-long",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "ASSOCIATED_WITH",
+      "evidence": "ITSN1-L was decreased in the FC of males and HP of females",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "intersectin 1-short",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "ASSOCIATED_WITH",
+      "evidence": "ITSN1-short was increased in the HP of both males and females",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "intersectin 1-long",
+      "target_entity": "frontal cortex",
+      "relation_type": "EXPRESSED_IN",
+      "evidence": "ITSN1-L was decreased in the FC of males",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "intersectin 1-long",
+      "target_entity": "hippocampus",
+      "relation_type": "EXPRESSED_IN",
+      "evidence": "ITSN1-L... HP of females",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "intersectin 1-short",
+      "target_entity": "hippocampus",
+      "relation_type": "EXPRESSED_IN",
+      "evidence": "ITSN1-short was increased in the HP of both males and females",
+      "confidence": 0.9
+    },
+    {
+      "source_entity": "clathrin mediated endocytosis",
+      "target_entity": "enlarged early endosomes",
+      "relation_type": "ASSOCIATED_WITH",
+      "evidence": "implicated in early cellular phenotypes such as enlarged early endosomes",
+      "confidence": 0.85
+    },
+    {
+      "source_entity": "clathrin mediated endocytosis",
+      "target_entity": "amyloid-beta",
+      "relation_type": "ASSOCIATED_WITH",
+      "evidence": "pathogenic processing of A\u03b2",
+      "confidence": 0.85
+    },
+    {
+      "source_entity": "amyloid-beta",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "accumulation of amyloid-beta (A\u03b2) plaques",
+      "confidence": 0.95
+    },
+    {
+      "source_entity": "tau",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "evidence": "neurofibrillary Tau tangles in the brain",
+      "confidence": 0.95
+    }
+  ],
+  "cost_usd": 0.0,
+  "model_used": "claude-opus-4-6",
+  "domain_name": "Drug Discovery",
+  "chunk_size": 10000,
+  "extracted_at": "2026-03-16T21:17:16.047798+00:00",
+  "error": null
+}

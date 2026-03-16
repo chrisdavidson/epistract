@@ -2,7 +2,9 @@
 __pycache__/
 *.pyc
 .env
-output/
-epistract-output/
+/output/
+/epistract-output/
+# Allow test corpus outputs (committed for reproducibility)
+!tests/corpora/*/output/
 .DS_Store
 lib/

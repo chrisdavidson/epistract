@@ -1,0 +1,204 @@
+{
+  "document_id": "pmid_24729694",
+  "document_path": "pmid_24729694",
+  "chunks_processed": 1,
+  "entities": [
+    {
+      "name": "Alzheimer disease",
+      "description": "Complex heterogeneous neurodegenerative disorder classified as early onset or late onset",
+      "confidence": 0.95,
+      "evidence": "Alzheimer's disease (AD) is a complex and heterogeneous neurodegenerative disorder",
+      "entity_type": "DISEASE"
+    },
+    {
+      "name": "APP",
+      "description": "Amyloid precursor protein gene involved in early onset AD",
+      "confidence": 0.95,
+      "evidence": "Three main genes are involved in early onset AD: amyloid precursor protein (APP)",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "PSEN1",
+      "description": "Presenilin 1 gene involved in early onset AD",
+      "confidence": 0.95,
+      "evidence": "presenilin 1 (PSEN1)",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "PSEN2",
+      "description": "Presenilin 2 gene involved in early onset AD",
+      "confidence": 0.95,
+      "evidence": "presenilin 2 (PSEN2)",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "APOE",
+      "description": "Apolipoprotein E gene; E4 allele is main risk factor for late-onset AD",
+      "confidence": 0.95,
+      "evidence": "The apolipoprotein E (APOE) E4 allele has been found to be a main risk factor for late-onset Alzheimer's disease",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "CLU",
+      "description": "Clusterin gene identified as potential AD risk factor by GWAS",
+      "confidence": 0.9,
+      "evidence": "including clusterin (CLU)",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "CR1",
+      "description": "Complement receptor 1 gene identified as potential AD risk factor",
+      "confidence": 0.9,
+      "evidence": "complement receptor 1 (CR1)",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "PICALM",
+      "description": "Phosphatidylinositol binding clathrin assembly protein gene; potential AD risk factor",
+      "confidence": 0.9,
+      "evidence": "phosphatidylinositol binding clathrin assembly protein (PICALM)",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "SORL1",
+      "description": "Sortilin-related receptor gene; potential AD risk factor",
+      "confidence": 0.9,
+      "evidence": "sortilin-related receptor (SORL1)",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "TREM2",
+      "description": "Triggering receptor expressed on myeloid cells 2; novel late-onset AD gene",
+      "confidence": 0.9,
+      "evidence": "triggering receptor expressed on myeloid cells 2 (TREM2)",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "CD33",
+      "description": "Cluster of differentiation 33; novel late-onset AD gene",
+      "confidence": 0.9,
+      "evidence": "cluster of differentiation 33 (CD33)",
+      "entity_type": "GENE"
+    },
+    {
+      "name": "APOE E4",
+      "description": "E4 allele of APOE gene; main risk factor for late-onset AD",
+      "confidence": 0.95,
+      "evidence": "The apolipoprotein E (APOE) E4 allele has been found to be a main risk factor",
+      "entity_type": "SEQUENCE_VARIANT"
+    },
+    {
+      "name": "neurodegeneration",
+      "description": "Progressive loss of neuronal structure and function",
+      "confidence": 0.85,
+      "evidence": "pathomechanisms leading to neurodegeneration",
+      "entity_type": "PHENOTYPE"
+    },
+    {
+      "name": "early onset Alzheimer disease",
+      "description": "AD onset under 65 years of age",
+      "confidence": 0.9,
+      "evidence": "classified as either early onset (under 65 years of age)",
+      "entity_type": "DISEASE"
+    },
+    {
+      "name": "late onset Alzheimer disease",
+      "description": "AD onset over 65 years of age",
+      "confidence": 0.9,
+      "evidence": "or late onset (over 65 years of age)",
+      "entity_type": "DISEASE"
+    }
+  ],
+  "relations": [
+    {
+      "source_entity": "APP",
+      "target_entity": "early onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.95,
+      "evidence": "Three main genes are involved in early onset AD: amyloid precursor protein (APP)"
+    },
+    {
+      "source_entity": "PSEN1",
+      "target_entity": "early onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.95,
+      "evidence": "Three main genes are involved in early onset AD: ... presenilin 1 (PSEN1)"
+    },
+    {
+      "source_entity": "PSEN2",
+      "target_entity": "early onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.95,
+      "evidence": "Three main genes are involved in early onset AD: ... presenilin 2 (PSEN2)"
+    },
+    {
+      "source_entity": "APOE",
+      "target_entity": "late onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.95,
+      "evidence": "The apolipoprotein E (APOE) E4 allele has been found to be a main risk factor for late-onset Alzheimer's disease"
+    },
+    {
+      "source_entity": "APOE E4",
+      "target_entity": "late onset Alzheimer disease",
+      "relation_type": "ASSOCIATED_WITH",
+      "confidence": 0.95,
+      "evidence": "APOE E4 allele has been found to be a main risk factor for late-onset Alzheimer's disease"
+    },
+    {
+      "source_entity": "CLU",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.85,
+      "evidence": "GWASs have identified several genes that might be potential risk factors for AD, including clusterin (CLU)"
+    },
+    {
+      "source_entity": "CR1",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.85,
+      "evidence": "GWASs have identified several genes that might be potential risk factors for AD, including ... complement receptor 1 (CR1)"
+    },
+    {
+      "source_entity": "PICALM",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.85,
+      "evidence": "GWASs have identified several genes that might be potential risk factors for AD, including ... PICALM"
+    },
+    {
+      "source_entity": "SORL1",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.85,
+      "evidence": "GWASs have identified several genes that might be potential risk factors for AD, including ... sortilin-related receptor (SORL1)"
+    },
+    {
+      "source_entity": "TREM2",
+      "target_entity": "late onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.85,
+      "evidence": "novel genes that might be involved in late-onset AD, such as triggering receptor expressed on myeloid cells 2 (TREM2)"
+    },
+    {
+      "source_entity": "CD33",
+      "target_entity": "late onset Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.85,
+      "evidence": "novel genes that might be involved in late-onset AD, such as ... cluster of differentiation 33 (CD33)"
+    },
+    {
+      "source_entity": "APOE",
+      "target_entity": "APOE E4",
+      "relation_type": "HAS_VARIANT",
+      "confidence": 0.95,
+      "evidence": "apolipoprotein E (APOE) E4 allele"
+    }
+  ],
+  "cost_usd": 0.0,
+  "model_used": "claude-opus-4-6",
+  "domain_name": "Drug Discovery",
+  "chunk_size": 10000,
+  "extracted_at": "2026-03-16T21:15:27.393912+00:00",
+  "error": null
+}

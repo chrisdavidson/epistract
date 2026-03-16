@@ -1,0 +1,176 @@
+{
+  "document_id": "pmid_21300948",
+  "document_path": "pmid_21300948",
+  "chunks_processed": 1,
+  "entities": [
+    {
+      "name": "CLU",
+      "description": "Clusterin gene, novel AD risk locus identified by GWAS",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "CR1",
+      "description": "Complement receptor 1 gene, novel AD risk locus identified by GWAS",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "PICALM",
+      "description": "Phosphatidylinositol binding clathrin assembly protein gene, novel AD risk locus; rs541458 variant affects CSF Abeta42 levels",
+      "confidence": 0.95,
+      "entity_type": "GENE"
+    },
+    {
+      "name": "Alzheimer disease",
+      "description": "Neurodegenerative disease; CLU, CR1, PICALM confirmed as genetic risk loci",
+      "confidence": 1.0,
+      "entity_type": "DISEASE"
+    },
+    {
+      "name": "clusterin",
+      "description": "Protein encoded by CLU gene",
+      "confidence": 0.9,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "complement receptor 1",
+      "description": "Protein encoded by CR1 gene",
+      "confidence": 0.9,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "PICALM protein",
+      "description": "Phosphatidylinositol binding clathrin assembly protein",
+      "confidence": 0.9,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "amyloid beta 42",
+      "description": "CSF Abeta42 peptide, levels decreased by PICALM AD risk allele",
+      "confidence": 0.95,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "tau",
+      "description": "Total-tau protein measured in CSF as AD biomarker",
+      "confidence": 0.9,
+      "entity_type": "PROTEIN"
+    },
+    {
+      "name": "rs541458",
+      "description": "SNP in PICALM associated with decreased CSF Abeta42 levels and AD risk",
+      "confidence": 0.95,
+      "entity_type": "SEQUENCE_VARIANT"
+    },
+    {
+      "name": "CSF amyloid beta 42",
+      "description": "Cerebrospinal fluid Abeta42 level, decreased by PICALM risk allele rs541458",
+      "confidence": 0.95,
+      "entity_type": "BIOMARKER"
+    },
+    {
+      "name": "CSF total-tau",
+      "description": "Cerebrospinal fluid total-tau protein level, AD biomarker tested",
+      "confidence": 0.9,
+      "entity_type": "BIOMARKER"
+    },
+    {
+      "name": "amyloid beta processing",
+      "description": "Pathway of amyloid beta production and clearance, potentially affected by PICALM",
+      "confidence": 0.85,
+      "entity_type": "PATHWAY"
+    },
+    {
+      "name": "cerebrospinal fluid",
+      "description": "CSF used for biomarker measurement of Abeta42 and tau",
+      "confidence": 0.85,
+      "entity_type": "CELL_OR_TISSUE"
+    }
+  ],
+  "relations": [
+    {
+      "source_entity": "CLU",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.95,
+      "evidence": "genome-wide association studies independently implicated clusterin (CLU) as putative novel Alzheimer disease risk loci"
+    },
+    {
+      "source_entity": "CR1",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.95,
+      "evidence": "genome-wide association studies independently implicated complement receptor 1 (CR1) as putative novel Alzheimer disease risk loci"
+    },
+    {
+      "source_entity": "PICALM",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "IMPLICATED_IN",
+      "confidence": 0.95,
+      "evidence": "genome-wide association studies independently implicated PICALM as putative novel Alzheimer disease risk loci"
+    },
+    {
+      "source_entity": "CLU",
+      "target_entity": "clusterin",
+      "relation_type": "ENCODES",
+      "confidence": 0.95,
+      "evidence": "clusterin (CLU)"
+    },
+    {
+      "source_entity": "CR1",
+      "target_entity": "complement receptor 1",
+      "relation_type": "ENCODES",
+      "confidence": 0.95,
+      "evidence": "complement receptor 1 (CR1)"
+    },
+    {
+      "source_entity": "PICALM",
+      "target_entity": "PICALM protein",
+      "relation_type": "ENCODES",
+      "confidence": 0.95,
+      "evidence": "phosphatidylinositol binding clathrin assembly protein (PICALM)"
+    },
+    {
+      "source_entity": "PICALM",
+      "target_entity": "rs541458",
+      "relation_type": "HAS_VARIANT",
+      "confidence": 0.95,
+      "evidence": "rs541458 in PICALM was shown to have an effect on CSF protein levels"
+    },
+    {
+      "source_entity": "rs541458",
+      "target_entity": "CSF amyloid beta 42",
+      "relation_type": "ASSOCIATED_WITH",
+      "confidence": 0.95,
+      "evidence": "the AD risk allele is associated with decreased CSF Abeta42 levels (2-tailed P = .002)"
+    },
+    {
+      "source_entity": "CSF amyloid beta 42",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "ASSOCIATED_WITH",
+      "confidence": 0.9,
+      "evidence": "CSF biomarker analyses provide a first insight into the potentially predominant pathogenetic mechanisms underlying the association between AD risk and PICALM"
+    },
+    {
+      "source_entity": "PICALM",
+      "target_entity": "amyloid beta processing",
+      "relation_type": "PARTICIPATES_IN",
+      "confidence": 0.8,
+      "evidence": "CSF biomarker analyses provide a first insight into the potentially predominant pathogenetic mechanisms underlying the association between AD risk and PICALM"
+    },
+    {
+      "source_entity": "CSF total-tau",
+      "target_entity": "Alzheimer disease",
+      "relation_type": "ASSOCIATED_WITH",
+      "confidence": 0.85,
+      "evidence": "test the impact of these markers on cerebrospinal fluid (CSF)-Abeta42 and total-tau protein levels"
+    }
+  ],
+  "cost_usd": 0.0,
+  "model_used": "claude-opus-4-6",
+  "domain_name": "Drug Discovery",
+  "chunk_size": 10000,
+  "extracted_at": "2026-03-16T21:17:09.932285+00:00",
+  "error": null
+}
