@@ -1,0 +1,14 @@
+{
+  "name": "epistract-dev",
+  "owner": {
+    "name": "Umesh Bhatt"
+  },
+  "plugins": [
+    {
+      "name": "epistract",
+      "source": "./",
+      "version": "1.0.0",
+      "description": "Expert drug discovery knowledge graph extraction from scientific literature"
+    }
+  ]
+}
