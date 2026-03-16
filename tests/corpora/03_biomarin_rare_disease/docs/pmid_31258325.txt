@@ -1,0 +1,12 @@
+Title: A Comprehensive Review of Pegvaliase, an Enzyme Substitution Therapy for the Treatment of Phenylketonuria.
+Authors: Hydery Tasmina, Coppenrath Valerie Azzopardi
+Journal: Drug target insights (2019)
+PMID: 31258325
+MeSH Terms: 
+
+ABSTRACT:
+OBJECTIVE: To review the pharmacology, pharmacokinetics, efficacy, safety, and place in therapy of a phenylalanine-metabolizing enzyme indicated to reduce blood phenylalanine concentrations, pegvaliase injection.
+DATA SOURCES: Searches of MEDLINE (1946-September 1, 2018) were conducted using the terms pegvaliase and phenylalanine ammonia lyase (PAL). Additional data were obtained from the prescribing information, the product dossier obtained from the manufacturer, and Clinicaltrials.gov.
+STUDY SELECTION AND DATA EXTRACTION: All English language articles related to pharmacology, pharmacokinetics, efficacy, or safety of the combination therapy in human subjects were reviewed.
+DATA SYNTHESIS: Pegvaliase is a pegylated PAL enzyme that converts phenylalanine to ammonia and trans-cinnamic acid. Blood phenylalanine levels were reduced by approximately 50% to 70% in patients receiving therapeutic doses of pegvaliase. However, most patients experienced adverse events.
+CONCLUSIONS AND RELEVANCE: The mainstay of therapy in phenylketonuria (PKU) has historically consisted of dietary restriction of phenylalanine. Pegvaliase injection is the first Food and Drug Administration (FDA)-approved enzyme substitution therapy for patients with PKU. The therapy may be a viable option for patients with documented blood phenylalanine >600 µmol/L who have failed existing management strategies.

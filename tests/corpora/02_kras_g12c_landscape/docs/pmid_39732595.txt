@@ -1,0 +1,8 @@
+Title: KRAS inhibitors: resistance drivers and combinatorial strategies.
+Authors: Isermann Tamara, Sers Christine, Der Channing J, Papke Bjoern
+Journal: Trends in cancer (2025)
+PMID: 39732595
+MeSH Terms: Humans, Drug Resistance, Neoplasm, Proto-Oncogene Proteins p21(ras), Neoplasms, Mutation, Antineoplastic Combined Chemotherapy Protocols, Molecular Targeted Therapy, Piperazines, Pyridines, Pyrimidines
+
+ABSTRACT:
+In 1982, the RAS genes HRAS and KRAS were discovered as the first human cancer genes, with KRAS later identified as one of the most frequently mutated oncogenes. Yet, it took nearly 40 years to develop clinically effective inhibitors for RAS-mutant cancers. The discovery in 2013 by Shokat and colleagues of a druggable pocket in KRAS paved the way to FDA approval of the first covalently binding KRASG12C inhibitors, sotorasib and adagrasib, in 2021 and 2022, respectively. However, rather than marking the end of a successful assault on the Mount Everest of cancer research, this landmark only revealed new challenges in RAS drug discovery. In this review, we highlight the progress on defining resistance mechanisms and developing combination treatment strategies to improve patient responses to KRAS therapies.

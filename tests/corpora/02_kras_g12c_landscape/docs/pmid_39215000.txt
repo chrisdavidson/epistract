@@ -1,0 +1,8 @@
+Title: RAS-ON inhibition overcomes clinical resistance to KRAS G12C-OFF covalent blockade.
+Authors: Nokin Marie-Julie, Mira Alessia, Patrucco Enrico, Ricciuti Biagio, Cousin Sophie
+Journal: Nature communications (2024)
+PMID: 39215000
+MeSH Terms: Humans, Proto-Oncogene Proteins p21(ras), Drug Resistance, Neoplasm, Animals, Carcinoma, Non-Small-Cell Lung, Mice, Cell Line, Tumor, Lung Neoplasms, Mutation, Female
+
+ABSTRACT:
+Selective KRASG12C inhibitors have been developed to covalently lock the oncogene in the inactive GDP-bound state. Two of these molecules, sotorasib and adagrasib, are approved for the treatment of adult patients with KRASG12C-mutated previously treated advanced non-small cell lung cancer. Drug treatment imposes selective pressures leading to the outgrowth of drug-resistant variants. Mass sequencing from patients' biopsies identified a number of acquired KRAS mutations -both in cis and in trans- in resistant tumors. We demonstrate here that disease progression in vivo can also occur due to adaptive mechanisms and increased KRAS-GTP loading. Using the preclinical tool tri-complex KRASG12C-selective covalent inhibitor, RMC-4998 (also known as RM-029), that targets the active GTP-bound (ON) state of the oncogene, we provide a proof-of-concept that the clinical stage KRASG12C(ON) inhibitor RMC-6291 alone or in combination with KRASG12C(OFF) drugs can be an alternative potential therapeutic strategy to circumvent resistance due to increased KRAS-GTP loading.

@@ -1,0 +1,8 @@
+Title: Aficamten is a small-molecule cardiac myosin inhibitor designed to treat hypertrophic cardiomyopathy.
+Authors: Hartman James J, Hwee Darren T, Robert-Paganin Julien, Chuang Chihyuan, Chin Eva R
+Journal: Nature cardiovascular research (2024)
+PMID: 39196032
+MeSH Terms: Male, Animals, Rats, Dogs, Small Molecule Libraries, Cardiac Myosins, Binding Sites, Models, Molecular, Protein Structure, Tertiary, Amino Acid Sequence
+
+ABSTRACT:
+Hypertrophic cardiomyopathy (HCM) is an inherited disease of the sarcomere resulting in excessive cardiac contractility. The first-in-class cardiac myosin inhibitor, mavacamten, improves symptoms in obstructive HCM. Here we present aficamten, a selective small-molecule inhibitor of cardiac myosin that diminishes ATPase activity by strongly slowing phosphate release, stabilizing a weak actin-binding state. Binding to an allosteric site on the myosin catalytic domain distinct from mavacamten, aficamten prevents the conformational changes necessary to enter the strongly actin-bound force-generating state. In doing so, aficamten reduces the number of functional myosin heads driving sarcomere shortening. The crystal structure of aficamten bound to cardiac myosin in the pre-powerstroke state provides a basis for understanding its selectivity over smooth and fast skeletal muscle. Furthermore, in cardiac myocytes and in mice bearing the hypertrophic R403Q cardiac myosin mutation, aficamten reduces cardiac contractility. Our findings suggest aficamten holds promise as a therapy for HCM.

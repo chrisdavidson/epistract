@@ -1,0 +1,8 @@
+Title: The cellular machinery of post-endocytic APP trafficking in Alzheimer's disease: A future target for therapeutic intervention?
+Authors: Goldstein Lawrence S B, Das Utpal
+Journal: Progress in molecular biology and translational science (2021)
+PMID: 33453937
+MeSH Terms: Alzheimer Disease, Amyloid beta-Peptides, Amyloid beta-Protein Precursor, Endosomes, Genome-Wide Association Study, Humans, Protein Transport
+
+ABSTRACT:
+Recent data establish multiple defects in endocytic functions as early events initiating various neurodegenerative disorders, including Alzheimer's disease (AD). The genetic landscape resulting from genome-wide association studies (GWAS) reveals changes in post-endocytic trafficking of amyloid precursor protein (APP) in neurons leading to an increase in amyloidogenic processing, deficits in amyloid beta (Aβ) clearance, increases in intracellular Aβ, and other endosomal pathogenic phenotypes. Multiple genetic factors regulate each segment of endosomal and post-endosomal trafficking. Intriguingly, several studies indicate endosomal dysfunctions preceding Aβ pathology and tau phosphorylation. In this chapter we highlight the role of various GWAS-identified endosomal and post-endosomal gene products in initiating AD pathologies. We also summarize the functions of various genetic modifiers of post-endocytic trafficking of APP that may work as targets for therapeutic intervention in AD.

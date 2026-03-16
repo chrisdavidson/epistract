@@ -1,0 +1,11 @@
+Title: Long-term effect of mavacamten in obstructive hypertrophic cardiomyopathy.
+Authors: Garcia-Pavia Pablo, Oręziak Artur, Masri Ahmad, Barriales-Villa Roberto, Abraham Theodore P
+Journal: European heart journal (2024)
+PMID: 39217450
+MeSH Terms: Humans, Cardiomyopathy, Hypertrophic, Male, Female, Middle Aged, Treatment Outcome, Aged, Adult, Uracil, Stroke Volume
+
+ABSTRACT:
+BACKGROUND AND AIMS: Long-term safety and efficacy of mavacamten in patients with obstructive hypertrophic cardiomyopathy (HCM) are unknown. MAVA-LTE (NCT03723655) is an ongoing, 5-year, open-label extension study designed to evaluate the long-term effects of mavacamten.
+METHODS: Participants from EXPLORER-HCM (NCT03470545) could enrol in MAVA-LTE upon study completion.
+RESULTS: At the latest data cut-off, 211 (91.3%) of the 231 patients originally enrolled in MAVA-LTE still received mavacamten. Median (range) time on study was 166.1 (6.0-228.1) weeks; 185 (80.1%) and 99 (42.9%) patients had completed the Week 156 and 180 visits, respectively. Sustained reductions from baseline to Week 180 occurred in left ventricular outflow tract gradients [mean (standard deviation): resting, -40.3 (32.7) mmHg; Valsalva, -55.3 (33.7) mmHg], N-terminal pro B-type natriuretic peptide [median (interquartile range): -562 (-1162.5, -209) ng/L], and EQ-5D-5L score [mean (standard deviation): 0.09 (0.17)]. Mean left ventricular ejection fraction (LVEF) decreased from 73.9% (baseline) to 66.6% (Week 24) and 63.9% (Week 180). At Week 180, 74 (77.9%) of the 95 patients improved by at least one New York Heart Association class from baseline. Over 739 patient-years exposure, 20 patients (8.7%; exposure-adjusted incidence: 2.77/100 patient-years) experienced 22 transient reductions in LVEF to <50% resulting in temporary treatment interruption (all recovered LVEF of ≥50%). Five (2.2%) patients died (all considered unrelated to mavacamten).
+CONCLUSIONS: Long-term mavacamten treatment resulted in sustained improvements in cardiac function and symptoms in patients with obstructive HCM, with no new safety concerns identified. Transient, reversible reductions in LVEF were observed in a small proportion of patients during long-term follow-up.

@@ -1,0 +1,12 @@
+Title: Deucravacitinib in moderate-to-severe plaque psoriasis: Pooled safety and tolerability over 52 weeks from two phase 3 trials (POETYK PSO-1 and PSO-2).
+Authors: Strober Bruce, Blauvelt Andrew, Warren Richard B, Papp Kim A, Armstrong April W
+Journal: Journal of the European Academy of Dermatology and Venereology : JEADV (2024)
+PMID: 38451052
+MeSH Terms: Humans, Psoriasis, Male, Female, Middle Aged, Adult, Severity of Illness Index, Thalidomide
+
+ABSTRACT:
+BACKGROUND: Two phase 3 trials, POETYK PSO-1 and PSO-2, previously established the efficacy and overall safety of deucravacitinib, an oral, selective, allosteric tyrosine kinase 2 (TYK2) inhibitor, in plaque psoriasis.
+OBJECTIVES: To further assess the safety of deucravacitinib over 52 weeks in the pooled population from these two trials.
+METHODS: Pooled safety data were evaluated from PSO-1 and PSO-2 in which patients with moderate-to-severe plaque psoriasis were randomized 1:2:1 to receive oral placebo, deucravacitinib or apremilast.
+RESULTS: A total of 1683 patients were included in the pooled analysis. Adverse event (AE) incidence rates were similar in each treatment group, serious AEs were low and balanced across groups, and discontinuation rates were lower with deucravacitinib versus placebo or apremilast. No new safety signals emerged with longer deucravacitinib treatment. Exposure-adjusted incidence rates of AEs of interest with placebo, deucravacitinib and apremilast, respectively, were as follows: serious infections (0.8/100 person-years [PY], 1.7/100 PY, and 1.8/100 PY), major adverse cardiovascular events (1.2/100 PY, 0.3/100 PY, and 0.9/100 PY), venous thromboembolic events (0, 0.2/100 PY, and 0), malignancies (0, 1.0/100 PY and 0.9/100 PY), herpes zoster (0.4/100 PY, 0.8/100 PY, and 0), acne (0.4/100 PY, 2.9/100 PY, and 0) and folliculitis (0, 2.8/100 PY, and 0.9/100 PY). No clinically meaningful changes from baseline in mean levels, or shifts from baseline to CTCAE grade ≥3 abnormalities, were reported in laboratory parameters with deucravacitinib.
+CONCLUSIONS: Deucravacitinib was well-tolerated with acceptable safety over 52 weeks in patients with psoriasis.

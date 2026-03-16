@@ -1,0 +1,15 @@
+Title: The role of clusterin, complement receptor 1, and phosphatidylinositol binding clathrin assembly protein in Alzheimer disease risk and cerebrospinal fluid biomarker levels.
+Authors: Schjeide Brit-Maren M, Schnack Cathrin, Lambert Jean-Charles, Lill Christina M, Kirchheiner Julia
+Journal: Archives of general psychiatry (2011)
+PMID: 21300948
+MeSH Terms: Age of Onset, Aged, Aged, 80 and over, Alleles, Alzheimer Disease, Amyloid beta-Peptides, Case-Control Studies, Clusterin, Female, Genetic Carrier Screening
+
+ABSTRACT:
+CONTEXT: Two recent and simultaneously published genome-wide association studies independently implicated clusterin (CLU), complement receptor 1 (CR1), and phosphatidylinositol binding clathrin assembly protein (PICALM) as putative novel Alzheimer disease (AD) risk loci. Despite their strong statistical support, all 3 signals emerged from heterogeneous case-control populations and lack replication in different settings.
+OBJECTIVE: To determine whether genetic variants in CLU, CR1, and PICALM confer risk for AD in independent data sets (n = 4254) and to test the impact of these markers on cerebrospinal fluid (CSF)-Aβ42 and total-tau protein levels (n = 425).
+DESIGN: Genetic association study using family-based and case-control designs.
+SETTING: Ambulatory or hospitalized care.
+PARTICIPANTS: Family samples originate from mostly multiplex pedigrees recruited at different centers in the United States (1245 families, 2654 individuals with AD, and 1175 unaffected relatives). Unrelated case-control subjects originate from 1 clinical center in Germany (214 individuals with AD and 211 controls). All subjects were of European descent.
+MAIN OUTCOME MEASURES: The association between 5 genetic variants in CLU, CR1, and PICALM and risk for AD, and the correlation between these 5 genetic variants and CSF-Aβ42 and tau levels.
+RESULTS: All 3 investigated loci showed significant associations between risk for AD (1-tailed P values ranging from <.001 to .02) and consistent effect sizes and direction. For each locus, the overall evidence of association was substantially strengthened on meta-analysis of all available data (2-tailed P values ranging from 1.1 × 10(-16) to 4.1 × 10⁻⁷). Of all markers tested, only rs541458 in PICALM was shown to have an effect on CSF protein levels, suggesting that the AD risk allele is associated with decreased CSF Aβ42 levels (2-tailed P = .002).
+CONCLUSIONS: This study provides compelling independent evidence that genetic variants in CLU, CR1, and PICALM are genetically associated with risk for AD. Furthermore, the CSF biomarker analyses provide a first insight into the potentially predominant pathogenetic mechanism(s) underlying the association between AD risk and PICALM.

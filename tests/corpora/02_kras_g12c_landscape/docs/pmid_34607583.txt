@@ -1,0 +1,8 @@
+Title: Oncogenic KRAS blockade therapy: renewed enthusiasm and persistent challenges.
+Authors: Tang Daolin, Kroemer Guido, Kang Rui
+Journal: Molecular cancer (2021)
+PMID: 34607583
+MeSH Terms: Antineoplastic Combined Chemotherapy Protocols, Biomarkers, Tumor, Clinical Trials as Topic, Disease Management, Disease Susceptibility, Humans, Molecular Targeted Therapy, Mutation, Neoplasms, Prognosis
+
+ABSTRACT:
+Across a broad range of human cancers, gain-of-function mutations in RAS genes (HRAS, NRAS, and KRAS) lead to constitutive activity of oncoproteins responsible for tumorigenesis and cancer progression. The targeting of RAS with drugs is challenging because RAS lacks classic and tractable drug binding sites. Over the past 30 years, this perception has led to the pursuit of indirect routes for targeting RAS expression, processing, upstream regulators, or downstream effectors. After the discovery that the KRAS-G12C variant contains a druggable pocket below the switch-II loop region, it has become possible to design irreversible covalent inhibitors for the variant with improved potency, selectivity and bioavailability. Two such inhibitors, sotorasib (AMG 510) and adagrasib (MRTX849), were recently evaluated in phase I-III trials for the treatment of non-small cell lung cancer with KRAS-G12C mutations, heralding a new era of precision oncology. In this review, we outline the mutations and functions of KRAS in human tumors and then analyze indirect and direct approaches to shut down the oncogenic KRAS network. Specifically, we discuss the mechanistic principles, clinical features, and strategies for overcoming primary or secondary resistance to KRAS-G12C blockade.

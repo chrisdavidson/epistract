@@ -1,0 +1,8 @@
+Title: Targeting 
+Authors: Ji Jingran, Wang Chongkai, Fakih Marwan
+Journal: OncoTargets and therapy (2022)
+PMID: 35837349
+MeSH Terms: 
+
+ABSTRACT:
+Identifying mutations in the KRAS gene has become increasingly important in the treatment of colorectal cancer with many prognostic and therapeutic implications. However, efforts to develop drugs that target KRAS mutations have not been successful until more recently with the introduction of the KRAS G12C inhibitors, sotorasib (AMG510) and adagrasib (MRTX849). Both agents have demonstrated safety and promising efficacy in preclinical studies and early phase trials, but it appears that not all tumor types harboring the KRAS G12C mutation are sensitive to monotherapy approaches. In particular, patients with colorectal cancer (CRC) derive less benefit compared to those with non-small cell lung cancer (NSCLC), likely due to rapid treatment-induced resistance through increased epidermal growth factor receptor (EGFR) signaling. As a result, combination therapy trials with EGFR inhibitors are currently underway. Here, we will review the available clinical trial data on KRASG12C inhibitors in KRAS G12C-mutated CRC, possible mechanisms of resistance to monotherapy, the research studying why available agents are proving to be less efficacious in CRC compared to NSCLC, and future directions for these promising new drugs.

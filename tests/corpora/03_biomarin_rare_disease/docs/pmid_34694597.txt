@@ -1,0 +1,8 @@
+Title: Vosoritide: First Approval.
+Authors: Duggan Sean
+Journal: Drugs (2021)
+PMID: 34694597
+MeSH Terms: Achondroplasia, Adolescent, Area Under Curve, Body Weight, Child, Child, Preschool, Drug Approval, Europe, Humans, Metabolic Clearance Rate
+
+ABSTRACT:
+Vosoritide (VOXZOGO®) is a modified recombinant human C-type natriuretic peptide (CNP) analogue, being developed by BioMarin Pharmaceutical for the treatment of achondroplasia. Achondroplasia is caused by a gain-of-function mutation in the fibroblast growth factor receptor 3 gene (FGFR3), which is a negative regulator of bone growth. Vosoritide acts to restore chondrogenesis through its binding to natriuretic peptide receptor B (NPR-B), resulting in the inhibition of downstream signalling pathways of the overactive FGFR3 gene. Vosoritide was approved in August 2021 in the EU for the treatment of achondroplasia in patients aged ≥ 2 years whose epiphyses are not closed; the diagnosis of achondroplasia should be confirmed by appropriate genetic testing. The drug is also under regulatory review in the USA for the treatment of achondroplasia and clinical development is underway in several countries. This article summarizes the milestones in the development of vosoritide leading to this first approval for achondroplasia in patients aged ≥ 2 years whose epiphyses are not closed.

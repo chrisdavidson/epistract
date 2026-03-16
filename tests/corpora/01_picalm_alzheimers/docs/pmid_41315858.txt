@@ -1,0 +1,8 @@
+Title: Microglial phagocytosis in Alzheimer disease.
+Authors: Brown Guy C, St George-Hyslop Peter, Paolicelli Rosa C, Lemke Greg
+Journal: Nature reviews. Neurology (2026)
+PMID: 41315858
+MeSH Terms: Alzheimer Disease, Humans, Microglia, Phagocytosis, Animals, Amyloid beta-Peptides
+
+ABSTRACT:
+Accumulating evidence indicates that Alzheimer disease (AD) is caused by dysregulated microglial phagocytosis. The main risk factor for AD is age, and ageing reduces microglial phagocytosis of amyloid-β (Aβ) plaques, while increasing microglial phagocytosis of synapses and neurons. Most of the known genetic risk for AD can be linked to microglial phagocytosis, including ABCA1, ABI3, ACE, ADAM17, APOE, APP, BIN1, BLNK, CD2AP, CD33, CLU, CR1, CTSB, CTSH, EED, GRN, INPP5D, LILRB2, PICALM, PLCG2, PSEN1, PTK2B, SIGLEC11, SORL1, SPI1, TMEM106B and TREM2. Moreover, the only disease-modifying treatments for AD - anti-Aβ antibodies - work by increasing microglial phagocytosis of Aβ aggregates. Microglial phagocytosis of Aβ via TREM2, LRP1, CD33, TAM receptors and anti-Aβ antibodies appears to reduce AD pathology by pruning and compacting plaques, restricting subsequent tau pathology, whereas microglial phagocytosis of synapses and neurons seems detrimental in the later stages of AD, via complement, P2Y6 receptor and TREM2. However, the roles of microglial phagocytosis in AD are complex and multifaceted, and improved treatments are likely to require a deeper understanding of these roles.

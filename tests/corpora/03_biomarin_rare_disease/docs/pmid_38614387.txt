@@ -1,0 +1,12 @@
+Title: Three-year outcomes of valoctocogene roxaparvovec gene therapy for hemophilia A.
+Authors: Madan Bella, Ozelo Margareth C, Raheja Priyanka, Symington Emily, Quon Doris V
+Journal: Journal of thrombosis and haemostasis : JTH (2024)
+PMID: 38614387
+MeSH Terms: Humans, Hemophilia A, Male, Adult, Factor VIII, Hemorrhage, Quality of Life, Treatment Outcome, Genetic Therapy, Young Adult
+
+ABSTRACT:
+BACKGROUND: Valoctocogene roxaparvovec transfers a human factor (F)VIII coding sequence into hepatocytes of people with severe hemophilia A to provide bleeding protection.
+OBJECTIVES: To present 3-year efficacy and safety in the multicenter, open-label, single-arm, phase 3 GENEr8-1 trial.
+METHODS: GENEr8-1 enrolled 134 adult males with severe hemophilia A who were receiving FVIII prophylaxis. Efficacy endpoints included annualized bleeding rate, annualized FVIII utilization, FVIII activity (chromogenic substrate assay; imputed as 1 IU/dL at baseline and 0 IU/dL after discontinuation), and the Haemophilia-Specific Quality of Life Questionnaire for Adults. Safety was assessed by adverse events (AEs).
+RESULTS: At week 156, 131 of 134 participants remained in the study; overall, 17 of 134 resumed prophylaxis. Mean annualized bleeding rate for treated bleeds decreased from 4.8 (SD, 6.5) bleeds/y at baseline to 0.8 (SD, 2.3; P < .0001) bleeds/y after prophylaxis (prophylaxis cessation to last follow-up) and 0.97 (SD, 3.48) bleeds/y during year 3. Annualized FVIII utilization decreased 96.8% from baseline after prophylaxis and 94.2% during year 3. At week 156, mean and median FVIII activity were 18.4 (SD, 30.8) and 8.3 IU/dL, respectively. FVIII activity decrease was lower between years 2 and 3 than between years 1 and 2. At the end of year 3, clinically meaningful improvements in the Haemophilia-Specific Quality of Life Questionnaire for Adults Total Score were observed (mean change from baseline, 6.6; 95% CI, 4.24-8.87; P < .0001). Mild alanine aminotransferase elevations remained the most common AE during year 3 (23.7% of participants). A serious AE of B-cell acute lymphoblastic leukemia was considered unrelated to treatment.
+CONCLUSION: Hemostatic efficacy was maintained, and safety remained unchanged from previous years.

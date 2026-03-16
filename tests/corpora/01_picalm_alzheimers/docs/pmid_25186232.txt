@@ -1,0 +1,8 @@
+Title: The Role of PICALM in Alzheimer's Disease.
+Authors: Xu Wei, Tan Lan, Yu Jin-Tai
+Journal: Molecular neurobiology (2015)
+PMID: 25186232
+MeSH Terms: Alzheimer Disease, Amyloid beta-Peptides, Animals, Genetic Predisposition to Disease, Humans, Models, Biological, Molecular Targeted Therapy, Monomeric Clathrin Assembly Proteins
+
+ABSTRACT:
+Alzheimer's disease (AD) is a highly heritable disease (with heritability up to 76%) with a complex genetic profile of susceptibility, among which large genome-wide association studies (GWASs) pointed to the phosphatidylinositol-binding clathrin assembly protein (PICALM) gene as a susceptibility locus for late-onset Alzheimer's disease (LOAD) incidence. Here, we summarize the known functions of PICALM and discuss its genetic polymorphisms and their potential physiological effects associated with LOAD. Compelling data indicated that PICALM affects AD risk primarily by modulating production, transportation, and clearance of β-amyloid (Aβ) peptide, but other Aβ-independent pathways are discussed, including tauopathy, synaptic dysfunction, disorganized lipid metabolism, immune disorder, and disrupted iron homeostasis. Finally, given the potential involvement of PICALM in facilitating AD occurrence in multiple ways, it might be possible that targeting PICALM might provide promising and novel avenues for AD therapy.

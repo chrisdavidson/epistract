@@ -1,0 +1,8 @@
+Title: Emerging Targets in Non-Small Cell Lung Cancer.
+Authors: Liu Louisa, Soler Joshua, Reckamp Karen L, Sankar Kamya
+Journal: International journal of molecular sciences (2024)
+PMID: 39337530
+MeSH Terms: Humans, Carcinoma, Non-Small-Cell Lung, Lung Neoplasms, Molecular Targeted Therapy, Antineoplastic Agents
+
+ABSTRACT:
+Lung cancer is responsible for a high burden of disease globally. Over the last two decades, the discovery of targetable oncogenic genomic alterations has revolutionized the treatment landscape for early-stage and advanced non-small cell lung cancer (NSCLC). New molecular drivers continue to emerge as promising therapeutic targets, including KRAS non-G12C, RAF/MEK, HER3, Nectin-4, folate receptor alpha, ITGB6, and PRMT5. In this review, we summarize the emerging molecular targets with a potential clinical impact in advanced NSCLC, elaborating on their clinical characteristics and specific mechanisms and molecular pathways for which targeted treatments are currently available. Additionally, we present an aggregate of ongoing clinical trials investigating the available treatment options targeting such alterations, in addition to their current recruitment status and preliminary efficacy data. These advancements may guide further research endeavors and inform future treatment strategies to improve the management of and transform outcomes for patients with advanced NSCLC.

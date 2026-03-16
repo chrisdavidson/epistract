@@ -1,0 +1,8 @@
+Title: Determinants of anti-PD-1 response and resistance in clear cell renal cell carcinoma.
+Authors: Au Lewis, Hatipoglu Emine, Robert de Massy Marc, Litchfield Kevin, Beattie Gordon
+Journal: Cancer cell (2021)
+PMID: 34715028
+MeSH Terms: CD8-Positive T-Lymphocytes, Carcinoma, Renal Cell, Clinical Trials, Phase II as Topic, Drug Resistance, Neoplasm, Endogenous Retroviruses, Gene Expression Profiling, Genomics, Humans, Immune Checkpoint Inhibitors, Kidney Neoplasms
+
+ABSTRACT:
+ADAPTeR is a prospective, phase II study of nivolumab (anti-PD-1) in 15 treatment-naive patients (115 multiregion tumor samples) with metastatic clear cell renal cell carcinoma (ccRCC) aiming to understand the mechanism underpinning therapeutic response. Genomic analyses show no correlation between tumor molecular features and response, whereas ccRCC-specific human endogenous retrovirus expression indirectly correlates with clinical response. T cell receptor (TCR) analysis reveals a significantly higher number of expanded TCR clones pre-treatment in responders suggesting pre-existing immunity. Maintenance of highly similar clusters of TCRs post-treatment predict response, suggesting ongoing antigen engagement and survival of families of T cells likely recognizing the same antigens. In responders, nivolumab-bound CD8+ T cells are expanded and express GZMK/B. Our data suggest nivolumab drives both maintenance and replacement of previously expanded T cell clones, but only maintenance correlates with response. We hypothesize that maintenance and boosting of a pre-existing response is a key element of anti-PD-1 mode of action.

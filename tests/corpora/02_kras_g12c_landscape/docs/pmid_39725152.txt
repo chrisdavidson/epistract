@@ -1,0 +1,8 @@
+Title: WEE1 confers resistance to KRAS
+Authors: Yamamoto Gaku, Tanaka Kosuke, Kamata Ryo, Saito Hitoshi, Yamamori-Morita Tomoko
+Journal: Cancer letters (2024)
+PMID: 39725152
+MeSH Terms: 
+
+ABSTRACT:
+KRASG12C inhibitors sotorasib and adagrasib have been approved for the treatment of KRASG12C-mutant non-small cell lung cancer (NSCLC). However, the efficacy of single-agent treatments is limited, presumably due to multiple resistance mechanisms. To overcome these therapeutic limitations, combination strategies that potentiate the antitumor efficacy of KRASG12C inhibitors must be developed. Through unbiased high-throughput screening of 1395 kinase inhibitors, we identified adavosertib, a WEE1 inhibitor, as a promising combination partner of sotorasib. The combination of sotorasib and adavosertib exhibited synergistic antiproliferative activities both in vitro and in vivo, irrespective of TP53, STK11, and KEAP1 co-mutation profiles. WEE1 inhibition potentiated MCL-1-mediated apoptosis in sotorasib-treated cancer cells. Mechanistically, the combination downregulated MCL-1 protein levels by attenuating de novo translation and enhancing its degradation. WEE1 overexpression conferred resistance against sotorasib via MCL-1 upregulation. Moreover, cells that acquired sotorasib resistance profoundly upregulated both WEE1 and MCL-1 proteins, highlighting WEE1 as a crucial driver of sotorasib resistance. Importantly, WEE1 inhibition re-sensitized resistant cells to sotorasib treatment. The current findings demonstrate that combined inhibition of KRASG12C and WEE1 not only exhibits synergistic antitumor efficacy but also overcomes resistance to KRASG12C inhibitors, thus representing a novel therapeutic strategy for KRASG12C-mutant NSCLC.

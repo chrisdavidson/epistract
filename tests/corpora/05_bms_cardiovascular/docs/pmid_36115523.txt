@@ -1,0 +1,13 @@
+Title: Deucravacitinib versus placebo and apremilast in moderate to severe plaque psoriasis: Efficacy and safety results from the 52-week, randomized, double-blinded, phase 3 Program fOr Evaluation of TYK2 inhibitor psoriasis second trial.
+Authors: Strober Bruce, Thaçi Diamant, Sofen Howard, Kircik Leon, Gordon Kenneth B
+Journal: Journal of the American Academy of Dermatology (2023)
+PMID: 36115523
+MeSH Terms: Adult, Humans, Anti-Inflammatory Agents, Non-Steroidal, Double-Blind Method, Psoriasis, Severity of Illness Index, Treatment Outcome, TYK2 Kinase, Dermatologic Agents, Thalidomide
+
+ABSTRACT:
+BACKGROUND: Deucravacitinib, an oral, selective, allosteric tyrosine kinase 2 inhibitor, inhibits cytokine signaling in psoriasis pathogenesis.
+OBJECTIVE: The objective of this study was to demonstrate deucravacitinib superiority versus placebo and apremilast in moderate to severe plaque psoriasis based on ≥75% reduction from baseline in Psoriasis Area and Severity Index and a static Physician's Global Assessment score of 0 (clear) or 1 (almost clear) with a ≥2-point improvement from baseline at week 16.
+METHODS: POETYK psoriasis second trial (NCT03611751), a 52-week, double-blinded, phase 3 trial, randomized patients 2:1:1 to deucravacitinib 6 mg every day (n = 511), placebo (n = 255), or apremilast 30 mg twice a day (n = 254).
+RESULTS: At week 16, significantly more deucravacitinib-treated patients versus placebo and apremilast patients achieved ≥75% reduction from baseline in Psoriasis Area and Severity Index (53.0% vs 9.4% and 39.8%; P < .0001 vs placebo; P = .0004 vs apremilast) and static Physician's Global Assessment score of 0 or 1 (49.5% vs 8.6% and 33.9%; P < .0001 for both). Efficacy was maintained until week 52 with continuous deucravacitinib. The most frequent adverse event with deucravacitinib was nasopharyngitis. Serious adverse events and discontinuations due to adverse events were infrequent. No clinically meaningful changes were observed in laboratory parameters.
+LIMITATIONS: The study duration was 1 year.
+CONCLUSION: Deucravacitinib demonstrated superiority versus placebo and apremilast and was well tolerated in adults with moderate to severe plaque psoriasis.

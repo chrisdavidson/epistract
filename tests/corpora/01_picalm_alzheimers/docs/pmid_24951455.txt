@@ -1,0 +1,8 @@
+Title: Alzheimer's disease risk genes and mechanisms of disease pathogenesis.
+Authors: Karch Celeste M, Goate Alison M
+Journal: Biological psychiatry (2015)
+PMID: 24951455
+MeSH Terms: Alzheimer Disease, Amyloid beta-Protein Precursor, Cholesterol, Endocytosis, Genetic Predisposition to Disease, Genome-Wide Association Study, Humans, Phenotype, Presenilin-1, Presenilin-2
+
+ABSTRACT:
+We review the genetic risk factors for late-onset Alzheimer's disease (AD) and their role in AD pathogenesis. More recent advances in understanding of the human genome-technologic advances in methods to analyze millions of polymorphisms in thousands of subjects-have revealed new genes associated with AD risk, including ABCA7, BIN1, CASS4, CD33, CD2AP, CELF1, CLU, CR1, DSG2, EPHA1, FERMT2, HLA-DRB5-DBR1, INPP5D, MS4A, MEF2C, NME8, PICALM, PTK2B, SLC24H4-RIN3, SORL1, and ZCWPW1. Emerging technologies to analyze the entire genome in large data sets have also revealed coding variants that increase AD risk: PLD3 and TREM2. We review the relationship between these AD risk genes and the cellular and neuropathologic features of AD. Understanding the mechanisms underlying the association of these genes with risk for disease will provide the most meaningful targets for therapeutic development to date.

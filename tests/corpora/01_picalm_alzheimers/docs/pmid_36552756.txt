@@ -1,0 +1,8 @@
+Title: PICALM and Alzheimer's Disease: An Update and Perspectives.
+Authors: Ando Kunie, Nagaraj Siranjeevi, Küçükali Fahri, de Fisenne Marie-Ange, Kosa Andreea-Claudia
+Journal: Cells (2022)
+PMID: 36552756
+MeSH Terms: Humans, Alzheimer Disease, Clathrin, Genetic Loci, Genetic Predisposition to Disease, Genome-Wide Association Study, Monomeric Clathrin Assembly Proteins
+
+ABSTRACT:
+Genome-wide association studies (GWAS) have identified the PICALM (Phosphatidylinositol binding clathrin-assembly protein) gene as the most significant genetic susceptibility locus after APOE and BIN1. PICALM is a clathrin-adaptor protein that plays a critical role in clathrin-mediated endocytosis and autophagy. Since the effects of genetic variants of PICALM as AD-susceptibility loci have been confirmed by independent genetic studies in several distinct cohorts, there has been a number of in vitro and in vivo studies attempting to elucidate the underlying mechanism by which PICALM modulates AD risk. While differential modulation of APP processing and Aβ transcytosis by PICALM has been reported, significant effects of PICALM modulation of tau pathology progression have also been evidenced in Alzheimer's disease models. In this review, we summarize the current knowledge about PICALM, its physiological functions, genetic variants, post-translational modifications and relevance to AD pathogenesis.

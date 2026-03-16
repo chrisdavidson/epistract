@@ -1,0 +1,8 @@
+Title: Advantages and Disadvantages of Different Treatment Methods in Achondroplasia: A Review.
+Authors: Wrobel Wiktoria, Pach Emilia, Ben-Skowronek Iwona
+Journal: International journal of molecular sciences (2021)
+PMID: 34070375
+MeSH Terms: Achondroplasia, Animals, Human Growth Hormone, Humans, Mutation, Missense, Natriuretic Peptide, C-Type, Receptor, Fibroblast Growth Factor, Type 3
+
+ABSTRACT:
+Achondroplasia (ACH) is a disease caused by a missense mutation in the FGFR3 (fibroblast growth factor receptor 3) gene, which is the most common cause of short stature in humans. The treatment of ACH is necessary and urgent because untreated achondroplasia has many complications, both orthopedic and neurological, which ultimately lead to disability. This review presents the current and potential pharmacological treatments for achondroplasia, highlighting the advantages and disadvantages of all the drugs that have been demonstrated in human and animal studies in different stages of clinical trials. The article includes the potential impacts of drugs on achondroplasia symptoms other than short stature, including their effects on spinal canal stenosis, the narrowing of the foramen magnum and the proportionality of body structure. Addressing these effects could significantly improve the quality of life of patients, possibly reducing the frequency and necessity of hospitalization and painful surgical procedures, which are currently the only therapeutic options used. The criteria for a good drug for achondroplasia are best met by recombinant human growth hormone at present and will potentially be met by vosoritide in the future, while the rest of the drugs are in the early stages of clinical trials.

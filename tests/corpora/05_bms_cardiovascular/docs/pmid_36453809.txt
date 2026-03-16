@@ -1,0 +1,11 @@
+Title: Deucravacitinib in the treatment of psoriasis.
+Authors: Estevinho Tomás, Lé Ana Maria, Torres Tiago
+Journal: The Journal of dermatological treatment (2023)
+PMID: 36453809
+MeSH Terms: Humans, Quality of Life, Thalidomide, Psoriasis, Chronic Disease, Severity of Illness Index, Heterocyclic Compounds
+
+ABSTRACT:
+PURPOSE OF THE ARTICLE: Psoriasis is a chronic, immune-mediated, skin disease with a significantly negative impact on patients' quality of life. Moderate-to-severe disease often requires systemic therapies and currently available ones still have numerous disadvantages or limitations. Tyrosine kinase 2 (TYK2) mediates immune signaling of IL-12, IL-23, and type I interferons, without interfering with other critical systemic functions. This article aims to review the current knowledge on deucravacitinib, a new oral drug which selectively inhibits TYK2, granting it a low risk of off-target effects.
+MATERIALS AND METHODS: A review of the published literature was conducted using the PubMed database, published abstracts and virtual presentations from scientific meetings, data from industry press releases, and results published on ClinicalTrials.gov regarding the deucravacitinib for the treatment of psoriasis. Manuscripts with trial results, case series, clinical trial data from ClinicalTrials.gov, and articles highlighting expert perspectives on the topic of the article were selected.
+RESULTS: Two phase 3, 52-week trials evaluated deucravacitinib 6 mg against placebo and apremilast - POETYK PSO-1 and PSO-2, enrolling 1688 patients with moderate-to-severe psoriasis. At week 16, over 50% of patients treated with deucravacitinib reached PASI75, significantly superior to placebo and apremilast. Symptomatic improvement was also reported, with greater impact on itch. Deucravacitinib was well tolerated and safe. There were no reports of serious infections, thromboembolic events, or laboratory abnormalities. Persistent efficacy and consistent safety profiles were reported for up to 2 years.
+CONCLUSIONS: Deucravacitinib has the potential to become a safe, effective, and well-tolerated treatment for patients with moderate-to-severe disease. Future studies will be important to determine the exact role of this drug in the treatment of psoriasis.

@@ -1,0 +1,8 @@
+Title: CodeBreak 200: Sotorasib Has Not Broken the KRAS
+Authors: Zhang Shannon S, Lee Alexandria, Nagasaka Misako
+Journal: Lung Cancer (Auckland, N.Z.) (2023)
+PMID: 37101895
+MeSH Terms: 
+
+ABSTRACT:
+Thirteen percent of non-small cell lung cancer (NSCLC) patients are estimated to have the KRAS G12C mutation. Sotorasib is a novel KRAS G12C inhibitor that has shown promising results in preclinical and clinical studies, granting its conditional approval by the FDA in May 2021. The phase I clinical trial resulted in a confirmed response of 32% and progression free survival (PFS) of 6.3 months while the phase II trial resulted in a confirmed response of 37.1% and a PFS of 6.8 months. It was also shown to be tolerable with most subjects experiencing grade one or two adverse events, most commonly diarrhea and nausea. The CodeBreaK 200 phase III trial data have recently resulted and showed an improved PFS with the use of sotorasib at 5.6 months compared to that of standard docetaxel of 4.5 months in locally advanced or unresectable metastatic KRAS G12C NSCLC previously treated with at least one platinum-based chemotherapy and checkpoint inhibitor. The lower than expected PFS of sotorasib from the phase III trial opens up opportunities for other G12C inhibitors to join the field. Indeed, adagrasib, another G12C inhibitor just recently gained FDA accelerated approval in NSCLC patients based on the KRYSTAL-1 study where the response rate was 43% with a median duration of response of 8.5 months. With novel agents and combinations, the field of KRAS G12C is quickly evolving. While sotorasib was an exciting start, there is more to do to break the KRAS G12C Enigma code.

@@ -1,0 +1,12 @@
+Title: Association of PICALM Gene Polymorphisms with Alzheimer's Disease: Evidence from an Updated Meta-Analysis.
+Authors: Zeng Fang-Fang, Liu Jun, He Hong, Gao Xu-Ping, Liao Min-Qi
+Journal: Current Alzheimer research (2019)
+PMID: 31385771
+MeSH Terms: Alzheimer Disease, Genetic Association Studies, Genetic Predisposition to Disease, Humans, Monomeric Clathrin Assembly Proteins, Polymorphism, Single Nucleotide
+
+ABSTRACT:
+BACKGROUND: Previous studies have examined the roles of three polymorphisms (rs3851179, rs541458, and rs592297) of the PICALM gene in susceptibility to Alzheimer's disease (AD) with inconclusive findings.
+OBJECTIVE: We performed a meta-analysis to explore whether these three polymorphisms in the PICALM gene were associated with susceptibility to AD.
+METHODS: Bibliographical searches were conducted in the PubMed, Embase, Web of Science, and China National Knowledge Infrastructure (CNKI) databases. Summary Odds Ratios (ORs) with 95% Confidence Intervals (CIs) were used to assess the strength of association in a random effects model. Potential sources of heterogeneity were identified by subgroup and meta-regression analyses.
+RESULTS: Twenty studies (9,017 cases and 15,448 controls) on rs3851179, 12 studies (8,077 cases and 12,022 controls) on rs541458, and 4 studies (2,106 cases and 2,234 controls) on rs592297 were considered eligible for meta-analyses. For both rs3851179 and rs541458, the overall ORs were significant under all genetic models with mild heterogeneity. Compared with G carriers, A carriers of rs3851179 were associated with a decreased risk of AD (OR = 0.88; 95% CI 0.84, 0.91, P for Z-test <0.001, I2 = 0.0%). Compared with T carriers, C carriers of rs541458 were inversely associated with AD risk (OR = 0.86; 95% CI 0.81, 0.92, P for Z-test <0.001, I2 = 39.5%). No association was observed for rs592297. Subgroup and meta-regression analyses indicated that the protective effect of the rs541458 C allele was observed only among Caucasians, not among Asians (P for interaction: 0.021~<0.001).
+CONCLUSION: rs3851179 and rs541458 appear to be associated with decreased AD risk. The null associations for rs592297 with AD risk need further confirmation with a larger number of participants.

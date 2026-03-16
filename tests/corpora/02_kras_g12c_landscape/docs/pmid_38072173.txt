@@ -1,0 +1,8 @@
+Title: KRAS G12C-mutant driven non-small cell lung cancer (NSCLC).
+Authors: Rosell Rafael, Codony-Servat Jordi, González Jessica, Santarpia Mariacarmela, Jain Anisha
+Journal: Critical reviews in oncology/hematology (2024)
+PMID: 38072173
+MeSH Terms: Humans, Carcinoma, Non-Small-Cell Lung, Lung Neoplasms, Proto-Oncogene Proteins p21(ras), Paclitaxel, Carboplatin, Mutation, Intracellular Signaling Peptides and Proteins, Tumor Suppressor Proteins, Ubiquitin-Protein Ligases
+
+ABSTRACT:
+KRAS G12C mutations in non-small cell lung cancer (NSCLC) partially respond to KRAS G12C covalent inhibitors. However, early adaptive resistance occurs due to rewiring of signaling pathways, activating receptor tyrosine kinases, primarily EGFR, but also MET and ligands. Evidence indicates that treatment with KRAS G12C inhibitors (sotorasib) triggers the MRAS:SHOC2:PP1C trimeric complex. Activation of MRAS occurs from alterations in the Scribble and Hippo-dependent pathways, leading to YAP activation. Other mechanisms that involve STAT3 signaling are intertwined with the activation of MRAS. The high-resolution MRAS:SHOC2:PP1C crystallization structure allows in silico analysis for drug development. Activation of MRAS:SHOC2:PP1C is primarily Scribble-driven and downregulated by HUWE1. The reactivation of the MRAS complex is carried out by valosin containing protein (VCP). Exploring these pathways as therapeutic targets and their impact on different chemotherapeutic agents (carboplatin, paclitaxel) is crucial. Comutations in STK11/LKB1 often co-occur with KRAS G12C, jeopardizing the effect of immune checkpoint (anti-PD1/PDL1) inhibitors.

@@ -1,0 +1,8 @@
+Title: Hypoxia, Metabolic Reprogramming, and Drug Resistance in Liver Cancer.
+Authors: Bao Macus Hao-Ran, Wong Carmen Chak-Lui
+Journal: Cells (2021)
+PMID: 34359884
+MeSH Terms: Antibodies, Monoclonal, Humanized, Antineoplastic Agents, Carcinoma, Hepatocellular, Cellular Reprogramming, Drug Resistance, Neoplasm, Gene Expression Regulation, Neoplastic, Humans, Hypoxia, Hypoxia-Inducible Factor 1, alpha Subunit, Immune Checkpoint Inhibitors
+
+ABSTRACT:
+Hypoxia, low oxygen (O2) level, is a hallmark of solid cancers, especially hepatocellular carcinoma (HCC), one of the most common and fatal cancers worldwide. Hypoxia contributes to drug resistance in cancer through various molecular mechanisms. In this review, we particularly focus on the roles of hypoxia-inducible factor (HIF)-mediated metabolic reprogramming in drug resistance in HCC. Combination therapies targeting hypoxia-induced metabolic enzymes to overcome drug resistance will also be summarized. Acquisition of drug resistance is the major cause of unsatisfactory clinical outcomes of existing HCC treatments. Extra efforts to identify novel mechanisms to combat refractory hypoxic HCC are warranted for the development of more effective treatment regimens for HCC patients.
