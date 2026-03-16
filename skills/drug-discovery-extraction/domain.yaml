@@ -147,6 +147,35 @@ entity_types:
       - "Distinguish from DISEASE: PHENOTYPE is an observable characteristic; DISEASE is a classifiable condition"
       - "Distinguish from BIOMARKER: use PHENOTYPE for the biological state, BIOMARKER for the measured indicator"
 
+  METABOLITE:
+    description: "Endogenous small molecules, substrates, cofactors, neurotransmitters, hormones"
+    extraction_hints:
+      - "ATP, cAMP, dopamine, serotonin, glutamate, estradiol, cortisol"
+      - "Substrates and products of drug-targeted enzymes"
+      - "METABOLITE is endogenous; COMPOUND is exogenous/therapeutic"
+
+  CELL_OR_TISSUE:
+    description: "Cell types, tissues, organs, subcellular compartments, cell lines"
+    extraction_hints:
+      - "Immune cells: CD8+ T cells, NK cells, macrophages, Tregs, MDSCs"
+      - "Tissues/organs: liver, brain, bone marrow, tumor microenvironment"
+      - "Cell lines: HeLa, A549, MCF-7 (mark as cell_line in attributes)"
+      - "Subcellular: cell membrane, nucleus, mitochondria, cytoplasm"
+
+  PROTEIN_DOMAIN:
+    description: "Functional protein domains, binding sites, catalytic regions, structural motifs"
+    extraction_hints:
+      - "Named domains: kinase domain, SH2 domain, bromodomain, zinc finger"
+      - "Binding sites: ATP-binding pocket, allosteric site, active site"
+      - "Extract when domain is the specific site of drug interaction"
+
+  SEQUENCE_VARIANT:
+    description: "Specific genetic/protein alterations — point mutations, fusions, amplifications"
+    extraction_hints:
+      - "HGVS notation: BRAF V600E, KRAS G12C, EGFR T790M, ALK fusion"
+      - "Actionable variants that are drug targets, biomarkers, or resistance mechanisms"
+      - "Distinguish from GENE: BRAF is a GENE; BRAF V600E is a SEQUENCE_VARIANT"
+
 relation_types:
   TARGETS:
     description: "Compound acts on a protein or gene target"
@@ -314,11 +343,45 @@ relation_types:
   EXPRESSED_IN:
     description: "Gene or protein is expressed in a phenotypic context or tissue"
     source_types: [GENE, PROTEIN]
-    target_types: [PHENOTYPE]
+    target_types: [CELL_OR_TISSUE]
     extraction_hints:
       - "Look for 'expressed in', 'overexpressed in', 'detected in', 'upregulated in'"
       - "Includes tissue-specific expression and disease-associated expression patterns"
 
+  INTERACTS_WITH:
+    description: "Pharmacological drug-drug interaction"
+    source_types: [COMPOUND]
+    target_types: [COMPOUND]
+    symmetric: true
+  HAS_VARIANT:
+    description: "Gene harbors a specific sequence variant"
+    source_types: [GENE]
+    target_types: [SEQUENCE_VARIANT]
+  HAS_DOMAIN:
+    description: "Protein contains a functional domain"
+    source_types: [PROTEIN]
+    target_types: [PROTEIN_DOMAIN]
+  METABOLIZED_BY:
+    description: "Compound metabolized by an enzyme (CYP450, UGT, etc.)"
+    source_types: [COMPOUND]
+    target_types: [PROTEIN]
+  PHOSPHORYLATES:
+    description: "Kinase phosphorylates a substrate protein"
+    source_types: [PROTEIN]
+    target_types: [PROTEIN]
+  FORMS_COMPLEX_WITH:
+    description: "Proteins form a multi-subunit complex"
+    source_types: [PROTEIN]
+    target_types: [PROTEIN]
+    symmetric: true
+  REGULATES_EXPRESSION:
+    description: "Transcription factor or compound regulates gene expression"
+    source_types: [PROTEIN, COMPOUND]
+    target_types: [GENE]
+  LOCALIZED_TO:
+    description: "Protein localized to a subcellular compartment"
+    source_types: [PROTEIN]
+    target_types: [CELL_OR_TISSUE]
   ASSOCIATED_WITH:
     description: "General association between entities — use when a more specific relation does not apply"
     source_types: [COMPOUND, GENE, PROTEIN, DISEASE, MECHANISM_OF_ACTION, CLINICAL_TRIAL, PATHWAY, BIOMARKER, ADVERSE_EVENT, ORGANIZATION, PUBLICATION, REGULATORY_ACTION, PHENOTYPE]
