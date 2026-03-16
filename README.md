@@ -14,15 +14,45 @@ From Greek **episteme** (ἐπιστήμη) — structured scientific knowledge,
 
 ## Architecture
 
-<picture>
-  <img alt="Epistract Architecture" src="docs/diagrams/architecture.svg" width="800">
-</picture>
+```mermaid
+flowchart TB
+    subgraph CC["Claude Code Runtime"]
+        subgraph EP["Epistract Plugin"]
+            CMD["Commands<br/>/ingest /build /view<br/>/query /export /validate"]
+            SKL["Drug Discovery<br/>Extraction Skill"]
+            AGT["Agents<br/>extractor · validator"]
+            CMD --> SKL
+            SKL --> AGT
+        end
+        subgraph SK["sift-kg Engine"]
+            ING["Document Ingest<br/>Kreuzberg · OCR"]
+            GRB["Graph Builder<br/>NetworkX · SemHash"]
+            RES["Entity Resolution<br/>LLM-proposed merges"]
+            EXP["Export<br/>JSON · GraphML · GEXF<br/>CSV · SQLite"]
+            VIZ["Interactive Viewer<br/>HTML · Force-directed"]
+            ING --> GRB --> RES --> EXP
+            RES --> VIZ
+        end
+        EP --> SK
+    end
+    USR["Scientist / Researcher"] --> CMD
+    VIZ --> BRW["Browser"]
+    EXP --> EXT["Gephi · Cytoscape<br/>DuckDB · pandas"]
+```
 
 ## Pipeline
 
-<picture>
-  <img alt="Data Flow Pipeline" src="docs/diagrams/data-flow.svg" width="800">
-</picture>
+```mermaid
+flowchart LR
+    DOCS["Documents<br/>PDF · DOCX · HTML<br/>TXT · Patents"] --> ING["Text Extraction<br/>+ Chunking"]
+    ING --> EXT["Claude Extraction<br/>Entities + Relations"]
+    EXT --> VAL["Molecular Validation<br/>RDKit · Biopython"]
+    VAL --> BLD["Graph Building<br/>Dedup · Communities"]
+    BLD --> OUT["Output"]
+    OUT --> VIZ["Interactive Viewer"]
+    OUT --> EXP["Export<br/>GraphML · SQLite · CSV"]
+    OUT --> QRY["Search & Query"]
+```
 
 ---
 
@@ -57,9 +87,24 @@ Every extraction links back to the source document and passage. Every relation c
 
 ### Molecular Biology Linkage
 
-<picture>
-  <img alt="Molecular Biology Chain" src="docs/diagrams/molecular-biology-chain.svg" width="800">
-</picture>
+```mermaid
+flowchart TB
+    GENE["GENE<br/>HGNC symbol"] -->|ENCODES| PROT["PROTEIN<br/>UniProt"]
+    GENE -->|HAS_VARIANT| VAR["SEQUENCE_VARIANT<br/>ClinVar · COSMIC"]
+    PROT -->|PARTICIPATES_IN| PATH["PATHWAY<br/>KEGG · Reactome"]
+    PROT -->|EXPRESSED_IN| CELL["CELL_OR_TISSUE<br/>Cell Ontology"]
+    PATH -->|IMPLICATED_IN| DIS["DISEASE<br/>MeSH"]
+    VAR -->|CONFERS_RESISTANCE_TO| DRUG["COMPOUND<br/>ChEBI · DrugBank"]
+    VAR -->|PREDICTS_RESPONSE_TO| DRUG
+    DRUG -->|TARGETS| PROT
+    DRUG -->|INHIBITS| PROT
+    DRUG -->|INDICATED_FOR| DIS
+    DRUG -->|EVALUATED_IN| TRIAL["CLINICAL_TRIAL<br/>NCT"]
+    DRUG -->|CAUSES| AE["ADVERSE_EVENT<br/>MedDRA"]
+    DRUG -->|HAS_MECHANISM| MOA["MECHANISM_OF_ACTION"]
+    BIO["BIOMARKER<br/>BEST framework"] -->|PREDICTS_RESPONSE_TO| DRUG
+    BIO -->|DIAGNOSTIC_FOR| DIS
+```
 
 The schema captures the full chain from gene → protein → pathway → disease, with drug intervention points, resistance mechanisms, and biomarker links at every level.
 
@@ -260,8 +305,8 @@ Epistract ships with five real-world drug discovery research scenarios, each bac
 |---|---|---|---|
 | 1 | [PICALM / Alzheimer's](tests/MANUAL_TEST_SCENARIOS.md#scenario-1-picalm--alzheimers-disease--genetic-target-validation) | Genetic target validation | 15 papers |
 | 2 | [KRAS G12C Landscape](tests/MANUAL_TEST_SCENARIOS.md#scenario-2-kras-g12c-inhibitor-landscape--competitive-intelligence) | Competitive intelligence | 16 papers |
-| 3 | [Rare Disease Therapeutics](tests/MANUAL_TEST_SCENARIOS.md#scenario-3-biomarin-rare-disease-pipeline--pku-achondroplasia-hemophilia-a) | Due diligence | 15 papers |
-| 4 | [Immuno-Oncology Combinations](tests/MANUAL_TEST_SCENARIOS.md#scenario-4-bristol-myers-squibb-immuno-oncology--checkpoint-combinations) | Checkpoint combinations | 16 papers |
+| 3 | [Rare Disease Therapeutics](tests/MANUAL_TEST_SCENARIOS.md#scenario-3-rare-disease-therapeutics--pku-achondroplasia-hemophilia-a) | Due diligence | 15 papers |
+| 4 | [Immuno-Oncology Combinations](tests/MANUAL_TEST_SCENARIOS.md#scenario-4-immuno-oncology-combinations--checkpoint-combinations) | Checkpoint combinations | 16 papers |
 | 5 | [Cardiovascular & Inflammation](tests/MANUAL_TEST_SCENARIOS.md#scenario-5-bms-cardiovascular--inflammation--mavacamten-and-deucravacitinib) | Cardiology + inflammation | 15 papers |
 
 See [MANUAL_TEST_SCENARIOS.md](tests/MANUAL_TEST_SCENARIOS.md) for full details, PubMed queries, expected graph structure, and acceptance criteria.

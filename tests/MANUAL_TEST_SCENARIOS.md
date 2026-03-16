@@ -143,7 +143,7 @@ You want to map the targets, mechanisms, clinical evidence, and competitive cont
 
 | Property | Value |
 |---|---|
-| **Location** | `tests/corpora/03_biomarin_rare_disease/docs/` |
+| **Location** | `tests/corpora/03_rare_disease/docs/` |
 | **Documents** | 15 PubMed abstracts |
 | **Source queries** | `pegvaliase phenylketonuria PKU enzyme substitution therapy` (5 results) |
 | | `vosoritide achondroplasia FGFR3 C-type natriuretic peptide` (5 results) |
@@ -162,7 +162,7 @@ You want to map the targets, mechanisms, clinical evidence, and competitive cont
 ### How to Run
 
 ```
-/epistract-ingest tests/corpora/03_biomarin_rare_disease/docs/ --output tests/corpora/03_biomarin_rare_disease/output
+/epistract-ingest tests/corpora/03_rare_disease/docs/ --output tests/corpora/03_rare_disease/output
 ```
 
 ### Key Questions to Validate (from UAT-301 through UAT-303)
@@ -201,7 +201,7 @@ You want to map the combination strategies, clinical trials, response biomarkers
 
 | Property | Value |
 |---|---|
-| **Location** | `tests/corpora/04_bms_immunooncology/docs/` |
+| **Location** | `tests/corpora/04_immunooncology/docs/` |
 | **Documents** | 15 PubMed abstracts |
 | **Source queries** | `nivolumab ipilimumab combination immunotherapy melanoma CheckMate` (5 results) |
 | | `relatlimab LAG-3 nivolumab RELATIVITY clinical trial` (5 results) |
@@ -220,7 +220,7 @@ You want to map the combination strategies, clinical trials, response biomarkers
 ### How to Run
 
 ```
-/epistract-ingest tests/corpora/04_bms_immunooncology/docs/ --output tests/corpora/04_bms_immunooncology/output
+/epistract-ingest tests/corpora/04_immunooncology/docs/ --output tests/corpora/04_immunooncology/output
 ```
 
 ### Key Questions to Validate (from UAT-401 through UAT-404)
@@ -259,7 +259,7 @@ These represent a diversification beyond oncology. You want to understand target
 
 | Property | Value |
 |---|---|
-| **Location** | `tests/corpora/05_bms_cardiovascular/docs/` |
+| **Location** | `tests/corpora/05_cardiovascular/docs/` |
 | **Documents** | 14 PubMed abstracts |
 | **Source queries** | `mavacamten hypertrophic cardiomyopathy EXPLORER-HCM` (5 results) |
 | | `cardiac myosin inhibitor obstructive hypertrophic cardiomyopathy` (5 results) |
@@ -278,7 +278,7 @@ These represent a diversification beyond oncology. You want to understand target
 ### How to Run
 
 ```
-/epistract-ingest tests/corpora/05_bms_cardiovascular/docs/ --output tests/corpora/05_bms_cardiovascular/output
+/epistract-ingest tests/corpora/05_cardiovascular/docs/ --output tests/corpora/05_cardiovascular/output
 ```
 
 ### Key Questions to Validate (from UAT-501 through UAT-503)
@@ -308,16 +308,16 @@ To run all five scenarios sequentially:
 ```
 /epistract-ingest tests/corpora/01_picalm_alzheimers/docs/ --output tests/corpora/01_picalm_alzheimers/output
 /epistract-ingest tests/corpora/02_kras_g12c_landscape/docs/ --output tests/corpora/02_kras_g12c_landscape/output
-/epistract-ingest tests/corpora/03_biomarin_rare_disease/docs/ --output tests/corpora/03_biomarin_rare_disease/output
-/epistract-ingest tests/corpora/04_bms_immunooncology/docs/ --output tests/corpora/04_bms_immunooncology/output
-/epistract-ingest tests/corpora/05_bms_cardiovascular/docs/ --output tests/corpora/05_bms_cardiovascular/output
+/epistract-ingest tests/corpora/03_rare_disease/docs/ --output tests/corpora/03_rare_disease/output
+/epistract-ingest tests/corpora/04_immunooncology/docs/ --output tests/corpora/04_immunooncology/output
+/epistract-ingest tests/corpora/05_cardiovascular/docs/ --output tests/corpora/05_cardiovascular/output
 ```
 
 After each run, use `/epistract-query` to spot-check entities:
 
 ```
 /epistract-query "sotorasib" --output tests/corpora/02_kras_g12c_landscape/output
-/epistract-query "nivolumab" --output tests/corpora/04_bms_immunooncology/output
+/epistract-query "nivolumab" --output tests/corpora/04_immunooncology/output
 /epistract-query "PICALM" --output tests/corpora/01_picalm_alzheimers/output
 ```
 
