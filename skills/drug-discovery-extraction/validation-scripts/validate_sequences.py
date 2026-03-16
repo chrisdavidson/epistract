@@ -203,7 +203,7 @@ def main():
         results = []
         for entry in data:
             seq = entry.get("sequence", "")
-            stype = entry.get("type", None)
+            stype = entry.get("type")
             results.append(validate_sequence(seq, stype))
         print(json.dumps(results, indent=2))
     elif args.sequence:
