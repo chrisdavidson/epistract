@@ -3,7 +3,7 @@
 **Status:** Completed
 **Last run:** 2026-03-16
 **Output:** [`tests/corpora/01_picalm_alzheimers/output/`](../corpora/01_picalm_alzheimers/output/)
-**Interactive graph:** [`graph.html`](../corpora/01_picalm_alzheimers/output/graph.html) (open in browser)
+**Interactive graph:** [`graph.html`](../corpora/01_picalm_alzheimers/output/graph.html) (clone repo and open locally in browser)
 
 ---
 
