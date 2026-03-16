@@ -175,9 +175,25 @@ Epistract enforces standard biomedical nomenclature in its extractions:
 | Adverse events | MedDRA preferred terms | immune-mediated colitis |
 | Proteins | UniProt standard names | PD-1, HER2, VEGFR-2 |
 
+## Test Scenarios
+
+Epistract ships with five real-world drug discovery research scenarios, each backed by a curated corpus of PubMed abstracts:
+
+| # | Scenario | Focus | Documents |
+|---|---|---|---|
+| 1 | [PICALM / Alzheimer's](tests/MANUAL_TEST_SCENARIOS.md#scenario-1-picalm--alzheimers-disease--genetic-target-validation) | Genetic target validation | 15 papers |
+| 2 | [KRAS G12C Landscape](tests/MANUAL_TEST_SCENARIOS.md#scenario-2-kras-g12c-inhibitor-landscape--competitive-intelligence) | Competitive intelligence | 15 papers |
+| 3 | [BioMarin Rare Disease](tests/MANUAL_TEST_SCENARIOS.md#scenario-3-biomarin-rare-disease-pipeline--pku-achondroplasia-hemophilia-a) | Due diligence | 15 papers |
+| 4 | [BMS Immuno-Oncology](tests/MANUAL_TEST_SCENARIOS.md#scenario-4-bristol-myers-squibb-immuno-oncology--checkpoint-combinations) | Checkpoint combinations | 15 papers |
+| 5 | [BMS Cardiovascular](tests/MANUAL_TEST_SCENARIOS.md#scenario-5-bms-cardiovascular--inflammation--mavacamten-and-deucravacitinib) | Cardiology + inflammation | 14 papers |
+
+See [MANUAL_TEST_SCENARIOS.md](tests/MANUAL_TEST_SCENARIOS.md) for full details on each scenario, including the PubMed queries used, expected knowledge graph structure, and acceptance criteria.
+
 ## Phases
 
 **Phase 1 (current):** Document extraction, knowledge graph building, interactive visualization, static export formats.
+
+**Phase 1.5 (in progress):** Structural enrichment — validated SMILES, sequences, and molecular identifiers become first-class graph nodes with computed properties. InChIKey-based compound deduplication. Structural similarity edges.
 
 **Phase 2 (planned):** Neo4j graph database ingestion, vector embeddings for semantic search, combined graph+vector RAG queries.
 
