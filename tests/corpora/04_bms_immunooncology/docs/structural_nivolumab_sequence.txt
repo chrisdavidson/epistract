@@ -1,0 +1,56 @@
+Title: Nivolumab (Opdivo) — Structural and Sequence Profile
+Source: Compiled from DrugBank DB09035, IMGT, and published structure data
+
+COMPOUND IDENTITY:
+Nivolumab (BMS-936558, MDX-1106, ONO-4538, Opdivo) is a fully human IgG4
+monoclonal antibody targeting PD-1 (programmed death-1, CD279).
+Developed by Bristol-Myers Squibb / Ono Pharmaceutical.
+
+ANTIBODY SEQUENCES:
+
+Heavy Chain Variable Region (VH):
+QVQLVESGGGVVQPGRSLRLDCKASGITFSNSGMHWVRQAPGKGLEWVAVIWYDGSKRYYADSVKGRFTISRDNSKNTLFLQMNSLRAEDTAVYYCATNDDYWGQGTLVTVSS
+
+Heavy Chain CDR Regions (Kabat):
+CDR-H1: NSGMH
+CDR-H2: VIWYDGSKRYYADSVKG
+CDR-H3: NDDYWGQGTLVTVSS
+
+Light Chain Variable Region (VL):
+EIVLTQSPATLSLSPGERATLSCRASQSVSSYLAWYQQKPGQAPRLLIYDASNRATGIPARFSGSGSGTDFTLTISSLEPEDFAVYYCQQSSNWPRTFGQGTKVEIK
+
+Light Chain CDR Regions (Kabat):
+CDR-L1: RASQSVSSYLA
+CDR-L2: DASNRAT
+CDR-L3: QQSSNWPRT
+
+TARGET: PD-1 (PDCD1 gene, UniProt: Q15116)
+PD-1 is a type I transmembrane receptor expressed on activated T cells, B cells,
+and myeloid cells. Binding of PD-L1 (CD274) or PD-L2 (PDCD1LG2) to PD-1 delivers
+inhibitory signals that suppress T cell activation.
+
+Nivolumab blocks the PD-1/PD-L1 interaction with KD = 2.6 nM (BIAcore SPR assay).
+
+MECHANISM OF ACTION:
+By blocking PD-1, nivolumab prevents the inhibitory checkpoint signal, allowing
+T cells to maintain anti-tumor activity. This represents immune checkpoint blockade —
+a mechanism that does not directly target tumor cells but rather restores the
+immune system's ability to recognize and destroy them.
+
+KEY CLINICAL TRIALS:
+- CheckMate 037 (NCT01721746): Phase III, melanoma post-CTLA-4
+- CheckMate 067 (NCT01844505): Phase III, nivo+ipi vs nivo vs ipi, melanoma
+  5-year OS: 52% (nivo+ipi), 44% (nivo), 26% (ipi)
+- CheckMate 227 (NCT02477826): Phase III, nivo+ipi vs chemo, NSCLC
+- RELATIVITY-047 (NCT03470922): Phase II/III, nivo+relatlimab vs nivo, melanoma
+  PFS HR 0.75 (p=0.006)
+
+BIOMARKERS:
+- PD-L1 expression (TPS >= 1% or >= 50%): predictive of nivolumab response
+- TMB-high (>= 10 mut/Mb): associated with improved response across tumor types
+- MSI-H/dMMR: FDA-approved biomarker for nivolumab in certain settings
+
+ADVERSE EVENTS:
+Most common irAEs: fatigue (26%), rash (17%), pruritus (14%), diarrhea (13%)
+Serious irAEs: immune-mediated pneumonitis (3.1%), colitis (1.7%), hepatitis (1.8%),
+nephritis (1.2%), endocrinopathies - hypothyroidism (8.0%), hyperthyroidism (3.0%)

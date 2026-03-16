@@ -1,0 +1,50 @@
+Title: Mavacamten (Camzyos) — Structural and Pharmacological Profile
+Source: Compiled from PubChem CID 135562068, DrugBank DB16638, and published data
+
+COMPOUND IDENTITY:
+Mavacamten (MYK-461, Camzyos) is a first-in-class selective cardiac myosin inhibitor.
+CAS Registry Number: 1642288-47-8
+SMILES: CC(C1=CC=CC=C1)NC(=O)N1CCC(CC1)OC1=NC=NC(=C1)NCC1=CC=CC=C1
+Molecular Formula: C25H28N4O2
+Molecular Weight: 428.52 g/mol
+
+MECHANISM:
+Mavacamten selectively inhibits cardiac myosin ATPase by stabilizing an auto-inhibited
+(super-relaxed) state of beta-cardiac myosin (MYH7). This reduces the number of
+myosin cross-bridges in the sarcomere, decreasing cardiac contractility.
+
+Target: Beta-cardiac myosin heavy chain (MYH7, UniProt: P12883)
+Binding site: Allosteric site on the myosin motor domain
+IC50: 0.3 μM (bovine cardiac myosin ATPase)
+
+SELECTIVITY:
+>100-fold selective for cardiac myosin over fast skeletal myosin (MYH1).
+Does not inhibit smooth muscle myosin.
+
+PATHWAY:
+Mavacamten acts on the sarcomere — the fundamental contractile unit of cardiac muscle.
+In HCM, mutations in MYH7 or MYBPC3 cause excessive cross-bridge formation,
+leading to hypercontractility and dynamic left ventricular outflow tract (LVOT)
+obstruction.
+
+KEY CLINICAL TRIALS:
+- EXPLORER-HCM (NCT03470545): Phase III, mavacamten vs placebo in oHCM
+  Primary endpoint met: LVOT gradient reduction + symptom improvement
+  47% of mavacamten patients achieved composite endpoint vs 22% placebo
+- VALOR-HCM (NCT04349072): Phase III, mavacamten in patients eligible for
+  septal reduction therapy. 82% no longer met SRT criteria at 16 weeks.
+
+REGULATORY:
+FDA approved April 28, 2022 for symptomatic obstructive HCM (NYHA class II-III).
+REMS program required due to risk of heart failure with reduced ejection fraction.
+
+SAFETY:
+Key adverse events: dizziness (11%), syncope (4%), atrial fibrillation (4%)
+Black box warning: Risk of heart failure due to systolic dysfunction.
+Requires echocardiographic monitoring of LVEF before and during treatment.
+Contraindicated: LVEF < 55%, concurrent use of strong CYP2C19 inhibitors.
+
+METABOLISM:
+Mavacamten is primarily metabolized by CYP2C19 and CYP3A4.
+CYP2C19 poor metabolizers have ~2-fold higher exposure.
+Strong CYP2C19 inhibitors (fluconazole, fluvoxamine) are contraindicated.

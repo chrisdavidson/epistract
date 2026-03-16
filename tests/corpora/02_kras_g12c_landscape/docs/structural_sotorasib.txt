@@ -1,0 +1,37 @@
+Title: Sotorasib (AMG 510) — Structural and Pharmacological Profile
+Source: Compiled from PubChem CID 137278711, DrugBank DB15569, and published SAR data
+
+COMPOUND IDENTITY:
+Sotorasib (AMG 510, Lumakras) is a first-in-class KRAS G12C covalent inhibitor.
+CAS Registry Number: 2252403-56-6
+SMILES: CC1CC(C(O1)N1C=NC2=C(C=C(C=C21)F)NC(=O)C1=CC(=NN1C)C(F)(F)F)OC1=C(C=C(C=C1)F)Cl
+Molecular Formula: C23H25ClF4N4O3
+Molecular Weight: 560.92 g/mol
+InChIKey: LFEWXACJFKQYHQ-XKBHBSJNSA-N
+
+MECHANISM:
+Sotorasib irreversibly and covalently binds to the cysteine-12 residue of KRAS G12C,
+locking the protein in its inactive GDP-bound conformation. This exploits the
+acquired cysteine present only in the G12C mutant (not wild-type KRAS).
+
+Target: KRAS protein (UniProt: P01116), specifically the G12C mutant
+Binding site: Switch II pocket (P2 pocket) adjacent to the effector-binding region
+IC50: 7.8 nM (KRAS G12C, NanoBRET assay)
+EC50: 38 nM (H358 cells, p-ERK inhibition)
+
+SELECTIVITY:
+Sotorasib shows >1000-fold selectivity for KRAS G12C over KRAS wild-type and other
+RAS family members (NRAS, HRAS). It does not inhibit KRAS G12D or KRAS G12V.
+
+RESISTANCE:
+Known resistance mechanisms include secondary KRAS mutations:
+- Y96D: disrupts drug binding in the Switch II pocket
+- R68S: alters drug-protein interface
+- H95Q/R: affects binding cavity geometry
+Other bypass mechanisms: MET amplification, MAPK pathway reactivation via RAF or MEK.
+
+CLINICAL:
+- CodeBreaK 100 (NCT03600883): Phase I/II, ORR 37.1%, median PFS 6.8 months
+- CodeBreaK 200 (NCT04303780): Phase III vs docetaxel, PFS HR 0.66
+Approved by FDA on May 28, 2021 under accelerated approval for KRAS G12C-mutant
+locally advanced or metastatic NSCLC after prior systemic therapy.
