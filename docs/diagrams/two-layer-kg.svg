@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1012.9079999999999 945.3333333333335" width="1012.9079999999999" height="945.3333333333335" style="--bg:#ffffff;--fg:#1f2328;--line:#d1d9e0;--accent:#0969da;--muted:#59636e;background:var(--bg)">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter%2C%20system-ui%2C%20-apple-system%2C%20sans-serif:wght@400;500;600;700&amp;display=swap');
+  text { font-family: 'Inter, system-ui, -apple-system, sans-serif', system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse">
+    <polygon points="8 0, 0 2.5, 8 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<g class="subgraph" data-id="L1" data-label="Layer 1 -- Brute Facts KG">
+  <rect x="271.488" y="48" width="693.42" height="383.53333333333336" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="271.488" y="48" width="693.42" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="283.488" y="62" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">Layer 1 -- Brute Facts KG</text>
+</g>
+<g class="subgraph" data-id="L2" data-label="Layer 2 -- Epistemic Super-Domain">
+  <rect x="478.224" y="562.1333333333334" width="279.948" height="335.20000000000005" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="478.224" y="562.1333333333334" width="279.948" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="490.224" y="576.1333333333334" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">Layer 2 -- Epistemic Super-Domain</text>
+</g>
+<polyline class="edge" data-from="L1" data-to="L2" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="epistemic analysis
+(domain-agnostic)" points="618.198,431.53333333333336 618.198,562.1333333333334" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="P1" data-to="O1" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="OBLIGATED_BY" points="379.826,354.7 391.826,354.70000000000005 391.826,388.6333333333333 571,388.6333333333333" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="P1" data-to="C1" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="SIGNS" points="379.826,336.76666666666665 391.826,336.76666666666665 391.826,302.83333333333337 565.072,302.83333333333337" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="O1" data-to="V1" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="REFERENCES" points="670.748,388.6333333333333 853.606,388.6333333333333" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="G1" data-to="PR1" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="ENCODES" points="391.682,203.41666666666669 403.682,203.41666666666669 403.682,173.96666666666667 533.8,173.96666666666667 533.8,144.51666666666668 569.8,144.51666666666668" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="G1" data-to="V2" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="HAS_VARIANT" points="391.682,221.35000000000002 403.682,221.35000000000002 403.682,229.03333333333333 569.8,229.03333333333336" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="D1" data-to="PR1" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="TARGETS" points="391.682,118.9 533.8,118.9 533.8,126.58333333333334 569.8,126.58333333333334" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<g class="edge-label" data-from="L1" data-to="L2" data-label="epistemic analysis
+(domain-agnostic)">
+  <rect x="566.198" y="474.53333333333336" width="103.78000000000002" height="44.6" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="618.088" y="496.83333333333337" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)"><tspan x="618.088" dy="-3.3000000000000007">epistemic analysis</tspan><tspan x="618.088" dy="14.3">(domain-agnostic)</tspan></text>
+</g>
+<g class="edge-label" data-from="P1" data-to="O1" data-label="OBLIGATED_BY">
+  <rect x="423.82599999999996" y="372.6333333333333" width="97.246" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="472.44899999999996" y="387.7833333333333" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">OBLIGATED_BY</text>
+</g>
+<g class="edge-label" data-from="P1" data-to="C1" data-label="SIGNS">
+  <rect x="448.17999999999995" y="286.83333333333337" width="48.538000000000004" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="472.44899999999996" y="301.98333333333335" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">SIGNS</text>
+</g>
+<g class="edge-label" data-from="O1" data-to="V1" data-label="REFERENCES">
+  <rect x="720.6759999999999" y="372.6333333333333" width="88.92999999999999" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="765.141" y="387.7833333333333" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">REFERENCES</text>
+</g>
+<g class="edge-label" data-from="G1" data-to="PR1" data-label="ENCODES">
+  <rect x="446.96799999999996" y="157.96666666666667" width="67.546" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="480.741" y="173.11666666666667" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">ENCODES</text>
+</g>
+<g class="edge-label" data-from="G1" data-to="V2" data-label="HAS_VARIANT">
+  <rect x="435.682" y="213.03333333333333" width="90.118" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="480.741" y="228.18333333333334" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">HAS_VARIANT</text>
+</g>
+<g class="edge-label" data-from="D1" data-to="PR1" data-label="TARGETS">
+  <rect x="446.96799999999996" y="102.9" width="67.546" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="480.741" y="118.05000000000001" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">TARGETS</text>
+</g>
+<g class="node" data-id="NOTE" data-label="Any domain's brute facts
+get the same epistemic layer" data-shape="rectangle">
+  <rect x="48" y="48" width="203.488" height="53.800000000000004" rx="0" ry="0" fill="none" stroke="none" stroke-width="0.75" />
+  <text x="149.744" y="74.9" text-anchor="middle" font-size="13" font-weight="500" fill="#666"><tspan x="149.744" dy="-3.9000000000000012">Any domain&#39;s brute facts</tspan><tspan x="149.744" dy="16.900000000000002">get the same epistemic layer</tspan></text>
+</g>
+<g class="node" data-id="P1" data-label="Party
+(vendor)" data-shape="rectangle">
+  <rect x="287.488" y="318.83333333333337" width="92.338" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="333.657" y="345.73333333333335" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="333.657" dy="-3.9000000000000012">Party</tspan><tspan x="333.657" dy="16.900000000000002">(vendor)</tspan></text>
+</g>
+<g class="node" data-id="O1" data-label="Obligation
+(deadline)" data-shape="rectangle">
+  <rect x="571" y="361.73333333333335" width="99.748" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="620.874" y="388.6333333333333" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="620.874" dy="-3.9000000000000012">Obligation</tspan><tspan x="620.874" dy="16.900000000000002">(deadline)</tspan></text>
+</g>
+<g class="node" data-id="C1" data-label="Contract
+(agreement)" data-shape="rectangle">
+  <rect x="565.072" y="275.93333333333334" width="111.604" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="620.874" y="302.8333333333333" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="620.874" dy="-3.9000000000000012">Contract</tspan><tspan x="620.874" dy="16.900000000000002">(agreement)</tspan></text>
+</g>
+<g class="node" data-id="V1" data-label="Venue
+(location)" data-shape="rectangle">
+  <rect x="853.606" y="361.73333333333335" width="95.30199999999999" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="901.257" y="388.6333333333333" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="901.257" dy="-3.9000000000000012">Venue</tspan><tspan x="901.257" dy="16.900000000000002">(location)</tspan></text>
+</g>
+<g class="node" data-id="G1" data-label="Gene
+(BRCA1)" data-shape="rectangle">
+  <rect x="303.79" y="185.48333333333335" width="87.892" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="347.736" y="212.38333333333335" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="347.736" dy="-3.9000000000000012">Gene</tspan><tspan x="347.736" dy="16.900000000000002">(BRCA1)</tspan></text>
+</g>
+<g class="node" data-id="PR1" data-label="Protein
+(BRCA1)" data-shape="rectangle">
+  <rect x="569.8" y="108.65" width="87.892" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="613.746" y="135.55" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="613.746" dy="-3.9000000000000012">Protein</tspan><tspan x="613.746" dy="16.900000000000002">(BRCA1)</tspan></text>
+</g>
+<g class="node" data-id="V2" data-label="Variant
+(p.C61G)" data-shape="rectangle">
+  <rect x="569.8" y="202.13333333333335" width="87.892" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="613.746" y="229.03333333333336" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="613.746" dy="-3.9000000000000012">Variant</tspan><tspan x="613.746" dy="16.900000000000002">(p.C61G)</tspan></text>
+</g>
+<g class="node" data-id="D1" data-label="Compound
+(olaparib)" data-shape="rectangle">
+  <rect x="287.488" y="92" width="104.194" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="339.585" y="118.9" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="339.585" dy="-3.9000000000000012">Compound</tspan><tspan x="339.585" dy="16.900000000000002">(olaparib)</tspan></text>
+</g>
+<g class="node" data-id="CF" data-label="Conflict Detection
+Contradicting terms across docs" data-shape="rectangle">
+  <rect x="494.224" y="753.7333333333335" width="232.38699999999997" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="610.4175" y="780.6333333333334" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="610.4175" dy="-3.9000000000000012">Conflict Detection</tspan><tspan x="610.4175" dy="16.900000000000002">Contradicting terms across docs</tspan></text>
+</g>
+<g class="node" data-id="GA" data-label="Gap Analysis
+Missing obligations or coverage" data-shape="rectangle">
+  <rect x="494.224" y="606.1333333333334" width="230.164" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="609.306" y="633.0333333333334" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="609.306" dy="-3.9000000000000012">Gap Analysis</tspan><tspan x="609.306" dy="16.900000000000002">Missing obligations or coverage</tspan></text>
+</g>
+<g class="node" data-id="CS" data-label="Confidence Scoring
+asserted / hypothesized / prophetic" data-shape="rectangle">
+  <rect x="494.224" y="827.5333333333335" width="247.94799999999998" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="618.198" y="854.4333333333335" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="618.198" dy="-3.9000000000000012">Confidence Scoring</tspan><tspan x="618.198" dy="16.900000000000002">asserted / hypothesized / prophetic</tspan></text>
+</g>
+<g class="node" data-id="RS" data-label="Risk Surfacing
+Deadline overlaps, cost disputes" data-shape="rectangle">
+  <rect x="494.224" y="679.9333333333334" width="232.38699999999994" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="610.4175" y="706.8333333333334" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="610.4175" dy="-3.9000000000000012">Risk Surfacing</tspan><tspan x="610.4175" dy="16.900000000000002">Deadline overlaps, cost disputes</tspan></text>
+</g>
+</svg>

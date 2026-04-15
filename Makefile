@@ -9,15 +9,33 @@ setup: ## Install dependencies (sift-kg + optional molecular validation)
 setup-all: ## Install all dependencies including optional (RDKit, Biopython)
 	bash scripts/setup.sh --all
 
-test: ## Run unit tests
-	python -m pytest tests/test_unit.py -v
+test: ## Run unit tests (fast, no external deps)
+	python -m pytest tests/ -m unit -v
+
+test-integration: ## Run integration tests (needs sift-kg)
+	python -m pytest tests/ -m integration -v
+
+test-e2e: ## Run end-to-end pipeline tests (needs sift-kg)
+	python -m pytest tests/ -m e2e -v
+
+test-all: ## Run all test tiers
+	python -m pytest tests/ -v
 
 lint: ## Run linter
-	ruff check scripts/ tests/
+	ruff check core/ tests/
 
 format: ## Format code
-	ruff format scripts/ tests/
+	ruff format core/ tests/
 
 clean: ## Remove build artifacts and caches
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null; true
 	rm -rf .pytest_cache .ruff_cache
+
+regression: ## Run regression suite against baselines
+	python tests/regression/run_regression.py
+
+regression-update: ## Update V2 baselines from current output
+	python tests/regression/run_regression.py --update-baselines
+
+regression-check: ## Quick validation of existing output (no extraction)
+	python tests/regression/run_regression.py --skip-extraction

@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1412.283 263.6" width="1412.283" height="263.6" style="--bg:#FFFFFF;--fg:#27272A;background:var(--bg)">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1576.031 390.3" width="1576.031" height="390.3" style="--bg:#ffffff;--fg:#1f2328;--line:#d1d9e0;--accent:#0969da;--muted:#59636e;background:var(--bg)">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
-  text { font-family: 'Inter', system-ui, sans-serif; }
+  @import url('https://fonts.googleapis.com/css2?family=Inter%2C%20system-ui%2C%20-apple-system%2C%20sans-serif:wght@400;500;600;700&amp;display=swap');
+  text { font-family: 'Inter, system-ui, -apple-system, sans-serif', system-ui, sans-serif; }
   svg {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          var(--fg);
@@ -26,55 +26,78 @@
     <polygon points="8 0, 0 2.5, 8 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
   </marker>
 </defs>
-<polyline class="edge" data-from="DOCS" data-to="ING" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="205.697,131.8 253.697,131.8" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="ING" data-to="EXT" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="385.308,131.8 433.308,131.8" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="EXT" data-to="VAL" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="584.9259999999999,131.8 632.9259999999999,131.8" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="VAL" data-to="BLD" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="794.9179999999999,131.8 842.9180000000001,131.8" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="BLD" data-to="OUT" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1007.874,131.8 1055.874,131.8" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="OUT" data-to="VIZ" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1134.874,131.8 1152.874,131.8 1152.874,58.45 1170.874,58.45" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="OUT" data-to="EXP" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1134.874,131.8 1152.874,131.8 1152.874,131.8 1170.874,131.8" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="OUT" data-to="QRY" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1134.874,131.8 1152.874,131.8 1152.874,205.15000000000003 1170.874,205.15000000000003" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="DOCS" data-to="DR" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="206.28699999999998,250.72500000000002 254.28699999999998,250.72500000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="SCHEMA" data-to="EXT" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="629.2349999999999,148.02500000000003 653.2349999999999,148.02500000000003 653.2349999999999,199.375 677.2349999999999,199.375" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="DR" data-to="ING" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="414.79699999999997,250.72500000000002 462.79699999999997,250.72500000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="ING" data-to="EXT" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="629.2349999999999,250.72500000000005 653.2349999999999,250.72500000000005 653.2349999999999,199.375 677.2349999999999,199.375" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="EXT" data-to="SIFT" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="745.8609999999999,199.375 793.8609999999999,199.375" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="SIFT" data-to="EPIS" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="953.6299999999999,199.375 1001.6299999999999,199.375" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="EPIS" data-to="OUT" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1171.032,199.375 1219.032,199.375" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="OUT" data-to="VIZ" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1298.032,199.375 1316.032,199.375 1316.032,74.9 1334.032,74.9" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="OUT" data-to="EXP" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1298.032,199.375 1316.032,199.375 1316.032,160.70000000000002 1334.032,160.70000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="OUT" data-to="QRY" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1298.032,199.375 1316.032,199.375 1316.032,238.05 1334.032,238.05" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="OUT" data-to="JSON" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1298.032,199.375 1316.032,199.375 1316.032,315.4 1334.032,315.4" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
 <g class="node" data-id="DOCS" data-label="Documents
-PDF · DOCX · HTML
-TXT · Patents" data-shape="rectangle">
-  <rect x="40" y="96.45" width="165.697" height="70.7" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-  <text x="122.8485" y="131.8" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="122.8485" dy="-12.350000000000001">Documents</tspan><tspan x="122.8485" dy="16.900000000000002">PDF · DOCX · HTML</tspan><tspan x="122.8485" dy="16.900000000000002">TXT · Patents</tspan></text>
+PDF - DOCX - HTML
+TXT - XLS - EML" data-shape="rectangle">
+  <rect x="48" y="215.37500000000006" width="158.28699999999998" height="70.7" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="127.14349999999999" y="250.72500000000005" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="127.14349999999999" dy="-12.350000000000001">Documents</tspan><tspan x="127.14349999999999" dy="16.900000000000002">PDF - DOCX - HTML</tspan><tspan x="127.14349999999999" dy="16.900000000000002">TXT - XLS - EML</tspan></text>
 </g>
-<g class="node" data-id="ING" data-label="Text Extraction
-+ Chunking" data-shape="rectangle">
-  <rect x="253.697" y="104.9" width="131.611" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-  <text x="319.5025" y="131.8" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="319.5025" dy="-3.9000000000000012">Text Extraction</tspan><tspan x="319.5025" dy="16.900000000000002">+ Chunking</tspan></text>
+<g class="node" data-id="DR" data-label="domain_resolver.py
+Select domain config" data-shape="rectangle">
+  <rect x="254.28699999999998" y="223.82500000000005" width="160.51" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="334.542" y="250.72500000000005" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="334.542" dy="-3.9000000000000012">domain_resolver.py</tspan><tspan x="334.542" dy="16.900000000000002">Select domain config</tspan></text>
 </g>
-<g class="node" data-id="EXT" data-label="Claude Extraction
-Entities + Relations" data-shape="rectangle">
-  <rect x="433.308" y="104.9" width="151.618" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-  <text x="509.11699999999996" y="131.8" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="509.11699999999996" dy="-3.9000000000000012">Claude Extraction</tspan><tspan x="509.11699999999996" dy="16.900000000000002">Entities + Relations</tspan></text>
+<g class="node" data-id="SCHEMA" data-label="domain.yaml
+Entity types
+Relation types
+Aliases" data-shape="rectangle">
+  <rect x="505.03399999999993" y="104.22500000000002" width="124.20100000000001" height="87.60000000000001" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="567.1344999999999" y="148.02500000000003" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="567.1344999999999" dy="-20.8">domain.yaml</tspan><tspan x="567.1344999999999" dy="16.900000000000002">Entity types</tspan><tspan x="567.1344999999999" dy="16.900000000000002">Relation types</tspan><tspan x="567.1344999999999" dy="16.900000000000002">Aliases</tspan></text>
 </g>
-<g class="node" data-id="VAL" data-label="Molecular Validation
-RDKit · Biopython" data-shape="rectangle">
-  <rect x="632.9259999999999" y="104.9" width="161.99200000000002" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-  <text x="713.9219999999999" y="131.8" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="713.9219999999999" dy="-3.9000000000000012">Molecular Validation</tspan><tspan x="713.9219999999999" dy="16.900000000000002">RDKit · Biopython</tspan></text>
+<g class="node" data-id="EXT" data-label="EXT" data-shape="rectangle">
+  <rect x="677.2349999999999" y="180.925" width="68.62599999999999" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="711.5479999999999" y="199.375" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">EXT</text>
 </g>
-<g class="node" data-id="BLD" data-label="Graph Building
-Dedup · Communities" data-shape="rectangle">
-  <rect x="842.9180000000001" y="104.9" width="164.95600000000002" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-  <text x="925.3960000000002" y="131.8" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="925.3960000000002" dy="-3.9000000000000012">Graph Building</tspan><tspan x="925.3960000000002" dy="16.900000000000002">Dedup · Communities</tspan></text>
+<g class="node" data-id="ING" data-label="ingest_documents.py
+Parse + chunk" data-shape="rectangle">
+  <rect x="462.79699999999997" y="223.82500000000005" width="166.438" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="546.016" y="250.72500000000005" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="546.016" dy="-3.9000000000000012">ingest_documents.py</tspan><tspan x="546.016" dy="16.900000000000002">Parse + chunk</tspan></text>
+</g>
+<g class="node" data-id="SIFT" data-label="run_sift.py
+Build graph
+Entity resolution
+Community detection" data-shape="rectangle">
+  <rect x="793.8609999999999" y="155.57500000000002" width="159.769" height="87.60000000000001" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="873.7454999999999" y="199.37500000000003" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="873.7454999999999" dy="-20.8">run_sift.py</tspan><tspan x="873.7454999999999" dy="16.900000000000002">Build graph</tspan><tspan x="873.7454999999999" dy="16.900000000000002">Entity resolution</tspan><tspan x="873.7454999999999" dy="16.900000000000002">Community detection</tspan></text>
+</g>
+<g class="node" data-id="EPIS" data-label="epistemic.py
+Epistemic analysis
+Conflicts - gaps - risks" data-shape="rectangle">
+  <rect x="1001.6299999999999" y="164.02500000000003" width="169.402" height="70.7" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1086.331" y="199.37500000000003" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="1086.331" dy="-12.350000000000001">epistemic.py</tspan><tspan x="1086.331" dy="16.900000000000002">Epistemic analysis</tspan><tspan x="1086.331" dy="16.900000000000002">Conflicts - gaps - risks</tspan></text>
 </g>
 <g class="node" data-id="OUT" data-label="Output" data-shape="rectangle">
-  <rect x="1055.874" y="113.35" width="79" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-  <text x="1095.374" y="131.8" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Output</text>
+  <rect x="1219.032" y="180.925" width="79" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1258.532" y="199.375" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Output</text>
 </g>
-<g class="node" data-id="VIZ" data-label="Interactive Viewer" data-shape="rectangle">
-  <rect x="1170.874" y="40" width="147.913" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-  <text x="1244.8305" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Interactive Viewer</text>
+<g class="node" data-id="VIZ" data-label="Interactive Viewer
+HTML graph" data-shape="rectangle">
+  <rect x="1334.032" y="48" width="147.913" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1407.9885" y="74.9" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="1407.9885" dy="-3.9000000000000012">Interactive Viewer</tspan><tspan x="1407.9885" dy="16.900000000000002">HTML graph</tspan></text>
 </g>
 <g class="node" data-id="EXP" data-label="Export
-GraphML · SQLite · CSV" data-shape="rectangle">
-  <rect x="1170.874" y="104.9" width="189.40899999999996" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-  <text x="1265.5785" y="131.8" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="1265.5785" dy="-3.9000000000000012">Export</tspan><tspan x="1265.5785" dy="16.900000000000002">GraphML · SQLite · CSV</tspan></text>
+GraphML - SQLite - CSV" data-shape="rectangle">
+  <rect x="1334.032" y="133.8" width="181.99899999999997" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1425.0314999999998" y="160.70000000000002" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="1425.0314999999998" dy="-3.9000000000000012">Export</tspan><tspan x="1425.0314999999998" dy="16.900000000000002">GraphML - SQLite - CSV</tspan></text>
 </g>
-<g class="node" data-id="QRY" data-label="Search &amp; Query" data-shape="rectangle">
-  <rect x="1170.874" y="186.70000000000002" width="135.31599999999997" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-  <text x="1238.532" y="205.15000000000003" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Search &amp; Query</text>
+<g class="node" data-id="QRY" data-label="Search + Query" data-shape="rectangle">
+  <rect x="1334.032" y="219.60000000000002" width="135.31599999999997" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1401.6899999999998" y="238.05" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Search + Query</text>
+</g>
+<g class="node" data-id="JSON" data-label="graph_data.json
+Communities JSON" data-shape="rectangle">
+  <rect x="1334.032" y="288.5" width="152.35899999999998" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1410.2115" y="315.4" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="1410.2115" dy="-3.9000000000000012">graph_data.json</tspan><tspan x="1410.2115" dy="16.900000000000002">Communities JSON</tspan></text>
 </g>
 </svg>

@@ -1,21 +1,21 @@
 {
   "name": "epistract",
-  "version": "1.1.0",
-  "description": "Expert drug discovery knowledge graph extraction from scientific literature. Extracts compounds, targets, mechanisms, clinical trials, and their relationships from PubMed, bioRxiv, patents, and regulatory documents into a structured, queryable knowledge graph.",
+  "version": "2.0.0",
+  "description": "Cross-domain knowledge graph framework. Extract structured knowledge from any document corpus. Pre-built domains: drug discovery (biomedical literature) and contract analysis (vendor contracts). Includes interactive workbench, domain creation wizard, and conversational Q&A.",
   "author": {
     "name": "Umesh Bhatt"
   },
   "license": "MIT",
   "keywords": [
-    "drug-discovery",
     "knowledge-graph",
-    "biomedical",
-    "pharma",
     "entity-extraction",
-    "ontology",
+    "contract-analysis",
+    "drug-discovery",
+    "biomedical",
     "sift-kg",
-    "PubMed",
-    "clinical-trials",
-    "molecular-validation"
+    "document-analysis",
+    "cross-domain",
+    "dashboard",
+    "conversational-qa"
   ]
 }

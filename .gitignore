@@ -11,3 +11,38 @@ docs/analysis/EricNotes.md
 lib/
 *.env
 *.mp4
+node_modules/
+
+# GSD workflow artifacts — development-only, not in remote (per D-14)
+.planning/
+
+# Claude Code local config — RULE#1: dot-folders are local-only.
+# .claude-plugin/ is intentionally NOT ignored — it ships the plugin marketplace files.
+.claude/
+
+# Local-only variants of any tracked file: keep private content alongside the
+# public version. Anything matching *.local.<ext> is never tracked.
+*.local.html
+*.local.txt
+*.local.json
+*.local.yaml
+*.local.yml
+*.local.md
+*.local.csv
+
+# Private / confidential corpus and output paths — never track
+sample-contracts/
+sample-output/
+sample-output-v2/
+private-corpus/
+
+# Kreuzberg extraction cache
+.kreuzberg/
+
+# Python build artifacts
+*.egg-info/
+dist/
+build/
+
+# Regression output (generated, not tracked)
+tests/baselines/v2/

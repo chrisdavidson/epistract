@@ -2,44 +2,19 @@
 """Unit tests for epistract plugin components.
 
 Maps to TEST_REQUIREMENTS.md unit tests UT-001 through UT-014.
-Run: python -m pytest tests/test_unit.py -v
+Run: python -m pytest tests/test_unit.py -m unit -v
 """
 import json
 import sys
 import tempfile
+
+import yaml
 from pathlib import Path
 from unittest import mock
 
 import pytest
 
-# Add project paths for imports
-PROJECT_ROOT = Path(__file__).parent.parent
-VALIDATION_SCRIPTS = PROJECT_ROOT / "skills" / "drug-discovery-extraction" / "validation-scripts"
-SCRIPTS = PROJECT_ROOT / "scripts"
-DOMAIN_YAML = PROJECT_ROOT / "skills" / "drug-discovery-extraction" / "domain.yaml"
-sys.path.insert(0, str(VALIDATION_SCRIPTS))
-sys.path.insert(0, str(SCRIPTS))
-
-# ---------------------------------------------------------------------------
-# Availability flags
-# ---------------------------------------------------------------------------
-try:
-    from sift_kg import load_domain
-    HAS_SIFTKG = True
-except ImportError:
-    HAS_SIFTKG = False
-
-try:
-    from rdkit import Chem  # noqa: F401
-    HAS_RDKIT = True
-except ImportError:
-    HAS_RDKIT = False
-
-try:
-    from Bio.Seq import Seq  # noqa: F401
-    HAS_BIOPYTHON = True
-except ImportError:
-    HAS_BIOPYTHON = False
+from conftest import HAS_BIOPYTHON, HAS_RDKIT, HAS_SIFTKG, PROJECT_ROOT
 
 # ---------------------------------------------------------------------------
 # Always-available imports from the project itself
@@ -47,6 +22,10 @@ except ImportError:
 from scan_patterns import scan_text
 from validate_sequences import detect_type
 from build_extraction import write_extraction
+
+# Domain paths
+DRUG_DISCOVERY_DIR = PROJECT_ROOT / "domains" / "drug-discovery"
+DOMAIN_YAML = DRUG_DISCOVERY_DIR / "domain.yaml"
 
 # Conditional imports
 if HAS_RDKIT:
@@ -58,9 +37,12 @@ if HAS_BIOPYTHON:
 # ========================================================================
 # UT-001: Domain YAML Loads Successfully
 # ========================================================================
+@pytest.mark.unit
 @pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
 def test_ut001_domain_loads():
     """Load domain.yaml via sift-kg DomainLoader, assert 17 entity types and 30 relation types."""
+    from sift_kg import load_domain
+
     domain = load_domain(domain_path=DOMAIN_YAML)
     assert len(domain.entity_types) == 17, f"Expected 17 entity types, got {len(domain.entity_types)}"
     assert len(domain.relation_types) == 30, f"Expected 30 relation types, got {len(domain.relation_types)}"
@@ -69,6 +51,7 @@ def test_ut001_domain_loads():
 # ========================================================================
 # UT-002: Pattern Scanner Detects SMILES
 # ========================================================================
+@pytest.mark.unit
 def test_ut002_scan_smiles():
     """scan_text with SMILES string returns match with pattern_type containing 'SMILES'."""
     text = "The aspirin structure is SMILES: CC(=O)Oc1ccccc1C(=O)O which is well known."
@@ -81,6 +64,7 @@ def test_ut002_scan_smiles():
 # ========================================================================
 # UT-003: Pattern Scanner Detects NCT Numbers
 # ========================================================================
+@pytest.mark.unit
 def test_ut003_scan_nct():
     """scan_text with NCT number returns match with pattern_type NCT_NUMBER."""
     text = "The trial NCT04303780 evaluated sotorasib in NSCLC patients."
@@ -93,6 +77,7 @@ def test_ut003_scan_nct():
 # ========================================================================
 # UT-004: Pattern Scanner Detects DNA Sequences
 # ========================================================================
+@pytest.mark.unit
 def test_ut004_scan_dna():
     """scan_text with DNA sequence (>=15 chars) returns match with pattern_type DNA_SEQUENCE."""
     text = "The primer sequence ATCGATCGATCGATCG was used for amplification."
@@ -105,6 +90,7 @@ def test_ut004_scan_dna():
 # ========================================================================
 # UT-005: Pattern Scanner Detects CAS Numbers
 # ========================================================================
+@pytest.mark.unit
 def test_ut005_scan_cas():
     """scan_text with CAS number returns match with pattern_type CAS_NUMBER."""
     text = "Sotorasib (CAS 2252403-56-6) is a KRAS G12C inhibitor."
@@ -117,6 +103,7 @@ def test_ut005_scan_cas():
 # ========================================================================
 # UT-006: SMILES Validator Returns Properties (valid)
 # ========================================================================
+@pytest.mark.unit
 @pytest.mark.skipif(not HAS_RDKIT, reason="RDKit not installed")
 def test_ut006_validate_smiles_valid():
     """validate_smiles with aspirin SMILES returns valid=True with properties."""
@@ -131,6 +118,7 @@ def test_ut006_validate_smiles_valid():
 # ========================================================================
 # UT-007: SMILES Validator Rejects Invalid SMILES
 # ========================================================================
+@pytest.mark.unit
 @pytest.mark.skipif(not HAS_RDKIT, reason="RDKit not installed")
 def test_ut007_validate_smiles_invalid():
     """validate_smiles with invalid string returns valid=False."""
@@ -142,6 +130,7 @@ def test_ut007_validate_smiles_invalid():
 # ========================================================================
 # UT-008: SMILES Validator Graceful Without RDKit
 # ========================================================================
+@pytest.mark.unit
 def test_ut008_validate_smiles_no_rdkit():
     """With RDKit not importable, validate_smiles returns valid=None."""
     # We need to reload validate_smiles with rdkit unavailable
@@ -164,6 +153,7 @@ def test_ut008_validate_smiles_no_rdkit():
 # ========================================================================
 # UT-009: Sequence Validator Validates DNA
 # ========================================================================
+@pytest.mark.unit
 @pytest.mark.skipif(not HAS_BIOPYTHON, reason="Biopython not installed")
 def test_ut009_validate_dna():
     """validate_sequence with DNA returns valid=True, type=DNA, gc_content present."""
@@ -176,6 +166,7 @@ def test_ut009_validate_dna():
 # ========================================================================
 # UT-010: Sequence Validator Validates Protein
 # ========================================================================
+@pytest.mark.unit
 @pytest.mark.skipif(not HAS_BIOPYTHON, reason="Biopython not installed")
 def test_ut010_validate_protein():
     """validate_sequence with protein returns valid=True, type=protein, molecular_weight present."""
@@ -188,6 +179,7 @@ def test_ut010_validate_protein():
 # ========================================================================
 # UT-011: Sequence Validator Auto-Detects Type
 # ========================================================================
+@pytest.mark.unit
 def test_ut011_detect_type():
     """detect_type correctly identifies DNA, RNA, and protein sequences."""
     assert detect_type("ATCGATCG") == "DNA"
@@ -198,6 +190,7 @@ def test_ut011_detect_type():
 # ========================================================================
 # UT-012: Extraction Adapter Writes Valid JSON
 # ========================================================================
+@pytest.mark.unit
 def test_ut012_extraction_adapter():
     """write_extraction creates valid JSON matching sift-kg schema."""
     entities = [
@@ -236,6 +229,7 @@ def test_ut012_extraction_adapter():
 # ========================================================================
 # UT-013: run_sift.py Build Command Works
 # ========================================================================
+@pytest.mark.unit
 @pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
 def test_ut013_run_sift_build():
     """Create test extractions, run build, verify graph_data.json created."""
@@ -270,7 +264,7 @@ def test_ut013_run_sift_build():
         write_extraction("test_doc_001", tmpdir, entities, relations)
 
         # Run build
-        cmd_build(tmpdir, domain_path=str(DOMAIN_YAML))
+        cmd_build(tmpdir, domain_name="drug-discovery")
 
         # Verify graph_data.json
         graph_path = Path(tmpdir) / "graph_data.json"
@@ -285,6 +279,7 @@ def test_ut013_run_sift_build():
 # ========================================================================
 # UT-014: Validation Orchestrator Scans Extractions
 # ========================================================================
+@pytest.mark.unit
 def test_ut014_validation_orchestrator():
     """Create extraction with SMILES in context, run validate_molecules, verify results."""
     entities = [
@@ -304,7 +299,7 @@ def test_ut014_validation_orchestrator():
         # Run validate_molecules via subprocess to avoid import side effects
         import subprocess
         result = subprocess.run(
-            [sys.executable, str(SCRIPTS / "validate_molecules.py"), tmpdir],
+            [sys.executable, str(DRUG_DISCOVERY_DIR / "validate_molecules.py"), tmpdir],
             capture_output=True,
             text=True,
         )
@@ -316,3 +311,222 @@ def test_ut014_validation_orchestrator():
         data = json.loads(results_path.read_text())
         total_matches = data["stats"]["total_matches"]
         assert total_matches > 0, f"Expected identifiers_found > 0, got stats: {data['stats']}"
+
+
+# ---------------------------------------------------------------------------
+# Epistemic dispatcher generalization tests (Phase 8)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_epistemic_dispatcher_generic_contract():
+    """Verify dispatcher resolves 'contract' to analyze_contract_epistemic via convention."""
+    from core.label_epistemic import _load_domain_epistemic
+
+    mod = _load_domain_epistemic("contract")
+    assert mod is not None, "Failed to load contract epistemic module"
+    assert hasattr(mod, "analyze_contract_epistemic"), "Missing analyze_contract_epistemic function"
+
+
+@pytest.mark.unit
+def test_epistemic_dispatcher_generic_biomedical():
+    """Verify dispatcher resolves 'drug-discovery' to analyze_biomedical_epistemic via convention."""
+    from core.label_epistemic import _load_domain_epistemic
+
+    mod = _load_domain_epistemic("drug-discovery")
+    assert mod is not None, "Failed to load drug-discovery epistemic module"
+    assert hasattr(mod, "analyze_biomedical_epistemic"), "Missing analyze_biomedical_epistemic function"
+
+
+@pytest.mark.unit
+def test_epistemic_dispatcher_alias_resolution():
+    """Verify dispatcher handles aliases like 'biomedical' -> 'drug-discovery'."""
+    from core.label_epistemic import _load_domain_epistemic
+
+    mod = _load_domain_epistemic("biomedical")
+    assert mod is not None, "Failed to load biomedical alias"
+    assert hasattr(mod, "analyze_biomedical_epistemic"), "Alias didn't resolve to drug-discovery module"
+
+
+@pytest.mark.unit
+def test_epistemic_dispatcher_unknown_domain_returns_none():
+    """Verify dispatcher returns None for nonexistent domain (no crash)."""
+    from core.label_epistemic import _load_domain_epistemic
+
+    mod = _load_domain_epistemic("nonexistent-domain-xyz")
+    assert mod is None, "Should return None for unknown domain"
+
+
+@pytest.mark.unit
+def test_wizard_fixtures_exist():
+    """Verify wizard test fixtures are present."""
+    fixtures_dir = Path(__file__).parent / "fixtures" / "wizard"
+    assert fixtures_dir.is_dir(), f"Missing wizard fixtures directory: {fixtures_dir}"
+    samples = list(fixtures_dir.glob("sample_lease_*.txt"))
+    assert len(samples) >= 2, f"Need at least 2 sample docs, found {len(samples)}"
+    for sample in samples:
+        text = sample.read_text()
+        assert len(text) > 100, f"Sample {sample.name} too short ({len(text)} chars)"
+
+
+
+# ---------------------------------------------------------------------------
+# Domain wizard generation tests (Phase 8, Plan 02)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_wizard_read_sample_docs():
+    """read_sample_documents returns doc info for 3 fixture files."""
+    from core.domain_wizard import read_sample_documents
+
+    fixtures = Path(__file__).parent / "fixtures" / "wizard"
+    paths = sorted(fixtures.glob("sample_lease_*.txt"))
+    result = read_sample_documents(paths)
+    assert len(result) == 3
+    for doc in result:
+        assert "path" in doc
+        assert "text" in doc
+        assert "char_count" in doc
+        assert doc["char_count"] > 100
+
+
+@pytest.mark.unit
+def test_wizard_read_sample_docs_too_few():
+    """read_sample_documents raises ValueError with < 2 docs."""
+    from core.domain_wizard import read_sample_documents
+
+    fixtures = Path(__file__).parent / "fixtures" / "wizard"
+    paths = [next(fixtures.glob("sample_lease_1.txt"))]
+    with pytest.raises(ValueError, match="at least 2"):
+        read_sample_documents(paths)
+
+
+@pytest.mark.unit
+def test_wizard_generates_domain_yaml():
+    """generate_domain_yaml produces valid YAML with required keys."""
+    from core.domain_wizard import generate_domain_yaml
+
+    entity_types = {
+        "LANDLORD": {"description": "Property owner"},
+        "TENANT": {"description": "Lessee"},
+    }
+    relation_types = {"LEASES_TO": {"description": "Landlord leases property to tenant"}}
+    result = generate_domain_yaml(
+        "Real Estate Leases",
+        "Lease analysis domain",
+        "You are analyzing lease agreements.",
+        entity_types,
+        relation_types,
+    )
+    parsed = yaml.safe_load(result)
+    assert parsed["name"] == "Real Estate Leases"
+    assert "LANDLORD" in parsed["entity_types"]
+    assert "LEASES_TO" in parsed["relation_types"]
+    assert parsed["version"] == "1.0.0"
+
+
+@pytest.mark.unit
+def test_wizard_generates_skill_md():
+    """generate_skill_md produces markdown with required sections."""
+    from core.domain_wizard import generate_skill_md
+
+    entity_types = {"LANDLORD": {"description": "Property owner"}}
+    relation_types = {"LEASES_TO": {"description": "Leases property"}}
+    result = generate_skill_md(
+        "Real Estate Leases",
+        "Analyzing lease agreements.",
+        entity_types,
+        relation_types,
+        "Extract all parties and obligations.",
+    )
+    assert "## Entity Types" in result
+    assert "## Relation Types" in result
+    assert "LANDLORD" in result
+    assert "LEASES_TO" in result
+
+
+@pytest.mark.unit
+def test_wizard_generates_epistemic_py():
+    """generate_epistemic_py produces valid Python with correct function name."""
+    from core.domain_wizard import generate_epistemic_py
+
+    import ast
+
+    code = generate_epistemic_py(
+        "real_estate",
+        {"LANDLORD": {"description": "Owner"}, "TENANT": {"description": "Lessee"}},
+        [("exclusive", "non-exclusive")],
+        {"coverage": ["LANDLORD"]},
+        {"high": 0.9, "medium": 0.7, "low": 0.5},
+    )
+    ast.parse(code)  # Must not raise
+    assert "def analyze_real_estate_epistemic(" in code
+    assert "metadata" in code
+    assert "summary" in code
+
+
+@pytest.mark.unit
+def test_wizard_validates_epistemic_good():
+    """validate_generated_epistemic returns valid=True for correct code."""
+    from core.domain_wizard import generate_epistemic_py, validate_generated_epistemic
+
+    code = generate_epistemic_py(
+        "test_domain",
+        {"ENTITY_A": {"description": "A"}},
+        [],
+        {},
+        {"high": 0.9},
+    )
+    result = validate_generated_epistemic(code, "test_domain")
+    assert result["valid"] is True, f"Validation failed: {result.get('error')}"
+
+
+@pytest.mark.unit
+def test_wizard_validates_epistemic_bad_syntax():
+    """validate_generated_epistemic catches syntax errors."""
+    from core.domain_wizard import validate_generated_epistemic
+
+    bad_code = "def broken(:\n    pass"
+    result = validate_generated_epistemic(bad_code, "broken")
+    assert result["valid"] is False
+    assert "SyntaxError" in result["error"]
+
+
+@pytest.mark.unit
+def test_wizard_generates_reference_docs():
+    """generate_reference_docs produces markdown with entity/relation headers."""
+    from core.domain_wizard import generate_reference_docs
+
+    entity_types = {
+        "LANDLORD": {"description": "Property owner"},
+        "TENANT": {"description": "Lessee"},
+    }
+    relation_types = {"LEASES_TO": {"description": "Leases property"}}
+    entity_md, relation_md = generate_reference_docs(entity_types, relation_types)
+    assert "## LANDLORD" in entity_md
+    assert "## TENANT" in entity_md
+    assert "## LEASES_TO" in relation_md
+
+
+@pytest.mark.unit
+def test_wizard_check_domain_exists():
+    """check_domain_exists detects existing domains and aliases."""
+    from core.domain_wizard import check_domain_exists
+
+    assert check_domain_exists("contracts") is True
+    assert check_domain_exists("contract") is True  # alias
+    assert check_domain_exists("nonexistent-domain-xyz") is False
+
+
+@pytest.mark.unit
+def test_wizard_schema_discovery_prompt():
+    """build_schema_discovery_prompt includes domain description in prompt."""
+    from core.domain_wizard import build_schema_discovery_prompt
+
+    prompt = build_schema_discovery_prompt(
+        "Sample lease text here...", "Real estate lease agreements"
+    )
+    assert "Real estate lease agreements" in prompt
+    assert "entity" in prompt.lower()
+    assert "relation" in prompt.lower()

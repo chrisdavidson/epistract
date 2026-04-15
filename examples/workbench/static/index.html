@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Knowledge Graph Explorer</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h1 class="sidebar-title" id="sidebar-title">Workbench</h1>
+    </div>
+
+    <div class="nav-links">
+      <button class="nav-link" data-panel="dashboard">
+        <span class="nav-icon">&#x1F4CA;</span> Dashboard
+      </button>
+      <button class="nav-link active" data-panel="chat">
+        <span class="nav-icon">&#x1F4AC;</span> Chat
+      </button>
+      <button class="nav-link" data-panel="graph">
+        <span class="nav-icon">&#x25C9;</span> Graph
+      </button>
+    </div>
+
+    <!-- Severity section: only meaningful when the domain epistemic layer
+         emits items with a `severity` field (e.g., contracts: Critical /
+         Warning / Info). Hidden by app.js at startup if /api/graph/claims
+         contains no severity-tagged items. -->
+    <div class="sidebar-section" id="severity-section" style="display:none">
+      <h3 class="sidebar-section-title">Severity</h3>
+      <div class="legend">
+        <div class="legend-item">
+          <span class="legend-dot" style="background:#dc3545"></span>
+          <span class="legend-label">Critical</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot" style="background:#d97706"></span>
+          <span class="legend-label">Warning</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot" style="background:#2563eb"></span>
+          <span class="legend-label">Info</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3 class="sidebar-section-title">Entity Types</h3>
+      <div class="legend" id="entity-legend">
+        <!-- Populated dynamically from /api/template + /api/graph/entity-types -->
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hamburger toggle for mobile -->
+  <button class="hamburger" id="hamburger" aria-label="Toggle sidebar">&#9776;</button>
+
+  <!-- Dashboard Panel -->
+  <section class="dashboard-panel" id="dashboard-panel">
+    <div class="dashboard-content" id="dashboard-content">
+      <!-- Loaded from domain template or auto-generated -->
+      <p>Loading dashboard...</p>
+    </div>
+  </section>
+
+  <!-- Chat Panel -->
+  <main class="chat-panel">
+    <div class="messages" id="messages">
+      <div class="welcome" id="welcome">
+        <h2 id="welcome-title">Welcome</h2>
+        <p class="welcome-body" id="welcome-body">Choose a starter question below or type your own.</p>
+        <div class="starter-cards" id="starter-cards">
+          <!-- Populated dynamically from template.starter_questions -->
+        </div>
+      </div>
+    </div>
+
+    <form class="chat-input" id="chat-form">
+      <textarea id="chat-input" placeholder="Ask a question..." rows="1"></textarea>
+      <button type="submit" class="send-btn">Send</button>
+    </form>
+  </main>
+
+  <!-- Side Panel (Graph + Sources) -->
+  <aside class="side-panel" id="side-panel">
+    <!-- Graph Panel -->
+    <div class="panel-content" id="graph-panel" style="display:flex;flex-direction:column">
+      <div class="graph-controls">
+        <input type="text" id="graph-search" class="graph-search" placeholder="Search nodes...">
+
+        <div class="entity-toggles" id="entity-toggles">
+          <!-- Populated dynamically from /api/graph/entity-types + template colors -->
+        </div>
+
+        <!-- Severity filter: hidden by default; app.js shows it when the
+             current domain emits severity-tagged claims. -->
+        <select id="severity-filter" class="severity-filter" style="display:none">
+          <option value="all">All Severities</option>
+          <option value="critical">Critical</option>
+          <option value="warning">Warning</option>
+          <option value="info">Info</option>
+        </select>
+      </div>
+
+      <div id="graph-container" class="graph-container">
+        <p class="graph-placeholder">Building graph visualization...</p>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- Source Document Viewer Modal -->
+  <div class="source-modal" id="source-modal" style="display:none">
+    <div class="source-modal-content">
+      <div class="source-modal-header">
+        <h3 id="source-modal-title">Document</h3>
+        <button class="source-modal-close" onclick="document.getElementById('source-modal').style.display='none'">&times;</button>
+      </div>
+      <pre class="source-modal-text" id="source-modal-text">Loading...</pre>
+    </div>
+  </div>
+
+  <script src="/static/vis-network.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script type="module" src="/static/app.js"></script>
+  <script>
+    // Source document modal handler
+    document.addEventListener('click', async (e) => {
+      const link = e.target.closest('.source-link');
+      if (!link) return;
+      e.preventDefault();
+      const docId = link.dataset.doc;
+      const modal = document.getElementById('source-modal');
+      const title = document.getElementById('source-modal-title');
+      const text = document.getElementById('source-modal-text');
+      title.textContent = link.textContent;
+      text.textContent = 'Loading...';
+      modal.style.display = 'flex';
+      try {
+        const resp = await fetch(`/api/sources/${docId}`);
+        const data = await resp.json();
+        text.textContent = data.text || data.error || 'No content found';
+      } catch (err) {
+        text.textContent = 'Failed to load document: ' + err.message;
+      }
+    });
+    // Close modal on backdrop click
+    document.getElementById('source-modal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'source-modal') e.target.style.display = 'none';
+    });
+    // Close modal on Esc
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') document.getElementById('source-modal').style.display = 'none';
+    });
+  </script>
+</body>
+</html>
