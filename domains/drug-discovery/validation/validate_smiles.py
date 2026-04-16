@@ -43,12 +43,14 @@ def validate_smiles(smiles: str) -> dict:
     tpsa = Descriptors.TPSA(mol)
 
     # Lipinski Rule of Five violations
-    violations = sum((
-        mw > 500,
-        logp > 5,
-        hbd > 5,
-        hba > 10,
-    ))
+    violations = sum(
+        (
+            mw > 500,
+            logp > 5,
+            hbd > 5,
+            hba > 10,
+        )
+    )
 
     return {
         "valid": True,

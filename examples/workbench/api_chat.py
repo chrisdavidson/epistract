@@ -1,4 +1,5 @@
 """Chat API endpoint with LLM SSE streaming."""
+
 from __future__ import annotations
 
 import json
@@ -10,7 +11,10 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
-from examples.workbench.system_prompt import build_system_prompt, get_matched_source_chunks
+from examples.workbench.system_prompt import (
+    build_system_prompt,
+    get_matched_source_chunks,
+)
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
@@ -89,9 +93,8 @@ def _resolve_api_config() -> tuple[str | None, str, str, str]:
     # Accept either AZURE_FOUNDRY_* or ANTHROPIC_FOUNDRY_* naming. We look
     # up both for every field and prefer AZURE_* when both are set (the
     # original naming from the initial Foundry integration).
-    foundry_key = (
-        os.environ.get("AZURE_FOUNDRY_API_KEY")
-        or os.environ.get("ANTHROPIC_FOUNDRY_API_KEY")
+    foundry_key = os.environ.get("AZURE_FOUNDRY_API_KEY") or os.environ.get(
+        "ANTHROPIC_FOUNDRY_API_KEY"
     )
     if foundry_key:
         custom_base = (
@@ -128,11 +131,21 @@ def _resolve_api_config() -> tuple[str | None, str, str, str]:
 
     anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
     if anthropic_key:
-        return anthropic_key, "https://api.anthropic.com/v1/messages", "claude-sonnet-4-20250514", "anthropic"
+        return (
+            anthropic_key,
+            "https://api.anthropic.com/v1/messages",
+            "claude-sonnet-4-20250514",
+            "anthropic",
+        )
 
     openrouter_key = os.environ.get("OPENROUTER_API_KEY")
     if openrouter_key:
-        return openrouter_key, "https://openrouter.ai/api/v1/chat/completions", "anthropic/claude-sonnet-4", "openrouter"
+        return (
+            openrouter_key,
+            "https://openrouter.ai/api/v1/chat/completions",
+            "anthropic/claude-sonnet-4",
+            "openrouter",
+        )
 
     return None, "", "", ""
 
@@ -208,10 +221,19 @@ async def _stream_anthropic(
 
     try:
         async with httpx.AsyncClient(timeout=120.0, proxy=None) as client:
-            async with client.stream("POST", base_url, json=payload, headers=headers) as resp:
+            async with client.stream(
+                "POST", base_url, json=payload, headers=headers
+            ) as resp:
                 if resp.status_code != 200:
                     body = await resp.aread()
-                    yield {"data": json.dumps({"type": "error", "content": f"API error {resp.status_code}: {body.decode()[:500]}"})}
+                    yield {
+                        "data": json.dumps(
+                            {
+                                "type": "error",
+                                "content": f"API error {resp.status_code}: {body.decode()[:500]}",
+                            }
+                        )
+                    }
                     yield {"data": json.dumps({"type": "done"})}
                     return
 
@@ -227,7 +249,11 @@ async def _stream_anthropic(
                             delta = event.get("delta", {})
                             text = delta.get("text", "")
                             if text:
-                                yield {"data": json.dumps({"type": "text", "content": text})}
+                                yield {
+                                    "data": json.dumps(
+                                        {"type": "text", "content": text}
+                                    )
+                                }
                     except json.JSONDecodeError:
                         continue
     except Exception as e:
@@ -257,10 +283,19 @@ async def _stream_openai_compat(
 
     try:
         async with httpx.AsyncClient(timeout=120.0, proxy=None) as client:
-            async with client.stream("POST", base_url, json=payload, headers=headers) as resp:
+            async with client.stream(
+                "POST", base_url, json=payload, headers=headers
+            ) as resp:
                 if resp.status_code != 200:
                     body = await resp.aread()
-                    yield {"data": json.dumps({"type": "error", "content": f"API error {resp.status_code}: {body.decode()[:500]}"})}
+                    yield {
+                        "data": json.dumps(
+                            {
+                                "type": "error",
+                                "content": f"API error {resp.status_code}: {body.decode()[:500]}",
+                            }
+                        )
+                    }
                     yield {"data": json.dumps({"type": "done"})}
                     return
 
@@ -277,7 +312,11 @@ async def _stream_openai_compat(
                             delta = choices[0].get("delta", {})
                             text = delta.get("content", "")
                             if text:
-                                yield {"data": json.dumps({"type": "text", "content": text})}
+                                yield {
+                                    "data": json.dumps(
+                                        {"type": "text", "content": text}
+                                    )
+                                }
                     except json.JSONDecodeError:
                         continue
     except Exception as e:
