@@ -29,7 +29,7 @@ def validate_smiles(smiles: str) -> dict:
     if not RDKIT_AVAILABLE:
         return {
             "valid": None,
-            "error": "RDKit not installed. Run: uv pip install rdkit-pypi",
+            "error": "RDKit not installed. Run: uv pip install rdkit",
         }
 
     mol = Chem.MolFromSmiles(smiles)
@@ -43,12 +43,14 @@ def validate_smiles(smiles: str) -> dict:
     tpsa = Descriptors.TPSA(mol)
 
     # Lipinski Rule of Five violations
-    violations = sum((
-        mw > 500,
-        logp > 5,
-        hbd > 5,
-        hba > 10,
-    ))
+    violations = sum(
+        (
+            mw > 500,
+            logp > 5,
+            hbd > 5,
+            hba > 10,
+        )
+    )
 
     return {
         "valid": True,

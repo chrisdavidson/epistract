@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Epistract v2.0 Two-Layer Knowledge Graph</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'JetBrains Mono', monospace; background: #020617; min-height: 100vh; padding: 2rem; color: white; }
+    .container { max-width: 1280px; margin: 0 auto; }
+    .header { margin-bottom: 2rem; }
+    .header-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem; }
+    .pulse-dot { width: 12px; height: 12px; background: #fb7185; border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.025em; }
+    .subtitle { color: #94a3b8; font-size: 0.875rem; margin-left: 1.75rem; }
+    .diagram-container { background: rgba(15, 23, 42, 0.5); border-radius: 1rem; border: 1px solid #1e293b; padding: 1.5rem; overflow-x: auto; }
+    svg { width: 100%; min-width: 980px; display: block; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin-top: 2rem; }
+    .card { background: rgba(15, 23, 42, 0.5); border-radius: 0.75rem; border: 1px solid #1e293b; padding: 1.25rem; }
+    .card-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .card-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .card-dot.cyan { background: #22d3ee; }
+    .card-dot.emerald { background: #34d399; }
+    .card-dot.violet { background: #a78bfa; }
+    .card-dot.amber { background: #fbbf24; }
+    .card-dot.rose { background: #fb7185; }
+    .card h3 { font-size: 0.875rem; font-weight: 600; }
+    .card ul { list-style: none; color: #94a3b8; font-size: 0.75rem; }
+    .card li { margin-bottom: 0.375rem; }
+    .footer { text-align: center; margin-top: 1.5rem; color: #475569; font-size: 0.75rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="header-row">
+        <div class="pulse-dot"></div>
+        <h1>Epistract v2.0 — Two-Layer Knowledge Graph</h1>
+      </div>
+      <p class="subtitle">Layer 1 captures what documents say · Layer 2 captures what we infer about those facts (asserted · hypothesized · prophetic · contradictory · gap)</p>
+    </div>
+
+    <div class="diagram-container">
+      <svg viewBox="0 0 1000 760">
+        <defs>
+          <marker id="ah" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
+          </marker>
+          <marker id="ah-em" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#34d399" />
+          </marker>
+          <marker id="ah-vi" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#a78bfa" />
+          </marker>
+          <marker id="ah-rs" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#fb7185" />
+          </marker>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+          </pattern>
+        </defs>
+
+        <rect width="100%" height="100%" fill="url(#grid)" />
+
+        <!-- Layer 1 panel (left) -->
+        <rect x="25" y="40" width="475" height="600" rx="10" fill="rgba(6, 78, 59, 0.12)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="45" y="65" fill="#34d399" font-size="13" font-weight="700">Layer 1 — Brute Facts</text>
+        <text x="45" y="80" fill="#94a3b8" font-size="9">nodes + typed edges extracted verbatim from documents</text>
+        <text x="45" y="94" fill="#94a3b8" font-size="8">core/ pipeline + sift-kg graph builder · same for every domain</text>
+
+        <!-- Mini subgraph: KRAS G12C NSCLC (drug-discovery example) -->
+        <!-- Nodes -->
+        <!-- Sotorasib (DRUG = cyan) -->
+        <rect x="70" y="150" width="110" height="44" rx="22" fill="#0f172a"/>
+        <rect x="70" y="150" width="110" height="44" rx="22" fill="rgba(8, 51, 68, 0.5)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="125" y="168" fill="white" font-size="11" font-weight="600" text-anchor="middle">Sotorasib</text>
+        <text x="125" y="183" fill="#22d3ee" font-size="7" text-anchor="middle">DRUG</text>
+
+        <!-- Adagrasib (DRUG = cyan) -->
+        <rect x="70" y="420" width="110" height="44" rx="22" fill="#0f172a"/>
+        <rect x="70" y="420" width="110" height="44" rx="22" fill="rgba(8, 51, 68, 0.5)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="125" y="438" fill="white" font-size="11" font-weight="600" text-anchor="middle">Adagrasib</text>
+        <text x="125" y="453" fill="#22d3ee" font-size="7" text-anchor="middle">DRUG</text>
+
+        <!-- KRAS G12C (TARGET = violet) -->
+        <rect x="320" y="280" width="130" height="44" rx="22" fill="#0f172a"/>
+        <rect x="320" y="280" width="130" height="44" rx="22" fill="rgba(76, 29, 149, 0.5)" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="385" y="298" fill="white" font-size="11" font-weight="600" text-anchor="middle">KRAS G12C</text>
+        <text x="385" y="313" fill="#a78bfa" font-size="7" text-anchor="middle">TARGET</text>
+
+        <!-- NSCLC (DISEASE = rose) -->
+        <rect x="320" y="480" width="130" height="44" rx="22" fill="#0f172a"/>
+        <rect x="320" y="480" width="130" height="44" rx="22" fill="rgba(136, 19, 55, 0.5)" stroke="#fb7185" stroke-width="1.5"/>
+        <text x="385" y="498" fill="white" font-size="11" font-weight="600" text-anchor="middle">NSCLC</text>
+        <text x="385" y="513" fill="#fb7185" font-size="7" text-anchor="middle">DISEASE</text>
+
+        <!-- FDA (AGENCY = amber) -->
+        <rect x="110" y="580" width="100" height="40" rx="20" fill="#0f172a"/>
+        <rect x="110" y="580" width="100" height="40" rx="20" fill="rgba(120, 53, 15, 0.4)" stroke="#fbbf24" stroke-width="1.5"/>
+        <text x="160" y="598" fill="white" font-size="11" font-weight="600" text-anchor="middle">FDA</text>
+        <text x="160" y="613" fill="#fbbf24" font-size="7" text-anchor="middle">AGENCY</text>
+
+        <!-- Edges -->
+        <!-- Sotorasib → KRAS G12C (inhibits) -->
+        <line x1="180" y1="178" x2="318" y2="292" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#ah)"/>
+        <text x="225" y="220" fill="#94a3b8" font-size="9">inhibits</text>
+
+        <!-- Adagrasib → KRAS G12C (inhibits) -->
+        <line x1="180" y1="435" x2="318" y2="315" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#ah)"/>
+        <text x="225" y="380" fill="#94a3b8" font-size="9">inhibits</text>
+
+        <!-- KRAS G12C → NSCLC (drives) -->
+        <line x1="385" y1="324" x2="385" y2="478" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#ah)"/>
+        <text x="397" y="405" fill="#94a3b8" font-size="9">drives</text>
+
+        <!-- Sotorasib → NSCLC (treats, curved) -->
+        <path d="M 125 194 Q 260 330 330 500" fill="none" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#ah)"/>
+        <text x="200" y="350" fill="#94a3b8" font-size="9">treats</text>
+
+        <!-- Adagrasib → NSCLC (treats) -->
+        <line x1="180" y1="450" x2="320" y2="498" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#ah)"/>
+        <text x="240" y="488" fill="#94a3b8" font-size="9">treats</text>
+
+        <!-- Sotorasib → FDA (approvedBy) -->
+        <path d="M 95 194 Q 65 380 125 580" fill="none" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#ah)"/>
+        <text x="40" y="400" fill="#94a3b8" font-size="9">approvedBy</text>
+
+        <!-- Legend for entity types within panel -->
+        <text x="270" y="108" fill="#94a3b8" font-size="8" font-weight="600">Entity types</text>
+        <circle cx="275" cy="122" r="4" fill="rgba(8, 51, 68, 0.5)" stroke="#22d3ee" stroke-width="1"/>
+        <text x="284" y="125" fill="#94a3b8" font-size="7">DRUG</text>
+        <circle cx="315" cy="122" r="4" fill="rgba(76, 29, 149, 0.5)" stroke="#a78bfa" stroke-width="1"/>
+        <text x="324" y="125" fill="#94a3b8" font-size="7">TARGET</text>
+        <circle cx="365" cy="122" r="4" fill="rgba(136, 19, 55, 0.5)" stroke="#fb7185" stroke-width="1"/>
+        <text x="374" y="125" fill="#94a3b8" font-size="7">DISEASE</text>
+        <circle cx="415" cy="122" r="4" fill="rgba(120, 53, 15, 0.4)" stroke="#fbbf24" stroke-width="1"/>
+        <text x="424" y="125" fill="#94a3b8" font-size="7">AGENCY</text>
+
+        <!-- Middle connector -->
+        <text x="500" y="65" fill="#fb7185" font-size="10" font-weight="600" text-anchor="middle">epistemic.py</text>
+        <line x1="500" y1="72" x2="500" y2="610" stroke="#fb7185" stroke-width="1" stroke-dasharray="4,4"/>
+        <text x="500" y="630" fill="#fb7185" font-size="8" text-anchor="middle">domain-specific</text>
+
+        <!-- Multiple rose arrows crossing from Layer 1 to Layer 2 -->
+        <line x1="500" y1="175" x2="528" y2="175" stroke="#fb7185" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#ah-rs)"/>
+        <line x1="500" y1="280" x2="528" y2="280" stroke="#fb7185" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#ah-rs)"/>
+        <line x1="500" y1="385" x2="528" y2="385" stroke="#fb7185" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#ah-rs)"/>
+        <line x1="500" y1="485" x2="528" y2="485" stroke="#fb7185" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#ah-rs)"/>
+        <line x1="500" y1="580" x2="528" y2="580" stroke="#fb7185" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#ah-rs)"/>
+
+        <!-- Layer 2 panel (right) -->
+        <rect x="525" y="40" width="450" height="600" rx="10" fill="rgba(136, 19, 55, 0.10)" stroke="#fb7185" stroke-width="1.5"/>
+        <text x="545" y="65" fill="#fb7185" font-size="13" font-weight="700">Layer 2 — Epistemic Overlay</text>
+        <text x="545" y="80" fill="#94a3b8" font-size="9">claims inferred by domains/drug-discovery/epistemic.py</text>
+        <text x="545" y="94" fill="#94a3b8" font-size="8">same subgraph · annotated with status · severity · evidence · confidence</text>
+
+        <!-- Claim 1: asserted -->
+        <rect x="540" y="115" width="420" height="75" rx="6" fill="#0f172a"/>
+        <rect x="540" y="115" width="420" height="75" rx="6" fill="rgba(6, 78, 59, 0.3)" stroke="#34d399" stroke-width="1.5"/>
+        <rect x="550" y="123" width="70" height="14" rx="7" fill="#34d399"/>
+        <text x="585" y="133" fill="#020617" font-size="8" font-weight="700" text-anchor="middle">ASSERTED</text>
+        <text x="630" y="133" fill="#94a3b8" font-size="7">conf 0.95 · 6 sources</text>
+        <text x="555" y="152" fill="white" font-size="10" font-weight="600">Sotorasib → FDA-approved for KRAS G12C NSCLC</text>
+        <text x="555" y="168" fill="#94a3b8" font-size="8">5 clinical-trial papers + FDA label agree · no contradiction</text>
+        <text x="555" y="182" fill="#34d399" font-size="7">evidence: CodeBreaK-100 · KRYSTAL-1 · prescribing information</text>
+
+        <!-- Claim 2: hypothesized -->
+        <rect x="540" y="200" width="420" height="75" rx="6" fill="#0f172a"/>
+        <rect x="540" y="200" width="420" height="75" rx="6" fill="rgba(120, 53, 15, 0.3)" stroke="#fbbf24" stroke-width="1.5"/>
+        <rect x="550" y="208" width="90" height="14" rx="7" fill="#fbbf24"/>
+        <text x="595" y="218" fill="#020617" font-size="8" font-weight="700" text-anchor="middle">HYPOTHESIZED</text>
+        <text x="650" y="218" fill="#94a3b8" font-size="7">conf 0.65 · hedging detected</text>
+        <text x="555" y="237" fill="white" font-size="10" font-weight="600">Sotorasib + SHP2 inhibitor may overcome resistance</text>
+        <text x="555" y="253" fill="#94a3b8" font-size="8">hedging cues in 3 reviews: "might" · "could" · "preliminary evidence suggests"</text>
+        <text x="555" y="267" fill="#fbbf24" font-size="7">regex HEDGING_PATTERNS · flagged, not asserted</text>
+
+        <!-- Claim 3: prophetic -->
+        <rect x="540" y="285" width="420" height="75" rx="6" fill="#0f172a"/>
+        <rect x="540" y="285" width="420" height="75" rx="6" fill="rgba(76, 29, 149, 0.3)" stroke="#a78bfa" stroke-width="1.5"/>
+        <rect x="550" y="293" width="70" height="14" rx="7" fill="#a78bfa"/>
+        <text x="585" y="303" fill="#020617" font-size="8" font-weight="700" text-anchor="middle">PROPHETIC</text>
+        <text x="630" y="303" fill="#94a3b8" font-size="7">source: patent · not peer-reviewed</text>
+        <text x="555" y="322" fill="white" font-size="10" font-weight="600">Patent US 11,000,...23A claims pyrimidine derivatives</text>
+        <text x="555" y="338" fill="#94a3b8" font-size="8">covers sotorasib + adagrasib scaffold · assignee: AMGEN · structural-biology sourced</text>
+        <text x="555" y="352" fill="#a78bfa" font-size="7">PATENT_PATTERN match · stricter handling than peer-reviewed</text>
+
+        <!-- Claim 4: contradictory -->
+        <rect x="540" y="370" width="420" height="80" rx="6" fill="#0f172a"/>
+        <rect x="540" y="370" width="420" height="80" rx="6" fill="rgba(136, 19, 55, 0.35)" stroke="#fb7185" stroke-width="1.5"/>
+        <rect x="550" y="378" width="95" height="14" rx="7" fill="#fb7185"/>
+        <text x="598" y="388" fill="#020617" font-size="8" font-weight="700" text-anchor="middle">CONTRADICTORY</text>
+        <text x="655" y="388" fill="#94a3b8" font-size="7">cross-document conflict detected</text>
+        <text x="555" y="407" fill="white" font-size="10" font-weight="600">ORR reports diverge: 32% (KRYSTAL-1) vs 37% (CodeBreaK-100)</text>
+        <text x="555" y="423" fill="#94a3b8" font-size="8">same drug · similar patient population · 5-point response rate gap</text>
+        <text x="555" y="437" fill="#fb7185" font-size="7">surfaced by cross-doc numeric comparison · flagged for human review</text>
+
+        <!-- Claim 5: gap -->
+        <rect x="540" y="460" width="420" height="70" rx="6" fill="#0f172a"/>
+        <rect x="540" y="460" width="420" height="70" rx="6" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+        <rect x="550" y="468" width="40" height="14" rx="7" fill="#94a3b8"/>
+        <text x="570" y="478" fill="#020617" font-size="8" font-weight="700" text-anchor="middle">GAP</text>
+        <text x="600" y="478" fill="#94a3b8" font-size="7">missing relation · potential research priority</text>
+        <text x="555" y="497" fill="white" font-size="10" font-weight="600">No head-to-head Sotorasib vs Adagrasib trial in corpus</text>
+        <text x="555" y="513" fill="#94a3b8" font-size="8">both drugs present · both treat same disease · no comparative study</text>
+        <text x="555" y="525" fill="#94a3b8" font-size="7">graph pattern detector · absent comparativeTo edge</text>
+
+        <!-- Claim 6: multi-hypothesis (drug-discovery specific) -->
+        <rect x="540" y="540" width="420" height="92" rx="6" fill="#0f172a"/>
+        <rect x="540" y="540" width="420" height="92" rx="6" fill="rgba(8, 51, 68, 0.35)" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="3,3"/>
+        <rect x="550" y="548" width="130" height="14" rx="7" fill="#22d3ee"/>
+        <text x="615" y="558" fill="#020617" font-size="8" font-weight="700" text-anchor="middle">MULTI-HYPOTHESIS</text>
+        <text x="690" y="558" fill="#94a3b8" font-size="7">drug-discovery specific</text>
+        <text x="555" y="577" fill="white" font-size="10" font-weight="600">Resistance mechanism split:</text>
+        <text x="565" y="591" fill="#22d3ee" font-size="8">• Y96C mutation (covalent binding loss)</text>
+        <text x="565" y="603" fill="#22d3ee" font-size="8">• H95Q/R mutation (pocket remodeling)</text>
+        <text x="565" y="615" fill="#22d3ee" font-size="8">• A59S + Y96C (dual-site compensation)</text>
+        <text x="555" y="628" fill="#94a3b8" font-size="7">3 competing hypotheses · divergent confidence · no single mechanism established</text>
+
+        <!-- Bottom: contracts cross-reference -->
+        <rect x="25" y="660" width="950" height="78" rx="10" fill="rgba(76, 29, 149, 0.15)" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="4,4"/>
+        <text x="45" y="683" fill="#a78bfa" font-size="11" font-weight="700">Same two-layer principle for contracts/ — Layer 2 rules are plugged in, not hard-coded</text>
+        <text x="45" y="702" fill="#94a3b8" font-size="9">contracts/epistemic.py emits severity levels instead of epistemic statuses:</text>
+        <rect x="60" y="712" width="70" height="16" rx="8" fill="#fb7185"/>
+        <text x="95" y="723" fill="#020617" font-size="8" font-weight="700" text-anchor="middle">CRITICAL</text>
+        <text x="138" y="723" fill="#94a3b8" font-size="8">exclusive-use clause conflict · deadline before event date</text>
+        <rect x="460" y="712" width="70" height="16" rx="8" fill="#fbbf24"/>
+        <text x="495" y="723" fill="#020617" font-size="8" font-weight="700" text-anchor="middle">WARNING</text>
+        <text x="538" y="723" fill="#94a3b8" font-size="8">cost overlap · ambiguous scope boundaries</text>
+        <rect x="795" y="712" width="50" height="16" rx="8" fill="#94a3b8"/>
+        <text x="820" y="723" fill="#020617" font-size="8" font-weight="700" text-anchor="middle">INFO</text>
+        <text x="850" y="723" fill="#94a3b8" font-size="8">unsigned drafts · missing dates</text>
+      </svg>
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot emerald"></div>
+          <h3>Layer 1 — Brute Facts</h3>
+        </div>
+        <ul>
+          <li>• Entities + relations extracted verbatim from documents</li>
+          <li>• Domain schema constrains permitted types</li>
+          <li>• Nodes deduped via canonical name + SemHash fuzzy match</li>
+          <li>• Queryable via /epistract:query + /epistract:view</li>
+          <li>• Same graph-build code runs for every domain</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot rose"></div>
+          <h3>Layer 2 — Epistemic Claims</h3>
+        </div>
+        <ul>
+          <li>• Asserted — high-confidence factual claims (multiple sources agree)</li>
+          <li>• Hypothesized — hedging language detected in source text</li>
+          <li>• Prophetic — patent-sourced, not peer-reviewed</li>
+          <li>• Contradictory — cross-document conflicts flagged</li>
+          <li>• Gap — expected relations absent from corpus</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot violet"></div>
+          <h3>Domain-Pluggable Layer 2</h3>
+        </div>
+        <ul>
+          <li>• drug-discovery — 4 statuses + multi-hypothesis detection</li>
+          <li>• contracts — Critical · Warning · Info severity instead</li>
+          <li>• New domains plug in epistemic.py with custom rule set</li>
+          <li>• core/epistemic.py dispatches via DOMAIN_ALIASES + getattr</li>
+          <li>• Workbench renders both Layer 1 + Layer 2 as overlays</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="footer">Epistract v2.0 · Two-Layer Knowledge Graph · S6 GLP-1 scenario surfaced 15 prophetic claims from patent corpus (CodeBreaK / KRYSTAL examples shown for illustration)</p>
+  </div>
+</body>
+</html>
