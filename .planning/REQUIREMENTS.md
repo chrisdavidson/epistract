@@ -104,6 +104,12 @@ See v1 traceability below.
 - [x] **REL-02**: .gitignore comprehensive — .planning/, worktrees, extraction output, contract data excluded
 - [ ] **REL-03**: Feature branch synced, PR merged, v2.0.0 tagged and released on GitHub
 
+## v3 Requirements (In Progress)
+
+### Graph Fidelity & Honest Limits (Phase 12)
+
+- [ ] **FIDL-01**: Domain wizard reads sample documents via `sift_kg.ingest.reader.read_document` so PDF and other binary formats produce extracted text — not raw `%PDF-1.4` binary headers — for the 3-pass LLM schema discovery. Replaces `Path.read_text(errors="replace")` at `core/domain_wizard.py:63`. Graceful fallback when sift-kg is not installed.
+
 ## Deferred (V3)
 
 - **BIOU-01**: Biomedical domain migrated to V2 architecture with full backward compatibility
@@ -177,6 +183,12 @@ See v1 traceability below.
 - Mapped to phases: 34
 - Unmapped: 0
 
+### v3 (Mapped to Phases 12+)
+
+| Requirement | Phase | Plan | Status |
+|-------------|-------|------|--------|
+| FIDL-01 | Phase 12 | 12-01 | Pending |
+
 ---
 *Requirements defined: 2026-03-29 (v1), 2026-04-02 (v2), 2026-04-04 (Phase 11)*
-*Last updated: 2026-04-04 — Phase 11 requirements added*
+*Last updated: 2026-04-16 — FIDL-01 added for Phase 12 (v3.0 Graph Fidelity)*
