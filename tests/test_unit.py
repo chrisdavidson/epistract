@@ -909,3 +909,42 @@ def test_normalize_writes_report(tmp_path):
         assert key in report, f"Missing key in report: {key}"
     assert report["total"] == 1
     assert 0.0 <= report["pass_rate"] <= 1.0
+
+
+# ========================================================================
+# Phase 13 — FIDL-02a: extractor.md contract
+# ========================================================================
+
+@pytest.mark.unit
+def test_extractor_prompt_required_fields():
+    """UT-017: agents/extractor.md declares document_id, entities, relations as REQUIRED; forbids direct Write."""
+    prompt = (PROJECT_ROOT / "agents" / "extractor.md").read_text()
+
+    assert "REQUIRED top-level fields" in prompt, \
+        "Missing REQUIRED top-level fields block (FIDL-02a D-09)"
+    assert "document_id" in prompt, "Required field document_id not mentioned"
+    assert "entities" in prompt, "Required field entities not mentioned"
+    assert "relations" in prompt, "Required field relations not mentioned"
+    assert "DO NOT fall back to the Write tool" in prompt, \
+        "Missing Write-tool ban (FIDL-02a D-10)"
+    assert "build_extraction.py" in prompt, "Agent must invoke build_extraction.py"
+
+
+@pytest.mark.unit
+def test_extractor_prompt_stdin_fallback():
+    """UT-018: agents/extractor.md documents stdin-pipe fallback AND corrected core/ path."""
+    prompt = (PROJECT_ROOT / "agents" / "extractor.md").read_text()
+
+    # Stdin fallback is documented
+    assert "stdin pipe" in prompt.lower() or "echo '<" in prompt, \
+        "Stdin fallback invocation not documented"
+
+    # Path bug fix: must reference core/, never scripts/
+    assert "${CLAUDE_PLUGIN_ROOT}/core/build_extraction.py" in prompt, \
+        "Missing corrected core/ path"
+    assert "/scripts/build_extraction.py" not in prompt, \
+        "Obsolete scripts/ path still present — path bug regression"
+
+    # "report the failure" guidance so agents don't silently fall back to Write
+    assert "report the failure" in prompt.lower(), \
+        "Missing report-failure guidance (FIDL-02a D-10)"
