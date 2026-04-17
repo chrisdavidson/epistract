@@ -4,8 +4,13 @@
 Usage:
     python build_extraction.py <doc_id> <output_dir> [--domain <name>] --json '{"entities": [...], "relations": [...]}'
     echo '{"entities": [...]}' | python build_extraction.py <doc_id> <output_dir> [--domain <name>]
+    python build_extraction.py <doc_id> <output_dir> --model <model_id> --cost 0.012 --json '...'
+    EPISTRACT_MODEL=claude-opus-4-7 python build_extraction.py <doc_id> <output_dir> --json '...'
 """
+from __future__ import annotations
+
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -13,18 +18,44 @@ from pathlib import Path
 import yaml
 from core.domain_resolver import resolve_domain
 
+try:
+    from sift_kg.extract.models import DocumentExtraction
+    HAS_SIFT_EXTRACTION_MODEL = True
+except ImportError:
+    HAS_SIFT_EXTRACTION_MODEL = False
+
 
 def _normalize_fields(entities, relations):
-    """Normalize 'type' → 'entity_type'/'relation_type' for sift-kg compatibility.
+    """Normalize 'type' → 'entity_type'/'relation_type' and coerce schema drift.
 
-    LLM agents sometimes use 'type' instead of the required field names.
+    Drift handled:
+    - numeric-string confidence ("0.9" → 0.9)
+    - unparseable-string confidence → 0.5 (Pydantic default, maximizes recovery)
+    - missing context / evidence → ""
+    - missing attributes → {}
     """
     for e in entities:
         if "type" in e and "entity_type" not in e:
             e["entity_type"] = e.pop("type")
+        if "confidence" in e and isinstance(e["confidence"], str):
+            try:
+                e["confidence"] = float(e["confidence"])
+            except ValueError:
+                e["confidence"] = 0.5  # Pydantic default
+        if "context" not in e:
+            e["context"] = ""
+        if "attributes" not in e:
+            e["attributes"] = {}
     for r in relations:
         if "type" in r and "relation_type" not in r:
             r["relation_type"] = r.pop("type")
+        if "confidence" in r and isinstance(r["confidence"], str):
+            try:
+                r["confidence"] = float(r["confidence"])
+            except ValueError:
+                r["confidence"] = 0.5  # Pydantic default
+        if "evidence" not in r:
+            r["evidence"] = ""
     return entities, relations
 
 

@@ -575,3 +575,38 @@ def test_wizard_skips_binary_when_sift_reader_missing():
             # MIN_SAMPLE_DOCS guard. Crucially, no dict with text=="%PDF..."
             # is returned.
             domain_wizard.read_sample_documents([pdf_path, pdf_path])
+
+
+# ========================================================================
+# Phase 13 — FIDL-02c: write-time validation + provenance threading
+# ========================================================================
+
+@pytest.mark.unit
+def test_normalize_coerces_schema_drift():
+    """UT-022a: build_extraction._normalize_fields coerces drift.
+
+    Parseable string confidence → float, unparseable string → 0.5 Pydantic default,
+    type → entity_type, missing context/evidence/attributes filled.
+    """
+    from build_extraction import _normalize_fields
+
+    entities = [
+        {"name": "x", "type": "COMPOUND", "confidence": "0.9"},
+        {"name": "y", "type": "GENE", "confidence": "not-a-number"},
+    ]
+    relations = [{"source_entity": "x", "target_entity": "y", "type": "INHIBITS"}]
+    entities, relations = _normalize_fields(entities, relations)
+
+    # Parseable string → float
+    assert entities[0]["entity_type"] == "COMPOUND"
+    assert "type" not in entities[0]
+    assert entities[0]["confidence"] == 0.9
+    assert entities[0]["context"] == ""
+    assert entities[0]["attributes"] == {}
+
+    # Unparseable string → 0.5 (Pydantic default, per RESEARCH.md §664)
+    assert entities[1]["confidence"] == 0.5
+
+    # Relation normalization
+    assert relations[0]["relation_type"] == "INHIBITS"
+    assert relations[0]["evidence"] == ""
