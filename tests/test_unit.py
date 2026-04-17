@@ -610,3 +610,51 @@ def test_normalize_coerces_schema_drift():
     # Relation normalization
     assert relations[0]["relation_type"] == "INHIBITS"
     assert relations[0]["evidence"] == ""
+
+
+@pytest.mark.unit
+@pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
+def test_build_extraction_raises_on_missing_doc_id():
+    """UT-024: DocumentExtraction Pydantic model rejects payloads missing document_id,
+    and write_extraction wraps the failure into a ValueError on malformed records.
+
+    Per RESEARCH.md: agents may construct dicts and pass them via `**record` expansion
+    into write_extraction, in which case an omitted document_id slips past the Python-level
+    signature and is caught only by Pydantic's DocumentExtraction validation — which this
+    test exercises directly for unambiguous coverage.
+    """
+    from pydantic import ValidationError
+    from sift_kg.extract.models import DocumentExtraction
+    import build_extraction
+
+    # Part A: The Pydantic model itself rejects a payload missing document_id
+    with pytest.raises(ValidationError) as exc_info:
+        DocumentExtraction(document_path="x.pdf", entities=[], relations=[])
+    assert "document_id" in str(exc_info.value)
+
+    # Part B: write_extraction wraps downstream Pydantic failures into ValueError.
+    # Drive this with an entity missing entity_type (which _normalize_fields cannot
+    # rescue because there is no 'type' alias) — the internal
+    # DocumentExtraction(**extraction) call must fail and be re-raised as ValueError.
+    with tempfile.TemporaryDirectory() as tmpdir:
+        bad_entities = [{"name": "foo"}]  # missing entity_type, no 'type' alias
+        with pytest.raises(ValueError, match="DocumentExtraction"):
+            build_extraction.write_extraction("test_doc", tmpdir, bad_entities, [])
+
+
+@pytest.mark.unit
+@pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
+def test_build_extraction_raises_on_invalid_entity():
+    """UT-025: write_extraction raises ValueError on entity missing both type and entity_type."""
+    import build_extraction
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with pytest.raises(ValueError) as exc_info:
+            build_extraction.write_extraction(
+                "test_doc", tmpdir,
+                entities=[{"name": "x"}],  # missing entity_type
+                relations=[],
+            )
+        # Must mention the Pydantic model + the offending field
+        assert "DocumentExtraction" in str(exc_info.value)
+        assert "entity_type" in str(exc_info.value)

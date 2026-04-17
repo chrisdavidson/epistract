@@ -97,6 +97,13 @@ def write_extraction(doc_id, output_dir, entities, relations, document_path="", 
         "extracted_at": datetime.now(timezone.utc).isoformat(),
         "error": None,
     }
+    if HAS_SIFT_EXTRACTION_MODEL:
+        try:
+            DocumentExtraction(**extraction)
+        except Exception as exc:
+            raise ValueError(
+                f"Extraction for doc_id={doc_id!r} failed DocumentExtraction validation: {exc}"
+            ) from exc
     out_path = Path(output_dir) / "extractions" / f"{doc_id}.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(extraction, indent=2))
