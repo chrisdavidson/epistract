@@ -13,6 +13,7 @@ You are running the epistract drug discovery knowledge graph pipeline.
 - `--domain` (optional): Domain name for extraction (default: drug-discovery). Use 'contract' for event contract analysis.
 - `--validate` (optional): Enable molecular validation (default: true if rdkit installed)
 - `--view` (optional): Open viewer after build (default: true)
+- `--fail-threshold <float>` (optional): Minimum post-normalization pass rate required before graph build (default: 0.95, range: [0.0, 1.0]). Pipeline aborts with a clear error if the pass rate falls below this threshold.
 
 ## Pipeline Steps
 
@@ -52,7 +53,34 @@ Write each document's combined extraction to disk:
 python3 ${CLAUDE_PLUGIN_ROOT}/core/build_extraction.py <doc_id> <output_dir> --json '<combined_json>'
 ```
 
+**Provenance threading (BOTH env var AND `--model` flag):** Before dispatching extraction agents, do BOTH of the following unconditionally:
+
+1. Set `EPISTRACT_MODEL=<model_id>` in the invocation env for the agent dispatch.
+2. Pass `--model <model_id>` literally in the Bash invocation shown in the dispatch prompt to the extractor agent.
+
+Example dispatch-prompt Bash line shown to each agent:
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/core/build_extraction.py <doc_id> <output_dir> --domain <domain_name> --model <model_id> --json '<combined_json>'
+```
+
+This is belt + suspenders per D-07 cascade (`--model` flag > `EPISTRACT_MODEL` env > null): if Claude Code's Agent tool inherits env vars, both paths succeed and the `--model` flag wins the cascade; if env inheritance does not work in this runtime, the `--model` flag alone still threads provenance end-to-end. No runtime ambiguity — both paths are always set.
+
 **For 4+ documents:** Use the Agent tool to dispatch parallel extraction agents (one per document) for speed.
+
+### Step 3.5: Normalize Extractions
+
+**MUST run AFTER all Agent-dispatched extractions complete.** Parallel Agent dispatches block until all return — but this step boundary is stated explicitly so future changes to the dispatcher do not accidentally break the sequencing.
+
+Normalize the `extractions/*.json` files in place: rename variant filenames to canonical `<doc_id>.json`, infer missing `document_id` from filename stems, dedupe same-doc_id files (richer version wins; losers moved to `extractions/_dedupe_archive/`), and validate every payload against sift-kg's `DocumentExtraction` Pydantic schema.
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/core/normalize_extractions.py <output_dir> --fail-threshold 0.95
+```
+
+Pass the user's `--fail-threshold` value through if they supplied one; otherwise the default 0.95 applies.
+
+A one-line summary prints to stdout. A detailed audit report is written to `<output_dir>/extractions/_normalization_report.json`. If the post-normalization pass-rate is below `--fail-threshold`, the script exits non-zero — the pipeline MUST abort before Step 4 and surface the error and the report path to the user.
 
 ### Step 4: Validate Molecular Identifiers
 
@@ -78,6 +106,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/core/run_sift.py view <output_dir>
 
 Tell the user:
 - Documents processed and format breakdown
+- Normalization pass-rate (read from `<output_dir>/extractions/_normalization_report.json`, e.g., "23/23 = 100.0% (0 recovered, 0 unrecoverable)")
 - Total entities by type (table)
 - Total relations by type (table)
 - Molecular identifiers found and validated
