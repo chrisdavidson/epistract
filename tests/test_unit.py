@@ -764,3 +764,148 @@ def test_build_extraction_no_hardcoded_cost(tmp_path):
     assert result.returncode == 0, f"stderr: {result.stderr}"
     out = json.loads((tmp_path / "extractions" / "test_doc.json").read_text())
     assert out["cost_usd"] is None, f"Expected null, got {out['cost_usd']!r}"
+
+
+# ========================================================================
+# Phase 13 — FIDL-02b: normalize_extractions module
+# ========================================================================
+
+def _write_extraction_file(path: Path, doc_id: str | None, n_entities: int = 1, n_relations: int = 0) -> None:
+    """Helper: write a valid extraction JSON at `path`. Omit doc_id by passing None."""
+    body = {
+        "document_path": "",
+        "chunks_processed": 1,
+        "entities": [
+            {"name": f"e{i}", "entity_type": "COMPOUND", "attributes": {}, "confidence": 0.9, "context": ""}
+            for i in range(n_entities)
+        ],
+        "relations": [
+            {"relation_type": "INHIBITS", "source_entity": "e0", "target_entity": f"e{i}", "confidence": 0.9, "evidence": ""}
+            for i in range(n_relations)
+        ],
+        "cost_usd": None,
+        "model_used": None,
+        "domain_name": "drug-discovery",
+        "chunk_size": 10000,
+        "extracted_at": "2026-04-17T00:00:00+00:00",
+        "error": None,
+    }
+    if doc_id is not None:
+        body["document_id"] = doc_id
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(body, indent=2))
+
+
+@pytest.mark.unit
+@pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
+def test_normalize_renames_variant_filenames(tmp_path):
+    """UT-019: Variant filenames (_raw, _extraction_input, -extraction) renamed to <doc_id>.json."""
+    from normalize_extractions import normalize_extractions
+
+    ext = tmp_path / "extractions"
+    _write_extraction_file(ext / "foo_raw.json", doc_id="foo")
+    _write_extraction_file(ext / "bar_extraction_input.json", doc_id="bar")
+    _write_extraction_file(ext / "baz-extraction.json", doc_id="baz")
+
+    result = normalize_extractions(tmp_path)
+
+    assert (ext / "foo.json").exists()
+    assert (ext / "bar.json").exists()
+    assert (ext / "baz.json").exists()
+    assert not (ext / "foo_raw.json").exists()
+    assert not (ext / "bar_extraction_input.json").exists()
+    assert not (ext / "baz-extraction.json").exists()
+    assert result["recovered"] == 3
+
+
+@pytest.mark.unit
+@pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
+def test_normalize_infers_document_id(tmp_path):
+    """UT-020: Missing document_id inferred from filename stem."""
+    from normalize_extractions import normalize_extractions
+
+    ext = tmp_path / "extractions"
+    _write_extraction_file(ext / "my_doc_42.json", doc_id=None)
+
+    result = normalize_extractions(tmp_path)
+
+    body = json.loads((ext / "my_doc_42.json").read_text())
+    assert body["document_id"] == "my_doc_42"
+    assert result["pass_rate"] == 1.0
+
+
+@pytest.mark.unit
+@pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
+def test_normalize_dedupes_keeps_richer(tmp_path):
+    """UT-021: Same doc_id -> richer version wins, loser archived."""
+    from normalize_extractions import normalize_extractions
+
+    ext = tmp_path / "extractions"
+    # Both have document_id="dupe"; differ on entity count
+    _write_extraction_file(ext / "dupe_a.json", doc_id="dupe", n_entities=2)
+    _write_extraction_file(ext / "dupe_b.json", doc_id="dupe", n_entities=8)
+
+    result = normalize_extractions(tmp_path)
+
+    # Survivor is the canonical <doc_id>.json with 8 entities
+    survivor = ext / "dupe.json"
+    assert survivor.exists()
+    body = json.loads(survivor.read_text())
+    assert len(body["entities"]) == 8
+
+    # Loser archived
+    archive = ext / "_dedupe_archive"
+    assert archive.is_dir()
+    archived_files = list(archive.glob("*.json"))
+    assert len(archived_files) == 1
+
+
+@pytest.mark.unit
+@pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
+def test_normalize_coerces_schema_drift_via_module(tmp_path):
+    """UT-022b: Module-level normalize delegates to _normalize_fields, coercing type->entity_type.
+
+    Companion to UT-022a (test_normalize_coerces_schema_drift) in Plan 01, which exercises
+    build_extraction._normalize_fields directly. This test verifies the delegation path
+    through the normalize_extractions() entry-point and that the coerced record is written
+    back to disk.
+    """
+    from normalize_extractions import normalize_extractions
+
+    ext = tmp_path / "extractions"
+    ext.mkdir(parents=True)
+    drift = {
+        "document_id": "drift",
+        "document_path": "",
+        "entities": [{"name": "x", "type": "COMPOUND", "confidence": "0.9"}],  # schema drift
+        "relations": [],
+    }
+    (ext / "drift.json").write_text(json.dumps(drift, indent=2))
+
+    result = normalize_extractions(tmp_path)
+
+    body = json.loads((ext / "drift.json").read_text())
+    assert body["entities"][0]["entity_type"] == "COMPOUND"
+    assert "type" not in body["entities"][0]
+    assert isinstance(body["entities"][0]["confidence"], float)
+    assert result["pass_rate"] == 1.0
+
+
+@pytest.mark.unit
+@pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
+def test_normalize_writes_report(tmp_path):
+    """UT-023: _normalization_report.json is written with required keys."""
+    from normalize_extractions import normalize_extractions
+
+    ext = tmp_path / "extractions"
+    _write_extraction_file(ext / "good.json", doc_id="good")
+
+    result = normalize_extractions(tmp_path)
+
+    report_path = ext / "_normalization_report.json"
+    assert report_path.exists()
+    report = json.loads(report_path.read_text())
+    for key in ("total", "passed", "recovered", "unrecoverable", "pass_rate", "fail_threshold", "above_threshold", "actions"):
+        assert key in report, f"Missing key in report: {key}"
+    assert report["total"] == 1
+    assert 0.0 <= report["pass_rate"] <= 1.0
