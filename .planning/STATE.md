@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Framework Architecture & Domain Developer Experience
 status: executing
-stopped_at: Completed 13-00-PLAN.md
-last_updated: "2026-04-17T12:22:08.541Z"
+stopped_at: Completed 13-01-PLAN.md (write-time Pydantic validation + honest provenance)
+last_updated: "2026-04-17T12:25:49.276Z"
 last_activity: 2026-04-17
 progress:
   total_phases: 22
   completed_phases: 12
   total_plans: 40
-  completed_plans: 36
+  completed_plans: 37
   percent: 85
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-02)
 ## Current Position
 
 Phase: 13 (Extraction Pipeline Reliability) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-04-17
 
@@ -74,6 +74,7 @@ Progress: [████████░░] 85%
 | Phase 11 P02 | 2min | 2 tasks | 3 files |
 | Phase 12 P01 | 3min | 2 tasks | 3 files |
 | Phase 13 P00 | 4 | 4 tasks | 38 files |
+| Phase 13 P01 | 6min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -122,6 +123,8 @@ Recent decisions affecting current work:
 - [Phase 12]: [Phase 12]: When sift-kg is missing, wizard skips non-.txt inputs rather than silently reading binary; caller hits MIN_SAMPLE_DOCS ValueError — loud failure over silent-garbage schemas.
 - [Phase 13]: [Phase 13 Plan 00]: FIDL-02a/b/c registered. Plan IDs mapped — 02a→13-03, 02b→13-02+13-04, 02c→13-01.
 - [Phase 13]: [Phase 13 Plan 00]: UT-022 split into UT-022a (build_extraction._normalize_fields unit) + UT-022b (normalize_extractions module-level) — one requirement, two enforcement layers, two test IDs.
+- [Phase 13]: [Phase 13-01]: Substituted sift-kg defaults (0.0 / "") for None provenance during Pydantic validation; on-disk JSON preserves honest null per D-07/D-08. Validation enforces required fields, not provenance nullability.
+- [Phase 13]: [Phase 13-01]: Added sys.path bootstrap to core/build_extraction.py so extractor agents can invoke it as a plain script via absolute path — pre-existing latent bug surfaced by Task 3 subprocess tests.
 
 ### Pending Todos
 
@@ -141,6 +144,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-04-17T12:22:08.537Z
-Stopped at: Completed 13-00-PLAN.md
+Last session: 2026-04-17T12:25:49.272Z
+Stopped at: Completed 13-01-PLAN.md (write-time Pydantic validation + honest provenance)
 Resume file: None
