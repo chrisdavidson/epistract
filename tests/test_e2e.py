@@ -177,3 +177,56 @@ def test_e2e_bug4_normalization_95pct(tmp_path):
         f"Graph has no nodes — normalized extractions not reaching builder. "
         f"Normalization report: {report}"
     )
+
+
+@pytest.mark.e2e
+def test_e2e_fail_threshold_aborts(tmp_path):
+    """FT-010: --fail-threshold aborts pipeline BEFORE graph build when pass rate is below threshold.
+
+    Copies tests/fixtures/normalization_below_threshold/ (2 good + 8 unrecoverable)
+    into tmp_path/extractions/, invokes core/normalize_extractions.py via subprocess
+    with --fail-threshold 0.95, asserts non-zero exit AND absence of graph_data.json.
+    """
+    import subprocess
+
+    # 1. Stage fixture
+    src_fixture_dir = FIXTURES_DIR / "normalization_below_threshold"
+    assert src_fixture_dir.is_dir(), f"Missing fixture dir: {src_fixture_dir}"
+
+    ext_dir = tmp_path / "extractions"
+    ext_dir.mkdir()
+    fixture_files = list(src_fixture_dir.glob("*.json"))
+    assert len(fixture_files) == 10, \
+        f"Expected 10 below-threshold fixture files, got {len(fixture_files)}"
+    for src in fixture_files:
+        shutil.copy2(src, ext_dir / src.name)
+
+    # 2. Run normalize_extractions CLI with --fail-threshold 0.95
+    script = PROJECT_ROOT / "core" / "normalize_extractions.py"
+    result = subprocess.run(
+        ["python3", str(script), str(tmp_path), "--fail-threshold", "0.95"],
+        capture_output=True, text=True, cwd=str(PROJECT_ROOT),
+    )
+
+    # 3. Abort expectations
+    assert result.returncode == 1, (
+        f"Expected abort exit code 1 (below-threshold), got {result.returncode}. "
+        f"stdout={result.stdout!r} stderr={result.stderr!r}"
+    )
+    assert "ABORT" in result.stderr, \
+        f"Stderr should mention ABORT; got: {result.stderr!r}"
+
+    # 4. Report was written with above_threshold: false
+    report_path = ext_dir / "_normalization_report.json"
+    assert report_path.exists(), "Normalization report not written even on abort path"
+    report = json.loads(report_path.read_text())
+    assert report["above_threshold"] is False, \
+        f"Report should mark above_threshold=false when aborting; got: {report}"
+    assert report["pass_rate"] < 0.95
+
+    # 5. CRITICAL: graph_data.json MUST NOT exist — the pipeline aborted before build
+    graph_path = tmp_path / "graph_data.json"
+    assert not graph_path.exists(), (
+        "graph_data.json was created despite --fail-threshold abort; "
+        "pipeline does not gate graph build on normalization pass-rate"
+    )
