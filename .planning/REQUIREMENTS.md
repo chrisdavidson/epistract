@@ -110,6 +110,12 @@ See v1 traceability below.
 
 - [x] **FIDL-01**: Domain wizard reads sample documents via `sift_kg.ingest.reader.read_document` so PDF and other binary formats produce extracted text — not raw `%PDF-1.4` binary headers — for the 3-pass LLM schema discovery. Replaces `Path.read_text(errors="replace")` at `core/domain_wizard.py:63`. Graceful fallback when sift-kg is not installed.
 
+### Extraction Pipeline Reliability (Phase 13)
+
+- [ ] **FIDL-02a**: Extractor agent prompt enforces the DocumentExtraction JSON contract — `document_id`, `entities`, `relations` declared as REQUIRED top-level fields; agents write ONLY via `build_extraction.py` (never direct Write); stdin-pipe retry on Bash permission denial; report failure in summary if both paths fail.
+- [ ] **FIDL-02b**: Post-extraction normalization runs automatically as Step 3.5 of `/epistract:ingest`, standardizing filenames, inferring `document_id`, deduping, coercing schema drift, and emitting `_normalization_report.json`. Pipeline aborts before graph build if pass-rate < `--fail-threshold` (default 0.95).
+- [ ] **FIDL-02c**: Extraction metadata is honest: `model_used` and `cost_usd` sourced from CLI flags / env var / `null` — never hardcoded. `build_extraction.py` validates payload against `DocumentExtraction` Pydantic model at write time; raises on malformed input.
+
 ## Deferred (V3)
 
 - **BIOU-01**: Biomedical domain migrated to V2 architecture with full backward compatibility
@@ -188,7 +194,10 @@ See v1 traceability below.
 | Requirement | Phase | Plan | Status |
 |-------------|-------|------|--------|
 | FIDL-01 | Phase 12 | 12-01 | Complete |
+| FIDL-02a | Phase 13 | 13-03 | Pending |
+| FIDL-02b | Phase 13 | 13-02, 13-04 | Pending |
+| FIDL-02c | Phase 13 | 13-01 | Pending |
 
 ---
 *Requirements defined: 2026-03-29 (v1), 2026-04-02 (v2), 2026-04-04 (Phase 11)*
-*Last updated: 2026-04-16 — FIDL-01 added for Phase 12 (v3.0 Graph Fidelity)*
+*Last updated: 2026-04-17 — FIDL-02a/b/c added for Phase 13 (Extraction Pipeline Reliability)*
