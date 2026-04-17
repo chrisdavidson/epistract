@@ -119,3 +119,61 @@ def test_e2e_pipeline_graph_has_metadata(tmp_path):
     for node in data["nodes"]:
         assert "entity_type" in node, f"Node missing 'entity_type': {node}"
         assert "name" in node, f"Node missing 'name': {node}"
+
+
+# ========================================================================
+# Phase 13 — FIDL-02b: Bug-4 reproducer end-to-end
+# ========================================================================
+
+@pytest.mark.e2e
+def test_e2e_bug4_normalization_95pct(tmp_path):
+    """FT-009: 24-file Bug-4 reproducer achieves ≥95% pass rate and graph builds.
+
+    Copies tests/fixtures/normalization/ into tmp_path/extractions/, runs
+    normalize_extractions, asserts pass_rate >= 0.95, then runs cmd_build
+    to confirm the normalized extractions actually reach sift-kg's graph builder
+    (closing the 30% silent-drop loophole).
+    """
+    from normalize_extractions import normalize_extractions
+    from run_sift import cmd_build
+
+    # 1. Stage fixture into tmp_path/extractions/
+    src_fixture_dir = FIXTURES_DIR / "normalization"
+    assert src_fixture_dir.is_dir(), f"Missing fixture dir: {src_fixture_dir}"
+
+    ext_dir = tmp_path / "extractions"
+    ext_dir.mkdir()
+    fixture_files = list(src_fixture_dir.glob("*.json"))
+    assert len(fixture_files) == 24, \
+        f"Expected 24 fixture files, got {len(fixture_files)}"
+    for src in fixture_files:
+        shutil.copy2(src, ext_dir / src.name)
+
+    # 2. Run normalize_extractions — must report pass_rate >= 0.95
+    result = normalize_extractions(tmp_path, fail_threshold=0.95)
+
+    assert result["pass_rate"] >= 0.95, (
+        f"Bug-4 reproducer pass rate below 95% gate: "
+        f"pass_rate={result['pass_rate']:.2%}, "
+        f"passed={result['passed']}, recovered={result['recovered']}, "
+        f"unrecoverable={result['unrecoverable']}, total={result['total']}"
+    )
+
+    report_path = tmp_path / "extractions" / "_normalization_report.json"
+    assert report_path.exists(), "Normalization report not written"
+    report = json.loads(report_path.read_text())
+    assert report["above_threshold"] is True
+
+    # 3. Run sift-kg build — normalized files must actually reach the graph
+    cmd_build(str(tmp_path), domain_name="drug-discovery")
+    graph_path = tmp_path / "graph_data.json"
+    assert graph_path.exists(), (
+        f"graph_data.json not created after normalize+build; "
+        f"sift-kg silent-drop bug may have regressed"
+    )
+    graph = json.loads(graph_path.read_text())
+    nodes = graph.get("nodes", [])
+    assert len(nodes) > 0, (
+        f"Graph has no nodes — normalized extractions not reaching builder. "
+        f"Normalization report: {report}"
+    )

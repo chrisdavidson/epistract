@@ -226,6 +226,20 @@ def normalize_extractions(
         canonical_path = ext_dir / f"{doc_id}.json"
         was_renamed = (src_path.name != canonical_path.name)
 
+        # Substitute sift-kg defaults for honest-null provenance fields BEFORE
+        # writing to disk. sift-kg's DocumentExtraction declares
+        # cost_usd: float = 0.0 and model_used: str = "" as non-nullable, so
+        # sift_kg.graph.builder.load_extractions silently drops any file with
+        # null provenance (the 30% silent-drop bug Phase 13 fixes). The on-disk
+        # canonical file MUST be loader-compatible for the normalization step
+        # to actually accomplish its purpose: files reaching the graph builder.
+        # Agents still WRITE null per D-07/D-08 honest-null contract;
+        # normalization rescues that into loadable form here.
+        if record.get("cost_usd") is None:
+            record["cost_usd"] = 0.0
+        if record.get("model_used") is None:
+            record["model_used"] = ""
+
         # Rewrite body (with inferred doc_id + coerced fields) to canonical path
         canonical_path.write_text(json.dumps(record, indent=2))
 
