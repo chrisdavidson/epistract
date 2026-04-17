@@ -1,0 +1,99 @@
+{
+  "document_id": "dupe_target",
+  "document_path": "corpus/dupe_target.txt",
+  "chunks_processed": 1,
+  "entities": [
+    {
+      "name": "Entity A",
+      "entity_type": "COMPOUND",
+      "attributes": {},
+      "confidence": 0.9,
+      "context": "placeholder"
+    },
+    {
+      "name": "Entity B",
+      "entity_type": "GENE",
+      "attributes": {},
+      "confidence": 0.89,
+      "context": "placeholder"
+    },
+    {
+      "name": "Entity C",
+      "entity_type": "COMPOUND",
+      "attributes": {},
+      "confidence": 0.88,
+      "context": "placeholder"
+    },
+    {
+      "name": "Entity D",
+      "entity_type": "GENE",
+      "attributes": {},
+      "confidence": 0.87,
+      "context": "placeholder"
+    },
+    {
+      "name": "Entity E",
+      "entity_type": "COMPOUND",
+      "attributes": {},
+      "confidence": 0.86,
+      "context": "placeholder"
+    },
+    {
+      "name": "Entity F",
+      "entity_type": "GENE",
+      "attributes": {},
+      "confidence": 0.85,
+      "context": "placeholder"
+    },
+    {
+      "name": "Entity G",
+      "entity_type": "COMPOUND",
+      "attributes": {},
+      "confidence": 0.8400000000000001,
+      "context": "placeholder"
+    },
+    {
+      "name": "Entity H",
+      "entity_type": "GENE",
+      "attributes": {},
+      "confidence": 0.8300000000000001,
+      "context": "placeholder"
+    }
+  ],
+  "relations": [
+    {
+      "relation_type": "INHIBITS",
+      "source_entity": "Entity A",
+      "target_entity": "Entity B",
+      "confidence": 0.88,
+      "evidence": "placeholder"
+    },
+    {
+      "relation_type": "INHIBITS",
+      "source_entity": "Entity B",
+      "target_entity": "Entity C",
+      "confidence": 0.88,
+      "evidence": "placeholder"
+    },
+    {
+      "relation_type": "INHIBITS",
+      "source_entity": "Entity C",
+      "target_entity": "Entity D",
+      "confidence": 0.88,
+      "evidence": "placeholder"
+    },
+    {
+      "relation_type": "INHIBITS",
+      "source_entity": "Entity D",
+      "target_entity": "Entity E",
+      "confidence": 0.88,
+      "evidence": "placeholder"
+    }
+  ],
+  "cost_usd": null,
+  "model_used": null,
+  "domain_name": "drug-discovery",
+  "chunk_size": 10000,
+  "extracted_at": "2026-04-17T00:00:00+00:00",
+  "error": null
+}
