@@ -111,8 +111,23 @@ Plans:
 - [ ] **Phase 8: Domain Creation Wizard** - Auto-generate domain packages from sample documents via /epistract:domain
 - [ ] **Phase 9: Consumer Decoupling and Standalone Install** - Decouple consumers into examples/, enable plugin install without repo clone
 - [x] **Phase 10: Documentation Refresh** - README, architecture diagrams, domain developer guide, and paper reframed as framework (completed 2026-04-04)
-- [ ] **Phase 11: End-to-End Scenario Validation and v2.0 Release** - Regenerate all graphs, validate both use cases, repeatable regression suite, git sync + push v2.0
-- [ ] **Phase 12: Extend epistemic classifier with structural biology document signature** - Add structural doctype class so X-ray/PDB papers stop registering as unknown (surfaced during Phase 11 S2 KRAS run)
+- [x] **Phase 11: End-to-End Scenario Validation and v2.0 Release** - Regenerate all graphs, validate both use cases, repeatable regression suite, git sync + push v2.0 (completed 2026-04-17)
+
+### v3.0 Graph Fidelity & Honest Limits (Planned)
+
+**Milestone Goal:** Close the silent graph-quality ceilings surfaced during V2 review and fix the 5 bugs + 10 enhancements from the axmp-compliance custom-domain build. Make the extracted graph match what the README promises: wizard reads real documents (not binary), no dropped extractions during build, no dropped entities at chunk boundaries, every supported format actually discovered, domain awareness propagates to every consumer. Document post-fix limits in the README so users know what they are getting.
+
+Phase priority is **blocking-ness first, silent quality second, polish last**. See `.planning/phases/12-*/SCOPE-ADDITIONS.md` for the full item analysis.
+
+- [x] **Phase 12: Fix wizard PDF binary read (Bug 3)** - `core/domain_wizard.py:63` reads PDFs as raw binary via `Path.read_text(errors="replace")`, sending `%PDF-1.4` bytes to the LLM. Wizard produces garbage schemas for the most common document format. Swap to `sift_kg.ingest.reader.read_document()`. Single-function fix; unblocks the "create your own domain" path. (completed 2026-04-17)
+- [x] **Phase 13: Extraction pipeline reliability** - Addresses Bug 4 (30% extraction drop rate in 23-doc axmp-compliance build). Add post-extraction normalization step (Enh 2), enforce required JSON schema in extractor prompt (Enh 3), and capture accurate `model_used` + `cost_usd` in extraction metadata (Part 1 Item 4). (completed 2026-04-17)
+- [ ] **Phase 14: Chunk overlap** - `commands/ingest.md` promises overlap, `core/chunk_document.py` implements none. Silent recall loss on every graph built. Implement sliding-window overlap (character or sentence based).
+- [ ] **Phase 15: Format discovery parity** - `core/ingest_documents.py:SUPPORTED_EXTENSIONS` discovers 9 extensions but README claims "75+ via Kreuzberg." PPTX/EPUB/MD/RTF/ODT/CSV silently skipped. Expand allowlist or probe at runtime.
+- [ ] **Phase 16: Wizard sample window beyond 8KB** - `core/domain_wizard.py:105` truncates each sample to `doc_text[:8000]`. Tail vocabulary ignored. Multi-excerpt or summarize-then-analyze. **Depends on Phase 12** (wizard must read real text first).
+- [ ] **Phase 17: Domain awareness in consumers** - Workbench ignores `--domain` flag (Bug 1), graph.html has empty title (Bug 2) and uses generic palette (Enh 7), system prompt hardcodes contracts vocab (Enh 9), dashboard needs auto-detection (Enh 10). Systemic "domain context doesn't propagate past graph build."
+- [ ] **Phase 18: Per-domain epistemic & validator extensibility** - Custom epistemic rules as Python hooks beyond generic contradiction pairs (Enh 6), optional per-domain `validation/` scripts parallel to drug-discovery's `validate_molecules.py` (Enh 8), and the structural-biology doctype deferred from v2.0 (Part 1 Item 6).
+- [ ] **Phase 19: Wizard & CLI ergonomics** - Safe slugification in `generate_domain_package()` (Bug 5), wizard emits `workbench/template.yaml` automatically (Enh 1), `--domain` accepts name-or-path gracefully (Enh 4), `--schema <file.json>` flag to bypass LLM discovery (Enh 5).
+- [ ] **Phase 20: README "Pipeline Capacity & Limits" section** - Document post-fix values for wizard, ingestion, acquire, and epistemic limits. Must run after all other v3.0 phases so it documents reality, not aspiration.
 
 ## Phase Details
 
@@ -219,10 +234,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 11-01-PLAN.md — Regression infrastructure: V1 baselines, comparison engine, Makefile targets (E2E-05, E2E-01, E2E-02, E2E-04)
+- [x] 11-01-PLAN.md — Regression infrastructure: V1 baselines, comparison engine, Makefile targets (E2E-05, E2E-01, E2E-02, E2E-04)
 - [x] 11-02-PLAN.md — Repo cleanup: gitignore hardening, audit script, npx package.json (REL-01, REL-02)
-- [ ] 11-03-PLAN.md — Scenario validation: run all scenarios via plugin, validate counts, save V2 baselines (E2E-01, E2E-02, E2E-03, E2E-04, E2E-06)
-- [ ] 11-04-PLAN.md — Git squash, PR, merge, v2.0.0 tag, GitHub release (REL-03)
+- [x] 11-03-PLAN.md — Scenario validation: run all scenarios via plugin, validate counts, save V2 baselines (E2E-01, E2E-02, E2E-03, E2E-04, E2E-06)
+- [x] 11-04-PLAN.md — Git squash, PR, merge, v2.0.0 tag, GitHub release (REL-03)
 
 ## Progress
 
@@ -241,14 +256,101 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 10 -> 11
 | 8. Domain Creation Wizard | v2.0 | 0/3 | Planning | - |
 | 9. Consumer Decoupling and Standalone Install | v2.0 | 0/3 | Planning | - |
 | 10. Documentation Refresh | v2.0 | 4/4 | Complete    | 2026-04-04 |
-| 11. End-to-End Scenario Validation | v2.0 | 1/4 | In Progress|  |
+| 11. End-to-End Scenario Validation | v2.0 | 4/4 | Complete    | 2026-04-17 |
 
-### Phase 12: Extend epistemic classifier with structural biology document signature
+### Phase 12: Fix wizard PDF binary read (Bug 3)
 
-**Goal:** Add a `structural` document-type signature to `domains/drug-discovery/epistemic.py` so X-ray crystal structures, PDB entries, and related methods papers are classified correctly instead of registering as `document_type: unknown` in the claims layer.
-**Requirements**: TBD (low severity — surfaced during Phase 11 S2 KRAS G12C run; no wrong classifications, just a missing doctype class)
-**Depends on:** Phase 11 (need finished V2 validation to know what corpora look like in practice)
-**Plans:** 0 plans
+**Priority:** P0 CRITICAL
+**Goal:** `core/domain_wizard.py` reads PDF sample documents as real extracted text instead of raw `%PDF-1.4` binary. After this phase, `/epistract:domain` produces useful schemas when given PDF samples — which is the most common document format and currently silently broken.
+
+**Problem:** `read_sample_documents()` at `core/domain_wizard.py:63` uses `Path.read_text(errors="replace")`. For PDFs (and any binary format), this reads header bytes and compressed streams rather than extracted text. The 3-pass LLM analysis then runs on `%PDF-1.4\n%\xd0\xd4...` which produces garbage schemas. Surfaced in axmp-compliance build, report at `axmp-compliance-bug-report-2026-04-16.md` Bug 3.
+
+**Fix sketch:** Replace `p.read_text(errors="replace")` with `read_document(p)` from `sift_kg.ingest.reader` (same reader used by the ingestion pipeline). Preserve the `char_count` metric, handle the no-sift-kg case gracefully.
+
+**Requirements:** FIDL-01 — Wizard reads sample documents via sift-kg reader (see `.planning/REQUIREMENTS.md` v3 section).
+**Depends on:** Phase 11 (V2 baselines stable).
+**Plans:** 4/4 plans complete
+
+**Success criteria sketch:**
+1. `/epistract:domain` run on a corpus of 3 PDF samples produces a schema whose entity type names are derived from real document content, not binary headers.
+2. Existing text/markdown sample behavior is unchanged (regression).
+3. Graceful fallback error message if sift-kg is not installed.
+
+See `.planning/phases/12-*/SCOPE-ADDITIONS.md` Theme A and `axmp-compliance-bug-report-2026-04-16.md` Bug 3.
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 12 to break down)
+- [x] 12-01-PLAN.md — Add FIDL-01 to REQUIREMENTS.md, fix `read_sample_documents()` to use `sift_kg.ingest.reader.read_document` with `HAS_SIFT_READER` guard, add PDF regression + no-sift-kg fallback tests (FIDL-01)
+
+### Phase 13: Extraction pipeline reliability
+
+**Goal:** Every extraction written by an extractor agent reaches the graph build step. Currently 30% of extractions fail validation in real runs (7/23 in axmp-compliance). After this phase, extraction-load rate is ≥95% on a 20+ doc corpus, and extraction metadata tells the truth about which model ran and what it cost.
+
+**Scope:** Bug 4 + Enh 2 + Enh 3 (extractor prompt enforcement) + Part 1 Item 4 (provenance accuracy). Bug 4 is the observed failure; Enhs 2/3 are the belt-and-suspenders fix; Item 4 rides along since it touches the same `build_extraction.py` file.
+
+**Depends on:** Phase 11 baselines.
+**Plans:** 5/5 plans complete
+
+Plans:
+- [x] 13-00-PLAN.md — Wave 0 scaffolding: register FIDL-02a/b/c in REQUIREMENTS.md, add 13 test rows to TEST_REQUIREMENTS.md, create 24-file Bug-4 reproducer + 10-file below-threshold fixture corpora (FIDL-02a, FIDL-02b, FIDL-02c)
+- [x] 13-01-PLAN.md — Contract enforcement at write time: extend _normalize_fields for schema drift, add sift-kg DocumentExtraction Pydantic validation in build_extraction.py, replace hardcoded claude-opus-4-6/0.0 with --model/--cost flags + EPISTRACT_MODEL env var (FIDL-02c)
+- [x] 13-02-PLAN.md — Normalization module: create core/normalize_extractions.py with rename/infer/dedupe/coerce/report + CLI entry-point with --fail-threshold gate (FIDL-02b)
+- [x] 13-03-PLAN.md — Agent + command wiring: update agents/extractor.md with Required-Fields block + stdin fallback + fix /scripts/ path bug; insert Step 3.5 in commands/ingest.md + document --fail-threshold flag + EPISTRACT_MODEL export (FIDL-02a)
+- [x] 13-04-PLAN.md — End-to-end regression: FT-009 24-file reproducer ≥95% pass rate + graph builds, FT-010 below-threshold abort before build (FIDL-02b)
+
+### Phase 14: Chunk overlap
+
+**Goal:** Entities and relations that span a chunk boundary are extracted. Currently `core/chunk_document.py` splits without overlap, silently losing recall on every graph.
+
+**Scope:** Part 1 Item 1. Implement character-based or sentence-based sliding window overlap; decide on size (500 char / 3 sentence / etc.) during planning.
+
+**Plans:** 0 plans.
+
+### Phase 15: Format discovery parity with Kreuzberg
+
+**Goal:** Every file format Kreuzberg can parse is actually discovered by `discover_corpus`. Currently only 9 extensions survive the `SUPPORTED_EXTENSIONS` filter; PPTX/EPUB/MD/RTF/ODT/CSV and others are silently skipped.
+
+**Scope:** Part 1 Item 3. Expand allowlist, or query Kreuzberg at runtime if possible.
+
+**Plans:** 0 plans.
+
+### Phase 16: Wizard sample window beyond 8KB
+
+**Goal:** Wizard Pass-1 discovery sees more than the first 8,000 characters of each sample document. After this phase, long documents (contracts, full papers, patents) contribute tail vocabulary to schema design.
+
+**Scope:** Part 1 Item 2. Options: multi-excerpt sampling (head+middle+tail), sliding-window Pass-1, summarize-then-analyze.
+
+**Depends on:** **Phase 12** — wizard must actually read PDFs as text before expanding the window matters.
+**Plans:** 0 plans.
+
+### Phase 17: Domain awareness in downstream consumers
+
+**Goal:** When a user passes `--domain <name>` to ingest or dashboard, every downstream consumer (workbench, graph.html, chat system prompt) reflects that domain. Currently they default to drug-discovery branding regardless.
+
+**Scope:** Bug 1 (workbench wrong template), Bug 2 (graph.html empty title), Enh 7 (graph.html entity colors from template), Enh 9 (workbench system prompt domain patterns), Enh 10 (dashboard auto-detect from graph_data.json metadata).
+
+**Plans:** 0 plans.
+
+### Phase 18: Per-domain epistemic & validator extensibility
+
+**Goal:** Domains can ship custom epistemic rules beyond generic term-pair contradictions, and optional validation scripts beyond drug-discovery's molecular validator.
+
+**Scope:** Enh 6 (custom epistemic Python hooks), Enh 8 (per-domain validation/ directory), Part 1 Item 6 (structural-biology doctype — original v2.0 Phase 12 scope, folded in here since it's also an epistemic extensibility item).
+
+**Plans:** 0 plans.
+
+### Phase 19: Wizard & CLI ergonomics
+
+**Goal:** Small bundled polish fixes for wizard and CLI friction points surfaced in axmp-compliance.
+
+**Scope:** Bug 5 (safe slugification in `generate_domain_package`), Enh 1 (wizard emits `workbench/template.yaml`), Enh 4 (`run_sift.py build --domain` name-or-path handling), Enh 5 (`--schema <file.json>` skip-LLM flag).
+
+**Plans:** 0 plans.
+
+### Phase 20: README "Pipeline Capacity & Limits" section
+
+**Goal:** Document the post-fix state of the pipeline so users know exactly what they are getting. Must run after Phases 12–19 so it documents reality rather than aspiration.
+
+**Scope:** Part 1 Item 5. Draft language already written 2026-04-16 analysis — needs to be revised with actual post-fix values before landing.
+
+**Depends on:** Phases 12–19 complete.
+**Plans:** 0 plans.

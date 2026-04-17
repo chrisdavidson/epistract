@@ -1,0 +1,34 @@
+{
+  "document_id": "drift_bad_field",
+  "document_path": "corpus/drift_bad_field.txt",
+  "chunks_processed": 1,
+  "entities": [
+    {
+      "name": "Entity A",
+      "type": "COMPOUND",
+      "confidence": "0.9"
+    },
+    {
+      "name": "Entity B",
+      "entity_type": "GENE",
+      "attributes": {},
+      "confidence": 0.89,
+      "context": "placeholder"
+    }
+  ],
+  "relations": [
+    {
+      "relation_type": "INHIBITS",
+      "source_entity": "Entity A",
+      "target_entity": "Entity B",
+      "confidence": 0.88,
+      "evidence": "placeholder"
+    }
+  ],
+  "cost_usd": null,
+  "model_used": null,
+  "domain_name": "drug-discovery",
+  "chunk_size": 10000,
+  "extracted_at": "2026-04-17T00:00:00+00:00",
+  "error": null
+}

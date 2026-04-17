@@ -252,6 +252,95 @@ These are real research questions a PhD scientist would ask. Each tests whether 
 
 ---
 
+## 5. Phase 13 Tests (Extraction Pipeline Reliability)
+
+### UT-017: Extractor Prompt Declares Required Fields
+- **Traces to:** FIDL-02a
+- **Test:** grep agents/extractor.md for `document_id`, `entities`, `relations` declared as REQUIRED top-level fields and "build_extraction.py" instruction
+- **Pass criteria:** All three field names appear in a block labeled REQUIRED; Write tool ban text present
+
+### UT-018: Extractor Prompt Documents Stdin Fallback
+- **Traces to:** FIDL-02a
+- **Test:** grep agents/extractor.md for stdin-pipe invocation AND "report failure" instruction
+- **Pass criteria:** Both primary `--json` path AND stdin fallback `echo '<json>' | python3 ...` path are documented
+
+### UT-019: normalize_extractions Renames Variant Filenames
+- **Traces to:** FIDL-02b
+- **Test:** Fixture dir contains `foo_raw.json`, `bar_extraction_input.json`, `baz-extraction.json` with valid bodies; after normalize, only `foo.json`, `bar.json`, `baz.json` remain (or are returned in the report as renamed)
+- **Pass criteria:** All three variant filenames mapped to canonical `<doc_id>.json`
+
+### UT-020: normalize_extractions Infers Missing document_id
+- **Traces to:** FIDL-02b
+- **Test:** Fixture JSON with no `document_id` field but filename `my_doc_42.json` → output has `document_id: "my_doc_42"`
+- **Pass criteria:** Inferred value equals filename stem
+
+### UT-021: normalize_extractions Dedupes Keeping Richer Version
+- **Traces to:** FIDL-02b
+- **Test:** Two files for same doc_id (one with 3 entities, one with 10) → survivor has 10 entities; loser moved to `_dedupe_archive/`
+- **Pass criteria:** Survivor file has richer content; archived file exists under `extractions/_dedupe_archive/`
+
+### UT-022a: build_extraction._normalize_fields Coerces Schema Drift
+- **Traces to:** FIDL-02c
+- **Test:** Unit test `test_normalize_coerces_schema_drift` in tests/test_unit.py exercises `build_extraction._normalize_fields` directly: entity using `type` (not `entity_type`) + string `"0.9"` confidence + missing `context`/`attributes` → all coerced
+- **Pass criteria:** Output entity has `entity_type` field, numeric confidence, empty-string context, empty-dict attributes
+
+### UT-022b: normalize_extractions Module-Level Coerces Schema Drift
+- **Traces to:** FIDL-02b
+- **Test:** Unit test `test_normalize_coerces_schema_drift_via_module` in tests/test_unit.py exercises the `normalize_extractions()` entry-point end-to-end on a drift fixture; confirms delegation to `_normalize_fields` and write-back of coerced record
+- **Pass criteria:** File on disk has `entity_type` field + numeric confidence after module-level normalize; `result["pass_rate"] == 1.0`
+
+### UT-023: normalize_extractions Writes _normalization_report.json
+- **Traces to:** FIDL-02b
+- **Test:** After normalize run, `extractions/_normalization_report.json` exists with per-file action entries and aggregate pass/recovered/unrecoverable counts
+- **Pass criteria:** File exists with `indent=2` JSON and records every input file
+
+### UT-024: DocumentExtraction Pydantic Model Rejects Missing document_id
+- **Traces to:** FIDL-02c
+- **Test:** Directly instantiate `sift_kg.extract.models.DocumentExtraction(document_path="x.pdf", entities=[], relations=[])` (omitting `document_id`) — must raise `pydantic.ValidationError` mentioning `document_id`. Also verify `write_extraction` wraps this into a `ValueError` when called with a dict payload (via `**record`) that lacks `document_id`.
+- **Pass criteria:** Direct `DocumentExtraction(**payload)` raises ValidationError; `write_extraction` wraps into ValueError with both "DocumentExtraction" AND "document_id" in message
+
+### UT-025: build_extraction Raises on Invalid Entity Shape
+- **Traces to:** FIDL-02c
+- **Test:** Call `write_extraction` with entity using `type` field bypassing `_normalize_fields` → Pydantic validation raises
+- **Pass criteria:** Raises ValueError mentioning `entity_type`
+
+### UT-026: build_extraction Threads --model Flag Into Output
+- **Traces to:** FIDL-02c
+- **Test:** Run `python3 core/build_extraction.py doc1 <tmp> --model claude-sonnet-4-5 --json '...'` → output JSON has `model_used: "claude-sonnet-4-5"`
+- **Pass criteria:** `model_used` matches flag value
+
+### UT-027: build_extraction Reads EPISTRACT_MODEL Env Var
+- **Traces to:** FIDL-02c
+- **Test:** Run without `--model` but with `EPISTRACT_MODEL=claude-opus-4-7` in env → output JSON has `model_used: "claude-opus-4-7"`
+- **Pass criteria:** `model_used` matches env var value
+
+### UT-028: build_extraction Threads --cost Flag Into Output
+- **Traces to:** FIDL-02c
+- **Test:** Run with `--cost 0.0123` → output JSON has `cost_usd: 0.0123` (use `pytest.approx` for float compare)
+- **Pass criteria:** `cost_usd == pytest.approx(0.0123)` returns True
+
+### UT-029: build_extraction model_used Defaults to null (not hardcoded)
+- **Traces to:** FIDL-02c
+- **Test:** Run without `--model` flag and without `EPISTRACT_MODEL` env → output `model_used` is null (JSON null, not the string "claude-opus-4-6")
+- **Pass criteria:** `data["model_used"] is None`; the literal string `"claude-opus-4-6"` does NOT appear in any build_extraction.py output
+
+### UT-030: build_extraction cost_usd Defaults to null (not hardcoded)
+- **Traces to:** FIDL-02c
+- **Test:** Run without `--cost` flag → output `cost_usd` is null
+- **Pass criteria:** `data["cost_usd"] is None`; the literal `0.0` fallback is not inserted
+
+### FT-009: 20+ Doc Normalization Achieves ≥95% Pass Rate (e2e)
+- **Traces to:** FIDL-02b
+- **Test:** Load `tests/fixtures/normalization/` (24 physical files → 23 logical docs post-dedupe), run normalize + graph build; confirm ≥95% load rate
+- **Pass criteria:** `_normalization_report.json` reports `pass_rate >= 0.95`; `graph_data.json` has nodes from all recovered docs
+
+### FT-010: --fail-threshold Aborts Before Build When Below Threshold (e2e)
+- **Traces to:** FIDL-02b
+- **Test:** Load `tests/fixtures/normalization_below_threshold/` (10 files: 2 survivors + 8 unrecoverable), run with `--fail-threshold 0.95`; confirm pipeline exits nonzero BEFORE run_sift.py build runs
+- **Pass criteria:** Subprocess exit code ≠ 0; `graph_data.json` is NOT created; error message mentions `--fail-threshold` and the observed pass-rate
+
+---
+
 ## 4. Traceability Matrix
 
 | Requirement | Domain Spec Section | Entity Types Tested | Relation Types Tested | Test Corpus |

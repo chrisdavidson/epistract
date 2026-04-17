@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Framework Architecture & Domain Developer Experience
-status: executing
-stopped_at: Completed 11-02-PLAN.md
-last_updated: "2026-04-04T21:43:10.901Z"
-last_activity: 2026-04-04
+status: verifying
+stopped_at: Completed 13-04-PLAN.md (FT-009 + FT-010 e2e acceptance + normalize_extractions on-disk provenance fix; Phase 13 complete)
+last_updated: "2026-04-17T16:53:26.251Z"
+last_activity: 2026-04-17
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 16
-  completed_plans: 16
+  total_phases: 22
+  completed_phases: 13
+  total_plans: 40
+  completed_plans: 40
   percent: 85
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Core value:** Extract knowledge, not information. Any corpus, any domain -- plug in a schema, get a knowledge graph with epistemic layer.
-**Current focus:** Phase 11 — end-to-end-scenario-validation
+**Current focus:** Phase 13 — Extraction Pipeline Reliability
 
 ## Current Position
 
-Phase: 11 (end-to-end-scenario-validation) — EXECUTING
-Plan: 2 of 4
-Status: Ready to execute
-Last activity: 2026-04-16 - Completed quick task 260416-fkc: rdkit-pypi -> rdkit + SOCKS proxy bypass
+Phase: 14
+Plan: Not started
+Status: Phase complete — ready for verification
+Last activity: 2026-04-17
 
 Progress: [████████░░] 85%
 
@@ -72,6 +72,12 @@ Progress: [████████░░] 85%
 | Phase 10 P03 | 2min | 1 tasks | 1 files |
 | Phase 10 P02 | 6min | 2 tasks | 4 files |
 | Phase 11 P02 | 2min | 2 tasks | 3 files |
+| Phase 12 P01 | 3min | 2 tasks | 3 files |
+| Phase 13 P00 | 4 | 4 tasks | 38 files |
+| Phase 13 P01 | 6min | 3 tasks | 2 files |
+| Phase 13 P02 | 3min | 2 tasks | 2 files |
+| Phase 13 P03 | 3min | 3 tasks | 3 files |
+| Phase 13 P04 | 5min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -116,6 +122,21 @@ Recent decisions affecting current work:
 - [Phase 10]: README opens with domain-agnostic pitch; biomedical content only in Showcase and Pre-built Domains
 - [Phase 10]: CLAUDE.md Architecture reframed as three-layer: core/domains/examples with domain resolver
 - [Phase 11]: package.json bin entry deferred (scripts/npx-install.sh) until npm account setup
+- [Phase 12]: [Phase 12]: Wizard read_sample_documents now routes through sift_kg.ingest.reader.read_document (HAS_SIFT_READER guard mirrors core/ingest_documents.py:20-25). Dropped errors='replace' fallback entirely — binary-as-text IS the bug.
+- [Phase 12]: [Phase 12]: When sift-kg is missing, wizard skips non-.txt inputs rather than silently reading binary; caller hits MIN_SAMPLE_DOCS ValueError — loud failure over silent-garbage schemas.
+- [Phase 13]: [Phase 13 Plan 00]: FIDL-02a/b/c registered. Plan IDs mapped — 02a→13-03, 02b→13-02+13-04, 02c→13-01.
+- [Phase 13]: [Phase 13 Plan 00]: UT-022 split into UT-022a (build_extraction._normalize_fields unit) + UT-022b (normalize_extractions module-level) — one requirement, two enforcement layers, two test IDs.
+- [Phase 13]: [Phase 13-01]: Substituted sift-kg defaults (0.0 / "") for None provenance during Pydantic validation; on-disk JSON preserves honest null per D-07/D-08. Validation enforces required fields, not provenance nullability.
+- [Phase 13]: [Phase 13-01]: Added sys.path bootstrap to core/build_extraction.py so extractor agents can invoke it as a plain script via absolute path — pre-existing latent bug surfaced by Task 3 subprocess tests.
+- [Phase 13]: [Phase 13-02]: normalize_extractions reuses sift-kg default substitution (0.0/"") during Pydantic validation — same reconciliation as Plan 13-01. Ensures honest-null provenance on disk while enforcing required-field contract.
+- [Phase 13]: [Phase 13-02]: Composite dedupe score (has_document_id*1000 + len(entities) + len(relations)) with lexicographic filename tie-break; 1000-weight dominance guarantees intact-but-smaller records always beat lossy-but-richer ones.
+- [Phase 13]: [Phase 13-02]: Added isinstance(record, dict) guard in _load_and_coerce so malformed non-dict JSON (arrays, strings) classifies as unrecoverable_load instead of crashing _normalize_fields — belt-and-suspenders for Plan 13-04 below-threshold fixture.
+- [Phase 13]: [Phase 13-03]: Dual-path provenance threading — BOTH EPISTRACT_MODEL env export AND --model flag literally in dispatch-prompt Bash. D-07 cascade (flag > env > null) guarantees correctness under either Agent-tool env-inheritance behavior; no runtime test-and-flip needed.
+- [Phase 13]: [Phase 13-03]: Fixed latent path bug in agents/extractor.md — /scripts/build_extraction.py -> /core/build_extraction.py (post-reorg drift from Phase 06). UT-018 now asserts the old path is absent to guard against regression.
+- [Phase 13]: [Phase 13-03]: Grep-style agent-prompt regression tests (UT-017/018) use pure file-read + substring assertions. Runs in <1ms each; locks the prompt contract into CI so Write-tool escape hatches or path-bug regressions fail fast.
+- [Phase 13]: [Phase 13-04]: FT-009 RED phase surfaced integration gap — normalize_extractions wrote null provenance to disk but sift_kg.graph.builder.load_extractions silently rejects null cost_usd / model_used (DocumentExtraction non-nullable defaults). Applied 3-line substitution pre-canonical-write (mirror of Plan 13-01/13-02 in-memory reconciliation). Phase 13 acceptance target (>=95% load rate) was unreachable without this.
+- [Phase 13]: [Phase 13-04]: UT-013 pre-existing failure (direct write_extraction -> cmd_build path, same null-provenance root cause in build_extraction.py) logged to deferred-items.md with symmetric fix recipe rather than auto-fixed. Verified pre-existing on HEAD via git stash. Plan 13-01 regression slipped through that plan's self-check.
+- [Phase 13]: [Phase 13-04]: Goal-backward e2e acceptance test pattern established — copy fixture corpus, run full normalize -> build chain, assert both pass_rate AND graph_data.json existence + node count. FT-009 caught a silent-drop symptom that Plans 13-01..13-03 individually passed but collectively did not deliver, validating the separate-acceptance-plan approach.
 
 ### Pending Todos
 
@@ -135,6 +156,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-04-04T21:43:10.898Z
-Stopped at: Completed 11-02-PLAN.md
+Last session: 2026-04-17T12:48:01.939Z
+Stopped at: Completed 13-04-PLAN.md (FT-009 + FT-010 e2e acceptance + normalize_extractions on-disk provenance fix; Phase 13 complete)
 Resume file: None

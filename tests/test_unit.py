@@ -530,3 +530,434 @@ def test_wizard_schema_discovery_prompt():
     assert "Real estate lease agreements" in prompt
     assert "entity" in prompt.lower()
     assert "relation" in prompt.lower()
+
+
+@pytest.mark.unit
+@pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
+def test_wizard_reads_pdf_as_text():
+    """FIDL-01: PDF samples are read as extracted text, not as %PDF binary header."""
+    from core.domain_wizard import read_sample_documents
+
+    fixtures = Path(__file__).parent / "fixtures" / "wizard"
+    pdf_path = fixtures / "sample_lease_2.pdf"
+    txt_path = fixtures / "sample_lease_1.txt"
+
+    assert pdf_path.exists(), f"Missing PDF fixture: {pdf_path}"
+
+    result = read_sample_documents([pdf_path, txt_path])
+
+    by_path = {doc["path"]: doc for doc in result}
+    pdf_doc = by_path[str(pdf_path)]
+
+    # The critical assertion: we got extracted text, not the raw %PDF header.
+    assert not pdf_doc["text"].startswith("%PDF"), (
+        f"PDF was read as raw binary — FIDL-01 regression. "
+        f"First 20 chars: {pdf_doc['text'][:20]!r}"
+    )
+    assert pdf_doc["char_count"] > 0, "PDF extraction returned empty text"
+    assert "text" in pdf_doc and isinstance(pdf_doc["text"], str)
+
+
+@pytest.mark.unit
+def test_wizard_skips_binary_when_sift_reader_missing():
+    """FIDL-01: When sift-kg is not installed, binary files are skipped rather than
+    silently read as %PDF garbage — caller hits MIN_SAMPLE_DOCS ValueError instead."""
+    from core import domain_wizard
+
+    fixtures = Path(__file__).parent / "fixtures" / "wizard"
+    pdf_path = fixtures / "sample_lease_2.pdf"
+
+    assert pdf_path.exists(), f"Missing PDF fixture: {pdf_path}"
+
+    with mock.patch.object(domain_wizard, "HAS_SIFT_READER", False):
+        with pytest.raises(ValueError, match="at least 2"):
+            # Two PDFs, no sift-kg: both should be skipped, triggering the
+            # MIN_SAMPLE_DOCS guard. Crucially, no dict with text=="%PDF..."
+            # is returned.
+            domain_wizard.read_sample_documents([pdf_path, pdf_path])
+
+
+# ========================================================================
+# Phase 13 — FIDL-02c: write-time validation + provenance threading
+# ========================================================================
+
+@pytest.mark.unit
+def test_normalize_coerces_schema_drift():
+    """UT-022a: build_extraction._normalize_fields coerces drift.
+
+    Parseable string confidence → float, unparseable string → 0.5 Pydantic default,
+    type → entity_type, missing context/evidence/attributes filled.
+    """
+    from build_extraction import _normalize_fields
+
+    entities = [
+        {"name": "x", "type": "COMPOUND", "confidence": "0.9"},
+        {"name": "y", "type": "GENE", "confidence": "not-a-number"},
+    ]
+    relations = [{"source_entity": "x", "target_entity": "y", "type": "INHIBITS"}]
+    entities, relations = _normalize_fields(entities, relations)
+
+    # Parseable string → float
+    assert entities[0]["entity_type"] == "COMPOUND"
+    assert "type" not in entities[0]
+    assert entities[0]["confidence"] == 0.9
+    assert entities[0]["context"] == ""
+    assert entities[0]["attributes"] == {}
+
+    # Unparseable string → 0.5 (Pydantic default, per RESEARCH.md §664)
+    assert entities[1]["confidence"] == 0.5
+
+    # Relation normalization
+    assert relations[0]["relation_type"] == "INHIBITS"
+    assert relations[0]["evidence"] == ""
+
+
+@pytest.mark.unit
+@pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
+def test_build_extraction_raises_on_missing_doc_id():
+    """UT-024: DocumentExtraction Pydantic model rejects payloads missing document_id,
+    and write_extraction wraps the failure into a ValueError on malformed records.
+
+    Per RESEARCH.md: agents may construct dicts and pass them via `**record` expansion
+    into write_extraction, in which case an omitted document_id slips past the Python-level
+    signature and is caught only by Pydantic's DocumentExtraction validation — which this
+    test exercises directly for unambiguous coverage.
+    """
+    from pydantic import ValidationError
+    from sift_kg.extract.models import DocumentExtraction
+    import build_extraction
+
+    # Part A: The Pydantic model itself rejects a payload missing document_id
+    with pytest.raises(ValidationError) as exc_info:
+        DocumentExtraction(document_path="x.pdf", entities=[], relations=[])
+    assert "document_id" in str(exc_info.value)
+
+    # Part B: write_extraction wraps downstream Pydantic failures into ValueError.
+    # Drive this with an entity missing entity_type (which _normalize_fields cannot
+    # rescue because there is no 'type' alias) — the internal
+    # DocumentExtraction(**extraction) call must fail and be re-raised as ValueError.
+    with tempfile.TemporaryDirectory() as tmpdir:
+        bad_entities = [{"name": "foo"}]  # missing entity_type, no 'type' alias
+        with pytest.raises(ValueError, match="DocumentExtraction"):
+            build_extraction.write_extraction("test_doc", tmpdir, bad_entities, [])
+
+
+@pytest.mark.unit
+@pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
+def test_build_extraction_raises_on_invalid_entity():
+    """UT-025: write_extraction raises ValueError on entity missing both type and entity_type."""
+    import build_extraction
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with pytest.raises(ValueError) as exc_info:
+            build_extraction.write_extraction(
+                "test_doc", tmpdir,
+                entities=[{"name": "x"}],  # missing entity_type
+                relations=[],
+            )
+        # Must mention the Pydantic model + the offending field
+        assert "DocumentExtraction" in str(exc_info.value)
+        assert "entity_type" in str(exc_info.value)
+
+
+@pytest.mark.unit
+@pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
+def test_build_extraction_threads_model_flag(tmp_path):
+    """UT-026: --model flag threads into output JSON model_used field."""
+    import subprocess
+
+    script = PROJECT_ROOT / "core" / "build_extraction.py"
+    payload = json.dumps({
+        "entities": [{"name": "x", "entity_type": "COMPOUND"}],
+        "relations": [],
+    })
+    result = subprocess.run(
+        ["python3", str(script), "test_doc", str(tmp_path),
+         "--model", "claude-sonnet-4-5", "--json", payload],
+        capture_output=True, text=True, cwd=str(PROJECT_ROOT),
+    )
+    assert result.returncode == 0, f"stderr: {result.stderr}"
+    out = json.loads((tmp_path / "extractions" / "test_doc.json").read_text())
+    assert out["model_used"] == "claude-sonnet-4-5"
+
+
+@pytest.mark.unit
+@pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
+def test_build_extraction_reads_model_env(tmp_path):
+    """UT-027: EPISTRACT_MODEL env var is used when --model is absent."""
+    import subprocess, os as _os
+
+    script = PROJECT_ROOT / "core" / "build_extraction.py"
+    payload = json.dumps({
+        "entities": [{"name": "x", "entity_type": "COMPOUND"}],
+        "relations": [],
+    })
+    env = dict(_os.environ)
+    env["EPISTRACT_MODEL"] = "claude-opus-4-7"
+    result = subprocess.run(
+        ["python3", str(script), "test_doc", str(tmp_path), "--json", payload],
+        capture_output=True, text=True, env=env, cwd=str(PROJECT_ROOT),
+    )
+    assert result.returncode == 0, f"stderr: {result.stderr}"
+    out = json.loads((tmp_path / "extractions" / "test_doc.json").read_text())
+    assert out["model_used"] == "claude-opus-4-7"
+
+
+@pytest.mark.unit
+@pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
+def test_build_extraction_threads_cost_flag(tmp_path):
+    """UT-028: --cost flag threads into output JSON cost_usd field (float via pytest.approx)."""
+    import subprocess
+
+    script = PROJECT_ROOT / "core" / "build_extraction.py"
+    payload = json.dumps({
+        "entities": [{"name": "x", "entity_type": "COMPOUND"}],
+        "relations": [],
+    })
+    result = subprocess.run(
+        ["python3", str(script), "test_doc", str(tmp_path),
+         "--cost", "0.0123", "--json", payload],
+        capture_output=True, text=True, cwd=str(PROJECT_ROOT),
+    )
+    assert result.returncode == 0, f"stderr: {result.stderr}"
+    out = json.loads((tmp_path / "extractions" / "test_doc.json").read_text())
+    # pytest.approx avoids direct float-equality fragility across round-trip JSON serialization
+    assert out["cost_usd"] == pytest.approx(0.0123)
+
+
+@pytest.mark.unit
+@pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
+def test_build_extraction_no_hardcoded_model(tmp_path):
+    """UT-029: model_used is empty (sift-kg default) — not fabricated — when no --model and no EPISTRACT_MODEL.
+
+    On-disk contract: the file must be loadable via sift_kg.graph.builder without
+    a prior normalize_extractions pass, so we write the sift-kg DocumentExtraction
+    default (``""``) instead of ``null``. The meaningful assertion is the absence
+    of any fabricated provenance string (e.g., ``claude-opus-4-6``).
+    """
+    import subprocess, os as _os
+
+    script = PROJECT_ROOT / "core" / "build_extraction.py"
+    payload = json.dumps({
+        "entities": [{"name": "x", "entity_type": "COMPOUND"}],
+        "relations": [],
+    })
+    env = {k: v for k, v in _os.environ.items() if k != "EPISTRACT_MODEL"}
+    result = subprocess.run(
+        ["python3", str(script), "test_doc", str(tmp_path), "--json", payload],
+        capture_output=True, text=True, env=env, cwd=str(PROJECT_ROOT),
+    )
+    assert result.returncode == 0, f"stderr: {result.stderr}"
+    out = json.loads((tmp_path / "extractions" / "test_doc.json").read_text())
+    assert out["model_used"] == "", f"Expected empty sift-kg default, got {out['model_used']!r}"
+    assert "claude-opus" not in (out["model_used"] or ""), "No fabricated model name on disk"
+
+
+@pytest.mark.unit
+@pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
+def test_build_extraction_no_hardcoded_cost(tmp_path):
+    """UT-030: cost_usd is 0.0 (sift-kg default) — not fabricated — when no --cost flag provided.
+
+    On-disk contract: the file must be loadable via sift_kg.graph.builder without
+    a prior normalize_extractions pass, so we write the sift-kg DocumentExtraction
+    default (``0.0``) instead of ``null``. The meaningful assertion is that the
+    value is not a fabricated per-chunk cost estimate.
+    """
+    import subprocess
+
+    script = PROJECT_ROOT / "core" / "build_extraction.py"
+    payload = json.dumps({
+        "entities": [{"name": "x", "entity_type": "COMPOUND"}],
+        "relations": [],
+    })
+    result = subprocess.run(
+        ["python3", str(script), "test_doc", str(tmp_path), "--json", payload],
+        capture_output=True, text=True, cwd=str(PROJECT_ROOT),
+    )
+    assert result.returncode == 0, f"stderr: {result.stderr}"
+    out = json.loads((tmp_path / "extractions" / "test_doc.json").read_text())
+    assert out["cost_usd"] == 0.0, f"Expected 0.0 sift-kg default, got {out['cost_usd']!r}"
+
+
+# ========================================================================
+# Phase 13 — FIDL-02b: normalize_extractions module
+# ========================================================================
+
+def _write_extraction_file(path: Path, doc_id: str | None, n_entities: int = 1, n_relations: int = 0) -> None:
+    """Helper: write a valid extraction JSON at `path`. Omit doc_id by passing None."""
+    body = {
+        "document_path": "",
+        "chunks_processed": 1,
+        "entities": [
+            {"name": f"e{i}", "entity_type": "COMPOUND", "attributes": {}, "confidence": 0.9, "context": ""}
+            for i in range(n_entities)
+        ],
+        "relations": [
+            {"relation_type": "INHIBITS", "source_entity": "e0", "target_entity": f"e{i}", "confidence": 0.9, "evidence": ""}
+            for i in range(n_relations)
+        ],
+        "cost_usd": None,
+        "model_used": None,
+        "domain_name": "drug-discovery",
+        "chunk_size": 10000,
+        "extracted_at": "2026-04-17T00:00:00+00:00",
+        "error": None,
+    }
+    if doc_id is not None:
+        body["document_id"] = doc_id
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(body, indent=2))
+
+
+@pytest.mark.unit
+@pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
+def test_normalize_renames_variant_filenames(tmp_path):
+    """UT-019: Variant filenames (_raw, _extraction_input, -extraction) renamed to <doc_id>.json."""
+    from normalize_extractions import normalize_extractions
+
+    ext = tmp_path / "extractions"
+    _write_extraction_file(ext / "foo_raw.json", doc_id="foo")
+    _write_extraction_file(ext / "bar_extraction_input.json", doc_id="bar")
+    _write_extraction_file(ext / "baz-extraction.json", doc_id="baz")
+
+    result = normalize_extractions(tmp_path)
+
+    assert (ext / "foo.json").exists()
+    assert (ext / "bar.json").exists()
+    assert (ext / "baz.json").exists()
+    assert not (ext / "foo_raw.json").exists()
+    assert not (ext / "bar_extraction_input.json").exists()
+    assert not (ext / "baz-extraction.json").exists()
+    assert result["recovered"] == 3
+
+
+@pytest.mark.unit
+@pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
+def test_normalize_infers_document_id(tmp_path):
+    """UT-020: Missing document_id inferred from filename stem."""
+    from normalize_extractions import normalize_extractions
+
+    ext = tmp_path / "extractions"
+    _write_extraction_file(ext / "my_doc_42.json", doc_id=None)
+
+    result = normalize_extractions(tmp_path)
+
+    body = json.loads((ext / "my_doc_42.json").read_text())
+    assert body["document_id"] == "my_doc_42"
+    assert result["pass_rate"] == 1.0
+
+
+@pytest.mark.unit
+@pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
+def test_normalize_dedupes_keeps_richer(tmp_path):
+    """UT-021: Same doc_id -> richer version wins, loser archived."""
+    from normalize_extractions import normalize_extractions
+
+    ext = tmp_path / "extractions"
+    # Both have document_id="dupe"; differ on entity count
+    _write_extraction_file(ext / "dupe_a.json", doc_id="dupe", n_entities=2)
+    _write_extraction_file(ext / "dupe_b.json", doc_id="dupe", n_entities=8)
+
+    result = normalize_extractions(tmp_path)
+
+    # Survivor is the canonical <doc_id>.json with 8 entities
+    survivor = ext / "dupe.json"
+    assert survivor.exists()
+    body = json.loads(survivor.read_text())
+    assert len(body["entities"]) == 8
+
+    # Loser archived
+    archive = ext / "_dedupe_archive"
+    assert archive.is_dir()
+    archived_files = list(archive.glob("*.json"))
+    assert len(archived_files) == 1
+
+
+@pytest.mark.unit
+@pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
+def test_normalize_coerces_schema_drift_via_module(tmp_path):
+    """UT-022b: Module-level normalize delegates to _normalize_fields, coercing type->entity_type.
+
+    Companion to UT-022a (test_normalize_coerces_schema_drift) in Plan 01, which exercises
+    build_extraction._normalize_fields directly. This test verifies the delegation path
+    through the normalize_extractions() entry-point and that the coerced record is written
+    back to disk.
+    """
+    from normalize_extractions import normalize_extractions
+
+    ext = tmp_path / "extractions"
+    ext.mkdir(parents=True)
+    drift = {
+        "document_id": "drift",
+        "document_path": "",
+        "entities": [{"name": "x", "type": "COMPOUND", "confidence": "0.9"}],  # schema drift
+        "relations": [],
+    }
+    (ext / "drift.json").write_text(json.dumps(drift, indent=2))
+
+    result = normalize_extractions(tmp_path)
+
+    body = json.loads((ext / "drift.json").read_text())
+    assert body["entities"][0]["entity_type"] == "COMPOUND"
+    assert "type" not in body["entities"][0]
+    assert isinstance(body["entities"][0]["confidence"], float)
+    assert result["pass_rate"] == 1.0
+
+
+@pytest.mark.unit
+@pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
+def test_normalize_writes_report(tmp_path):
+    """UT-023: _normalization_report.json is written with required keys."""
+    from normalize_extractions import normalize_extractions
+
+    ext = tmp_path / "extractions"
+    _write_extraction_file(ext / "good.json", doc_id="good")
+
+    result = normalize_extractions(tmp_path)
+
+    report_path = ext / "_normalization_report.json"
+    assert report_path.exists()
+    report = json.loads(report_path.read_text())
+    for key in ("total", "passed", "recovered", "unrecoverable", "pass_rate", "fail_threshold", "above_threshold", "actions"):
+        assert key in report, f"Missing key in report: {key}"
+    assert report["total"] == 1
+    assert 0.0 <= report["pass_rate"] <= 1.0
+
+
+# ========================================================================
+# Phase 13 — FIDL-02a: extractor.md contract
+# ========================================================================
+
+@pytest.mark.unit
+def test_extractor_prompt_required_fields():
+    """UT-017: agents/extractor.md declares document_id, entities, relations as REQUIRED; forbids direct Write."""
+    prompt = (PROJECT_ROOT / "agents" / "extractor.md").read_text()
+
+    assert "REQUIRED top-level fields" in prompt, \
+        "Missing REQUIRED top-level fields block (FIDL-02a D-09)"
+    assert "document_id" in prompt, "Required field document_id not mentioned"
+    assert "entities" in prompt, "Required field entities not mentioned"
+    assert "relations" in prompt, "Required field relations not mentioned"
+    assert "DO NOT fall back to the Write tool" in prompt, \
+        "Missing Write-tool ban (FIDL-02a D-10)"
+    assert "build_extraction.py" in prompt, "Agent must invoke build_extraction.py"
+
+
+@pytest.mark.unit
+def test_extractor_prompt_stdin_fallback():
+    """UT-018: agents/extractor.md documents stdin-pipe fallback AND corrected core/ path."""
+    prompt = (PROJECT_ROOT / "agents" / "extractor.md").read_text()
+
+    # Stdin fallback is documented
+    assert "stdin pipe" in prompt.lower() or "echo '<" in prompt, \
+        "Stdin fallback invocation not documented"
+
+    # Path bug fix: must reference core/, never scripts/
+    assert "${CLAUDE_PLUGIN_ROOT}/core/build_extraction.py" in prompt, \
+        "Missing corrected core/ path"
+    assert "/scripts/build_extraction.py" not in prompt, \
+        "Obsolete scripts/ path still present — path bug regression"
+
+    # "report the failure" guidance so agents don't silently fall back to Write
+    assert "report the failure" in prompt.lower(), \
+        "Missing report-failure guidance (FIDL-02a D-10)"
