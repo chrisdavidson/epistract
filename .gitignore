@@ -4,6 +4,7 @@ __pycache__/
 .env
 /output/
 /epistract-output/
+/epistract-output-*/
 # Allow test corpus outputs (committed for reproducibility)
 !tests/corpora/*/output/
 .DS_Store

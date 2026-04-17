@@ -53,13 +53,23 @@ SEQUENCE_TYPES = {"DNA_SEQUENCE", "RNA_SEQUENCE", "AMINO_ACID_SEQ"}
 
 
 def collect_texts(extraction: dict) -> list[tuple[str, str]]:
-    """Collect (field_path, text) pairs from entity context and relation evidence."""
+    """Collect (field_path, text) pairs from entity context and relation evidence.
+
+    Also surfaces SMILES stored directly in entity attributes (e.g. from
+    enrich_structures.py), which does not appear in the context quote.
+    """
     texts: list[tuple[str, str]] = []
 
     for i, entity in enumerate(extraction.get("entities", [])):
         ctx = entity.get("context", "")
         if ctx:
             texts.append((f"entities[{i}].context", ctx))
+        # Surface SMILES written to attributes by enrich_structures.py.
+        # These never appear in the context quote so they would otherwise
+        # be invisible to the validator.
+        smiles_attr = entity.get("attributes", {}).get("smiles", "")
+        if smiles_attr:
+            texts.append((f"entities[{i}].attributes.smiles", smiles_attr))
 
     for i, relation in enumerate(extraction.get("relations", [])):
         evidence = relation.get("evidence", "")

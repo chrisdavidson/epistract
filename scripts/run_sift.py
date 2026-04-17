@@ -5,6 +5,7 @@ Usage:
     python run_sift.py build <output_dir> [--domain <path>]
     python run_sift.py view <output_dir> [--neighborhood <entity>] [--top <n>]
     python run_sift.py export <output_dir> <format>
+    python run_sift.py share <output_dir> [--format html|markdown] [--open]
     python run_sift.py info <output_dir>
     python run_sift.py search <output_dir> <query> [--type TYPE]
 """
@@ -64,6 +65,16 @@ def cmd_export(output_dir: str, fmt: str):
     print(f"Exported: {path}")
 
 
+def cmd_share(output_dir: str, fmt: str = "html", open_after: bool = False):
+    sys.path.insert(0, str(Path(__file__).parent))
+    from generate_share import generate_share
+    path = generate_share(Path(output_dir), fmt)
+    print(json.dumps({"path": str(path), "format": fmt, "size_bytes": path.stat().st_size}))
+    if open_after and fmt == "html":
+        import webbrowser
+        webbrowser.open(path.as_uri())
+
+
 def cmd_info(output_dir: str):
     (KnowledgeGraph,) = _import_sift(["KnowledgeGraph"])
     graph_path = Path(output_dir) / "graph_data.json"
@@ -113,6 +124,10 @@ if __name__ == "__main__":
         cmd_view(sys.argv[2], **kwargs)
     elif cmd == "export":
         cmd_export(sys.argv[2], sys.argv[3])
+    elif cmd == "share":
+        fmt = sys.argv[sys.argv.index("--format") + 1] if "--format" in sys.argv else "html"
+        open_after = "--open" in sys.argv
+        cmd_share(sys.argv[2], fmt, open_after)
     elif cmd == "info":
         cmd_info(sys.argv[2])
     elif cmd == "search":
