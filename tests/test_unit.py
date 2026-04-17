@@ -530,3 +530,48 @@ def test_wizard_schema_discovery_prompt():
     assert "Real estate lease agreements" in prompt
     assert "entity" in prompt.lower()
     assert "relation" in prompt.lower()
+
+
+@pytest.mark.unit
+@pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
+def test_wizard_reads_pdf_as_text():
+    """FIDL-01: PDF samples are read as extracted text, not as %PDF binary header."""
+    from core.domain_wizard import read_sample_documents
+
+    fixtures = Path(__file__).parent / "fixtures" / "wizard"
+    pdf_path = fixtures / "sample_lease_2.pdf"
+    txt_path = fixtures / "sample_lease_1.txt"
+
+    assert pdf_path.exists(), f"Missing PDF fixture: {pdf_path}"
+
+    result = read_sample_documents([pdf_path, txt_path])
+
+    by_path = {doc["path"]: doc for doc in result}
+    pdf_doc = by_path[str(pdf_path)]
+
+    # The critical assertion: we got extracted text, not the raw %PDF header.
+    assert not pdf_doc["text"].startswith("%PDF"), (
+        f"PDF was read as raw binary — FIDL-01 regression. "
+        f"First 20 chars: {pdf_doc['text'][:20]!r}"
+    )
+    assert pdf_doc["char_count"] > 0, "PDF extraction returned empty text"
+    assert "text" in pdf_doc and isinstance(pdf_doc["text"], str)
+
+
+@pytest.mark.unit
+def test_wizard_skips_binary_when_sift_reader_missing():
+    """FIDL-01: When sift-kg is not installed, binary files are skipped rather than
+    silently read as %PDF garbage — caller hits MIN_SAMPLE_DOCS ValueError instead."""
+    from core import domain_wizard
+
+    fixtures = Path(__file__).parent / "fixtures" / "wizard"
+    pdf_path = fixtures / "sample_lease_2.pdf"
+
+    assert pdf_path.exists(), f"Missing PDF fixture: {pdf_path}"
+
+    with mock.patch.object(domain_wizard, "HAS_SIFT_READER", False):
+        with pytest.raises(ValueError, match="at least 2"):
+            # Two PDFs, no sift-kg: both should be skipped, triggering the
+            # MIN_SAMPLE_DOCS guard. Crucially, no dict with text=="%PDF..."
+            # is returned.
+            domain_wizard.read_sample_documents([pdf_path, pdf_path])
