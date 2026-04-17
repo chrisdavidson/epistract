@@ -108,7 +108,7 @@ See v1 traceability below.
 
 ### Graph Fidelity & Honest Limits (Phase 12)
 
-- [ ] **FIDL-01**: Domain wizard reads sample documents via `sift_kg.ingest.reader.read_document` so PDF and other binary formats produce extracted text — not raw `%PDF-1.4` binary headers — for the 3-pass LLM schema discovery. Replaces `Path.read_text(errors="replace")` at `core/domain_wizard.py:63`. Graceful fallback when sift-kg is not installed.
+- [x] **FIDL-01**: Domain wizard reads sample documents via `sift_kg.ingest.reader.read_document` so PDF and other binary formats produce extracted text — not raw `%PDF-1.4` binary headers — for the 3-pass LLM schema discovery. Replaces `Path.read_text(errors="replace")` at `core/domain_wizard.py:63`. Graceful fallback when sift-kg is not installed.
 
 ## Deferred (V3)
 
@@ -187,7 +187,7 @@ See v1 traceability below.
 
 | Requirement | Phase | Plan | Status |
 |-------------|-------|------|--------|
-| FIDL-01 | Phase 12 | 12-01 | Pending |
+| FIDL-01 | Phase 12 | 12-01 | Complete |
 
 ---
 *Requirements defined: 2026-03-29 (v1), 2026-04-02 (v2), 2026-04-04 (Phase 11)*
