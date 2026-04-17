@@ -728,7 +728,13 @@ def test_build_extraction_threads_cost_flag(tmp_path):
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
 def test_build_extraction_no_hardcoded_model(tmp_path):
-    """UT-029: model_used defaults to null when no --model and no EPISTRACT_MODEL."""
+    """UT-029: model_used is empty (sift-kg default) — not fabricated — when no --model and no EPISTRACT_MODEL.
+
+    On-disk contract: the file must be loadable via sift_kg.graph.builder without
+    a prior normalize_extractions pass, so we write the sift-kg DocumentExtraction
+    default (``""``) instead of ``null``. The meaningful assertion is the absence
+    of any fabricated provenance string (e.g., ``claude-opus-4-6``).
+    """
     import subprocess, os as _os
 
     script = PROJECT_ROOT / "core" / "build_extraction.py"
@@ -743,13 +749,20 @@ def test_build_extraction_no_hardcoded_model(tmp_path):
     )
     assert result.returncode == 0, f"stderr: {result.stderr}"
     out = json.loads((tmp_path / "extractions" / "test_doc.json").read_text())
-    assert out["model_used"] is None, f"Expected null, got {out['model_used']!r}"
+    assert out["model_used"] == "", f"Expected empty sift-kg default, got {out['model_used']!r}"
+    assert "claude-opus" not in (out["model_used"] or ""), "No fabricated model name on disk"
 
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
 def test_build_extraction_no_hardcoded_cost(tmp_path):
-    """UT-030: cost_usd defaults to null when no --cost flag provided."""
+    """UT-030: cost_usd is 0.0 (sift-kg default) — not fabricated — when no --cost flag provided.
+
+    On-disk contract: the file must be loadable via sift_kg.graph.builder without
+    a prior normalize_extractions pass, so we write the sift-kg DocumentExtraction
+    default (``0.0``) instead of ``null``. The meaningful assertion is that the
+    value is not a fabricated per-chunk cost estimate.
+    """
     import subprocess
 
     script = PROJECT_ROOT / "core" / "build_extraction.py"
@@ -763,7 +776,7 @@ def test_build_extraction_no_hardcoded_cost(tmp_path):
     )
     assert result.returncode == 0, f"stderr: {result.stderr}"
     out = json.loads((tmp_path / "extractions" / "test_doc.json").read_text())
-    assert out["cost_usd"] is None, f"Expected null, got {out['cost_usd']!r}"
+    assert out["cost_usd"] == 0.0, f"Expected 0.0 sift-kg default, got {out['cost_usd']!r}"
 
 
 # ========================================================================

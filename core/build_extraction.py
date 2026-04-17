@@ -117,20 +117,17 @@ def write_extraction(
         "extracted_at": datetime.now(timezone.utc).isoformat(),
         "error": None,
     }
+    # Substitute sift-kg DocumentExtraction defaults for unknown provenance so
+    # the on-disk file loads cleanly via `sift_kg.graph.builder.load_extractions`
+    # without requiring a prior normalize_extractions pass. Mirrors the fix Plan
+    # 13-04 applied in core/normalize_extractions.py for the ingest pipeline.
+    if extraction.get("cost_usd") is None:
+        extraction["cost_usd"] = 0.0
+    if extraction.get("model_used") is None:
+        extraction["model_used"] = ""
     if HAS_SIFT_EXTRACTION_MODEL:
-        # Validate a copy where honest `None` provenance is substituted with the
-        # sift-kg model's defaults — the sift-kg DocumentExtraction declares
-        # `cost_usd: float = 0.0` and `model_used: str = ""`, which would reject
-        # None even though our on-disk contract allows null. The validation's
-        # purpose is to catch missing document_id / entity_type / etc., not to
-        # dictate provenance nullability.
-        _validation_payload = dict(extraction)
-        if _validation_payload.get("cost_usd") is None:
-            _validation_payload["cost_usd"] = 0.0
-        if _validation_payload.get("model_used") is None:
-            _validation_payload["model_used"] = ""
         try:
-            DocumentExtraction(**_validation_payload)
+            DocumentExtraction(**extraction)
         except Exception as exc:
             raise ValueError(
                 f"Extraction for doc_id={doc_id!r} failed DocumentExtraction validation: {exc}"
