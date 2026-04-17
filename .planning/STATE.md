@@ -4,7 +4,7 @@ milestone: v2.0
 milestone_name: Framework Architecture & Domain Developer Experience
 status: verifying
 stopped_at: Completed 13-04-PLAN.md (FT-009 + FT-010 e2e acceptance + normalize_extractions on-disk provenance fix; Phase 13 complete)
-last_updated: "2026-04-17T12:48:01.943Z"
+last_updated: "2026-04-17T16:53:26.251Z"
 last_activity: 2026-04-17
 progress:
   total_phases: 22
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-02)
 
 ## Current Position
 
-Phase: 13 (Extraction Pipeline Reliability) — EXECUTING
-Plan: 5 of 5
+Phase: 14
+Plan: Not started
 Status: Phase complete — ready for verification
 Last activity: 2026-04-17
 
