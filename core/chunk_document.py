@@ -19,11 +19,44 @@ from pathlib import Path
 
 
 # ---------------------------------------------------------------------------
+# Required dependency: chonkie (Phase 14 FIDL-03, D-08, D-09)
+# ---------------------------------------------------------------------------
+# chonkie is REQUIRED for sentence-aware chunking with overlap. If missing
+# we raise at import time — no silent fallback, because running the chunker
+# without overlap IS the bug this module fixes. /epistract:setup installs it
+# as a required dep.
+
+try:
+    from chonkie import SentenceChunker  # noqa: F401  re-exported via _make_chunker
+    HAS_CHONKIE = True
+except ImportError as e:  # pragma: no cover — covered by UT-035 with stubbed import
+    raise ImportError(
+        "chonkie is required for chunk overlap (Phase 14 FIDL-03). "
+        "Install it with: uv pip install 'chonkie>=1.0'  "
+        "or run /epistract:setup which installs it as a required dep. "
+        "No silent fallback — running without overlap silently is the bug "
+        "this module fixes."
+    ) from e
+
+
+# ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
 MAX_CHUNK_SIZE = 10000
 MIN_CHUNK_SIZE = 500
+
+# Overlap parameters (Phase 14 FIDL-03, D-02, D-03). Hardcoded per D-06/D-07
+# — no CLI flag, no env var. Three sentences captures enough antecedent
+# context for pronoun and multi-sentence relations; 1500 chars prevents a
+# pathological "whereas…" block from dominating the next chunk.
+OVERLAP_SENTENCES = 3
+OVERLAP_MAX_CHARS = 1500
+
+# Sentence boundary regex — matches chonkie's default delim set
+# (`. `, `! `, `? `, `\n`). Used only by _tail_sentences, which runs on
+# short tails; chonkie owns all chunk-level segmentation.
+_SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?])\s+|\n+")
 
 # Regex patterns for section headers (ordered by specificity)
 SECTION_PATTERNS = [
@@ -37,6 +70,116 @@ SECTION_PATTERNS = [
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+def _make_chunker(max_size: int = MAX_CHUNK_SIZE) -> SentenceChunker:
+    """Return a configured chonkie SentenceChunker.
+
+    Centralizes the chunker configuration so all three Plan 14-03 call
+    sites (`_split_at_paragraphs`, `_merge_small_sections::_flush`,
+    `_split_fixed`) get identical behavior, and so future phases can tweak
+    the chunker's shape in one place.
+
+    Args:
+        max_size: Soft upper bound on chunk size, in characters.
+
+    Returns:
+        SentenceChunker with character tokenizer, OVERLAP_MAX_CHARS overlap,
+        min_sentences_per_chunk=1.
+    """
+    return SentenceChunker(
+        tokenizer="character",
+        chunk_size=max_size,
+        chunk_overlap=OVERLAP_MAX_CHARS,
+        min_sentences_per_chunk=1,
+    )
+
+
+def _tail_sentences(
+    text: str,
+    n: int = OVERLAP_SENTENCES,
+    max_chars: int = OVERLAP_MAX_CHARS,
+) -> str:
+    """Return the last n sentences of `text`, capped at `max_chars`.
+
+    Used by `_merge_small_sections::_flush` to carry overlap across
+    hard-flush boundaries (ARTICLE transitions, small-section merges) that
+    chonkie's intra-chunk overlap cannot span. Within an oversized section,
+    `_make_chunker(...).chunk(body)` handles overlap directly — this helper
+    is NOT called in that path.
+
+    Sentence segmentation uses a regex matching chonkie's default delim
+    set (`. `, `! `, `? `, `\\n`). This is an intentional approximation
+    (chonkie's internal segmenter is slightly more robust to edge cases
+    like "Dr. Smith"), but: (a) the helper operates on already-buffered
+    section bodies which are typically structured prose, not dialogue,
+    (b) mismatched sentence detection between here and chonkie can at
+    most misattribute a sentence boundary at a cross-flush transition —
+    a minor provenance wobble, not a correctness bug, (c) the helper is
+    pure and side-effect-free, callable in hot paths without chonkie setup
+    overhead.
+
+    Behavior (Phase 14 D-02, D-03):
+      - Empty `text` → returns "".
+      - Fewer than n sentences → returns all sentences.
+      - Cumulative length of last-n sentences ≤ max_chars → returns those
+        n sentences.
+      - Cumulative length > max_chars → returns the most-recent whole
+        sentences that fit under the cap; NEVER mid-sentence truncation.
+      - A single sentence longer than max_chars → returns "".
+
+    The helper is pure: no side effects, no I/O, no module-state mutation.
+
+    Args:
+        text: Source text to pull a sentence-level tail from.
+        n: Maximum number of trailing sentences to include.
+        max_chars: Hard cap on the returned string's length.
+
+    Returns:
+        Overlap tail ending on a sentence boundary, or "".
+    """
+    if not text:
+        return ""
+
+    # Find sentence spans. We split on boundaries and keep the punctuation
+    # attached to the sentence preceding it, matching chonkie's
+    # "include_delim=prev" default.
+    spans: list[tuple[int, int]] = []
+    prev_end = 0
+    for m in _SENTENCE_BOUNDARY.finditer(text):
+        spans.append((prev_end, m.start()))
+        prev_end = m.end()
+    tail_end = len(text.rstrip())
+    if prev_end < tail_end:
+        spans.append((prev_end, tail_end))
+
+    # Drop any empty spans (can happen at string start/end)
+    spans = [(s, e) for s, e in spans if text[s:e].strip()]
+    if not spans:
+        return ""
+
+    # Take up to the last n sentences.
+    tail = spans[-n:]
+
+    # Walk right-to-left, accumulating sentences that fit under max_chars.
+    selected: list[tuple[int, int]] = []
+    total = 0
+    for start, end in reversed(tail):
+        piece_len = end - start
+        added = piece_len if not selected else piece_len + 1  # +1 for join space
+        if total + added > max_chars:
+            break
+        selected.append((start, end))
+        total += added
+
+    if not selected:
+        # Single sentence larger than cap — refuse mid-sentence cut.
+        return ""
+
+    # Re-reverse to document order, slice original text between first.start
+    # and last.end so intra-tail whitespace is preserved exactly.
+    selected.reverse()
+    return text[selected[0][0] : selected[-1][1]]
+
 
 def _split_at_sections(text: str) -> list[tuple[str, str, int]]:
     """Find section boundaries and split text.
