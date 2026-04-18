@@ -341,6 +341,70 @@ These are real research questions a PhD scientist would ask. Each tests whether 
 
 ---
 
+## 6. Phase 14 Tests (Chunk Overlap)
+
+### UT-031: blingfire imports and tokenizes at module load
+- **Traces to:** FIDL-03
+- **Test:** `import blingfire; blingfire.text_to_sentences_and_offsets("One. Two. Three.")` returns a 2-tuple (text_with_newlines, offset_array) with 3 sentences.
+- **Pass criteria:** Import succeeds; result contains 3 sentence spans.
+
+### UT-032: Overlap primitive returns last-N sentences under cap
+- **Traces to:** FIDL-03 (D-02, D-03)
+- **Test:** Unit test invokes the `core/chunk_document.py` overlap helper on a 10-sentence fixture; asserts the returned overlap contains exactly the last 3 sentences when their total length is ≤1500 chars.
+- **Pass criteria:** Overlap string equals concatenation of last 3 sentences (order preserved); `len(overlap) <= 1500`.
+
+### UT-033: Overlap primitive truncates on 1500-char cap
+- **Traces to:** FIDL-03 (D-03)
+- **Test:** Feed a fixture where the last 3 sentences total > 1500 chars. Helper returns the most-recent sentences whose cumulative length fits under 1500; never mid-sentence truncation.
+- **Pass criteria:** `len(overlap) <= 1500`; overlap starts on a sentence boundary (begins a new sentence produced by blingfire, not mid-word).
+
+### UT-033b: Overlap primitive — partial fit (2 of 3 last sentences fit under cap) (M-5)
+- **Traces to:** FIDL-03 (D-02 ∩ D-03 intersection)
+- **Test:** Build a fixture with 3 sentences of ~600 chars each (total ~1800, over the 1500 cap, but the last 2 fit at ~1200). Assert the primitive returns exactly the last 2 sentences — the oldest (first) is dropped, the two most-recent are preserved. This pins the interior walk (right-to-left accumulate) behavior in between "all 3 fit" (UT-032) and "none fit" (UT-033 edge where a single sentence > cap).
+- **Pass criteria:** Overlap contains the content of sentences 2 and 3 (the most-recent two); does NOT contain sentence 1's distinguishing content; `len(overlap) <= 1500`.
+
+### UT-034: Overlap primitive handles fewer-than-N sentences
+- **Traces to:** FIDL-03
+- **Test:** Feed a fixture with exactly 1 sentence; helper returns that sentence (not error, not empty). Feed empty text; helper returns "".
+- **Pass criteria:** 1-sentence input → 1-sentence overlap; empty input → empty overlap.
+
+### UT-035: Missing blingfire raises loud ImportError
+- **Traces to:** FIDL-03 (D-08)
+- **Test:** Use pytest's `monkeypatch.setitem(sys.modules, "blingfire", None)` + `monkeypatch.delitem(sys.modules, "chunk_document", raising=False)` and `importlib.import_module("chunk_document")`; assert ImportError whose message mentions both `blingfire` and the install hint (`uv pip install blingfire` or `/epistract:setup`). Monkeypatch restores state automatically at teardown — no manual try/finally, safe under pytest-randomly / pytest-xdist.
+- **Pass criteria:** ImportError raised with install hint substring present; no test ordering interference.
+
+### UT-036: Chunk JSON contains overlap_prev_chars / overlap_next_chars / is_overlap_region / char_offset + section_header (cont.) invariant
+- **Traces to:** FIDL-03 (D-10, D-11, D-12)
+- **Test:** Run `chunk_document()` on a fixture that produces ≥3 chunks. Every chunk dict has all four keys. First chunk has `overlap_prev_chars == 0`. Last chunk has `overlap_next_chars == 0`. Non-boundary chunks have `overlap_prev_chars > 0`. `is_overlap_region` is always `False` at the chunk level (reserved flag per D-10). `char_offset` strictly increases across sub-chunks of the same merged section (D-11 — honest per-sub-chunk offsets). Additionally (m-7 fix): sub-chunks after the first of an oversized section have `section_header` ending in `(cont.)` — pins D-12.
+- **Pass criteria:** All four keys present on every chunk; `overlap_prev_chars[0] == 0`, `overlap_next_chars[-1] == 0`, middle chunks `> 0`; `is_overlap_region` always False; sub-chunk offsets strictly increasing within a merged section; at least one chunk[1:] has `section_header.endswith("(cont.)")`.
+
+### UT-036b: char_offset stays honest across whitespace-only paragraph gaps (M-6)
+- **Traces to:** FIDL-03 (D-11)
+- **Test:** Fixture where paragraphs are separated by triple/quadruple blank lines (whitespace-only paragraphs in between). Pin that for each emitted chunk, `original_text[chunk["char_offset"] : chunk["char_offset"] + 30]` aligns with the corresponding chunk body text (after stripping any overlap prefix that was prepended and the `\n\n` separator). Proves the paragraph-skip branch in `_split_at_paragraphs` does not cause `current_start` to lag by the blank-paragraph's length — i.e., `char_offset` marks where the FIRST real paragraph starts, not the spurious earlier whitespace block.
+- **Pass criteria:** Offset slice of original text matches chunk body for every chunk; no off-by-N drift attributable to blank-paragraph skip.
+
+### UT-037: Overlap emitted at ARTICLE boundary flush (cross-flush tail cache — M-1/M-2)
+- **Traces to:** FIDL-03 (D-04 #2)
+- **Test:** Fixture with two ARTICLE sections, each > MIN_CHUNK_SIZE but < MAX_CHUNK_SIZE (so each gets its own chunk without internal splitting). The overlap prefix on ARTICLE II must equal `_sentence_overlap(article_1_raw_text)` — NOT `_sentence_overlap(chunks[0]["text"])`. This pins the correct invariant: cross-flush overlap is computed from the RAW outgoing tail (cached in a nonlocal `_pending_tail` inside `_merge_small_sections`), not from the previous chunk's emitted text (which may itself already carry an overlap prefix — chaining those overlaps would accumulate).
+- **Pass criteria:** Chunk 2 `text` starts with `_sentence_overlap(article_1_raw_text)` verbatim; `overlap_prev_chars` equals that tail length; no chained accumulation across multiple flushes.
+
+### UT-038: Overlap emitted at _split_fixed fallback
+- **Traces to:** FIDL-03 (D-05 — one primitive, reused)
+- **Test:** Fixture with no section headers (falls through `_split_at_sections` → `_split_fixed`), ≥3 paragraphs, total length > MAX_CHUNK_SIZE. Chunks 2..N have non-zero `overlap_prev_chars` populated by the same helper as the clause-aware path.
+- **Pass criteria:** Chunks 2..N all have `overlap_prev_chars > 0`; chunk 1 has `overlap_prev_chars == 0`.
+
+### FT-011: Chunk-level co-location of boundary-straddling mentions (M-3 — weaker spec)
+- **Traces to:** FIDL-03 (D-13 #1)
+- **Test:** Synthetic text fixture where `sotorasib` ends chunk 1 and `KRAS G12C` starts chunk 2 (the "INHIBITS(sotorasib, KRAS G12C)" relation that spans char ~9999/10001). The test is CHUNK-LEVEL (co-location of both mention strings in at least one chunk's text) — a necessary precondition for graph-level extraction. Without a real LLM we cannot assert the relation itself appears in the final graph, but co-location of both entity strings in a single chunk is the CAUSE the fix addresses; extraction failure is the downstream effect. The test is structured as a single function with GREEN mode (real overlap — both mentions co-locate in at least one chunk) and RED mode (monkeypatch `_sentence_overlap` → `""`, no chunk co-locates both mentions). One test function, two modes — no git-stash choreography.
+- **Pass criteria:** GREEN: at least one chunk contains both `sotorasib` and `kras g12c` (case-insensitive). RED: with overlap disabled, no chunk contains both.
+
+### FT-012: V2 baseline diff — drug-discovery and contract scenarios ≥ V2 (B-2: file-backed floor, FAIL not SKIP)
+- **Traces to:** FIDL-03 (D-13 #2, D-14)
+- **Test:** Read `tests/baselines/v2/expected.json` (a committed summary-counts file, format `{"scenarios": {"<scenario>": {"nodes": N, "edges": E}, ...}}`). Re-run the 6 drug-discovery regression scenarios + 1 contract scenario via `python tests/regression/run_regression.py`. For each scenario, assert post-run `nodes >= expected.nodes` AND `edges >= expected.edges`. If `tests/baselines/v2/expected.json` does NOT exist, the test FAILS (not skips) with an instructional message pointing to how to regenerate it (`make regression-update` then record the numbers into `expected.json`). The full `graph_data.json` dumps remain gitignored; only the small summary counts file is committed. The contract scenario's floor (≥663 edges, ≥341 nodes) is pinned in `expected.json` per D-14.
+- **Pass criteria:** `expected.json` exists (enforced; missing → FAIL). All 7 scenarios satisfy nodes≥expected AND edges≥expected. Contract scenario ≥663 edges, ≥341 nodes.
+
+---
+
 ## 4. Traceability Matrix
 
 | Requirement | Domain Spec Section | Entity Types Tested | Relation Types Tested | Test Corpus |
