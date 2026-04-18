@@ -129,6 +129,12 @@ Phase priority is **blocking-ness first, silent quality second, polish last**. S
 - [ ] **Phase 19: Wizard & CLI ergonomics** - Safe slugification in `generate_domain_package()` (Bug 5), wizard emits `workbench/template.yaml` automatically (Enh 1), `--domain` accepts name-or-path gracefully (Enh 4), `--schema <file.json>` flag to bypass LLM discovery (Enh 5).
 - [ ] **Phase 20: README "Pipeline Capacity & Limits" section** - Document post-fix values for wizard, ingestion, acquire, and epistemic limits. Must run after all other v3.0 phases so it documents reality, not aspiration.
 
+### Backlog (999.x — Tooling Polish, No Release Dependency)
+
+- [ ] **Phase 999.1: v2-docs-artifacts-refresh** - Refresh post-v2.0 doc artifacts (placeholder, no scope yet)
+- [ ] **Phase 999.2: git-remote-sync recipe** - Pull latest main before pushing a feature branch (placeholder, no scope yet)
+- [ ] **Phase 999.3: V2 Automation Hardening** - Finalize `.claude/settings.local.json` allow-list for zero-prompt V2 scenario runs; document copy-paste recipe in `docs/showcases/drug-discovery-v2.md`; remove dead pre-v2.0 allow-list entries. Promoted from the 2026-04-13 automation friction + auto-approve todos. See `phases/999.3-v2-automation-hardening/SCOPE.md`.
+
 ## Phase Details
 
 ### Phase 6: Repo Reorganization and Cleanup
