@@ -158,4 +158,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-17 — Phase 13 complete (FIDL-02a/b/c: extraction pipeline reliability, ≥95% load rate), Phase 14 next (chunk overlap)*
+*Last updated: 2026-04-18 — Phase 21 complete (CTDM-01..06: clinicaltrials domain package — 12 entity types, 10 relation types, CT.gov v2 + PubChem enrichment via --enrich flag). Next: Phase 999.1 (v2-docs-artifacts-refresh).*
