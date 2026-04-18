@@ -961,3 +961,136 @@ def test_extractor_prompt_stdin_fallback():
     # "report the failure" guidance so agents don't silently fall back to Write
     assert "report the failure" in prompt.lower(), \
         "Missing report-failure guidance (FIDL-02a D-10)"
+
+
+# ========================================================================
+# UT-031..UT-035 + UT-033b: Phase 14 chunk overlap substrate (FIDL-03)
+# ========================================================================
+
+@pytest.mark.unit
+def test_ut031_chonkie_imports():
+    """UT-031: chonkie imports and SentenceChunker round-trips on a 3-sentence string."""
+    from chonkie import SentenceChunker
+
+    chunker = SentenceChunker(
+        tokenizer="character",
+        chunk_size=1000,
+        chunk_overlap=150,
+        min_sentences_per_chunk=1,
+    )
+    chunks = chunker.chunk(
+        "Sentence one here. Sentence two follows. Sentence three trails."
+    )
+    assert len(chunks) >= 1, f"expected >=1 chunk, got {len(chunks)}"
+    c0 = chunks[0]
+    # Every Chunk must expose the four fields Plan 14-03 will consume
+    for attr in ("text", "start_index", "end_index", "token_count"):
+        assert hasattr(c0, attr), f"Chunk missing attribute {attr!r}"
+    assert isinstance(c0.start_index, int) and c0.start_index >= 0
+    assert isinstance(c0.end_index, int) and c0.end_index > c0.start_index
+
+
+@pytest.mark.unit
+def test_ut032_tail_returns_last_n_sentences():
+    """UT-032: _tail_sentences returns exactly the last OVERLAP_SENTENCES sentences when they fit the cap."""
+    from chunk_document import _tail_sentences, OVERLAP_MAX_CHARS
+
+    sentences = [f"Sentence number {i} with some padding words." for i in range(10)]
+    text = " ".join(sentences)
+    tail = _tail_sentences(text)
+
+    # Last 3 present
+    assert "Sentence number 7" in tail, f"missing sentence 7 in tail: {tail!r}"
+    assert "Sentence number 8" in tail, f"missing sentence 8 in tail: {tail!r}"
+    assert "Sentence number 9" in tail, f"missing sentence 9 in tail: {tail!r}"
+    # Earlier absent
+    assert "Sentence number 6" not in tail, f"unexpected sentence 6 in tail: {tail!r}"
+    assert "Sentence number 0" not in tail, f"unexpected sentence 0 in tail: {tail!r}"
+    # Under cap
+    assert len(tail) <= OVERLAP_MAX_CHARS, f"tail {len(tail)} > cap {OVERLAP_MAX_CHARS}"
+
+
+@pytest.mark.unit
+def test_ut033_tail_truncates_under_cap():
+    """UT-033: when last-N sentences exceed cap, helper returns most-recent whole sentences under the cap."""
+    from chunk_document import _tail_sentences, OVERLAP_MAX_CHARS
+
+    big = "A" * 700
+    text = f"First sentence: {big}. Second sentence: {big}. Third sentence: {big}."
+    tail = _tail_sentences(text)
+
+    assert len(tail) <= OVERLAP_MAX_CHARS, f"tail {len(tail)} > cap {OVERLAP_MAX_CHARS}"
+
+    # Must start on a sentence boundary — locate tail in source and confirm
+    # the preceding char is punctuation/whitespace (or tail is at index 0).
+    if tail:
+        idx = text.find(tail[:50])
+        assert idx >= 0, f"tail not found in source: {tail[:50]!r}"
+        if idx > 0:
+            prev_char = text[idx - 1]
+            assert prev_char in " \t\n", (
+                f"tail does not start on sentence boundary — preceding char is {prev_char!r}"
+            )
+
+
+@pytest.mark.unit
+def test_ut033b_partial_fit_three_sentences():
+    """UT-033b (M-5): D-02 ∩ D-03 intersection — 2 of 3 last sentences fit under cap.
+
+    Three sentences ~600 chars each: total ~1800 (over 1500 cap), but the
+    last two total ~1200 (fit). Pins the right-to-left accumulation
+    boundary: sentence 1 (oldest) dropped, 2 and 3 (most-recent) survive.
+    """
+    from chunk_document import _tail_sentences, OVERLAP_MAX_CHARS
+
+    s1 = "FIRSTSENT " + ("a" * 590) + "."
+    s2 = "SECONDSENT " + ("b" * 590) + "."
+    s3 = "THIRDSENT " + ("c" * 590) + "."
+    text = f"{s1} {s2} {s3}"
+    tail = _tail_sentences(text)
+
+    assert len(tail) <= OVERLAP_MAX_CHARS, f"tail {len(tail)} > cap {OVERLAP_MAX_CHARS}"
+    assert "SECONDSENT" in tail, f"missing SECONDSENT: {tail[:200]!r}"
+    assert "THIRDSENT" in tail, f"missing THIRDSENT: {tail[-200:]!r}"
+    assert "FIRSTSENT" not in tail, (
+        f"FIRSTSENT should be dropped (pushes total over cap): {tail[:200]!r}"
+    )
+
+
+@pytest.mark.unit
+def test_ut034_tail_handles_edges():
+    """UT-034: empty → empty; single short sentence → that sentence; single > cap → empty."""
+    from chunk_document import _tail_sentences, OVERLAP_MAX_CHARS
+
+    assert _tail_sentences("") == "", "empty input should return empty tail"
+
+    result = _tail_sentences("Only one sentence here.")
+    assert "Only one sentence here" in result, f"missing content in: {result!r}"
+
+    huge = "X" * (OVERLAP_MAX_CHARS + 500) + "."
+    assert _tail_sentences(huge) == "", (
+        "single sentence larger than cap should return empty (refuse mid-sentence truncation)"
+    )
+
+
+@pytest.mark.unit
+def test_ut035_missing_chonkie_raises_loud(monkeypatch):
+    """UT-035 (B-3): importing chunk_document with chonkie absent raises ImportError with install hint.
+
+    monkeypatch auto-restores sys.modules at teardown — safe under
+    pytest-randomly / pytest-xdist.
+    """
+    import importlib
+    import sys
+
+    monkeypatch.setitem(sys.modules, "chonkie", None)
+    monkeypatch.delitem(sys.modules, "chunk_document", raising=False)
+
+    with pytest.raises(ImportError) as excinfo:
+        importlib.import_module("chunk_document")
+    msg = str(excinfo.value)
+    assert "chonkie" in msg, f"ImportError message missing 'chonkie': {msg!r}"
+    assert (
+        "uv pip install" in msg
+        or "/epistract:setup" in msg
+    ), f"ImportError missing install hint: {msg!r}"
