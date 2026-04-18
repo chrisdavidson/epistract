@@ -158,4 +158,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-18 — Phase 21 complete (CTDM-01..06: clinicaltrials domain package — 12 entity types, 10 relation types, CT.gov v2 + PubChem enrichment via --enrich flag). Next: Phase 999.1 (v2-docs-artifacts-refresh).*
+*Last updated: 2026-04-18 — Phase 999.1 complete (v2-docs-artifacts-refresh: plugin manifests, CHANGELOG, README, CLAUDE.md, DEVELOPER.md, and ADDING-DOMAINS.md updated to v2.2.0 with clinicaltrials domain — 14/14 must-haves verified). Next: Phase 999.2 (git-remote-sync).*
