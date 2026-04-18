@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Framework Architecture & Domain Developer Experience
 status: executing
-stopped_at: Completed 14-02-PLAN.md
-last_updated: "2026-04-18T18:47:51.414Z"
+stopped_at: Completed 14-03-PLAN.md
+last_updated: "2026-04-18T20:25:43.332Z"
 last_activity: 2026-04-18
 progress:
   total_phases: 24
   completed_phases: 13
   total_plans: 44
-  completed_plans: 42
+  completed_plans: 43
   percent: 85
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-02)
 ## Current Position
 
 Phase: 14 (chunk-overlap) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-04-18
 
@@ -80,6 +80,7 @@ Progress: [████████░░] 85%
 | Phase 13 P04 | 5min | 2 tasks | 2 files |
 | Phase 14 P01 | 4min | 2 tasks | 5 files |
 | Phase 14 P02 | 10min | 2 tasks | 2 files |
+| Phase 14 P03 | 85min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -144,6 +145,11 @@ Recent decisions affecting current work:
 - [Phase 14]: [Phase 14-02]: Pivoted from blingfire to chonkie.SentenceChunker — blingfire 0.1.8 ships x86_64-only dylib (no arm64). chonkie is pure Python, owns intra-chunk overlap natively, supplies honest start_index/end_index per sub-chunk (D-11 fix becomes free). Original _sentence_overlap primitive shrank to _tail_sentences (cross-flush only) + _make_chunker factory.
 - [Phase 14]: [Phase 14-02]: Substrate-before-wire plan decomposition — Plan 14-02 lands helpers + contract tests; Plan 14-03 wires them into _split_at_paragraphs / _merge_small_sections::_flush / _split_fixed. Helpers live in core/chunk_document.py under '# Internal helpers' before _split_at_sections. UT-031 pins the four Chunk attributes Plan 14-03 will consume (.text, .start_index, .end_index, .token_count).
 - [Phase 14]: [Phase 14-02]: _tail_sentences is pure regex-based (not chonkie-backed) — chonkie SentenceChunker instantiation has non-trivial cost; helper runs on short tails in hot paths. Intentional approximation documented in docstring with three rationales (structured-prose input, minor wobble not bug, hot-path pure helper). UT-033b pins the D-02 ∩ D-03 partial-fit intersection boundary.
+- [Phase 14]: [Phase 14-03]: Wired chonkie.SentenceChunker into _merge_small_sections::_flush (oversized-clause path) and _split_fixed (fallback) via _make_chunker factory. Cross-flush overlap (ARTICLE boundaries) carried by nonlocal _pending_tail cache populated from RAW buffer_text via _tail_sentences — NOT chunks[-1]['text'] (M-1/M-2 invariant pinned by UT-037).
+- [Phase 14]: [Phase 14-03]: Deleted _split_at_paragraphs entirely (dead code after chonkie adoption). Two-commit atomic split: Task 1 left the symbol in place as dead-code-in-transition so the intermediate commit stayed green; Task 2 rewrote _split_fixed and removed the symbol atomically.
+- [Phase 14]: [Phase 14-03]: Extended chunk JSON schema with overlap_prev_chars, overlap_next_chars, is_overlap_region + honest per-sub-chunk char_offset (D-10, D-11). Final chunk post-loop correction: chunks[-1]['overlap_next_chars'] = 0. Plan 14-04's e2e gates can assume 7-key shape on both split paths.
+- [Phase 14]: [Phase 14-03]: Chunk count on tests/fixtures/sample_contract_text.txt unchanged (4 → 4) — same boundaries, same IDs, same char_offsets; only new provenance fields differ. Plan 14-04's V2 baseline regression gate can assume structural equivalence; node/edge counts should hold or increase (boundary-straddling entities/relations newly recoverable).
+- [Phase 14]: [Phase 14-03]: Chonkie 1.6.2 collapses highly-repeated identical sentences into one chunk regardless of input size (verified: 'Sentence. ' * 5000 → 1 chunk at chunk_size=10000). Tests exercising oversized-split must use varied sentence content. Documented in UT-036 inline comment.
 
 ### Pending Todos
 
@@ -163,6 +169,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-04-18T18:47:38.926Z
-Stopped at: Completed 14-02-PLAN.md
+Last session: 2026-04-18T20:25:43.328Z
+Stopped at: Completed 14-03-PLAN.md
 Resume file: None
