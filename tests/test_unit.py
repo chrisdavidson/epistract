@@ -1094,3 +1094,200 @@ def test_ut035_missing_chonkie_raises_loud(monkeypatch):
         "uv pip install" in msg
         or "/epistract:setup" in msg
     ), f"ImportError missing install hint: {msg!r}"
+
+
+# ========================================================================
+# UT-036, UT-036b, UT-037, UT-038: Phase 14 chunk overlap wiring (FIDL-03)
+# ========================================================================
+
+@pytest.mark.unit
+def test_ut036_chunk_json_schema():
+    """UT-036: every chunk has overlap_prev/next_chars, is_overlap_region, honest char_offset; (cont.) header on sub-chunks (D-12)."""
+    from chunk_document import chunk_document
+
+    # Multi-article oversized clause-aware case — forces sub-division inside
+    # the first ARTICLE so (cont.) headers are emitted. Using varied sentence
+    # content (not pure repetition) because chonkie 1.6.2 collapses repeated
+    # identical sentences into a single chunk; multi-word repeated content
+    # (23-char sentences * 1500 → 34.5K chars) splits cleanly.
+    text = (
+        "ARTICLE I. DEFINITIONS\n\n"
+        + ("Sentence content here. " * 1500)
+        + "\n\nARTICLE II. SCOPE\n\nShort body for article two."
+    )
+    chunks = chunk_document(text, "ut036_doc")
+
+    assert len(chunks) >= 2, f"expected multi-chunk, got {len(chunks)}"
+
+    for i, c in enumerate(chunks):
+        for key in ("overlap_prev_chars", "overlap_next_chars", "is_overlap_region", "char_offset"):
+            assert key in c, f"chunk {i} missing key {key!r}: {list(c.keys())}"
+        assert c["is_overlap_region"] is False
+        assert isinstance(c["overlap_prev_chars"], int) and c["overlap_prev_chars"] >= 0
+        assert isinstance(c["overlap_next_chars"], int) and c["overlap_next_chars"] >= 0
+        assert isinstance(c["char_offset"], int) and c["char_offset"] >= 0
+
+    # Boundary zeroes
+    assert chunks[0]["overlap_prev_chars"] == 0
+    assert chunks[-1]["overlap_next_chars"] == 0
+
+    # Middle chunks have incoming overlap
+    if len(chunks) >= 3:
+        assert chunks[1]["overlap_prev_chars"] > 0, (
+            f"middle chunk should have incoming overlap, got {chunks[1]['overlap_prev_chars']}"
+        )
+
+    # Honest per-sub-chunk offsets — strictly increasing (D-11)
+    offsets = [c["char_offset"] for c in chunks]
+    assert offsets == sorted(offsets), f"char_offsets not monotonic: {offsets}"
+    assert len(set(offsets)) == len(offsets), (
+        f"char_offsets not unique (D-11 violation): {offsets}"
+    )
+
+    # D-12: sub-chunks after the first of an oversized section get "(cont.)"
+    assert any(c["section_header"].endswith("(cont.)") for c in chunks[1:]), (
+        f"expected at least one (cont.) header in sub-chunks, got: "
+        f"{[c['section_header'] for c in chunks]}"
+    )
+
+
+@pytest.mark.unit
+def test_ut036b_honest_offset_across_whitespace_gaps():
+    """UT-036b: char_offset stays honest across whitespace-only paragraph gaps.
+
+    Chonkie operates on the buffered text as-is (including blank paragraphs),
+    so start_index is honest automatically. For chunks emitted by _split_fixed
+    (no clause structure), chonkie's Chunk.text IS the slice of source text
+    starting at cc.start_index — including any overlap prefix chonkie copied
+    from the previous chunk. So the honest-offset invariant is:
+
+        source_text[char_offset : char_offset + 30] == chunk.text[:30]
+
+    This pins that M-6 (blank-paragraph offset drift) is dissolved by chonkie
+    — chonkie operates on the buffered text as-is, blank paragraphs stay
+    in place, and start_index never drifts.
+    """
+    from chunk_document import chunk_document, MAX_CHUNK_SIZE
+
+    paragraph = "Distinct paragraph content. It has three sentences. Each sentence is unique to this paragraph."
+    separators = ["\n\n\n\n", "\n\n\n", "\n\n\n\n\n"]
+    segments = [paragraph.replace("Distinct", f"Distinct{i}") for i in range(200)]
+    text = ""
+    for i, seg in enumerate(segments):
+        text += seg
+        if i < len(segments) - 1:
+            text += separators[i % len(separators)]
+    assert len(text) > MAX_CHUNK_SIZE, f"test text too short: {len(text)}"
+
+    chunks = chunk_document(text, "ut036b_doc")
+    assert len(chunks) >= 2
+
+    # All fallback chunks: section_header == "" (proves _split_fixed path)
+    for c in chunks:
+        assert c["section_header"] == "", (
+            f"expected fallback path (no headers), got: {c['section_header']!r}"
+        )
+
+    # Honest-offset invariant: chunk.text[:N] == source_text[char_offset:char_offset+N]
+    # for each chunk, including blank-paragraph regions in the source.
+    for i, c in enumerate(chunks):
+        char_offset = c["char_offset"]
+        body = c["text"]
+
+        probe = body[:30]
+        expected = text[char_offset : char_offset + 30]
+        assert probe == expected, (
+            f"chunk {i} offset drift: char_offset={char_offset}\n"
+            f"chunk.text[:30]: {probe!r}\n"
+            f"expected text[{char_offset}:{char_offset+30}]: {expected!r}"
+        )
+
+
+@pytest.mark.unit
+def test_ut037_overlap_at_article_boundary():
+    """UT-037 (M-1/M-2): ARTICLE-boundary flush prepends previous article's RAW tail to the new article.
+
+    Pins the invariant that cross-flush overlap is computed from the
+    PREVIOUS flush's RAW body (via nonlocal _pending_tail + _tail_sentences),
+    NOT from chunks[-1]["text"].
+    """
+    from chunk_document import chunk_document, _tail_sentences
+
+    article_1_body = (
+        "This is the first sentence of article one. "
+        "This is the second sentence of article one. "
+        "This is the third sentence of article one. "
+        "This is a fourth trailing sentence."
+    )
+    article_1 = "ARTICLE I. PARTIES\n\n" + article_1_body
+    article_2 = (
+        "ARTICLE II. OBLIGATIONS\n\n"
+        "The vendor shall deliver the widgets. "
+        "Delivery is due by the end of month. "
+        "Payment follows net thirty."
+    )
+    text = article_1 + "\n\n" + article_2
+    chunks = chunk_document(text, "ut037_doc")
+
+    assert len(chunks) >= 2, (
+        f"expected 2+ chunks for 2 articles, got {len(chunks)}: "
+        f"{[c['section_header'] for c in chunks]}"
+    )
+
+    a2_idx = next(
+        (i for i, c in enumerate(chunks) if c["section_header"].upper().startswith("ARTICLE II")),
+        None,
+    )
+    assert a2_idx is not None, (
+        f"could not find ARTICLE II chunk in {[c['section_header'] for c in chunks]}"
+    )
+    assert a2_idx >= 1, "ARTICLE II chunk should not be the first chunk"
+
+    a2_chunk = chunks[a2_idx]
+
+    # CRITICAL INVARIANT (M-1/M-2): expected tail is computed from the RAW
+    # article-1 text (header + body as buffered before flush), NOT from
+    # chunks[a2_idx - 1]["text"] which may carry its own overlap prefix.
+    expected_tail = _tail_sentences(article_1)
+    assert expected_tail, "expected non-empty tail from article 1"
+
+    assert a2_chunk["overlap_prev_chars"] == len(expected_tail), (
+        f"ARTICLE II overlap_prev_chars = {a2_chunk['overlap_prev_chars']}, "
+        f"expected {len(expected_tail)} (raw tail of article 1). "
+        f"A mismatch suggests the chunker read chunks[-1]['text'] instead "
+        f"of using the nonlocal _pending_tail cache (M-1/M-2 regression)."
+    )
+    assert a2_chunk["text"].startswith(expected_tail), (
+        f"ARTICLE II text does not start with expected RAW tail.\n"
+        f"Tail: {expected_tail!r}\nHead of chunk: {a2_chunk['text'][:200]!r}"
+    )
+
+
+@pytest.mark.unit
+def test_ut038_overlap_at_split_fixed_fallback():
+    """UT-038: _split_fixed fallback path emits overlap on middle chunks (D-04 #3, D-05)."""
+    from chunk_document import chunk_document, MAX_CHUNK_SIZE, OVERLAP_MAX_CHARS
+
+    # No section headers anywhere — forces _split_fixed
+    paragraphs = [
+        f"Paragraph {i} body. This paragraph has distinct sentence content. "
+        f"Every sentence is unique. Content continues for paragraph {i}."
+        for i in range(400)
+    ]
+    text = "\n\n".join(paragraphs)
+    assert len(text) > MAX_CHUNK_SIZE
+
+    chunks = chunk_document(text, "ut038_doc")
+
+    for c in chunks:
+        assert c["section_header"] == "", (
+            f"fallback should have empty section_header, got {c['section_header']!r}"
+        )
+
+    assert len(chunks) >= 2
+    assert chunks[0]["overlap_prev_chars"] == 0
+    assert chunks[-1]["overlap_next_chars"] == 0
+    assert chunks[1]["overlap_prev_chars"] > 0, (
+        "second chunk in fallback path should have overlap from first"
+    )
+    assert chunks[1]["overlap_prev_chars"] <= OVERLAP_MAX_CHARS
