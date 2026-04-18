@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Framework Architecture & Domain Developer Experience
-status: verifying
-stopped_at: Phase 14 context gathered
-last_updated: "2026-04-18T12:30:43.635Z"
-last_activity: 2026-04-17
+status: executing
+stopped_at: Completed 14-01-PLAN.md
+last_updated: "2026-04-18T14:21:35.275Z"
+last_activity: 2026-04-18
 progress:
   total_phases: 24
   completed_phases: 13
-  total_plans: 40
-  completed_plans: 40
+  total_plans: 44
+  completed_plans: 41
   percent: 85
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Core value:** Extract knowledge, not information. Any corpus, any domain -- plug in a schema, get a knowledge graph with epistemic layer.
-**Current focus:** Phase 13 — Extraction Pipeline Reliability
+**Current focus:** Phase 14 — chunk-overlap
 
 ## Current Position
 
-Phase: 14
-Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-04-17
+Phase: 14 (chunk-overlap) — EXECUTING
+Plan: 2 of 4
+Status: Ready to execute
+Last activity: 2026-04-18
 
 Progress: [████████░░] 85%
 
@@ -78,6 +78,7 @@ Progress: [████████░░] 85%
 | Phase 13 P02 | 3min | 2 tasks | 2 files |
 | Phase 13 P03 | 3min | 3 tasks | 3 files |
 | Phase 13 P04 | 5min | 2 tasks | 2 files |
+| Phase 14 P01 | 4min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -137,6 +138,8 @@ Recent decisions affecting current work:
 - [Phase 13]: [Phase 13-04]: FT-009 RED phase surfaced integration gap — normalize_extractions wrote null provenance to disk but sift_kg.graph.builder.load_extractions silently rejects null cost_usd / model_used (DocumentExtraction non-nullable defaults). Applied 3-line substitution pre-canonical-write (mirror of Plan 13-01/13-02 in-memory reconciliation). Phase 13 acceptance target (>=95% load rate) was unreachable without this.
 - [Phase 13]: [Phase 13-04]: UT-013 pre-existing failure (direct write_extraction -> cmd_build path, same null-provenance root cause in build_extraction.py) logged to deferred-items.md with symmetric fix recipe rather than auto-fixed. Verified pre-existing on HEAD via git stash. Plan 13-01 regression slipped through that plan's self-check.
 - [Phase 13]: [Phase 13-04]: Goal-backward e2e acceptance test pattern established — copy fixture corpus, run full normalize -> build chain, assert both pass_rate AND graph_data.json existence + node count. FT-009 caught a silent-drop symptom that Plans 13-01..13-03 individually passed but collectively did not deliver, validating the separate-acceptance-plan approach.
+- [Phase 14]: [Phase 14-01]: pyproject.toml [project].dependencies is PARTIAL (only blingfire>=0.1.8); canonical install path remains scripts/setup.sh per M-4 header comment. Full dep-graph declaration in pyproject.toml is post-v3.0 migration work.
+- [Phase 14]: [Phase 14-01]: blingfire install NOT gated on INSTALL_ALL — required dep (unlike RDKit/Biopython). Mirrors sift-kg required-install pattern: column-0 heredoc, fail-loud exit 1 on install failure.
 
 ### Pending Todos
 
@@ -156,6 +159,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-04-18T12:30:43.631Z
-Stopped at: Phase 14 context gathered
-Resume file: .planning/phases/14-chunk-overlap/14-CONTEXT.md
+Last session: 2026-04-18T14:21:35.271Z
+Stopped at: Completed 14-01-PLAN.md
+Resume file: None

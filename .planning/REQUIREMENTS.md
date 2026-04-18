@@ -118,7 +118,7 @@ See v1 traceability below.
 
 ### Chunk Overlap (Phase 14)
 
-- [ ] **FIDL-03**: Chunk boundaries emit sentence-aware overlap so entities and relations whose mentions straddle a 10,000-char chunk boundary reach the extractor. Overlap is the last 3 sentences of the previous chunk (capped at 1500 chars), produced by `blingfire.text_to_sentences_and_offsets`, emitted at every split point in `core/chunk_document.py` (`_split_at_paragraphs` sub-chunks, `_merge_small_sections` ARTICLE-boundary flushes, `_split_fixed` fallback). Each chunk JSON records `overlap_prev_chars`, `overlap_next_chars`, `is_overlap_region`, and an honest per-sub-chunk `char_offset`. `blingfire` is a required runtime dep; missing import raises loud with install hint. No CLI flag, no env var — pit-of-success default.
+- [x] **FIDL-03**: Chunk boundaries emit sentence-aware overlap so entities and relations whose mentions straddle a 10,000-char chunk boundary reach the extractor. Overlap is the last 3 sentences of the previous chunk (capped at 1500 chars), produced by `blingfire.text_to_sentences_and_offsets`, emitted at every split point in `core/chunk_document.py` (`_split_at_paragraphs` sub-chunks, `_merge_small_sections` ARTICLE-boundary flushes, `_split_fixed` fallback). Each chunk JSON records `overlap_prev_chars`, `overlap_next_chars`, `is_overlap_region`, and an honest per-sub-chunk `char_offset`. `blingfire` is a required runtime dep; missing import raises loud with install hint. No CLI flag, no env var — pit-of-success default.
 
 ## Deferred (V3)
 
