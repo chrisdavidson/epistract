@@ -74,10 +74,11 @@ SECTION_PATTERNS = [
 def _make_chunker(max_size: int = MAX_CHUNK_SIZE) -> SentenceChunker:
     """Return a configured chonkie SentenceChunker.
 
-    Centralizes the chunker configuration so all three Plan 14-03 call
-    sites (`_split_at_paragraphs`, `_merge_small_sections::_flush`,
-    `_split_fixed`) get identical behavior, and so future phases can tweak
-    the chunker's shape in one place.
+    Centralizes the chunker configuration so both Plan 14-03 call sites
+    (`_merge_small_sections::_flush` on oversized sections, and
+    `_split_fixed` end-to-end for the no-structure fallback) get identical
+    behavior, and so future phases can tweak the chunker's shape in one
+    place.
 
     Args:
         max_size: Soft upper bound on chunk size, in characters.
@@ -230,42 +231,131 @@ def _merge_small_sections(
     doc_id: str,
     max_size: int,
 ) -> list[dict]:
-    """Merge consecutive small sections and split oversized ones.
+    """Merge consecutive small sections and split oversized ones via chonkie.
+
+    Oversized sections are handed to `_make_chunker(max_size).chunk(buffer_text)`
+    which emits sentence-boundary-preserving sub-chunks with OVERLAP_MAX_CHARS
+    of intra-flush overlap. Cross-flush overlap (ARTICLE boundaries, merge
+    transitions) is carried by a nonlocal `_pending_tail` cache populated
+    from the RAW body via `_tail_sentences` (M-1/M-2 invariant).
 
     Args:
         sections: List of (header, body_text, char_offset) tuples.
         doc_id: Document identifier for chunk_id generation.
-        max_size: Maximum chunk size in characters.
+        max_size: Maximum chunk size in characters (before overlap prefix).
 
     Returns:
-        List of chunk dicts.
+        List of chunk dicts with keys: chunk_id, text, section_header,
+        char_offset, overlap_prev_chars, overlap_next_chars, is_overlap_region.
     """
     chunks: list[dict] = []
     buffer_header = ""
     buffer_text = ""
     buffer_offset = 0
+    # Cross-flush overlap cache (Phase 14 M-1/M-2). Holds the tail of the
+    # PREVIOUS flush's RAW body so the next flush can prepend it WITHOUT
+    # re-reading an already-overlap-prefixed chunk text (which would
+    # chain overlaps across flushes).
+    _pending_tail = ""
 
     def _flush() -> None:
-        nonlocal buffer_header, buffer_text, buffer_offset
+        nonlocal buffer_header, buffer_text, buffer_offset, _pending_tail
         if not buffer_text.strip():
             return
+
+        incoming = _pending_tail  # from nonlocal cache, NOT chunks[-1]["text"]
+
         if len(buffer_text) > max_size:
-            # Split oversized section at paragraph boundaries
-            sub_chunks = _split_at_paragraphs(buffer_text, max_size)
-            for j, sub in enumerate(sub_chunks):
+            # Oversized section: delegate to chonkie for sentence-aware splitting.
+            chunker = _make_chunker(max_size)
+            sub_chunks = chunker.chunk(buffer_text)
+            # Fall-back safety: if chonkie returns zero chunks (shouldn't happen
+            # for non-empty input, but defensive), emit the whole buffer as one.
+            if not sub_chunks:
+                text_with_overlap = (
+                    incoming + "\n\n" + buffer_text if incoming else buffer_text
+                )
                 chunks.append({
                     "chunk_id": f"{doc_id}_chunk_{len(chunks):03d}",
-                    "text": sub,
-                    "section_header": buffer_header if j == 0 else f"{buffer_header} (cont.)",
+                    "text": text_with_overlap,
+                    "section_header": buffer_header,
                     "char_offset": buffer_offset,
+                    "overlap_prev_chars": len(incoming),
+                    "overlap_next_chars": len(_tail_sentences(buffer_text)),
+                    # is_overlap_region reserved for sub-region annotation
+                    # (D-10, Deferred Ideas §5). Always False at chunk level.
+                    "is_overlap_region": False,
                 })
+            else:
+                for j, cc in enumerate(sub_chunks):
+                    # Chunk body from chonkie (already contains intra-flush
+                    # overlap prefix when j > 0).
+                    body = cc.text
+
+                    # Incoming overlap size:
+                    # - j == 0: _pending_tail from previous flush (if any)
+                    # - j > 0: delta between this sub-chunk's start and
+                    #          previous sub-chunk's end (chonkie-computed overlap)
+                    if j == 0:
+                        sub_incoming = incoming
+                        text_with_overlap = (
+                            sub_incoming + "\n\n" + body if sub_incoming else body
+                        )
+                        overlap_prev = len(sub_incoming)
+                    else:
+                        prev_end = sub_chunks[j - 1].end_index
+                        this_start = cc.start_index
+                        overlap_prev = max(0, prev_end - this_start)
+                        text_with_overlap = body  # overlap already embedded
+
+                    # Outgoing overlap size:
+                    # - j < len-1: delta between next sub-chunk's start and this end
+                    # - j == len-1: _tail_sentences(body) — this flush's contribution
+                    #               to the NEXT flush; post-loop corrects to 0
+                    #               if this is the final chunk of the doc.
+                    if j < len(sub_chunks) - 1:
+                        this_end = cc.end_index
+                        next_start = sub_chunks[j + 1].start_index
+                        overlap_next = max(0, this_end - next_start)
+                    else:
+                        overlap_next = len(_tail_sentences(body))
+
+                    chunks.append({
+                        "chunk_id": f"{doc_id}_chunk_{len(chunks):03d}",
+                        "text": text_with_overlap,
+                        "section_header": (
+                            buffer_header if j == 0 else f"{buffer_header} (cont.)"
+                        ),
+                        # Honest per-sub-chunk offset (D-11): chonkie's start_index
+                        # is relative to buffer_text; add buffer_offset for absolute.
+                        "char_offset": buffer_offset + cc.start_index,
+                        "overlap_prev_chars": overlap_prev,
+                        "overlap_next_chars": overlap_next,
+                        # is_overlap_region reserved for sub-region annotation
+                        # (D-10, Deferred Ideas §5). Always False at chunk level.
+                        "is_overlap_region": False,
+                    })
         else:
+            # Small section: single chunk, optional incoming prefix.
+            text_with_overlap = (
+                incoming + "\n\n" + buffer_text if incoming else buffer_text
+            )
+            outgoing = _tail_sentences(buffer_text)
             chunks.append({
                 "chunk_id": f"{doc_id}_chunk_{len(chunks):03d}",
-                "text": buffer_text,
+                "text": text_with_overlap,
                 "section_header": buffer_header,
                 "char_offset": buffer_offset,
+                "overlap_prev_chars": len(incoming),
+                "overlap_next_chars": len(outgoing),
+                # is_overlap_region reserved for sub-region annotation
+                # (D-10, Deferred Ideas §5). Always False at chunk level.
+                "is_overlap_region": False,
             })
+
+        # Update cross-flush cache from RAW body (M-1/M-2 invariant).
+        _pending_tail = _tail_sentences(buffer_text)
+
         buffer_header = ""
         buffer_text = ""
         buffer_offset = 0
@@ -296,6 +386,11 @@ def _merge_small_sections(
             buffer_offset = offset
 
     _flush()
+
+    # Final chunk has no "next" — D-10 honest provenance.
+    if chunks:
+        chunks[-1]["overlap_next_chars"] = 0
+
     return chunks
 
 
