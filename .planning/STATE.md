@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Framework Architecture & Domain Developer Experience
 status: executing
-stopped_at: Completed 14-03-PLAN.md
-last_updated: "2026-04-18T20:25:43.332Z"
+stopped_at: 14-04-PLAN.md — checkpoint reached (Task 3 awaiting human-verify; Tasks 1-2 committed)
+last_updated: "2026-04-20T01:32:19.692Z"
 last_activity: 2026-04-18
 progress:
   total_phases: 24
@@ -150,6 +150,8 @@ Recent decisions affecting current work:
 - [Phase 14]: [Phase 14-03]: Extended chunk JSON schema with overlap_prev_chars, overlap_next_chars, is_overlap_region + honest per-sub-chunk char_offset (D-10, D-11). Final chunk post-loop correction: chunks[-1]['overlap_next_chars'] = 0. Plan 14-04's e2e gates can assume 7-key shape on both split paths.
 - [Phase 14]: [Phase 14-03]: Chunk count on tests/fixtures/sample_contract_text.txt unchanged (4 → 4) — same boundaries, same IDs, same char_offsets; only new provenance fields differ. Plan 14-04's V2 baseline regression gate can assume structural equivalence; node/edge counts should hold or increase (boundary-straddling entities/relations newly recoverable).
 - [Phase 14]: [Phase 14-03]: Chonkie 1.6.2 collapses highly-repeated identical sentences into one chunk regardless of input size (verified: 'Sentence. ' * 5000 → 1 chunk at chunk_size=10000). Tests exercising oversized-split must use varied sentence content. Documented in UT-036 inline comment.
+- [Phase 14-chunk-overlap]: [Phase 14-04]: FT-011 GREEN/RED proof uses monkey-patch of BOTH _make_chunker (zero-overlap chonkie) AND _tail_sentences (cross-flush). Single patch of either would leave one overlap path active post-chonkie pivot. Plan drafted pre-pivot assumed _sentence_overlap was the sole overlap primitive; current code has both chonkie-native (intra-chunk) and _tail_sentences (cross-flush) — both must be disabled for the RED assertion to be honest.
+- [Phase 14-chunk-overlap]: [Phase 14-04]: FT-012 reads graph_data.json directly per-scenario (via tests/corpora/*/output-v2 resolution mirroring run_regression.py::_resolve_output_dir) rather than subprocess-ing run_regression.py and parsing stdout. Deliberate deviation from plan: actual runner output format (label N1/N2 E1/E2) does not match plan's assumed 'label: N nodes, E edges'. Direct graph_data.json reading is more robust, equivalent in intent, and avoids stdout-parsing fragility.
 
 ### Pending Todos
 
@@ -169,6 +171,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-04-18T20:25:43.328Z
-Stopped at: Completed 14-03-PLAN.md
+Last session: 2026-04-20T01:32:19.688Z
+Stopped at: 14-04-PLAN.md — checkpoint reached (Task 3 awaiting human-verify; Tasks 1-2 committed)
 Resume file: None
