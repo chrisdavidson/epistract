@@ -201,8 +201,8 @@ See v1 traceability below.
 | FIDL-02a | Phase 13 | 13-03 | Pending |
 | FIDL-02b | Phase 13 | 13-02, 13-04 | Pending |
 | FIDL-02c | Phase 13 | 13-01 | Pending |
-| FIDL-03 | Phase 14 | 14-01, 14-02, 14-03, 14-04 | Pending |
+| FIDL-03 | Phase 14 | 14-01, 14-02, 14-03, 14-04 | Complete |
 
 ---
 *Requirements defined: 2026-03-29 (v1), 2026-04-02 (v2), 2026-04-04 (Phase 11)*
-*Last updated: 2026-04-18 — FIDL-03 added for Phase 14 (Chunk Overlap)*
+*Last updated: 2026-04-20 — FIDL-03 complete (Phase 14 Chunk Overlap)*

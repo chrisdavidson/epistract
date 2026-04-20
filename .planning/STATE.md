@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Framework Architecture & Domain Developer Experience
-status: executing
-stopped_at: 14-04-PLAN.md — checkpoint reached (Task 3 awaiting human-verify; Tasks 1-2 committed)
-last_updated: "2026-04-20T01:32:19.692Z"
-last_activity: 2026-04-18
+status: verifying
+stopped_at: Completed 14-04-PLAN.md (plan-04 closeout via continuation agent)
+last_updated: "2026-04-20T02:15:53.670Z"
+last_activity: 2026-04-20
 progress:
   total_phases: 24
-  completed_phases: 13
+  completed_phases: 14
   total_plans: 44
-  completed_plans: 43
-  percent: 85
+  completed_plans: 44
+  percent: 100
 ---
 
 # Project State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-04-02)
 
 Phase: 14 (chunk-overlap) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
-Last activity: 2026-04-18
+Status: Phase complete — ready for verification
+Last activity: 2026-04-20
 
-Progress: [████████░░] 85%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -81,6 +81,7 @@ Progress: [████████░░] 85%
 | Phase 14 P01 | 4min | 2 tasks | 5 files |
 | Phase 14 P02 | 10min | 2 tasks | 2 files |
 | Phase 14 P03 | 85min | 3 tasks | 2 files |
+| Phase 14-chunk-overlap P04 | 75min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -152,6 +153,9 @@ Recent decisions affecting current work:
 - [Phase 14]: [Phase 14-03]: Chonkie 1.6.2 collapses highly-repeated identical sentences into one chunk regardless of input size (verified: 'Sentence. ' * 5000 → 1 chunk at chunk_size=10000). Tests exercising oversized-split must use varied sentence content. Documented in UT-036 inline comment.
 - [Phase 14-chunk-overlap]: [Phase 14-04]: FT-011 GREEN/RED proof uses monkey-patch of BOTH _make_chunker (zero-overlap chonkie) AND _tail_sentences (cross-flush). Single patch of either would leave one overlap path active post-chonkie pivot. Plan drafted pre-pivot assumed _sentence_overlap was the sole overlap primitive; current code has both chonkie-native (intra-chunk) and _tail_sentences (cross-flush) — both must be disabled for the RED assertion to be honest.
 - [Phase 14-chunk-overlap]: [Phase 14-04]: FT-012 reads graph_data.json directly per-scenario (via tests/corpora/*/output-v2 resolution mirroring run_regression.py::_resolve_output_dir) rather than subprocess-ing run_regression.py and parsing stdout. Deliberate deviation from plan: actual runner output format (label N1/N2 E1/E2) does not match plan's assumed 'label: N nodes, E edges'. Direct graph_data.json reading is more robust, equivalent in intent, and avoids stdout-parsing fragility.
+- [Phase 14-chunk-overlap]: [Phase 14-04]: FT-011 RED mode monkey-patches BOTH _make_chunker (chonkie intra-chunk overlap) AND _tail_sentences (cross-flush overlap). Post-pivot topology has two orthogonal overlap paths; patching either alone leaves one active.
+- [Phase 14-chunk-overlap]: [Phase 14-04]: FT-012 reads graph_data.json directly per scenario (mirroring run_regression.py::_resolve_output_dir) rather than subprocess-ing run_regression.py and parsing stdout. Runner's actual output format (label N1/N2 E1/E2) does not match plan's assumed 'label: N nodes, E edges'. Direct graph read is equivalent in intent, more robust, avoids stdout-parsing fragility.
+- [Phase 14-chunk-overlap]: [Phase 14-04]: Human checkpoint resolved 2026-04-20 via Option 3a — adopt pre-Phase-14 observed counts (from 2026-04-13 tests/corpora/*/output-v2/graph_data.json artifacts) as V2 regression floors. Contract scenario keeps D-14 hard floor (341/663). Rationale: Phase 14 acceptance is proven by unit tests UT-031..UT-038 + UT-033b + UT-036b and E2E test FT-011; FT-012 is a forward-regression guardrail, not a Phase 14 acceptance test.
 
 ### Pending Todos
 
@@ -171,6 +175,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-04-20T01:32:19.688Z
-Stopped at: 14-04-PLAN.md — checkpoint reached (Task 3 awaiting human-verify; Tasks 1-2 committed)
+Last session: 2026-04-20T02:15:21.467Z
+Stopped at: Completed 14-04-PLAN.md (plan-04 closeout via continuation agent)
 Resume file: None

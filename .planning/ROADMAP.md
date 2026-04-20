@@ -121,7 +121,7 @@ Phase priority is **blocking-ness first, silent quality second, polish last**. S
 
 - [x] **Phase 12: Fix wizard PDF binary read (Bug 3)** - `core/domain_wizard.py:63` reads PDFs as raw binary via `Path.read_text(errors="replace")`, sending `%PDF-1.4` bytes to the LLM. Wizard produces garbage schemas for the most common document format. Swap to `sift_kg.ingest.reader.read_document()`. Single-function fix; unblocks the "create your own domain" path. (completed 2026-04-17)
 - [x] **Phase 13: Extraction pipeline reliability** - Addresses Bug 4 (30% extraction drop rate in 23-doc axmp-compliance build). Add post-extraction normalization step (Enh 2), enforce required JSON schema in extractor prompt (Enh 3), and capture accurate `model_used` + `cost_usd` in extraction metadata (Part 1 Item 4). (completed 2026-04-17)
-- [ ] **Phase 14: Chunk overlap** - `commands/ingest.md` promises overlap, `core/chunk_document.py` implements none. Silent recall loss on every graph built. Implement sliding-window overlap (character or sentence based).
+- [x] **Phase 14: Chunk overlap** - `commands/ingest.md` promises overlap, `core/chunk_document.py` implements none. Silent recall loss on every graph built. Implement sliding-window overlap (character or sentence based). (completed 2026-04-20)
 - [ ] **Phase 15: Format discovery parity** - `core/ingest_documents.py:SUPPORTED_EXTENSIONS` discovers 9 extensions but README claims "75+ via Kreuzberg." PPTX/EPUB/MD/RTF/ODT/CSV silently skipped. Expand allowlist or probe at runtime.
 - [ ] **Phase 16: Wizard sample window beyond 8KB** - `core/domain_wizard.py:105` truncates each sample to `doc_text[:8000]`. Tail vocabulary ignored. Multi-excerpt or summarize-then-analyze. **Depends on Phase 12** (wizard must read real text first).
 - [ ] **Phase 17: Domain awareness in consumers** - Workbench ignores `--domain` flag (Bug 1), graph.html has empty title (Bug 2) and uses generic palette (Enh 7), system prompt hardcodes contracts vocab (Enh 9), dashboard needs auto-detection (Enh 10). Systemic "domain context doesn't propagate past graph build."
@@ -312,7 +312,7 @@ Plans:
 
 **Requirements:** FIDL-03 — Chunk boundaries emit sentence-aware overlap (see `.planning/REQUIREMENTS.md` v3 section).
 **Depends on:** Phase 11 baselines, Phase 13 complete (extraction reliability is not a confound for the V2 regression gate).
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 **Success criteria:**
 1. Synthetic fixture where `INHIBITS(sotorasib, KRAS G12C)` straddles char 10000 produces a chunk containing BOTH mentions (FT-011 GREEN). Same test with overlap monkey-patched off fails (FT-011 RED).
@@ -323,7 +323,7 @@ Plans:
 - [x] 14-01-PLAN.md — Register FIDL-03 in REQUIREMENTS.md + TEST_REQUIREMENTS.md; declare `blingfire` in `pyproject.toml`, `scripts/setup.sh` (required-install block), and CLAUDE.md §Key Dependencies (FIDL-03)
 - [x] 14-02-PLAN.md — Overlap primitive: `OVERLAP_SENTENCES=3`/`OVERLAP_MAX_CHARS=1500` constants + fail-loud `blingfire` guard + pure `_sentence_overlap(text)` helper in `core/chunk_document.py`; UT-031..UT-035 (FIDL-03)
 - [x] 14-03-PLAN.md — Wire overlap into `_split_at_paragraphs` sub-chunks, `_merge_small_sections` ARTICLE-boundary flush, and `_split_fixed` fallback; emit new chunk JSON fields; recompute honest per-sub-chunk `char_offset` (D-11); UT-036..UT-038 (FIDL-03)
-- [ ] 14-04-PLAN.md — FT-011 RED+GREEN boundary-straddle e2e test + FT-012 V2 baseline regression; synthetic 20KB fixture; doc alignment check on `commands/ingest.md:34`; human checkpoint on ARTICLE-boundary acceptance (FIDL-03)
+- [x] 14-04-PLAN.md — FT-011 RED+GREEN boundary-straddle e2e test + FT-012 V2 baseline regression; synthetic 20KB fixture; doc alignment check on `commands/ingest.md:34`; human checkpoint on ARTICLE-boundary acceptance (FIDL-03)
 
 ### Phase 15: Format discovery parity with Kreuzberg
 
