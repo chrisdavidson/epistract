@@ -1290,4 +1290,97 @@ def test_ut038_overlap_at_split_fixed_fallback():
     assert chunks[1]["overlap_prev_chars"] > 0, (
         "second chunk in fallback path should have overlap from first"
     )
+
+
+# ---------------------------------------------------------------------------
+# FIDL-04 — Format Discovery Parity (Phase 15)
+# ---------------------------------------------------------------------------
+_FIDL04_TEXT_EXTENSIONS = [
+    ".pdf", ".pptx", ".md", ".epub", ".rtf", ".odt", ".csv",
+    ".xml", ".json", ".yaml", ".log", ".ipynb", ".bib", ".fb2", ".msg",
+]
+
+
+@pytest.mark.unit
+@pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
+def test_discover_corpus_runtime_extension_set(tmp_path):
+    """UT-039: discover_corpus delegates to sift-kg; returns 15 text-class
+    files and skips .zip (D-05) and .png (D-04 default ocr=False)."""
+    import ingest_documents
+    from ingest_documents import discover_corpus
+
+    # Reset the lazy cache so the test sees a pristine delegation path.
+    ingest_documents._SUPPORTED_EXTENSIONS_CACHE = None
+
+    for ext in _FIDL04_TEXT_EXTENSIONS:
+        (tmp_path / f"foo{ext}").write_text("stub", encoding="utf-8")
+    # Exclusions:
+    (tmp_path / "foo.zip").write_bytes(b"PK\x03\x04stub")
+    (tmp_path / "foo.png").write_bytes(b"\x89PNG\r\n\x1a\nstub")
+
+    result = discover_corpus(tmp_path)
+    suffixes = sorted(p.suffix.lower() for p in result)
+
+    assert len(result) == len(_FIDL04_TEXT_EXTENSIONS), (
+        f"Expected {len(_FIDL04_TEXT_EXTENSIONS)} files, got {len(result)}: "
+        f"{suffixes}"
+    )
+    assert ".zip" not in suffixes, "D-05: .zip must be excluded"
+    assert ".png" not in suffixes, "D-04: images must be excluded without ocr=True"
+    assert result == sorted(result), "discover_corpus must return sorted paths"
+
+    # SUPPORTED_EXTENSIONS is materialized lazily via __getattr__ (D-03).
+    exts = ingest_documents.SUPPORTED_EXTENSIONS
+    assert len(exts) >= 28, (
+        f"Runtime Kreuzberg extension set should be >=28 after D-05 filter, "
+        f"got {len(exts)}: {sorted(exts)}"
+    )
+    for pin in (".pdf", ".pptx", ".md", ".epub"):
+        assert pin in exts, f"{pin} missing from runtime SUPPORTED_EXTENSIONS"
+    assert ".zip" not in exts, "D-05: .zip must not leak through __getattr__"
+    assert ".png" not in exts, "D-04: images not in default SUPPORTED_EXTENSIONS"
+
+
+@pytest.mark.unit
+@pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
+def test_discover_corpus_ocr_gate_includes_images(tmp_path):
+    """UT-040: Image extensions gated by ocr=True (D-04)."""
+    import ingest_documents
+    from ingest_documents import discover_corpus
+
+    ingest_documents._SUPPORTED_EXTENSIONS_CACHE = None
+
+    (tmp_path / "sample.pdf").write_text("stub", encoding="utf-8")
+    (tmp_path / "sample.png").write_bytes(b"\x89PNG\r\n\x1a\nstub")
+    (tmp_path / "sample.jpg").write_bytes(b"\xff\xd8\xff\xe0stub")
+
+    default_result = discover_corpus(tmp_path)
+    assert len(default_result) == 1, (
+        f"Default (ocr=False) should return only the PDF, got "
+        f"{[p.name for p in default_result]}"
+    )
+    assert default_result[0].suffix.lower() == ".pdf"
+
+    ocr_result = discover_corpus(tmp_path, ocr=True)
+    ocr_suffixes = sorted(p.suffix.lower() for p in ocr_result)
+    assert ocr_suffixes == [".jpg", ".pdf", ".png"], (
+        f"ocr=True should include images, got {ocr_suffixes}"
+    )
+
+
+@pytest.mark.unit
+def test_discover_corpus_raises_when_sift_reader_missing(tmp_path):
+    """UT-041: Missing sift-kg -> ImportError, not silent 9-extension fallback (D-02)."""
+    import ingest_documents
+
+    (tmp_path / "foo.pdf").write_text("stub", encoding="utf-8")
+
+    # Also reset the cache so the patched flag actually drives behavior.
+    ingest_documents._SUPPORTED_EXTENSIONS_CACHE = None
+
+    with mock.patch.object(ingest_documents, "HAS_SIFT_READER", False):
+        with pytest.raises(ImportError, match=r"sift.?kg|/epistract:setup"):
+            ingest_documents.discover_corpus(tmp_path)
+        with pytest.raises(ImportError, match=r"sift.?kg|/epistract:setup"):
+            _ = ingest_documents.SUPPORTED_EXTENSIONS
     assert chunks[1]["overlap_prev_chars"] <= OVERLAP_MAX_CHARS
