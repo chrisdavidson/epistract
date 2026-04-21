@@ -47,6 +47,13 @@ MIN_SAMPLE_DOCS = 2
 MAX_ENTITY_TYPES = 15
 MAX_RELATION_TYPES = 20
 
+# Phase 16 FIDL-05 — Multi-excerpt Pass-1 schema discovery.
+# D-01: head(EXCERPT_CHARS) + middle(EXCERPT_CHARS centered on len//2) + tail(EXCERPT_CHARS)
+# D-02: conditional on length — docs with len > MULTI_EXCERPT_THRESHOLD use the 3-excerpt path;
+# shorter docs are passed through as full text for backward-compatible prompt shape.
+EXCERPT_CHARS = 4000
+MULTI_EXCERPT_THRESHOLD = 12000
+
 
 # ---------------------------------------------------------------------------
 # Document reading
@@ -118,8 +125,50 @@ def read_sample_documents(doc_paths: list[Path]) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 
+def _build_excerpts(
+    doc_text: str,
+    excerpt_chars: int = EXCERPT_CHARS,
+) -> list[str]:
+    """Return head / middle / tail excerpts for long documents.
+
+    Phase 16 FIDL-05 multi-excerpt primitive. For documents short enough
+    to fit under MULTI_EXCERPT_THRESHOLD, this returns the empty list —
+    the caller passes full text to the LLM instead. For longer documents,
+    returns exactly three `excerpt_chars`-long slices: the first `excerpt_chars`
+    chars (head), a slice centered on `len(doc_text) // 2` of width
+    `excerpt_chars` (middle, D-03), and the last `excerpt_chars` chars (tail).
+
+    Args:
+        doc_text: Full document text.
+        excerpt_chars: Width of each excerpt slice. Defaults to EXCERPT_CHARS (4000).
+
+    Returns:
+        Empty list if `len(doc_text) <= MULTI_EXCERPT_THRESHOLD`.
+        Otherwise a 3-element list: [head_slice, middle_slice, tail_slice].
+    """
+    if len(doc_text) <= MULTI_EXCERPT_THRESHOLD:
+        return []
+
+    half = excerpt_chars // 2
+    mid_center = len(doc_text) // 2
+    m0 = mid_center - half
+    m1 = mid_center + half
+
+    head = doc_text[:excerpt_chars]
+    middle = doc_text[m0:m1]
+    tail = doc_text[-excerpt_chars:]
+    return [head, middle, tail]
+
+
 def build_schema_discovery_prompt(doc_text: str, domain_description: str) -> str:
     """Build Pass 1 prompt: discover entity and relation types from a single document.
+
+    For documents longer than MULTI_EXCERPT_THRESHOLD, sends three explicit excerpts
+    (head / middle / tail) with `[EXCERPT N/3 — chars X to Y]` markers so the LLM
+    does not infer false contiguity between disjoint slices (D-04). The preface
+    sentence is spelled out per D-05. For shorter documents, sends the full text
+    under the original singular `**Document text:**` header (backward-compatible
+    prompt shape; D-02).
 
     Args:
         doc_text: Full text of the sample document.
@@ -128,6 +177,35 @@ def build_schema_discovery_prompt(doc_text: str, domain_description: str) -> str
     Returns:
         Prompt string for LLM schema discovery.
     """
+    excerpts = _build_excerpts(doc_text)
+
+    if excerpts:
+        head, middle, tail = excerpts
+        mid_center = len(doc_text) // 2
+        half = EXCERPT_CHARS // 2
+        m0 = mid_center - half
+        m1 = mid_center + half
+        tail_start = len(doc_text) - EXCERPT_CHARS
+        tail_end = len(doc_text)
+        body = textwrap.dedent(f"""\
+            **Document excerpts:**
+            The following are three excerpts from a larger document. Treat them as non-contiguous samples of the same document, not as a single continuous passage.
+
+            [EXCERPT 1/3 — chars 0 to {EXCERPT_CHARS} (head)]
+            {head}
+
+            [EXCERPT 2/3 — chars {m0} to {m1} (middle)]
+            {middle}
+
+            [EXCERPT 3/3 — chars {tail_start} to {tail_end} (tail)]
+            {tail}
+            """)
+    else:
+        body = textwrap.dedent(f"""\
+            **Document text:**
+            {doc_text}
+            """)
+
     return textwrap.dedent(f"""\
         You are an expert knowledge graph schema designer.
 
@@ -136,9 +214,7 @@ def build_schema_discovery_prompt(doc_text: str, domain_description: str) -> str
         **Task:** Analyze the following document and identify candidate entity types
         and relation types for building a knowledge graph in this domain.
 
-        **Document text:**
-        {doc_text[:8000]}
-
+        {body}
         **Instructions:**
         - Propose 5-15 entity types and 5-20 relation types.
         - Merge similar concepts into one type.
