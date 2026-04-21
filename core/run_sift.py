@@ -82,8 +82,109 @@ def cmd_build(output_dir: str, domain_name: str | None = None):
 
 
 def cmd_view(output_dir: str, **kwargs):
+    """Generate graph.html; post-process it to inject domain-aware title + entity colors (FIDL-06)."""
     (run_view,) = _import_sift(["run_view"])
     run_view(Path(output_dir), **{k: v for k, v in kwargs.items() if v is not None})
+
+    # FIDL-06 D-04 + D-05: post-process the pyvis-generated graph.html to
+    # inject domain-specific title into the empty <h1></h1> and override
+    # entity colors from the domain's template.yaml. Both are additive —
+    # pyvis's HTML structure and vis.js initialization are not touched.
+    graph_html = Path(output_dir) / "graph.html"
+    if not graph_html.exists():
+        # run_view didn't produce the file; nothing to post-process.
+        return
+
+    # Resolve domain from graph metadata (reuses Plan 17-01's precedence).
+    # We add the project root to sys.path so `examples.workbench.*` imports
+    # work regardless of caller cwd.
+    project_root = Path(__file__).parent.parent
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
+    try:
+        from examples.workbench.template_loader import (
+            load_template,
+            resolve_domain,
+        )
+    except ImportError as e:
+        print(
+            f"Warning: could not import workbench helpers for graph.html "
+            f"post-process: {e}. Skipping FIDL-06 title/color injection.",
+            file=sys.stderr,
+        )
+        return
+
+    resolved_domain, _source = resolve_domain(Path(output_dir), None)
+    template = load_template(resolved_domain)
+    title_text = template.get("title") or "Knowledge Graph"
+    entity_colors: dict[str, str] = template.get("entity_colors") or {}
+
+    try:
+        html = graph_html.read_text(encoding="utf-8")
+    except OSError as e:
+        print(
+            f"Warning: could not read {graph_html} for post-process: {e}",
+            file=sys.stderr,
+        )
+        return
+
+    # FIDL-06 D-04: replace pyvis's empty <h1></h1> with our domain-aware title.
+    # pyvis emits <h1></h1> (possibly twice — both in <center> blocks).
+    # Replace all occurrences; a double-titled page is still better than
+    # an empty one, and pyvis's template quirk is not our contract to fix.
+    new_h1 = f"<h1>{title_text}</h1>"
+    html = html.replace("<h1></h1>", new_h1)
+
+    # FIDL-06 D-05: entity_colors overlay — append a <script> block right before
+    # </body> that iterates the existing vis.js `nodes` DataSet on DOMContentLoaded
+    # and updates color.background for nodes whose entity_type matches a key
+    # in our template.yaml entity_colors dict. Existing color pickers in
+    # _inject_ui's sidebar still work; they just start from our overrides.
+    if entity_colors:
+        overrides_js = json.dumps(entity_colors)
+        overlay_script = (
+            f'<script>\n'
+            f'// FIDL-06 D-05: domain entity_colors overlay injected by cmd_view.\n'
+            f'(function() {{\n'
+            f'  var overrides = {overrides_js};\n'
+            f'  function applyOverrides() {{\n'
+            f'    if (typeof nodes === "undefined" || !nodes.forEach) return;\n'
+            f'    var updates = [];\n'
+            f'    nodes.forEach(function(n) {{\n'
+            f'      var et = n.entity_type;\n'
+            f'      if (et && overrides[et]) {{\n'
+            f'        var color = overrides[et];\n'
+            f'        updates.push({{id: n.id, color: {{\n'
+            f'          background: color,\n'
+            f'          border: (n.color &amp;&amp; n.color.border) || color,\n'
+            f'          highlight: {{background: color, border: (n.color &amp;&amp; n.color.border) || color}}\n'
+            f'        }}}});\n'
+            f'      }}\n'
+            f'    }});\n'
+            f'    if (updates.length) nodes.update(updates);\n'
+            f'  }}\n'
+            f'  if (document.readyState === "loading") {{\n'
+            f'    document.addEventListener("DOMContentLoaded", applyOverrides);\n'
+            f'  }} else {{\n'
+            f'    setTimeout(applyOverrides, 100);\n'
+            f'  }}\n'
+            f'}})();\n'
+            f'</script>'
+        )
+        # Inject BEFORE </body> so _inject_ui's sidebar is already in place;
+        # if </body> is missing (highly unusual), append at the end instead.
+        if "</body>" in html:
+            html = html.replace("</body>", overlay_script + "\n</body>")
+        else:
+            html = html + "\n" + overlay_script
+
+    try:
+        graph_html.write_text(html, encoding="utf-8")
+    except OSError as e:
+        print(
+            f"Warning: could not write {graph_html} after post-process: {e}",
+            file=sys.stderr,
+        )
 
 
 def cmd_export(output_dir: str, fmt: str):
