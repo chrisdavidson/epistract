@@ -120,6 +120,10 @@ See v1 traceability below.
 
 - [x] **FIDL-03**: Chunk boundaries emit sentence-aware overlap so entities and relations whose mentions straddle a 10,000-char chunk boundary reach the extractor. Overlap is the last 3 sentences of the previous chunk (capped at 1500 chars), produced by `blingfire.text_to_sentences_and_offsets`, emitted at every split point in `core/chunk_document.py` (`_split_at_paragraphs` sub-chunks, `_merge_small_sections` ARTICLE-boundary flushes, `_split_fixed` fallback). Each chunk JSON records `overlap_prev_chars`, `overlap_next_chars`, `is_overlap_region`, and an honest per-sub-chunk `char_offset`. `blingfire` is a required runtime dep; missing import raises loud with install hint. No CLI flag, no env var — pit-of-success default.
 
+### Format Discovery Parity (Phase 15)
+
+- [ ] **FIDL-04**: `core/ingest_documents.discover_corpus` delegates to `sift_kg.ingest.reader` so every Kreuzberg-supported format (per backend `supported_extensions()`) is discovered without a hardcoded allowlist. Discovery remains pure extension-match. `.zip` archives excluded (breaks per-document provenance). Image extensions (`.png`, `.jpg`, `.tif`, etc.) gated by `ocr=True`. `triage.json` gains a `warnings[]` field per doc for post-discovery extraction failures (`extraction_failed`, `empty_text`, etc.). Loud ImportError when `sift_kg.ingest.reader` is missing — no silent fallback. `commands/ingest.md` format prose aligns with the runtime-resolved set.
+
 ## Deferred (V3)
 
 - **BIOU-01**: Biomedical domain migrated to V2 architecture with full backward compatibility
@@ -202,7 +206,8 @@ See v1 traceability below.
 | FIDL-02b | Phase 13 | 13-02, 13-04 | Pending |
 | FIDL-02c | Phase 13 | 13-01 | Pending |
 | FIDL-03 | Phase 14 | 14-01, 14-02, 14-03, 14-04 | Complete |
+| FIDL-04 | Phase 15 | 15-01 | Pending |
 
 ---
 *Requirements defined: 2026-03-29 (v1), 2026-04-02 (v2), 2026-04-04 (Phase 11)*
-*Last updated: 2026-04-20 — FIDL-03 complete (Phase 14 Chunk Overlap)*
+*Last updated: 2026-04-21 — FIDL-04 registered for Phase 15 (Format Discovery Parity)*

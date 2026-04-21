@@ -403,6 +403,24 @@ These are real research questions a PhD scientist would ask. Each tests whether 
 - **Test:** Read `tests/baselines/v2/expected.json` (a committed summary-counts file, format `{"scenarios": {"<scenario>": {"nodes": N, "edges": E}, ...}}`). Re-run the 6 drug-discovery regression scenarios + 1 contract scenario via `python tests/regression/run_regression.py`. For each scenario, assert post-run `nodes >= expected.nodes` AND `edges >= expected.edges`. If `tests/baselines/v2/expected.json` does NOT exist, the test FAILS (not skips) with an instructional message pointing to how to regenerate it (`make regression-update` then record the numbers into `expected.json`). The full `graph_data.json` dumps remain gitignored; only the small summary counts file is committed. The contract scenario's floor (≥663 edges, ≥341 nodes) is pinned in `expected.json` per D-14.
 - **Pass criteria:** `expected.json` exists (enforced; missing → FAIL). All 7 scenarios satisfy nodes≥expected AND edges≥expected. Contract scenario ≥663 edges, ≥341 nodes.
 
+### UT-039: discover_corpus delegates to sift-kg (runtime extension set)
+- **Traces to:** FIDL-04 (D-01, D-09)
+- **Test:** Create a tmpdir containing files with suffixes `.pdf .pptx .md .epub .rtf .odt .csv .xml .json .yaml .log .ipynb .bib .fb2 .msg` (15 varied, all text-class), plus `.zip` and `.png` (must be excluded in default call). Call `discover_corpus(tmpdir)`. Assert the returned list is sorted, length == 15 (no .zip, no .png). Then assert the runtime-resolved extension set (via module-level `SUPPORTED_EXTENSIONS`) has `len(...) >= 28` and that it is a subset of `sift_kg.ingest.create_extractor(backend="kreuzberg").supported_extensions()` minus `{".zip", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".tiff", ".tif"}`.
+- **Pass criteria:** `discover_corpus` returns exactly the 15 text-class files, skipping .zip and .png; `len(SUPPORTED_EXTENSIONS) >= 28`; set-subset assertion holds.
+- **Dependency:** sift-kg installed (skip if HAS_SIFTKG is False).
+
+### UT-040: OCR flag gates image extensions in discover_corpus
+- **Traces to:** FIDL-04 (D-04)
+- **Test:** Create a tmpdir containing `sample.png`, `sample.jpg`, `sample.pdf`. Call `discover_corpus(tmpdir)` (ocr defaulted False) — assert only `sample.pdf` is returned. Call `discover_corpus(tmpdir, ocr=True)` — assert `sample.pdf`, `sample.png`, `sample.jpg` are all returned.
+- **Pass criteria:** Default call returns 1 file; `ocr=True` call returns 3 files.
+- **Dependency:** sift-kg installed (skip if HAS_SIFTKG is False).
+
+### UT-041: Missing sift-kg raises ImportError in discover_corpus (no silent fallback)
+- **Traces to:** FIDL-04 (D-02)
+- **Test:** Use `unittest.mock.patch.object(core.ingest_documents, "HAS_SIFT_READER", False)`, then call `discover_corpus(some_dir)`. Assert `pytest.raises(ImportError)` with a `match` pointing to `/epistract:setup` or `sift-kg`. ALSO assert `core.ingest_documents.SUPPORTED_EXTENSIONS` access under the same patch raises ImportError with the same install hint (D-02: no silent 9-extension fallback).
+- **Pass criteria:** Both `discover_corpus(dir)` and `SUPPORTED_EXTENSIONS` access raise `ImportError` whose message contains "sift-kg" or "/epistract:setup".
+- **Dependency:** None (pure mock test, runs without sift-kg paths executed).
+
 ---
 
 ## 4. Traceability Matrix
@@ -422,3 +440,6 @@ These are real research questions a PhD scientist would ask. Each tests whether 
 | UAT-301–303 | 3, 4 | COMPOUND, DISEASE, PROTEIN, MOA | INDICATED_FOR, HAS_MECHANISM, TARGETS | 03_rare_disease |
 | UAT-401–404 | 3, 4 | COMPOUND, CLINICAL_TRIAL, ADVERSE_EVENT, BIOMARKER | COMBINED_WITH, EVALUATED_IN, CAUSES, PREDICTS_RESPONSE_TO | 04_immunooncology |
 | UAT-501–503 | 3, 4 | COMPOUND, PROTEIN, DISEASE, CLINICAL_TRIAL | HAS_MECHANISM, TARGETS, INHIBITS, EVALUATED_IN, INDICATED_FOR | 05_cardiovascular |
+| UT-039 | FIDL-04 (D-01, D-09) | N/A (discovery layer) | N/A | Synthetic tmpdir |
+| UT-040 | FIDL-04 (D-04) | N/A | N/A | Synthetic tmpdir |
+| UT-041 | FIDL-04 (D-02) | N/A | N/A | Synthetic tmpdir |
