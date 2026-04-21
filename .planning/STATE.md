@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Graph Fidelity & Honest Limits
-status: executing
-stopped_at: Completed 15-01-PLAN.md (FIDL-04 discover_corpus delegation + warnings[] field)
-last_updated: "2026-04-21T12:36:54.297Z"
+status: verifying
+stopped_at: Completed 15-02-PLAN.md (FT-013/014/015 acceptance tests + FIDL-04 Complete)
+last_updated: "2026-04-21T12:45:48.816Z"
 last_activity: 2026-04-21
 progress:
   total_phases: 15
-  completed_phases: 9
+  completed_phases: 10
   total_plans: 32
-  completed_plans: 31
+  completed_plans: 32
   percent: 58
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-04-02)
 
 Phase: 15 (format-discovery-parity) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-21
 
 Progress: [█████░░░░░] 58%
@@ -83,6 +83,7 @@ Progress: [█████░░░░░] 58%
 | Phase 14 P03 | 85min | 3 tasks | 2 files |
 | Phase 14-chunk-overlap P04 | 75min | 3 tasks | 3 files |
 | Phase 15-format-discovery-parity P01 | 6min | 3 tasks | 5 files |
+| Phase 15-format-discovery-parity P02 | 3m 25s | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -162,6 +163,9 @@ Recent decisions affecting current work:
 - [Phase 15-format-discovery-parity]: [Phase 15-01]: Runtime set is 29 text-class extensions on sift-kg 0.9.x (Kreuzberg's 37 minus 1 zip minus 8 images); UT-039 asserts >=28 for forward-compat tolerance, not the literal 29 (CONTEXT.md said >=29 — corrected to >=28 against the actual set).
 - [Phase 15-format-discovery-parity]: [Phase 15-01]: ingest_corpus wraps discover_corpus in try/ImportError so CLI users see a clean error-dict path; raw traceback never surfaces. Aligns with existing print(..., file=sys.stderr) error convention in the same function.
 - [Phase 15-format-discovery-parity]: [Phase 15-01]: triage.json warnings[] field is additive — no schema version bump. examples/workbench/data_loader.py reads documents[] keys it knows about; new field is invisible to existing consumers.
+- [Phase 15-format-discovery-parity]: [Phase 15-02]: FT-014 assertion softened to disjunction (startswith('extraction_failed') OR == 'empty_text') — accommodates Kreuzberg's parse_document return-shape ambiguity for corrupt PPTX; both satisfy FIDL-04 D-06/D-07 invariant (failure surfaced in warnings[], not silently dropped).
+- [Phase 15-format-discovery-parity]: [Phase 15-02]: FT-015 duplicates FT-012's _resolve_output + graph_data.json read logic rather than importing — FT-012 is Phase 14 FIDL-03's gate, FT-015 is Phase 15 FIDL-04's guard; distinct test names route CI failures to the right phase attribution.
+- [Phase 15-format-discovery-parity]: [Phase 15-02]: FIDL-04 flipped Pending -> Complete in REQUIREMENTS.md §v3 by this plan (plan column '15-01, 15-02'). Both delegation (15-01) and acceptance (15-02) green; no remaining FIDL-04 surface. Flipping here removes a redundant phase-closeout step; idempotent if closeout re-flips.
 
 ### Pending Todos
 
@@ -181,6 +185,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-04-21T12:36:54.293Z
-Stopped at: Completed 15-01-PLAN.md (FIDL-04 discover_corpus delegation + warnings[] field)
+Last session: 2026-04-21T12:45:48.812Z
+Stopped at: Completed 15-02-PLAN.md (FT-013/014/015 acceptance tests + FIDL-04 Complete)
 Resume file: None

@@ -123,7 +123,7 @@ Phase priority is **blocking-ness first, silent quality second, polish last**. S
 - [x] **Phase 12: Fix wizard PDF binary read (Bug 3)** - `core/domain_wizard.py:63` reads PDFs as raw binary via `Path.read_text(errors="replace")`, sending `%PDF-1.4` bytes to the LLM. Wizard produces garbage schemas for the most common document format. Swap to `sift_kg.ingest.reader.read_document()`. Single-function fix; unblocks the "create your own domain" path. (completed 2026-04-17)
 - [x] **Phase 13: Extraction pipeline reliability** - Addresses Bug 4 (30% extraction drop rate in 23-doc axmp-compliance build). Add post-extraction normalization step (Enh 2), enforce required JSON schema in extractor prompt (Enh 3), and capture accurate `model_used` + `cost_usd` in extraction metadata (Part 1 Item 4). (completed 2026-04-17)
 - [x] **Phase 14: Chunk overlap** - `commands/ingest.md` promises overlap, `core/chunk_document.py` implements none. Silent recall loss on every graph built. Implement sliding-window overlap (character or sentence based). (completed 2026-04-20)
-- [ ] **Phase 15: Format discovery parity** - `core/ingest_documents.py:SUPPORTED_EXTENSIONS` discovers 9 extensions but README claims "75+ via Kreuzberg." PPTX/EPUB/MD/RTF/ODT/CSV silently skipped. Expand allowlist or probe at runtime.
+- [x] **Phase 15: Format discovery parity** - `core/ingest_documents.py:SUPPORTED_EXTENSIONS` discovers 9 extensions but README claims "75+ via Kreuzberg." PPTX/EPUB/MD/RTF/ODT/CSV silently skipped. Expand allowlist or probe at runtime. (completed 2026-04-21)
 - [ ] **Phase 16: Wizard sample window beyond 8KB** - `core/domain_wizard.py:105` truncates each sample to `doc_text[:8000]`. Tail vocabulary ignored. Multi-excerpt or summarize-then-analyze. **Depends on Phase 12** (wizard must read real text first).
 - [ ] **Phase 17: Domain awareness in consumers** - Workbench ignores `--domain` flag (Bug 1), graph.html has empty title (Bug 2) and uses generic palette (Enh 7), system prompt hardcodes contracts vocab (Enh 9), dashboard needs auto-detection (Enh 10). Systemic "domain context doesn't propagate past graph build."
 - [ ] **Phase 18: Per-domain epistemic & validator extensibility** - Custom epistemic rules as Python hooks beyond generic contradiction pairs (Enh 6), optional per-domain `validation/` scripts parallel to drug-discovery's `validate_molecules.py` (Enh 8), and the structural-biology doctype deferred from v2.0 (Part 1 Item 6).
@@ -334,11 +334,11 @@ Plans:
 
 **Requirements**: FIDL-04
 
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 15-01-PLAN.md — Delegate discover_corpus to sift-kg; SUPPORTED_EXTENSIONS lazy __getattr__ accessor; OCR gate for images; .zip exclusion; triage warnings[] field; commands/ingest.md category summary; UT-039/UT-040/UT-041 (FIDL-04)
-- [ ] 15-02-PLAN.md — format_parity fixtures (sample.md + corrupted.pptx); FT-013 new-format ingest; FT-014 corrupted-file triage warning; FT-015 V2 baseline floor guard (≥341 nodes / ≥663 edges contract) (FIDL-04)
+- [x] 15-02-PLAN.md — format_parity fixtures (sample.md + corrupted.pptx); FT-013 new-format ingest; FT-014 corrupted-file triage warning; FT-015 V2 baseline floor guard (≥341 nodes / ≥663 edges contract) (FIDL-04)
 
 ### Phase 16: Wizard sample window beyond 8KB
 
