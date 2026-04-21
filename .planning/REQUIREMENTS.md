@@ -211,8 +211,8 @@ See v1 traceability below.
 | FIDL-02c | Phase 13 | 13-01 | Pending |
 | FIDL-03 | Phase 14 | 14-01, 14-02, 14-03, 14-04 | Complete |
 | FIDL-04 | Phase 15 | 15-01, 15-02 | Complete |
-| FIDL-05 | Phase 16 | — | Pending |
+| FIDL-05 | Phase 16 | 16-01 | Pending |
 
 ---
 *Requirements defined: 2026-03-29 (v1), 2026-04-02 (v2), 2026-04-04 (Phase 11)*
-*Last updated: 2026-04-21 — FIDL-04 complete (Plan 15-01 discovery delegation + Plan 15-02 E2E acceptance + V2 floor guard)*
+*Last updated: 2026-04-21 — FIDL-05 registered for Phase 16 (Wizard Sample Window)*

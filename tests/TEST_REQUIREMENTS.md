@@ -441,6 +441,30 @@ These are real research questions a PhD scientist would ask. Each tests whether 
 
 ---
 
+## 7. Phase 16 Tests (Wizard Sample Window Beyond 8KB)
+
+### UT-042: _build_excerpts returns [] for short docs and 3-slice list for long docs
+- **Traces to:** FIDL-05 (D-01, D-02, D-03)
+- **Test:** Call `core.domain_wizard._build_excerpts("x" * 11999)` — assert the result is `[]` (short-doc branch — len ≤ MULTI_EXCERPT_THRESHOLD). Call `_build_excerpts("x" * 12001)` — assert the result is a list of 3 strings, each ≤ 4000 chars. Call `_build_excerpts(("a" * 30000))` (exactly 30000 chars) — assert `len(result) == 3`, `result[0] == "a" * 4000` (head is first 4000 chars, D-01), `result[1] == "a" * 4000` (middle slice len == 4000, per D-03: `len//2 - 2000` to `len//2 + 2000` = chars 13000..17000), and `result[2] == "a" * 4000` (tail is last 4000 chars, D-01). Call `_build_excerpts(payload)` where payload is a deterministic string `"HEAD" + "." * 20000 + "MID" + "." * 20000 + "TAIL"` (approx 40007 chars) — assert `"HEAD" in result[0]`, `"MID" in result[1]`, `"TAIL" in result[2]`.
+- **Pass criteria:** All four assertions hold; `_build_excerpts` raises no exceptions for any of the four inputs.
+- **Dependency:** None (pure function test, no I/O, no LLM call).
+
+### UT-043: build_schema_discovery_prompt emits 3 excerpt markers + 3 sentinels for long docs; full-text preserved for short docs
+- **Traces to:** FIDL-05 (D-04, D-05, D-10, D-11)
+- **Test:** Read `tests/fixtures/wizard_sample_window/long_contract.txt` (synthetic ~60K-char fixture created in Plan 16-02 Task 1 — RED until that task lands; GREEN once 16-02 Task 1 completes). Call `build_schema_discovery_prompt(fixture_text, "Synthetic long contract domain")`. Assert:
+  1. Prompt contains the literal substring `[EXCERPT 1/3 — chars 0 to 4000 (head)]` on its own line.
+  2. Prompt contains the literal substring `[EXCERPT 2/3 — chars ` (opening of middle marker; the full marker includes computed m0/m1 values).
+  3. Prompt contains the literal substring `[EXCERPT 3/3 — chars ` (opening of tail marker).
+  4. Prompt contains the preface sentence: `The following are three excerpts from a larger document. Treat them as non-contiguous samples of the same document, not as a single continuous passage.`.
+  5. Prompt contains the plural header `**Document excerpts:**` and does NOT contain the singular `**Document text:**` (long-doc path uses the plural wording per D-05).
+  6. Prompt contains all three sentinel phrases from the fixture: `PARTY_SENTINEL_HEAD`, `OBLIGATION_SENTINEL_MIDDLE`, `TERMINATION_SENTINEL_TAIL`.
+  7. Prompt contains `Synthetic long contract domain` (domain description interpolated).
+  Second assertion block (short-doc path): Call `build_schema_discovery_prompt("Sample lease text here...", "Real estate lease agreements")` (24-char input). Assert prompt CONTAINS the singular `**Document text:**` header, CONTAINS `Sample lease text here...` verbatim, and does NOT contain `[EXCERPT` or `three excerpts from a larger document`. This pins the short-doc backward-compat shape (D-02).
+- **Pass criteria:** All 7 long-doc assertions hold; all 3 short-doc assertions hold; no exceptions.
+- **Dependency:** Plan 16-02 Task 1 fixture `tests/fixtures/wizard_sample_window/long_contract.txt` exists. Until then this test FAILS with `FileNotFoundError` — that is the expected RED state for Plan 16-01, flipped to GREEN by Plan 16-02 Task 1.
+
+---
+
 ## 4. Traceability Matrix
 
 | Requirement | Domain Spec Section | Entity Types Tested | Relation Types Tested | Test Corpus |
@@ -464,3 +488,5 @@ These are real research questions a PhD scientist would ask. Each tests whether 
 | FT-013 | FIDL-04 (D-01, D-09) | N/A (ingest-layer) | N/A | tests/fixtures/format_parity/sample.md |
 | FT-014 | FIDL-04 (D-06, D-07) | N/A | N/A | tests/fixtures/format_parity/corrupted.pptx |
 | FT-015 | FIDL-04 (D-13), Phase 14 D-14 | All (existing V2 scenarios) | All | tests/baselines/v2/expected.json |
+| UT-042 | FIDL-05 (D-01, D-02, D-03) | N/A (prompt-builder layer) | N/A | Inline synthetic strings |
+| UT-043 | FIDL-05 (D-04, D-05, D-10, D-11) | N/A | N/A | tests/fixtures/wizard_sample_window/long_contract.txt |
