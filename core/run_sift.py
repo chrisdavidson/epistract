@@ -44,6 +44,29 @@ def cmd_build(output_dir: str, domain_name: str | None = None):
         domain = load_domain(domain_path=Path(__file__).parent.parent / "domains" / "drug-discovery" / "domain.yaml")
     kg = run_build(Path(output_dir), domain)
 
+    # FIDL-06 (D-01, D-02): persist the build-time domain into graph_data.json
+    # metadata so every downstream consumer (workbench, graph.html, chat system
+    # prompt) has a single source of truth for "what domain is this graph?"
+    # Post-process pattern rather than monkey-patching sift-kg — keeps us
+    # decoupled from sift_kg.graph.knowledge_graph.save().
+    graph_path = Path(output_dir) / "graph_data.json"
+    if graph_path.exists():
+        try:
+            graph_json = json.loads(graph_path.read_text(encoding="utf-8"))
+            metadata = graph_json.setdefault("metadata", {})
+            metadata["domain"] = domain_name  # str or None; JSON null on None
+            graph_path.write_text(
+                json.dumps(graph_json, indent=2, default=str),
+                encoding="utf-8",
+            )
+        except (OSError, ValueError, json.JSONDecodeError) as e:
+            # Non-fatal: graph still usable, just missing the domain field.
+            # Consumers fall back via resolve_domain's D-08 legacy path.
+            print(
+                f"Warning: failed to persist domain into graph_data.json: {e}",
+                file=sys.stderr,
+            )
+
     # Auto-label communities with descriptive names
     try:
         from core.label_communities import label_communities  # noqa: E402
