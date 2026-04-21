@@ -124,6 +124,10 @@ See v1 traceability below.
 
 - [x] **FIDL-04**: `core/ingest_documents.discover_corpus` delegates to `sift_kg.ingest.reader` so every Kreuzberg-supported format (per backend `supported_extensions()`) is discovered without a hardcoded allowlist. Discovery remains pure extension-match. `.zip` archives excluded (breaks per-document provenance). Image extensions (`.png`, `.jpg`, `.tif`, etc.) gated by `ocr=True`. `triage.json` gains a `warnings[]` field per doc for post-discovery extraction failures (`extraction_failed`, `empty_text`, etc.). Loud ImportError when `sift_kg.ingest.reader` is missing — no silent fallback. `commands/ingest.md` format prose aligns with the runtime-resolved set.
 
+### Wizard Sample Window (Phase 16)
+
+- [ ] **FIDL-05**: Domain wizard Pass-1 schema discovery sees beyond the first 8KB of each sample document. `core/domain_wizard.build_schema_discovery_prompt` replaces `doc_text[:8000]` with a multi-excerpt strategy: head (first 4K) + middle (4K centered on `len/2`) + tail (last 4K), joined with explicit `[EXCERPT N/3]` markers, for documents >12K chars. Documents ≤12K pass through as full text. Pass-2 consolidation and Pass-3 naming are unchanged. Known limitations (12K effective window, middle-centered slice, shoulder regions may still be missed, ~4.5K token cost per Pass-1 call) documented in `docs/known-limitations.md` for Phase 20 README to cite.
+
 ## Deferred (V3)
 
 - **BIOU-01**: Biomedical domain migrated to V2 architecture with full backward compatibility
@@ -207,6 +211,7 @@ See v1 traceability below.
 | FIDL-02c | Phase 13 | 13-01 | Pending |
 | FIDL-03 | Phase 14 | 14-01, 14-02, 14-03, 14-04 | Complete |
 | FIDL-04 | Phase 15 | 15-01, 15-02 | Complete |
+| FIDL-05 | Phase 16 | — | Pending |
 
 ---
 *Requirements defined: 2026-03-29 (v1), 2026-04-02 (v2), 2026-04-04 (Phase 11)*
