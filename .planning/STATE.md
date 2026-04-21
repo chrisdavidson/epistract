@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Graph Fidelity & Honest Limits
-status: executing
-stopped_at: Completed 17-01-PLAN.md
-last_updated: "2026-04-21T22:05:21.791Z"
+status: verifying
+stopped_at: Completed 17-02-PLAN.md
+last_updated: "2026-04-21T23:21:55.415Z"
 last_activity: 2026-04-21
 progress:
   total_phases: 15
-  completed_phases: 11
+  completed_phases: 12
   total_plans: 36
-  completed_plans: 35
+  completed_plans: 36
   percent: 58
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-04-02)
 
 Phase: 17 (domain-awareness-in-consumers) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-21
 
 Progress: [█████░░░░░] 58%
@@ -87,6 +87,7 @@ Progress: [█████░░░░░] 58%
 | Phase 16-wizard-sample-window-beyond-8kb P01 | 10min | 3 tasks | 6 files |
 | Phase 16 P02 | ~15min | 3 tasks | 4 files |
 | Phase 17 P01 | 12min | 2 tasks | 8 files |
+| Phase 17 P02 | 15min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -177,6 +178,9 @@ Recent decisions affecting current work:
 - [Phase 17]: D-01/D-02: post-process graph_data.json in cmd_build (not monkey-patch sift-kg); additive metadata.domain preserves 7 pre-existing keys byte-identically
 - [Phase 17]: resolve_domain is NEW helper (not load_template rewrite); load_template signature unchanged so test_workbench.py byte-identical regression holds (D-14)
 - [Phase 17]: Idempotent double-call pattern: create_app + launcher both call resolve_domain; cost = 1 extra file read, benefit = each layer self-contained
+- [Phase 17]: D-04/D-05: post-process pyvis graph.html (string replace + DOMContentLoaded <script>) rather than subclass or monkey-patch sift-kg — upgrade-safe seam
+- [Phase 17]: D-06: AnalysisPatterns nested Pydantic model (validated) + optional field; only cross_references_heading + appears_in_phrase are template-driven (minimalist — CONFLICTS/GAPS/RISKS stay generic)
+- [Phase 17]: D-15 UPDATE-in-place preserved: grep -c '^| FIDL-06 |' REQUIREMENTS.md stays at 1 across 3 states (pending → registered → complete)
 
 ### Pending Todos
 
@@ -196,6 +200,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-04-21T22:05:21.787Z
-Stopped at: Completed 17-01-PLAN.md
+Last session: 2026-04-21T23:21:49.173Z
+Stopped at: Completed 17-02-PLAN.md
 Resume file: None
