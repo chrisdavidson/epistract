@@ -37,8 +37,8 @@ For each sample document, the wizard builds Pass-1 prompts using a length-condit
 
 ### Token cost (measured 2026-04-21)
 
-- **Input tokens per Pass-1 call (measured on the `long_contract.txt` fixture, ~60,000 chars):** `<TOKEN_COUNT_PLACEHOLDER>` input tokens. (Plan 16-02 Task 4 populates this — tiktoken or `len(prompt)/4` fallback.)
-- **Soft budget:** ~24,000 input tokens per call. Headroom: ~5× the measured value. No runtime enforcement — the wizard is user-invoked and cost escalations are user-visible.
+- **Input tokens per Pass-1 call (measured on the `long_contract.txt` fixture, 60,200 chars, 2026-04-21):** 2631 input tokens. Method: tiktoken cl100k_base. Soft budget 24,000 tokens → headroom ≈ 9× the measured cost.
+- **Soft budget:** ~24,000 input tokens per call. Headroom: ~9× the measured value (2631 tokens measured 2026-04-21). No runtime enforcement — the wizard is user-invoked and cost escalations are user-visible.
 - **Rationale for no enforcement:** `16-CONTEXT.md` §deferred item 3 (runtime budget would require injecting tiktoken into the critical path; out of scope for v3.0).
 
 ### Pass-2 / Pass-3 impact
@@ -58,4 +58,4 @@ Phase 16's acceptance is prompt-level, not LLM-level: for the synthetic fixture 
 
 ---
 
-*Last updated: 2026-04-21 — Phase 16 FIDL-05 (Wizard Sample Window) initial entry.*
+*Last updated: 2026-04-21 — Phase 16 FIDL-05 (Wizard Sample Window) initial entry; token cost measured.*
