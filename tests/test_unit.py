@@ -1290,6 +1290,7 @@ def test_ut038_overlap_at_split_fixed_fallback():
     assert chunks[1]["overlap_prev_chars"] > 0, (
         "second chunk in fallback path should have overlap from first"
     )
+    assert chunks[1]["overlap_prev_chars"] <= OVERLAP_MAX_CHARS
 
 
 # ---------------------------------------------------------------------------
@@ -1383,4 +1384,3 @@ def test_discover_corpus_raises_when_sift_reader_missing(tmp_path):
             ingest_documents.discover_corpus(tmp_path)
         with pytest.raises(ImportError, match=r"sift.?kg|/epistract:setup"):
             _ = ingest_documents.SUPPORTED_EXTENSIONS
-    assert chunks[1]["overlap_prev_chars"] <= OVERLAP_MAX_CHARS
