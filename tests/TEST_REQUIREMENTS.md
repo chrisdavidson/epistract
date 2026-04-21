@@ -463,6 +463,18 @@ These are real research questions a PhD scientist would ask. Each tests whether 
 - **Pass criteria:** All 7 long-doc assertions hold; all 3 short-doc assertions hold; no exceptions.
 - **Dependency:** Plan 16-02 Task 1 fixture `tests/fixtures/wizard_sample_window/long_contract.txt` exists. Until then this test FAILS with `FileNotFoundError` — that is the expected RED state for Plan 16-01, flipped to GREEN by Plan 16-02 Task 1.
 
+### FT-016: Long-doc Pass-1 prompt contains all 3 sentinels + all 3 excerpt markers (e2e)
+- **Traces to:** FIDL-05 (D-10, D-11)
+- **Test:** Read `tests/fixtures/wizard_sample_window/long_contract.txt` (60200-char fixture with sentinels at head/middle/tail). Call `build_schema_discovery_prompt(fixture_text, "Synthetic long contract domain for Phase 16 FT-016")`. Assert the rendered prompt contains exactly 1 occurrence each of `PARTY_SENTINEL_HEAD`, `OBLIGATION_SENTINEL_MIDDLE`, `TERMINATION_SENTINEL_TAIL`; the exact literal markers `[EXCERPT 1/3 — chars 0 to 4000 (head)]`, `[EXCERPT 2/3 — chars 28100 to 32100 (middle)]`, `[EXCERPT 3/3 — chars 56200 to 60200 (tail)]`; the plural header `**Document excerpts:**`; and the preface `The following are three excerpts from a larger document.`. Assert the prompt does NOT contain `**Document text:**`.
+- **Pass criteria:** All 10 substring assertions hold; sentinel counts are exactly 1.
+- **Dependency:** Fixture present (created by Plan 16-02 Task 1).
+
+### FT-017: Short-doc Pass-1 prompt is strict superset of pre-Phase-16 shape (D-12 regression gate)
+- **Traces to:** FIDL-05 (D-12)
+- **Test:** For each Phase-8 wizard fixture (`sample_lease_1.txt`, `sample_lease_2.txt`, `sample_lease_3.txt` — all ~1.3K chars, flow through the short-doc branch), call `build_schema_discovery_prompt(text, "Real estate lease agreements")`. Assert: (a) full `text` appears verbatim in the prompt; (b) all 8 structural substrings (task name, domain description interpolation, singular header, instructions, entity-type count directive, SCREAMING_SNAKE_CASE mention, JSON format header, return-only directive) are present; (c) none of `[EXCERPT `, `three excerpts from a larger document`, `**Document excerpts:**` leak in.
+- **Pass criteria:** All three fixtures pass all three assertion families.
+- **Dependency:** Phase-8 wizard fixtures (already committed in `tests/fixtures/wizard/`).
+
 ---
 
 ## 4. Traceability Matrix
@@ -490,3 +502,5 @@ These are real research questions a PhD scientist would ask. Each tests whether 
 | FT-015 | FIDL-04 (D-13), Phase 14 D-14 | All (existing V2 scenarios) | All | tests/baselines/v2/expected.json |
 | UT-042 | FIDL-05 (D-01, D-02, D-03) | N/A (prompt-builder layer) | N/A | Inline synthetic strings |
 | UT-043 | FIDL-05 (D-04, D-05, D-10, D-11) | N/A | N/A | tests/fixtures/wizard_sample_window/long_contract.txt |
+| FT-016 | FIDL-05 (D-10, D-11) | N/A (prompt-layer) | N/A | tests/fixtures/wizard_sample_window/long_contract.txt |
+| FT-017 | FIDL-05 (D-12) | N/A | N/A | tests/fixtures/wizard/sample_lease_{1,2,3}.txt |

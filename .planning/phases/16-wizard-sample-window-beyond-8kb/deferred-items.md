@@ -24,3 +24,13 @@ All Phase 16 additions (UT-042, UT-043) pass `ruff check` and are formatted corr
 `ruff check core/domain_wizard.py` passes with no errors.
 
 **Action:** Leave out of scope. A future cleanup pass (or `make format`) will address these uniformly. Fixing them during Phase 16 would muddy the Phase 16 diff.
+
+### Plan 16-02 update (2026-04-21)
+
+The pre-existing lint/format drift listed above is confirmed unchanged by Plan 16-02 additions:
+
+- **New FT-016 / FT-017 blocks** (tests/test_unit.py lines 706-818) were added using the same `assert cond, (msg)` convention Plan 16-01 used for UT-042/UT-043. Local `ruff format` wants the alternate `assert (cond), msg` style — the drift is identical to Plan 16-01 and pre-exists all of Phase 16.
+- **`ruff check tests/test_unit.py`** count is unchanged at 5 pre-existing errors (all at lines 138, 926, 976, 1099, 1154 — none in Phase 16 blocks).
+- **Any ≥89-char line warnings** (E501 with `--select=E,F`) are only surfaced by explicit selection; default `ruff check` does not report them and treats them as out-of-scope for this repo.
+
+Plan 16-02 makes the same scope-boundary decision as Plan 16-01: do not auto-reformat pre-existing drift. Phase 16 additions (UT-042, UT-043, FT-016, FT-017) pass default `ruff check` with no new errors.

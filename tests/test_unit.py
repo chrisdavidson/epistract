@@ -703,6 +703,118 @@ def test_multi_excerpt_prompt_contains_markers():
     )
 
 
+@pytest.mark.unit
+def test_ft016_long_doc_captures_all_three_sentinels():
+    """FT-016: end-to-end sentinel coverage — the rendered Pass-1 prompt includes
+    all 3 head/middle/tail sentinels AND all 3 excerpt markers for the 60200-char
+    synthetic fixture. Belt-and-suspenders variant of UT-043 with explicit marker
+    bound assertions (chars 28100 to 32100 for middle; 56200 to 60200 for tail).
+    """
+    from core.domain_wizard import build_schema_discovery_prompt
+
+    fixture_path = (
+        PROJECT_ROOT / "tests" / "fixtures" / "wizard_sample_window" / "long_contract.txt"
+    )
+    fixture_text = fixture_path.read_text(encoding="utf-8")
+    assert len(fixture_text) == 60200, (
+        f"Fixture length must be exactly 60200 chars for stable marker bounds, "
+        f"got {len(fixture_text)}"
+    )
+
+    prompt = build_schema_discovery_prompt(
+        fixture_text, "Synthetic long contract domain for Phase 16 FT-016"
+    )
+
+    # Sentinels — exactly one occurrence each
+    assert prompt.count("PARTY_SENTINEL_HEAD") == 1, (
+        f"Expected exactly 1 head sentinel, got {prompt.count('PARTY_SENTINEL_HEAD')}"
+    )
+    assert prompt.count("OBLIGATION_SENTINEL_MIDDLE") == 1, (
+        f"Expected exactly 1 middle sentinel, got {prompt.count('OBLIGATION_SENTINEL_MIDDLE')}"
+    )
+    assert prompt.count("TERMINATION_SENTINEL_TAIL") == 1, (
+        f"Expected exactly 1 tail sentinel, got {prompt.count('TERMINATION_SENTINEL_TAIL')}"
+    )
+
+    # Markers — exact literals with computed bounds for 60200-char doc
+    assert "[EXCERPT 1/3 — chars 0 to 4000 (head)]" in prompt
+    assert "[EXCERPT 2/3 — chars 28100 to 32100 (middle)]" in prompt, (
+        "Middle marker bounds must be 28100 to 32100 for a 60200-char doc"
+    )
+    assert "[EXCERPT 3/3 — chars 56200 to 60200 (tail)]" in prompt, (
+        "Tail marker bounds must be 56200 to 60200 for a 60200-char doc"
+    )
+
+    # Long-doc headers and preface
+    assert "**Document excerpts:**" in prompt
+    assert "The following are three excerpts from a larger document." in prompt
+
+    # Short-doc header must NOT leak
+    assert "**Document text:**" not in prompt
+
+    # Domain description interpolated
+    assert "Synthetic long contract domain for Phase 16 FT-016" in prompt
+
+
+_FT017_SHORT_DOC_STRUCTURAL_SUBSTRINGS = [
+    "You are an expert knowledge graph schema designer.",
+    "**Domain description:** Real estate lease agreements",
+    "**Document text:**",
+    "**Instructions:**",
+    "Propose 5-15 entity types and 5-20 relation types.",
+    "SCREAMING_SNAKE_CASE",
+    "Output format (JSON):",
+    "Return ONLY the JSON object, no commentary.",
+]
+
+_FT017_LONG_DOC_MARKER_SUBSTRINGS = [
+    "[EXCERPT ",
+    "three excerpts from a larger document",
+    "**Document excerpts:**",
+]
+
+
+@pytest.mark.unit
+def test_ft017_short_doc_prompt_is_strict_superset_of_pre_phase16():
+    """FT-017: D-12 regression gate — for each Phase-8 wizard fixture (all ≤12K chars),
+    the Phase 16 prompt is a strict superset of the pre-Phase-16 prompt shape:
+    full doc_text preserved verbatim, all 8 structural substrings present, no long-doc
+    markers leak in.
+    """
+    from core.domain_wizard import build_schema_discovery_prompt
+
+    fixtures_dir = PROJECT_ROOT / "tests" / "fixtures" / "wizard"
+    fixture_names = ["sample_lease_1.txt", "sample_lease_2.txt", "sample_lease_3.txt"]
+
+    for name in fixture_names:
+        fixture_path = fixtures_dir / name
+        assert fixture_path.exists(), f"Missing Phase-8 wizard fixture: {fixture_path}"
+
+        text = fixture_path.read_text(encoding="utf-8")
+        assert len(text) <= 12000, (
+            f"{name} must be ≤12000 chars to exercise the short-doc branch, got {len(text)}"
+        )
+
+        prompt = build_schema_discovery_prompt(text, "Real estate lease agreements")
+
+        # Superset of content — full text appears verbatim
+        assert text in prompt, (
+            f"Full doc_text must appear verbatim in short-doc prompt for {name}"
+        )
+
+        # Every structural substring a pre-Phase-16 caller relied on is present
+        for needle in _FT017_SHORT_DOC_STRUCTURAL_SUBSTRINGS:
+            assert needle in prompt, (
+                f"Phase-16 short-doc prompt for {name} missing pre-Phase-16 substring {needle!r}"
+            )
+
+        # No long-doc markers leak into the short-doc path
+        for marker in _FT017_LONG_DOC_MARKER_SUBSTRINGS:
+            assert marker not in prompt, (
+                f"Long-doc marker {marker!r} leaked into short-doc prompt for {name}"
+            )
+
+
 # ========================================================================
 # Phase 13 — FIDL-02c: write-time validation + provenance threading
 # ========================================================================
