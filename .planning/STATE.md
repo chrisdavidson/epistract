@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Graph Fidelity & Honest Limits
-status: verifying
-stopped_at: Completed 15-02-PLAN.md (FT-013/014/015 acceptance tests + FIDL-04 Complete)
-last_updated: "2026-04-21T12:51:08.016Z"
+status: executing
+stopped_at: Completed 16-01-PLAN.md (FIDL-05 multi-excerpt wizard prompt — UT-042 GREEN, UT-043 RED pending 16-02 fixture)
+last_updated: "2026-04-21T13:59:25.390Z"
 last_activity: 2026-04-21
 progress:
   total_phases: 15
   completed_phases: 10
-  total_plans: 32
-  completed_plans: 32
+  total_plans: 34
+  completed_plans: 33
   percent: 58
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Core value:** Extract knowledge, not information. Any corpus, any domain -- plug in a schema, get a knowledge graph with epistemic layer.
-**Current focus:** Phase 15 — format-discovery-parity
+**Current focus:** Phase 16 — wizard-sample-window-beyond-8kb
 
 ## Current Position
 
-Phase: 16
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: 16 (wizard-sample-window-beyond-8kb) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
 Last activity: 2026-04-21
 
 Progress: [█████░░░░░] 58%
@@ -84,6 +84,7 @@ Progress: [█████░░░░░] 58%
 | Phase 14-chunk-overlap P04 | 75min | 3 tasks | 3 files |
 | Phase 15-format-discovery-parity P01 | 6min | 3 tasks | 5 files |
 | Phase 15-format-discovery-parity P02 | 3m 25s | 2 tasks | 4 files |
+| Phase 16-wizard-sample-window-beyond-8kb P01 | 10min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -166,6 +167,10 @@ Recent decisions affecting current work:
 - [Phase 15-format-discovery-parity]: [Phase 15-02]: FT-014 assertion softened to disjunction (startswith('extraction_failed') OR == 'empty_text') — accommodates Kreuzberg's parse_document return-shape ambiguity for corrupt PPTX; both satisfy FIDL-04 D-06/D-07 invariant (failure surfaced in warnings[], not silently dropped).
 - [Phase 15-format-discovery-parity]: [Phase 15-02]: FT-015 duplicates FT-012's _resolve_output + graph_data.json read logic rather than importing — FT-012 is Phase 14 FIDL-03's gate, FT-015 is Phase 15 FIDL-04's guard; distinct test names route CI failures to the right phase attribution.
 - [Phase 15-format-discovery-parity]: [Phase 15-02]: FIDL-04 flipped Pending -> Complete in REQUIREMENTS.md §v3 by this plan (plan column '15-01, 15-02'). Both delegation (15-01) and acceptance (15-02) green; no remaining FIDL-04 surface. Flipping here removes a redundant phase-closeout step; idempotent if closeout re-flips.
+- [Phase 16-wizard-sample-window-beyond-8kb]: [Phase 16-01]: _build_excerpts returns [] for <=12K / 3-slice list for >12K; middle is centered slice (len//2 ± 2000), not 'second third' — D-03 pins structural midpoint anchor.
+- [Phase 16-wizard-sample-window-beyond-8kb]: [Phase 16-01]: Em-dash U+2014 in [EXCERPT N/3 — chars X to Y] markers is load-bearing; UT-043 asserts literal match. ASCII hyphen would fail. D-04 format verbatim.
+- [Phase 16-wizard-sample-window-beyond-8kb]: [Phase 16-01]: Short-doc path retains **Document text:** singular header to keep pre-Phase-16 prompt shape byte-compatible for existing 24-char test_wizard_schema_discovery_prompt fixture. Long-doc path uses **Document excerpts:** plural header per D-05.
+- [Phase 16-wizard-sample-window-beyond-8kb]: [Phase 16-01]: UT-043 intentionally RED at end of 16-01 — fixture tests/fixtures/wizard_sample_window/long_contract.txt is Plan 16-02 Task 1 dependency. Documented cross-plan handoff, not a regression.
 
 ### Pending Todos
 
@@ -185,6 +190,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-04-21T12:45:48.812Z
-Stopped at: Completed 15-02-PLAN.md (FT-013/014/015 acceptance tests + FIDL-04 Complete)
+Last session: 2026-04-21T13:59:25.385Z
+Stopped at: Completed 16-01-PLAN.md (FIDL-05 multi-excerpt wizard prompt — UT-042 GREEN, UT-043 RED pending 16-02 fixture)
 Resume file: None

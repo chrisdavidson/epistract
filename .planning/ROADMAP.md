@@ -349,10 +349,10 @@ Plans:
 **Requirements**: FIDL-05
 
 **Depends on:** **Phase 12** — wizard must actually read PDFs as text before expanding the window matters.
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
-- [ ] 16-01-PLAN.md — Core excerpt builder + prompt update + known-limitations doc: `_build_excerpts` helper, `EXCERPT_CHARS=4000`/`MULTI_EXCERPT_THRESHOLD=12000` constants, conditional multi-excerpt branch in `build_schema_discovery_prompt` with `[EXCERPT N/3 — ...]` markers and D-05 preface, new `docs/known-limitations.md`, UT-042/UT-043 RED-first (FIDL-05)
+- [x] 16-01-PLAN.md — Core excerpt builder + prompt update + known-limitations doc: `_build_excerpts` helper, `EXCERPT_CHARS=4000`/`MULTI_EXCERPT_THRESHOLD=12000` constants, conditional multi-excerpt branch in `build_schema_discovery_prompt` with `[EXCERPT N/3 — ...]` markers and D-05 preface, new `docs/known-limitations.md`, UT-042/UT-043 RED-first (FIDL-05)
 - [ ] 16-02-PLAN.md — Synthetic 60200-char long_contract.txt fixture with 3 sentinels + FT-016 (sentinel coverage e2e) + FT-017 (short-doc strict-superset regression vs Phase-8 fixtures) + one-shot tiktoken measurement replacing `<TOKEN_COUNT_PLACEHOLDER>` in known-limitations.md (FIDL-05)
 
 ### Phase 17: Domain awareness in downstream consumers
