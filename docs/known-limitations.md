@@ -214,6 +214,101 @@ The `PDB_PATTERN`, `STRUCTURAL_CONTENT_RE`, `_detect_structural_content` helper,
 - `core/domain_wizard.generate_epistemic_py` — emits CUSTOM_RULES stub for new domains.
 - Phase 20 README "Pipeline Capacity & Limits" section cites this doc.
 
+## Wizard & CLI Ergonomics (FIDL-08)
+
+**Scope:** Four bundled polish fixes surfaced during the axmp-compliance build that share a "ergonomics-of-authoring" root cause: (1) safe slugification for wizard-generated domain directory names; (2) wizard auto-emission of `workbench/template.yaml` for new domains; (3) `run_sift.py build --domain` accepting either a name OR a path to `domains/<name>/domain.yaml`; (4) `/epistract:domain --schema <file.json> --name <slug>` flag bypassing the 3-pass LLM discovery entirely.
+
+**Source:** `.planning/phases/19-wizard-and-cli-ergonomics/19-CONTEXT.md` (D-01..D-22). Implemented in Phase 19 Plans 19-01 (slug helper + workbench template emission + UT-051/UT-052) and 19-02 (`--domain` path shim + `--schema` bypass + UT-053/UT-054/FT-020).
+
+### generate_slug rules
+
+`core.domain_wizard.generate_slug(name: str) -> str` normalizes a human-readable domain name into a safe filesystem directory name. Pipeline:
+
+1. **NFKD normalize + ASCII strip**: `unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode("ascii")` — removes accents and non-Latin characters without transliteration.
+2. **Lowercase.**
+3. **Collapse non-alphanumeric runs**: every run of characters outside `[a-z0-9]` becomes a single `-` via `re.sub(r"[^a-z0-9]+", "-", value)`.
+4. **Strip leading/trailing `-`.**
+5. **Collapse residual `--+`** (belt-and-suspenders defensive pass).
+6. **Reject empty or malformed** results: `ValueError(f"Cannot derive slug from: {name!r}")`.
+
+**Examples:**
+- `generate_slug("Q&A Analysis (v2)")` → `"q-a-analysis-v2"`
+- `generate_slug("  Hello World  ")` → `"hello-world"`
+- `generate_slug("drug-discovery")` → `"drug-discovery"` (byte-identity for existing clean inputs)
+- `generate_slug("contracts")` → `"contracts"` (byte-identity)
+- `generate_slug("中文 Analysis")` → `"analysis"` (CJK stripped, Latin preserved)
+- `generate_slug("")` → `ValueError`
+- `generate_slug("中文")` → `ValueError` (pure non-Latin input yields empty after stripping)
+
+### Deterministic palette rotation for entity_colors
+
+`core.domain_wizard.generate_workbench_template(domain_slug, entity_types)` emits `workbench/template.yaml` with one palette color per entity type. Assignment is deterministic:
+
+1. Sort entity type names alphabetically.
+2. Assign `DEFAULT_ENTITY_COLORS[i % len(DEFAULT_ENTITY_COLORS)]` for `i = 0..N-1`.
+
+The palette (12 vis.js-friendly colors):
+```python
+DEFAULT_ENTITY_COLORS = [
+    "#97c2fc", "#ffa07a", "#90ee90", "#f1c40f",
+    "#e74c3c", "#9b59b6", "#1abc9c", "#e67e22",
+    "#34495e", "#fd79a8", "#636e72", "#00b894",
+]
+```
+
+The emitted YAML is a complete override of the Phase 17 `WorkbenchTemplate` Pydantic model (every field populated), so downstream consumers never fall back to defaults.
+
+### --domain path shim
+
+`core.run_sift.resolve_domain_arg(value)` accepts either a bare domain name OR a path to a `domains/<name>/domain.yaml` file. Rules:
+
+- **Bare name** (no `/`, no `.yaml`) → passthrough unchanged. The filesystem is never touched (D-08 explicit non-ambiguity — domain names ending in `.yaml` are unsupported by this rule).
+- **Path inside `DOMAINS_DIR`** matching `<DOMAINS_DIR>/<name>/domain.yaml` → extracts and returns `<name>`.
+- **Path outside `DOMAINS_DIR`** → stderr error `Error: --domain expects a name registered under domains/, not an arbitrary path. Try --domain <inferred_name> after registering the domain.` followed by `sys.exit(1)`.
+
+The explicit error (rather than silent path inference) teaches the user the name-not-path contract.
+
+### --schema bypass flag
+
+`python -m core.domain_wizard --schema <file.json> --name <slug>` skips the 3-pass LLM discovery entirely and calls `generate_domain_package` directly.
+
+- **Required CLI flags:** `--schema <file>` and `--name <slug>`. Missing `--name` → error and exit non-zero (no sample corpus to derive a name from).
+- **Required schema keys:** `entity_types` (dict) and `relation_types` (dict). Missing or wrong type → error and exit non-zero with the key listed.
+- **Optional schema keys:** `description`, `system_context`, `extraction_guidelines`, `contradiction_pairs`, `gap_target_types`, `confidence_thresholds`. All default to sensible stubs.
+- **No LLM guarantee:** the bypass does NOT import LiteLLM. UT-054 asserts this by monkeypatching `sys.modules["litellm"] = None` — if the bypass accidentally takes the 3-pass path, the test fails.
+
+### Non-Latin input handling
+
+Domain names containing non-Latin characters (CJK, Cyrillic, Arabic, etc.) are handled by NFKD + ASCII-ignore: accents stripped, base Latin letters preserved. Pure non-Latin input (e.g., `中文` with no Latin letters) yields an empty slug and raises `ValueError` — no transliteration is performed (pinyin/romaji/etc. are deferred).
+
+Mixed Latin + non-Latin (`"中文 Analysis"`) yields just the Latin portion (`"analysis"`).
+
+### What FIDL-08 does NOT do
+
+- **Non-Latin transliteration** (CJK → pinyin, Cyrillic → Latin) — library dependency not justified for v3.0. Deferred.
+- **Interactive slug conflict resolver** (e.g., "slug 'foo' exists; use 'foo-2'?") — out of scope. Domain name collisions error out; user re-runs with a different name.
+- **`--schema` hybrid mode** (partial schema + LLM consolidation of missing pieces) — no clear use case. Bypass is all-or-nothing.
+- **Workbench theming beyond entity_colors + analysis_patterns** (fonts, logos, custom CSS) — Phase 20 or later.
+- **CLI redesign** (replace ad-hoc `sys.argv` parsing with argparse/click) — existing parsing works; out of scope.
+
+### Acceptance gate
+
+- UT-051 (`generate_slug` edge cases — Plan 19-01)
+- UT-052 (`generate_workbench_template` WorkbenchTemplate-valid YAML — Plan 19-01)
+- UT-053 (`resolve_domain_arg` path shim — Plan 19-02)
+- UT-054 (`--schema` bypass, LLM-free — Plan 19-02)
+- FT-020 (end-to-end wizard `--schema` → valid domain package — Plan 19-02)
+
+### Related
+
+- `core.domain_wizard.generate_slug` — slugifier primitive.
+- `core.domain_wizard.generate_workbench_template` — workbench/template.yaml emitter.
+- `core.domain_wizard.main` — `--schema` bypass entry point.
+- `core.run_sift.resolve_domain_arg` — `--domain` path shim.
+- `examples.workbench.template_schema.WorkbenchTemplate` — Pydantic contract validated by UT-052 and FT-020.
+- `commands/domain.md §Schema Bypass` — user-facing docs for the `--schema` flag.
+- Phase 20 README "Pipeline Capacity & Limits" section will cite this doc.
+
 ---
 
-*Last updated: 2026-04-22 — FIDL-07 Phase 18 complete (Per-Domain Epistemic & Validator Extensibility); FIDL-06 and FIDL-05 entries preserved.*
+*Last updated: 2026-04-22 — FIDL-08 Phase 19 complete (Wizard & CLI Ergonomics); FIDL-07, FIDL-06, FIDL-05 entries preserved.*

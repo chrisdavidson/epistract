@@ -193,6 +193,61 @@ Your domain is ready! Try it with:
 - **Domain name collision**: Ask user to overwrite or choose new name (per D-16)
 - **Fewer than 2 documents**: Error with message "At least 2 sample documents required (3-5 recommended)"
 
+## Schema Bypass (--schema)
+
+For users with an established ontology (e.g., axmp-compliance domains with pre-defined entity/relation types), the wizard supports a deterministic, LLM-free bypass:
+
+```bash
+python -m core.domain_wizard --schema my_schema.json --name my-domain
+```
+
+This flag skips the 3-pass LLM discovery entirely (see `docs/known-limitations.md §Wizard & CLI Ergonomics (FIDL-08)`) and generates a domain package directly from the user-supplied JSON schema.
+
+### When to use
+
+- You have an established ontology and want reproducible, byte-deterministic domain creation.
+- You want to avoid LLM costs and non-determinism during domain setup.
+- You are automating domain creation (CI, batch provisioning).
+
+### Schema shape
+
+**Required top-level keys** (both must be non-empty dicts):
+- `entity_types`: `{"<TYPE_NAME>": {"description": "..."}}` — map of entity type name to metadata.
+- `relation_types`: `{"<REL_NAME>": {"description": "..."}}` — map of relation type name to metadata.
+
+**Optional top-level keys** (sensible defaults applied):
+- `description` — domain description for `domain.yaml`; default `""`.
+- `system_context` — system prompt for extraction agents; default `"Domain extraction pipeline"`.
+- `extraction_guidelines` — extraction instructions; default `"Follow domain schema."`.
+- `contradiction_pairs` — epistemic contradiction pairs; default `[]`.
+- `gap_target_types` — gap detection targets; default `{}`.
+- `confidence_thresholds` — confidence cutoffs; default `{"high": 0.9, "medium": 0.7, "low": 0.5}`.
+
+**Required CLI flags:**
+- `--schema <file.json>` — path to the JSON schema file.
+- `--name <slug>` — domain name (used as directory name under `domains/`). Passed through `generate_slug` for normalization.
+
+### Example
+
+```json
+{
+  "entity_types": {
+    "PARTY": {"description": "A legal entity in the contract."},
+    "OBLIGATION": {"description": "A duty one party owes another."}
+  },
+  "relation_types": {
+    "HAS_OBLIGATION": {"description": "Links a PARTY to an OBLIGATION."}
+  },
+  "description": "Contract obligations domain.",
+  "system_context": "You are analyzing vendor contracts.",
+  "extraction_guidelines": "Extract all PARTY and OBLIGATION entities."
+}
+```
+
+### No LLM guarantee
+
+When `--schema` is passed, the wizard does NOT import or call LiteLLM at any point. Domain creation is pure Python + filesystem I/O. See `docs/known-limitations.md §Wizard & CLI Ergonomics (FIDL-08)` for the full contract.
+
 ## Notes
 
 - Generated packages target contracts-level quality (entity/relation types with descriptions). For richer schemas (extraction_hints, nomenclature rules), manually edit the generated files.
