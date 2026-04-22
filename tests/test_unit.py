@@ -1806,3 +1806,187 @@ def test_build_system_prompt_loads_analysis_patterns(capsys, monkeypatch):
     prompt = build_system_prompt(_StubData(empty_claims), legacy_template)
     assert "CROSS-CONTRACT REFERENCES" not in prompt
     assert "CROSS-STUDY REFERENCES" not in prompt
+
+
+# ---------------------------------------------------------------------------
+# FIDL-07 — Per-Domain Epistemic & Validator Extensibility (Phase 18)
+# ---------------------------------------------------------------------------
+
+
+def _build_synthetic_domain(tmp_root, domain_name, epistemic_src):
+    """Build a minimal synthetic domain at tmp_root/domains/<domain_name>/.
+
+    Writes domain.yaml (minimal valid schema) and epistemic.py with the
+    provided source. Returns (domain_dir, module_path).
+    """
+    from pathlib import Path as _P
+    domain_dir = _P(tmp_root) / "domains" / domain_name
+    domain_dir.mkdir(parents=True, exist_ok=True)
+    (domain_dir / "domain.yaml").write_text(
+        "version: 1.0\n"
+        f"name: {domain_name}\n"
+        "entity_types:\n"
+        "  - name: THING\n"
+        "    description: test\n"
+        "relation_types:\n"
+        "  - name: RELATES_TO\n"
+        "    description: test\n"
+    )
+    module_path = domain_dir / "epistemic.py"
+    module_path.write_text(epistemic_src)
+    return domain_dir, module_path
+
+
+def _write_stub_graph(output_dir, domain_name):
+    import json as _json
+    from pathlib import Path as _P
+    out = _P(output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "graph_data.json").write_text(_json.dumps({
+        "metadata": {
+            "created_at": "2026-04-22T00:00:00+00:00",
+            "updated_at": "2026-04-22T00:00:00+00:00",
+            "entity_count": 0,
+            "relation_count": 0,
+            "document_count": 0,
+            "entity_type_summary": {},
+            "sift_kg_version": "0.9.0-stub",
+            "domain": domain_name,
+        },
+        "nodes": [],
+        "links": [],
+    }))
+    return out
+
+
+def _load_synthetic_module(module_path, mod_name):
+    import importlib.util as _il
+    spec = _il.spec_from_file_location(mod_name, module_path)
+    mod = _il.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+@pytest.mark.unit
+def test_custom_rules_dispatch(tmp_path, monkeypatch):
+    """UT-047: CUSTOM_RULES findings merge into claims_layer.super_domain.custom_findings (D-01, D-02, D-12)."""
+    sys.path.insert(0, str(PROJECT_ROOT))
+    import core.label_epistemic as le
+
+    epistemic_src = (
+        "CONTEXT_CAPTURE = {}\n"
+        "\n"
+        "def good_rule(nodes, links, context):\n"
+        "    CONTEXT_CAPTURE.update(context)\n"
+        "    return [{'rule_name': 'good_rule', 'type': 'demo', 'severity': 'INFO',\n"
+        "             'description': 'hello', 'evidence': {}}]\n"
+        "\n"
+        "CUSTOM_RULES = [good_rule]\n"
+        "\n"
+        "def analyze_testdomain_epistemic(output_dir, graph_data):\n"
+        "    return {\n"
+        "        'metadata': {'domain': 'testdomain'},\n"
+        "        'summary': {'total_relations': 0, 'epistemic_status_counts': {}},\n"
+        "        'base_domain': {'asserted_relations': []},\n"
+        "        'super_domain': {},\n"
+        "    }\n"
+    )
+    _, module_path = _build_synthetic_domain(tmp_path, "testdomain", epistemic_src)
+    out = _write_stub_graph(tmp_path / "out", "testdomain")
+    mod = _load_synthetic_module(module_path, "domains.testdomain.epistemic")
+
+    monkeypatch.setattr(le, "_load_domain_epistemic", lambda name: mod)
+
+    le.analyze_epistemic(out, domain_name="testdomain")
+
+    claims = json.loads((out / "claims_layer.json").read_text())
+    cf = claims["super_domain"]["custom_findings"]
+    assert "good_rule" in cf, f"custom_findings missing good_rule; got {list(cf)}"
+    assert cf["good_rule"][0]["description"] == "hello"
+    assert cf["good_rule"][0]["rule_name"] == "good_rule"
+
+    # Context plumbing
+    assert "output_dir" in mod.CONTEXT_CAPTURE
+    assert "graph_data" in mod.CONTEXT_CAPTURE
+    assert "domain_name" in mod.CONTEXT_CAPTURE
+    assert mod.CONTEXT_CAPTURE["domain_name"] == "testdomain"
+
+
+@pytest.mark.unit
+def test_get_validation_dir_resolution():
+    """UT-048: get_validation_dir + resolve_domain['validation_dir'] (D-03, D-13)."""
+    sys.path.insert(0, str(PROJECT_ROOT))
+    from core.domain_resolver import get_validation_dir, resolve_domain
+
+    # Branch 1: drug-discovery has validation/run_validation.py (after Task 3 Sub-step D)
+    dd = get_validation_dir("drug-discovery")
+    assert dd is not None, "drug-discovery validation/ should be discovered"
+    assert dd.name == "validation"
+    assert (dd / "run_validation.py").exists(), (
+        "Task 3 Sub-step D must create run_validation.py for UT-048 to pass GREEN"
+    )
+
+    # Branch 2: contracts has no validation/ dir
+    assert get_validation_dir("contracts") is None
+
+    # Branch 3: unknown domain
+    assert get_validation_dir("nonexistent-domain-xyz") is None
+
+    # Branch 4: resolve_domain exposes the key + preserves pre-existing keys
+    info_dd = resolve_domain("drug-discovery")
+    assert "validation_dir" in info_dd
+    assert info_dd["validation_dir"] == str(dd)
+    for key in ("name", "dir", "yaml_path", "skill_path", "schema"):
+        assert key in info_dd, f"resolve_domain dropped pre-existing key {key!r}"
+
+    info_c = resolve_domain("contracts")
+    assert info_c["validation_dir"] is None
+    for key in ("name", "dir", "yaml_path", "skill_path", "schema"):
+        assert key in info_c
+
+
+@pytest.mark.unit
+def test_rule_failure_isolation(tmp_path, monkeypatch):
+    """UT-050: one broken rule does not abort the phase; error recorded, others still run (D-02, D-09, D-15)."""
+    sys.path.insert(0, str(PROJECT_ROOT))
+    import core.label_epistemic as le
+
+    epistemic_src = (
+        "def good_rule_a(nodes, links, context):\n"
+        "    return [{'rule_name': 'good_rule_a', 'description': 'a',\n"
+        "             'type': 'demo', 'severity': 'INFO', 'evidence': {}}]\n"
+        "\n"
+        "def broken_rule(nodes, links, context):\n"
+        "    raise ValueError('boom')\n"
+        "\n"
+        "def good_rule_b(nodes, links, context):\n"
+        "    return [{'rule_name': 'good_rule_b', 'description': 'b',\n"
+        "             'type': 'demo', 'severity': 'INFO', 'evidence': {}}]\n"
+        "\n"
+        "CUSTOM_RULES = [good_rule_a, broken_rule, good_rule_b]\n"
+        "\n"
+        "def analyze_testdomain_epistemic(output_dir, graph_data):\n"
+        "    return {\n"
+        "        'metadata': {'domain': 'testdomain'},\n"
+        "        'summary': {'total_relations': 0, 'epistemic_status_counts': {}},\n"
+        "        'base_domain': {'asserted_relations': []},\n"
+        "        'super_domain': {},\n"
+        "    }\n"
+    )
+    _, module_path = _build_synthetic_domain(tmp_path, "testdomain", epistemic_src)
+    out = _write_stub_graph(tmp_path / "out", "testdomain")
+    mod = _load_synthetic_module(module_path, "domains.testdomain.epistemic")
+
+    monkeypatch.setattr(le, "_load_domain_epistemic", lambda name: mod)
+
+    # Must not raise — the isolation guard is the whole point of UT-050.
+    le.analyze_epistemic(out, domain_name="testdomain")
+
+    claims = json.loads((out / "claims_layer.json").read_text())
+    cf = claims["super_domain"]["custom_findings"]
+
+    assert cf["good_rule_a"][0]["description"] == "a"
+    assert cf["good_rule_b"][0]["description"] == "b"
+    assert cf["broken_rule"][0]["status"] == "error"
+    assert "boom" in cf["broken_rule"][0]["error"]
+    assert cf["broken_rule"][0]["rule_name"] == "broken_rule"
