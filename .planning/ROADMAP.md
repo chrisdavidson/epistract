@@ -126,8 +126,8 @@ Phase priority is **blocking-ness first, silent quality second, polish last**. S
 - [x] **Phase 15: Format discovery parity** - `core/ingest_documents.py:SUPPORTED_EXTENSIONS` discovers 9 extensions but README claims "75+ via Kreuzberg." PPTX/EPUB/MD/RTF/ODT/CSV silently skipped. Expand allowlist or probe at runtime. (completed 2026-04-21)
 - [x] **Phase 16: Wizard sample window beyond 8KB** - `core/domain_wizard.py:105` truncates each sample to `doc_text[:8000]`. Tail vocabulary ignored. Multi-excerpt or summarize-then-analyze. **Depends on Phase 12** (wizard must read real text first). (completed 2026-04-21)
 - [x] **Phase 17: Domain awareness in consumers** - Workbench ignores `--domain` flag (Bug 1), graph.html has empty title (Bug 2) and uses generic palette (Enh 7), system prompt hardcodes contracts vocab (Enh 9), dashboard needs auto-detection (Enh 10). Systemic "domain context doesn't propagate past graph build." (completed 2026-04-21)
-- [ ] **Phase 18: Per-domain epistemic & validator extensibility** - Custom epistemic rules as Python hooks beyond generic contradiction pairs (Enh 6), optional per-domain `validation/` scripts parallel to drug-discovery's `validate_molecules.py` (Enh 8), and the structural-biology doctype deferred from v2.0 (Part 1 Item 6).
-- [ ] **Phase 19: Wizard & CLI ergonomics** - Safe slugification in `generate_domain_package()` (Bug 5), wizard emits `workbench/template.yaml` automatically (Enh 1), `--domain` accepts name-or-path gracefully (Enh 4), `--schema <file.json>` flag to bypass LLM discovery (Enh 5).
+- [x] **Phase 18: Per-domain epistemic & validator extensibility** - Custom epistemic rules as Python hooks beyond generic contradiction pairs (Enh 6), optional per-domain `validation/` scripts parallel to drug-discovery's `validate_molecules.py` (Enh 8), and the structural-biology doctype deferred from v2.0 (Part 1 Item 6). (completed 2026-04-22)
+- [x] **Phase 19: Wizard & CLI ergonomics** - Safe slugification in `generate_domain_package()` (Bug 5), wizard emits `workbench/template.yaml` automatically (Enh 1), `--domain` accepts name-or-path gracefully (Enh 4), `--schema <file.json>` flag to bypass LLM discovery (Enh 5). (completed 2026-04-22)
 - [ ] **Phase 20: README "Pipeline Capacity & Limits" section** - Document post-fix values for wizard, ingestion, acquire, and epistemic limits. Must run after all other v3.0 phases so it documents reality, not aspiration.
 
 ### Backlog (999.x — Tooling Polish, No Release Dependency)
@@ -371,7 +371,7 @@ Plans:
 
 **Scope:** Enh 6 (custom epistemic Python hooks), Enh 8 (per-domain validation/ directory), Part 1 Item 6 (structural-biology doctype — original v2.0 Phase 12 scope, folded in here since it's also an epistemic extensibility item).
 
-**Plans:** 0 plans.
+**Plans:** 2/2 plans complete
 
 ### Phase 19: Wizard & CLI ergonomics
 
@@ -379,7 +379,7 @@ Plans:
 
 **Scope:** Bug 5 (safe slugification in `generate_domain_package`), Enh 1 (wizard emits `workbench/template.yaml`), Enh 4 (`run_sift.py build --domain` name-or-path handling), Enh 5 (`--schema <file.json>` skip-LLM flag).
 
-**Plans:** 0 plans.
+**Plans:** 1/1 plans complete
 
 ### Phase 20: README "Pipeline Capacity & Limits" section
 

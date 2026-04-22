@@ -136,6 +136,10 @@ See v1 traceability below.
 
 - [x] **FIDL-07**: Domains can ship (a) custom epistemic rules as a `CUSTOM_RULES: list[callable]` in their `epistemic.py` — each rule signature `(nodes, links, context) -> list[finding]` merged into `claims_layer["super_domain"]["custom_findings"]` keyed by `rule_name`; and (b) optional `validation/run_validation.py:run_validation(output_dir) -> dict` post-extraction validator discovered by `core/domain_resolver.get_validation_dir(domain)` and auto-invoked by `cmd_build`, writing `validation_report.json`. Rule and validator failures are isolated (one failure logs `{status: error}` but does not abort). Drug-discovery `epistemic.py:infer_doc_type` gains a `"structural"` doc type covering PDB-prefixed IDs and X-ray/cryo-EM content signals; high-confidence (≥0.9) structural claims short-circuit to `"asserted"` regardless of hedging. Wizard `generate_epistemic_py` emits a no-op `CUSTOM_RULES: list = []` stub with example comment. Legacy domains without CUSTOM_RULES or validation/ dir behave identically (V2 baseline byte-identical).
 
+### Wizard & CLI Ergonomics (Phase 19)
+
+- [ ] **FIDL-08**: Four bundled polish fixes: (a) `core/domain_wizard.generate_slug(name)` helper replaces `name.lower().replace(" ", "-")` at the wizard's directory-naming site — normalizes Unicode to ASCII, collapses non-alphanumerics to single hyphens, rejects empty/double-hyphen results with clear errors; (b) wizard auto-emits `domains/<slug>/workbench/template.yaml` with `entity_colors` (deterministic palette rotation per entity type) + `analysis_patterns` stub (Pydantic-validated against `WorkbenchTemplate` from Phase 17); (c) `run_sift.py build --domain` accepts a path like `/abs/path/domains/foo/domain.yaml`, inferring `foo` when inside `domains/`, or errors with a clear "use name, not path: {inferred}" message otherwise; (d) `/epistract:domain --schema <file.json> --name <slug>` flag skips the 3-pass LLM discovery entirely and generates a domain package directly from a user-supplied schema. Legacy wizard runs and existing domains are byte-identical up to the new `workbench/template.yaml` emission (purely additive).
+
 ## Deferred (V3)
 
 - **BIOU-01**: Biomedical domain migrated to V2 architecture with full backward compatibility
@@ -222,6 +226,7 @@ See v1 traceability below.
 | FIDL-05 | Phase 16 | 16-01, 16-02 | Complete |
 | FIDL-06 | Phase 17 | 17-01, 17-02 | Complete |
 | FIDL-07 | Phase 18 | 18-01, 18-02 | Complete |
+| FIDL-08 | Phase 19 | 19-01, 19-02 | Pending |
 
 ---
 *Requirements defined: 2026-03-29 (v1), 2026-04-02 (v2), 2026-04-04 (Phase 11)*
