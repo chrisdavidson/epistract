@@ -20,8 +20,10 @@ from __future__ import annotations
 import ast
 import importlib.util
 import json
+import re
 import tempfile
 import textwrap
+import unicodedata
 
 import yaml
 
@@ -787,6 +789,124 @@ def validate_generated_epistemic(code: str, domain_slug: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# FIDL-08 — Slug + workbench template helpers (Phase 19 Plan 19-01)
+# ---------------------------------------------------------------------------
+
+# 12-color vis.js-friendly palette cycled by entity_type alphabetical order
+# when emitting workbench/template.yaml (D-04). Locked order — UT-052 asserts
+# indices 0, 1, 2 explicitly; any reorder is a breaking change requiring a
+# test update.
+DEFAULT_ENTITY_COLORS = [
+    "#97c2fc",
+    "#ffa07a",
+    "#90ee90",
+    "#f1c40f",
+    "#e74c3c",
+    "#9b59b6",
+    "#1abc9c",
+    "#e67e22",
+    "#34495e",
+    "#fd79a8",
+    "#636e72",
+    "#00b894",
+]
+
+
+def generate_slug(name: str) -> str:
+    """Produce a safe directory name from a human-readable domain name.
+
+    Rules (D-01):
+        1. NFKD-normalize and strip non-ASCII chars (accents, CJK, etc.).
+        2. Lowercase.
+        3. Replace every run of non-[a-z0-9] with a single '-'.
+        4. Strip leading/trailing '-'.
+        5. Collapse any residual '--+' to a single '-'.
+
+    Raises:
+        ValueError: If the final slug is empty OR contains '--' (defense in
+            depth — the regex should prevent '--' but the assertion catches
+            any future regex drift).
+
+    Examples:
+        >>> generate_slug("Q&A Analysis (v2)")
+        'q-a-analysis-v2'
+        >>> generate_slug("  Hello World  ")
+        'hello-world'
+        >>> generate_slug("drug-discovery")  # existing-domain invariant
+        'drug-discovery'
+    """
+    # (1) + (2) NFKD + ASCII strip + lowercase
+    ascii_value = (
+        unicodedata.normalize("NFKD", name)
+        .encode("ascii", "ignore")
+        .decode("ascii")
+        .lower()
+    )
+    # (3) Non-alnum runs → single '-'
+    slug = re.sub(r"[^a-z0-9]+", "-", ascii_value)
+    # (4) Strip leading/trailing hyphens
+    slug = slug.strip("-")
+    # (5) Defensive: collapse '--+' (the regex above should already prevent
+    # these, but a belt-and-suspenders pass guards against future regex drift)
+    slug = re.sub(r"-+", "-", slug)
+    # Post-condition: reject empty or malformed
+    if not slug or "--" in slug:
+        raise ValueError(f"Cannot derive slug from: {name!r}")
+    return slug
+
+
+def generate_workbench_template(domain_slug: str, entity_types: dict) -> str:
+    """Emit a Pydantic-valid workbench/template.yaml for a new domain (D-04).
+
+    Produces a complete override (not a partial) — every field of
+    `examples.workbench.template_schema.WorkbenchTemplate` is populated so
+    downstream consumers never fall back to defaults. Colors assigned
+    deterministically by sorting entity_types keys alphabetically and cycling
+    through `DEFAULT_ENTITY_COLORS` via modulo (D-04 + D-16).
+
+    Args:
+        domain_slug: The normalized slug (from generate_slug) — used to seed
+            stub title/subtitle text.
+        entity_types: Mapping of entity-type name -> {description: ...}.
+            Insertion order is NOT honored — keys are sorted alphabetically
+            before palette assignment to guarantee determinism (UT-052 gate).
+
+    Returns:
+        YAML string (from yaml.safe_dump, sort_keys=False) ready to write to
+        `domains/<slug>/workbench/template.yaml`.
+    """
+    pretty_name = domain_slug.replace("-", " ").replace("_", " ").title()
+    sorted_entity_types = sorted(entity_types.keys())
+    entity_colors = {
+        entity_type: DEFAULT_ENTITY_COLORS[i % len(DEFAULT_ENTITY_COLORS)]
+        for i, entity_type in enumerate(sorted_entity_types)
+    }
+
+    data = {
+        "title": f"{pretty_name} Knowledge Graph Explorer",
+        "subtitle": f"Explore {pretty_name.lower()} entities and relationships",
+        "persona": (
+            f"You are a {pretty_name.lower()} knowledge graph analyst. "
+            "Answer questions using the graph data provided. Cite source "
+            "documents when referencing specific findings."
+        ),
+        "placeholder": "Ask a question about the knowledge graph...",
+        "loading_message": "Analyzing",
+        "starter_questions": [],
+        "entity_colors": entity_colors,
+        "dashboard": {
+            "title": f"{pretty_name} Knowledge Graph Summary",
+            "subtitle": "",
+        },
+        "analysis_patterns": {
+            "cross_references_heading": "CROSS-DOMAIN REFERENCES",
+            "appears_in_phrase": "appears in",
+        },
+    }
+    return yaml.safe_dump(data, sort_keys=False, default_flow_style=False, allow_unicode=True)
+
+
+# ---------------------------------------------------------------------------
 # Package writer
 # ---------------------------------------------------------------------------
 
@@ -798,6 +918,8 @@ def write_domain_package(
     epistemic_py: str,
     entity_types_md: str,
     relation_types_md: str,
+    *,
+    workbench_yaml: str | None = None,
 ) -> Path:
     """Write all domain package files to the domains directory.
 
@@ -808,6 +930,10 @@ def write_domain_package(
         epistemic_py: Content for epistemic.py.
         entity_types_md: Content for references/entity-types.md.
         relation_types_md: Content for references/relation-types.md.
+        workbench_yaml: Optional content for workbench/template.yaml
+            (FIDL-08 D-05). When None, no workbench/ dir is created — existing
+            callers are byte-identical. When provided, creates
+            `domain_dir/workbench/` and writes `template.yaml`.
 
     Returns:
         Path to the created domain directory.
@@ -824,6 +950,11 @@ def write_domain_package(
     (domain_dir / "__init__.py").write_text("")
     (refs_dir / "entity-types.md").write_text(entity_types_md)
     (refs_dir / "relation-types.md").write_text(relation_types_md)
+
+    if workbench_yaml is not None:
+        workbench_dir = domain_dir / "workbench"
+        workbench_dir.mkdir(parents=True, exist_ok=True)
+        (workbench_dir / "template.yaml").write_text(workbench_yaml)
 
     return domain_dir
 
@@ -921,11 +1052,13 @@ def generate_domain_package(
     # Validate epistemic before writing
     validation = validate_generated_epistemic(epistemic_py, domain_slug)
 
-    # Write package
-    dir_name = domain_name.lower().replace(" ", "-")
+    # Write package (FIDL-08 D-02 + D-06 — slug via generate_slug, workbench template auto-emit)
+    dir_name = generate_slug(domain_name)
+    workbench_yaml = generate_workbench_template(dir_name, entity_types)
     domain_dir = write_domain_package(
         dir_name, domain_yaml, skill_md, epistemic_py,
         entity_types_md, relation_types_md,
+        workbench_yaml=workbench_yaml,
     )
 
     return {
@@ -938,5 +1071,6 @@ def generate_domain_package(
             str(domain_dir / "__init__.py"),
             str(domain_dir / "references" / "entity-types.md"),
             str(domain_dir / "references" / "relation-types.md"),
+            str(domain_dir / "workbench" / "template.yaml"),
         ],
     }
