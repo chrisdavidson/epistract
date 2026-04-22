@@ -140,6 +140,10 @@ See v1 traceability below.
 
 - [x] **FIDL-08**: Four bundled polish fixes: (a) `core/domain_wizard.generate_slug(name)` helper replaces `name.lower().replace(" ", "-")` at the wizard's directory-naming site — normalizes Unicode to ASCII, collapses non-alphanumerics to single hyphens, rejects empty/double-hyphen results with clear errors; (b) wizard auto-emits `domains/<slug>/workbench/template.yaml` with `entity_colors` (deterministic palette rotation per entity type) + `analysis_patterns` stub (Pydantic-validated against `WorkbenchTemplate` from Phase 17); (c) `run_sift.py build --domain` accepts a path like `/abs/path/domains/foo/domain.yaml`, inferring `foo` when inside `domains/`, or errors with a clear "use name, not path: {inferred}" message otherwise; (d) `/epistract:domain --schema <file.json> --name <slug>` flag skips the 3-pass LLM discovery entirely and generates a domain package directly from a user-supplied schema. Legacy wizard runs and existing domains are byte-identical up to the new `workbench/template.yaml` emission (purely additive).
 
+### README Pipeline Capacity & Limits (Phase 20)
+
+- [x] **FIDL-09**: `README.md` has a new `## Pipeline Capacity & Limits` section between `## How It Works` and `## Pre-built Domains` documenting the post-v3.0 (Phases 12–19) pipeline state — four subsections (Document Ingestion, Wizard Schema Discovery, Extraction & Graph Build, Epistemic Layer), each with a `Feature | Value | Notes` table and "Known limits" bullets referencing `docs/known-limitations.md` for depth. Every claim is grep-verifiable; no aspirational numbers. Section is concise (≤150 lines of markdown). Completion of FIDL-09 closes the v3.0 milestone "Graph Fidelity & Honest Limits."
+
 ## Deferred (V3)
 
 - **BIOU-01**: Biomedical domain migrated to V2 architecture with full backward compatibility
@@ -227,7 +231,8 @@ See v1 traceability below.
 | FIDL-06 | Phase 17 | 17-01, 17-02 | Complete |
 | FIDL-07 | Phase 18 | 18-01, 18-02 | Complete |
 | FIDL-08 | Phase 19 | 19-01, 19-02 | Complete |
+| FIDL-09 | Phase 20 | 20-01 | Complete |
 
 ---
 *Requirements defined: 2026-03-29 (v1), 2026-04-02 (v2), 2026-04-04 (Phase 11)*
-*Last updated: 2026-04-22 — FIDL-08 Phase 19 complete (Wizard & CLI Ergonomics)*
+*Last updated: 2026-04-22 — FIDL-09 Phase 20 complete (README Pipeline Capacity & Limits)*
