@@ -568,6 +568,36 @@ These are real research questions a PhD scientist would ask. Each tests whether 
 
 ---
 
+## Phase 19 — Wizard & CLI Ergonomics (FIDL-08)
+
+### UT-051: generate_slug produces safe directory names across edge-case inputs
+- **Traces to:** FIDL-08 (D-01, D-15)
+- **Test:** Import `from core.domain_wizard import generate_slug`. Parametrized (or sequential) asserts covering the D-15 edge table:
+  - `generate_slug("Q&A Analysis (v2)")` == `"q-a-analysis-v2"` — non-alphanumerics collapsed to single hyphens, trimmed.
+  - `generate_slug("  Hello World  ")` == `"hello-world"` — leading/trailing whitespace trimmed.
+  - `generate_slug("multi--dash")` == `"multi-dash"` — double hyphen collapsed.
+  - `generate_slug("drug-discovery")` == `"drug-discovery"` — byte-identical for existing clean inputs (D-14 backward-compat).
+  - `generate_slug("contracts")` == `"contracts"` — byte-identical for existing clean inputs.
+  - `generate_slug("")` raises `ValueError`.
+  - `generate_slug("   ")` raises `ValueError` (empty after trim).
+  - `generate_slug("中文 Analysis")` == `"analysis"` (non-ASCII stripped via NFKD + ASCII-ignore) — OR raises `ValueError` if stripped result is empty (pure non-Latin input with zero Latin chars). Mixed case asserts `"analysis"`.
+- **Pass criteria:** All edge-case entries produce the locked output or raise the specified exception; no unexpected exceptions propagate; every character of every successful return is in `[a-z0-9-]`; no returned slug contains `"--"`; no returned slug has leading/trailing `-`.
+- **Dependency:** None — pure function test; no sift-kg, no tmp dirs, no fixtures.
+
+### UT-052: generate_workbench_template emits WorkbenchTemplate-valid YAML with deterministic palette
+- **Traces to:** FIDL-08 (D-04, D-16)
+- **Test:** Import `from core.domain_wizard import generate_workbench_template` AND `from examples.workbench.template_schema import WorkbenchTemplate`. Build synthetic `entity_types = {"Foo": {"description": "x"}, "Bar": {"description": "y"}, "Baz": {"description": "z"}}`. Call `emitted = generate_workbench_template("test-domain", entity_types)`. Parse via `parsed = yaml.safe_load(emitted)`. Assert:
+  1. `WorkbenchTemplate.model_validate(parsed)` raises no exception (Phase 17 Pydantic contract gate — D-16).
+  2. `set(parsed["entity_colors"].keys()) == {"Foo", "Bar", "Baz"}` (one color per entity type).
+  3. `parsed["entity_colors"]["Bar"]` == palette[0] (Bar sorts first alphabetically); `parsed["entity_colors"]["Baz"]` == palette[1]; `parsed["entity_colors"]["Foo"]` == palette[2] — deterministic palette rotation.
+  4. `"cross_references_heading" in parsed["analysis_patterns"]` AND `"appears_in_phrase" in parsed["analysis_patterns"]` — required keys from `AnalysisPatterns` model.
+  5. `parsed["dashboard"]` is a dict with `title` and `subtitle` keys (DashboardConfig shape).
+  6. Determinism: `generate_workbench_template("test-domain", entity_types) == generate_workbench_template("test-domain", entity_types)` — byte-identical on repeat calls.
+- **Pass criteria:** All six assertions pass; YAML is fully-formed and Pydantic-valid; palette assignment is sort-order-deterministic (dict insertion order of input does NOT affect output).
+- **Dependency:** PyYAML, Pydantic v2 (both already pinned ≥2.5 via sift-kg); no sift-kg runtime; no fixtures.
+
+---
+
 ## 4. Traceability Matrix
 
 | Requirement | Domain Spec Section | Entity Types Tested | Relation Types Tested | Test Corpus |
@@ -604,3 +634,5 @@ These are real research questions a PhD scientist would ask. Each tests whether 
 | UT-049 | FIDL-07 (D-05, D-06, D-14) | N/A (doctype + status) | N/A | Inline assertions |
 | UT-050 | FIDL-07 (D-02, D-09, D-15) | N/A (rule isolation) | N/A | Synthetic tmpdir |
 | FT-019 | FIDL-07 (D-05, D-06, D-16) | GENE, COMPOUND | TARGETS | Synthetic pdb_1abc + contracts fixture |
+| UT-051 | FIDL-08 (D-01, D-15) | N/A (slug helper) | N/A | Inline edge table |
+| UT-052 | FIDL-08 (D-04, D-16) | N/A (template emitter) | N/A | Synthetic entity_types dict |
