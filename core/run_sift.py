@@ -17,7 +17,53 @@ import json
 import sys
 from pathlib import Path
 
-from core.domain_resolver import resolve_domain, list_domains
+from core.domain_resolver import resolve_domain, list_domains, DOMAINS_DIR
+
+
+def resolve_domain_arg(value: str) -> str:
+    """Shim for --domain CLI arg: accepts a name OR a path to domains/<name>/domain.yaml.
+
+    FIDL-08 D-07, D-08:
+      - Bare name (no '/' and not ending in '.yaml') → return unchanged. The
+        bare-name branch never touches the filesystem (D-08 explicit
+        non-ambiguity).
+      - Path inside DOMAINS_DIR matching `<DOMAINS_DIR>/<name>/domain.yaml`
+        → return `<name>`.
+      - Path outside DOMAINS_DIR → print error to stderr and sys.exit(1) with
+        a clear "use --domain <inferred_name>" message.
+    """
+    # D-08: bare-name path never touches the filesystem
+    if "/" not in value and not value.endswith(".yaml"):
+        return value
+
+    path = Path(value).resolve()
+    domains_root = DOMAINS_DIR.resolve()
+
+    try:
+        rel = path.relative_to(domains_root)
+    except ValueError:
+        # Path is outside DOMAINS_DIR — clear error
+        inferred = path.parent.name if path.name == "domain.yaml" else path.stem
+        print(
+            f"Error: --domain expects a name registered under domains/, "
+            f"not an arbitrary path. Try --domain {inferred} after registering the domain.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Path inside DOMAINS_DIR — must be <name>/domain.yaml to be valid
+    parts = rel.parts
+    if len(parts) >= 2 and parts[-1] == "domain.yaml":
+        return parts[0]
+
+    # Inside DOMAINS_DIR but not a valid <name>/domain.yaml location
+    print(
+        f"Error: --domain expects a name registered under domains/, "
+        f"not an arbitrary path. Try --domain "
+        f"{parts[0] if parts else 'unknown'} after registering the domain.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
 
 
 def _import_sift(names: list[str]):
@@ -331,7 +377,8 @@ if __name__ == "__main__":
     if cmd == "build":
         domain = None
         if "--domain" in sys.argv:
-            domain = sys.argv[sys.argv.index("--domain") + 1]
+            raw_domain_arg = sys.argv[sys.argv.index("--domain") + 1]
+            domain = resolve_domain_arg(raw_domain_arg)  # FIDL-08 D-07: accept name or path
         cmd_build(sys.argv[2], domain)
     elif cmd == "view":
         kwargs = {}
