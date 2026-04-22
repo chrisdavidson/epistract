@@ -515,6 +515,35 @@ These are real research questions a PhD scientist would ask. Each tests whether 
 - **Pass criteria:** All four sub-tests pass; existing /api/template endpoint behavior preserved (D-14 — no regression on test_template_api_endpoint or test_template_api_generic).
 - **Dependency:** FastAPI TestClient (already used by other tests in test_workbench.py), no sift-kg, no external LLM.
 
+## Phase 18 — Per-Domain Epistemic & Validator Extensibility (FIDL-07)
+
+### UT-047: CUSTOM_RULES dispatch merges findings into claims_layer.super_domain.custom_findings
+- **Traces to:** FIDL-07 (D-01, D-02, D-12)
+- **Test:** Create a synthetic domain via `tmp_path / "domains" / "testdomain"` with `domain.yaml` (minimal valid schema — one entity type, one relation type) and an `epistemic.py` containing `CUSTOM_RULES = [good_rule]` where `good_rule(nodes, links, context)` returns `[{"rule_name": "good_rule", "type": "demo", "severity": "INFO", "description": "hello", "evidence": {}}]` AND an `analyze_testdomain_epistemic(output_dir, graph_data)` stub returning a minimal valid `claims_layer` dict. Monkeypatch `core.label_epistemic._load_domain_epistemic` to return the synthetic module. Write a stub `graph_data.json` into `tmp_path / "out"` (with `metadata.domain = "testdomain"`, empty nodes/links). Call `label_epistemic.analyze_epistemic(tmp_path / "out", domain_name="testdomain")`. Load `claims_layer.json`. Assert `claims_layer["super_domain"]["custom_findings"]["good_rule"][0]["description"] == "hello"` AND `claims_layer["super_domain"]["custom_findings"]["good_rule"][0]["rule_name"] == "good_rule"`. Also assert `context` passed into `good_rule` contained `output_dir`, `graph_data`, and `domain_name` keys.
+- **Pass criteria:** claims_layer.super_domain.custom_findings["good_rule"][0]["description"] == "hello"; context dict has all three required keys.
+- **Dependency:** None — synthetic domain on tmp_path, no sift-kg, no real domain touched.
+
+### UT-048: get_validation_dir returns Path for drug-discovery, None for contracts / unknown
+- **Traces to:** FIDL-07 (D-03, D-13)
+- **Test:** Import `from core.domain_resolver import get_validation_dir`. Four branches:
+  1. `get_validation_dir("drug-discovery")` returns a `Path` pointing at `<PROJECT_ROOT>/domains/drug-discovery/validation`, AND `(returned_path / "run_validation.py").exists()` is True.
+  2. `get_validation_dir("contracts")` returns `None` (no validation/ dir in contracts domain).
+  3. `get_validation_dir("nonexistent-domain-xyz")` returns `None` (catches FileNotFoundError from _resolve_domain_dir).
+  4. Also assert `resolve_domain("drug-discovery")["validation_dir"]` equals `str(<PROJECT_ROOT>/domains/drug-discovery/validation)`. Assert `resolve_domain("contracts")["validation_dir"] is None`. Assert all five pre-existing keys (`name`, `dir`, `yaml_path`, `skill_path`, `schema`) still present unchanged.
+- **Pass criteria:** All four branches return the expected Path/None; resolve_domain's dict has `validation_dir` key with correct value; no pre-existing key removed.
+- **Dependency:** None — real domains/ dir on disk is read-only; no sift-kg required.
+
+### UT-050: Rule-failure isolation — one broken rule does not abort others
+- **Traces to:** FIDL-07 (D-02, D-09, D-15)
+- **Test:** Same synthetic-testdomain pattern as UT-047. `CUSTOM_RULES = [good_rule_a, broken_rule, good_rule_b]`. `good_rule_a` returns one INFO finding. `broken_rule` does `raise ValueError("boom")` as its first line. `good_rule_b` returns one INFO finding. Call `analyze_epistemic` as in UT-047. Assert:
+  - `claims_layer["super_domain"]["custom_findings"]["good_rule_a"][0]["description"] == "a"`
+  - `claims_layer["super_domain"]["custom_findings"]["good_rule_b"][0]["description"] == "b"`
+  - `claims_layer["super_domain"]["custom_findings"]["broken_rule"][0]["status"] == "error"`
+  - `"boom" in claims_layer["super_domain"]["custom_findings"]["broken_rule"][0]["error"]`
+  - No `ValueError` propagates from `analyze_epistemic` (the call returns normally).
+- **Pass criteria:** All three rule outputs coexist in custom_findings; broken_rule has `status == "error"` and its error message contains `"boom"`; no exception propagates.
+- **Dependency:** None — synthetic domain on tmp_path, no sift-kg.
+
 ---
 
 ## 4. Traceability Matrix
@@ -548,3 +577,6 @@ These are real research questions a PhD scientist would ask. Each tests whether 
 | UT-045 | FIDL-06 (D-03, D-07, D-08, D-09, D-11) | N/A (resolver) | N/A | Stub graph_data.json |
 | UT-046 | FIDL-06 (D-06) | N/A (system prompt) | N/A | Stub WorkbenchData |
 | FT-018 | FIDL-06 (D-03, D-07, D-08, D-09, D-13) | N/A (e2e) | N/A | Stub graph_data.json |
+| UT-047 | FIDL-07 (D-01, D-02, D-12) | N/A (rule dispatch) | N/A | Synthetic tmpdir |
+| UT-048 | FIDL-07 (D-03, D-13) | N/A (resolver) | N/A | N/A (real domains/ dir) |
+| UT-050 | FIDL-07 (D-02, D-09, D-15) | N/A (rule isolation) | N/A | Synthetic tmpdir |
