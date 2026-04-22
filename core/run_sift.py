@@ -34,6 +34,35 @@ def _import_sift(names: list[str]):
     return tuple(getattr(sift_kg, n) for n in names)
 
 
+def _load_validation_module(validation_dir: Path):
+    """Dynamically load validation/run_validation.py (FIDL-07 D-04).
+
+    Mirrors core.label_epistemic._load_domain_epistemic — uses
+    importlib.util.spec_from_file_location so the module loads regardless
+    of Python's package context.
+
+    Args:
+        validation_dir: Path to the domain's validation/ directory.
+
+    Returns:
+        The loaded module, or None if ``run_validation.py`` is absent or the
+        spec fails to load.
+    """
+    import importlib.util
+    module_path = validation_dir / "run_validation.py"
+    if not module_path.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location(
+        f"domains.{validation_dir.parent.name}.validation.run_validation",
+        module_path,
+    )
+    if spec is None or spec.loader is None:
+        return None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def cmd_build(output_dir: str, domain_name: str | None = None):
     run_build, load_domain = _import_sift(["run_build", "load_domain"])
 
@@ -73,6 +102,68 @@ def cmd_build(output_dir: str, domain_name: str | None = None):
         label_communities(Path(output_dir))
     except Exception as e:
         print(f"Warning: community labeling failed: {e}", file=sys.stderr)
+
+    # FIDL-07 (D-04, D-08): post-build validation dispatch.
+    # If the domain ships a validation/run_validation.py convention entry
+    # point, call it with the output_dir and write its return dict to
+    # validation_report.json. Non-fatal: exceptions write an error-status
+    # report but do NOT abort cmd_build. Domains without a validation/ dir
+    # (e.g. contracts) silently skip — no warning, no report.
+    if domain_name:
+        try:
+            domain_info = resolve_domain(domain_name)
+        except FileNotFoundError:
+            domain_info = {"validation_dir": None}
+    else:
+        # Default-domain path — mirror the load_domain default above so a
+        # `cmd_build <out>` (no --domain flag) still triggers drug-discovery
+        # validation.
+        try:
+            domain_info = resolve_domain("drug-discovery")
+        except FileNotFoundError:
+            domain_info = {"validation_dir": None}
+
+    validation_dir_str = domain_info.get("validation_dir")
+    if validation_dir_str:
+        validation_dir = Path(validation_dir_str)
+        report_path = Path(output_dir) / "validation_report.json"
+        try:
+            val_mod = _load_validation_module(validation_dir)
+            if val_mod is None or not hasattr(val_mod, "run_validation"):
+                report = {
+                    "status": "error",
+                    "error": "run_validation callable not found",
+                    "domain": domain_name,
+                }
+            else:
+                report = val_mod.run_validation(Path(output_dir))
+                if not isinstance(report, dict):
+                    report = {
+                        "status": "error",
+                        "error": f"run_validation returned non-dict: {type(report).__name__}",
+                        "domain": domain_name,
+                    }
+        except Exception as e:  # noqa: BLE001 — validator failures are non-fatal
+            report = {
+                "status": "error",
+                "error": str(e),
+                "domain": domain_name,
+            }
+            print(
+                f"Warning: validation dispatch for {domain_name!r} failed: {e}",
+                file=sys.stderr,
+            )
+
+        try:
+            report_path.write_text(
+                json.dumps(report, indent=2, default=str),
+                encoding="utf-8",
+            )
+        except OSError as e:
+            print(
+                f"Warning: could not write {report_path}: {e}",
+                file=sys.stderr,
+            )
 
     print(json.dumps({
         "entities": kg.entity_count,

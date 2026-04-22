@@ -430,6 +430,45 @@ def analyze_epistemic(
         # Final fallback: built-in biomedical analysis
         claims_layer = _builtin_biomedical_epistemic(output_dir, graph_data)
 
+    # FIDL-07 (D-01, D-02, D-09): iterate CUSTOM_RULES after domain dispatch.
+    # Each rule is called with (nodes, links, context); findings merge into
+    # claims_layer.super_domain.custom_findings keyed by rule.__name__.
+    # Per-rule try/except isolates failures — one bad rule cannot abort the
+    # phase. Absent CUSTOM_RULES attribute → empty list → no custom_findings
+    # key added (D-07 backward-compat: V2 baseline JSON is byte-identical
+    # when no domain has adopted the hook).
+    if domain_mod is not None:
+        custom_rules = getattr(domain_mod, "CUSTOM_RULES", [])
+        if custom_rules:
+            nodes = graph_data.get("nodes", [])
+            links = graph_data.get("links", [])
+            context = {
+                "output_dir": output_dir,
+                "graph_data": graph_data,
+                "domain_name": effective_domain,
+            }
+            super_domain = claims_layer.setdefault("super_domain", {})
+            custom_findings = super_domain.setdefault("custom_findings", {})
+            for rule in custom_rules:
+                rule_name = getattr(rule, "__name__", "<anonymous>")
+                try:
+                    findings = rule(nodes, links, context)
+                    if not isinstance(findings, list):
+                        findings = []
+                    custom_findings[rule_name] = findings
+                except Exception as e:  # noqa: BLE001 — rule isolation is the whole point
+                    custom_findings[rule_name] = [
+                        {
+                            "rule_name": rule_name,
+                            "status": "error",
+                            "error": str(e),
+                        }
+                    ]
+                    print(
+                        f"Warning: CUSTOM_RULE {rule_name!r} failed: {e}",
+                        file=sys.stderr,
+                    )
+
     # Write claims layer
     claims_path = output_dir / "claims_layer.json"
     claims_path.write_text(json.dumps(claims_layer, indent=2))
