@@ -128,7 +128,7 @@ Phase priority is **blocking-ness first, silent quality second, polish last**. S
 - [x] **Phase 17: Domain awareness in consumers** - Workbench ignores `--domain` flag (Bug 1), graph.html has empty title (Bug 2) and uses generic palette (Enh 7), system prompt hardcodes contracts vocab (Enh 9), dashboard needs auto-detection (Enh 10). Systemic "domain context doesn't propagate past graph build." (completed 2026-04-21)
 - [x] **Phase 18: Per-domain epistemic & validator extensibility** - Custom epistemic rules as Python hooks beyond generic contradiction pairs (Enh 6), optional per-domain `validation/` scripts parallel to drug-discovery's `validate_molecules.py` (Enh 8), and the structural-biology doctype deferred from v2.0 (Part 1 Item 6). (completed 2026-04-22)
 - [x] **Phase 19: Wizard & CLI ergonomics** - Safe slugification in `generate_domain_package()` (Bug 5), wizard emits `workbench/template.yaml` automatically (Enh 1), `--domain` accepts name-or-path gracefully (Enh 4), `--schema <file.json>` flag to bypass LLM discovery (Enh 5). (completed 2026-04-22)
-- [ ] **Phase 20: README "Pipeline Capacity & Limits" section** - Document post-fix values for wizard, ingestion, acquire, and epistemic limits. Must run after all other v3.0 phases so it documents reality, not aspiration.
+- [x] **Phase 20: README "Pipeline Capacity & Limits" section** - Document post-fix values for wizard, ingestion, acquire, and epistemic limits. Must run after all other v3.0 phases so it documents reality, not aspiration. (completed 2026-04-22)
 
 ### Backlog (999.x — Tooling Polish, No Release Dependency)
 
@@ -136,6 +136,7 @@ Phase priority is **blocking-ness first, silent quality second, polish last**. S
 - [ ] **Phase 999.2: git-remote-sync recipe** - Pull latest main before pushing a feature branch (placeholder, no scope yet)
 - [ ] **Phase 999.3: V2 Automation Hardening** - Finalize `.claude/settings.local.json` allow-list for zero-prompt V2 scenario runs; document copy-paste recipe in `docs/showcases/drug-discovery-v2.md`; remove dead pre-v2.0 allow-list entries. Promoted from the 2026-04-13 automation friction + auto-approve todos. See `phases/999.3-v2-automation-hardening/SCOPE.md`.
 - [x] **Phase 999.4: Evaluate opendataloader-pdf vs Kreuzberg** - Side-by-side bakeoff of `opendataloader-pdf` against the current Kreuzberg-based PDF reader on a mixed contract + biomedical + edge-case corpus. Decide adopt / supplement / reject. Promoted from a 2026-04-18 Phase 14 discussion deferral. Depends on Phase 14 + 15 complete. See `phases/999.4-evaluate-opendataloader-pdf-vs-kreuzberg/SCOPE.md`. (completed 2026-04-20)
+- [ ] **Phase 999.5: Agent-tool model override fails silently on 1M-context parent** - Agent tool `model: "sonnet"` resolves to non-existent `claude-sonnet-4-6-1m` when parent runs Opus 4.7 1M; fails with cryptic `There's an issue with the selected model`. Hit twice (Phase 18 autonomous run; v3.0 S06 rebuild 2026-04-22). Fix: preflight probe before fan-out, suffix-strip retry, or graceful fallback to parent inheritance. Update `/epistract:domain` wizard and `/epistract:ingest` dispatcher. Document in `docs/known-limitations.md`. v3.1 candidate. No user-visible impact for non-1M parent models.
 
 ## Phase Details
 
@@ -379,7 +380,7 @@ Plans:
 
 **Scope:** Bug 5 (safe slugification in `generate_domain_package`), Enh 1 (wizard emits `workbench/template.yaml`), Enh 4 (`run_sift.py build --domain` name-or-path handling), Enh 5 (`--schema <file.json>` skip-LLM flag).
 
-**Plans:** 1/1 plans complete
+**Plans:** 2/2 plans complete
 
 ### Phase 20: README "Pipeline Capacity & Limits" section
 
@@ -388,4 +389,4 @@ Plans:
 **Scope:** Part 1 Item 5. Draft language already written 2026-04-16 analysis — needs to be revised with actual post-fix values before landing.
 
 **Depends on:** Phases 12–19 complete.
-**Plans:** 0 plans.
+**Plans:** 1/1 plans complete

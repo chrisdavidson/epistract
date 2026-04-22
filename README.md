@@ -392,6 +392,26 @@ Epistract was evaluated across six drug discovery research scenarios spanning ge
 | 5 | Cardiovascular & Inflammation | Cardiology + autoimmune | 15 | 90 | 245 | 4 | ✅ PASS |
 | 6 | GLP-1 Competitive Intelligence | Patents + papers multi-source | 34 | 193 | 619 | 9 | ✅ PASS |
 
+#### Scenario 6 — V3 Pipeline Rebuild (2026-04-22)
+
+Re-ran the S6 GLP-1 corpus (same 34 documents — 10 patents + 24 PubMed abstracts) through v3.0 with Sonnet 4.6 extraction to measure the impact of v3's graph fidelity improvements:
+
+| Metric | V2 (Opus 4.6) | V3 (Sonnet 4.6) | Δ |
+|---|---:|---:|---|
+| Nodes | 193 | 278 | +44% |
+| Edges | 619 | 855 | +38% |
+| Communities | 9 | 10 | +1 |
+| Prophetic patent claims | 15 | 61 | +307% |
+| Contested claims | 5 | 33 | +560% |
+| `metadata.domain` in `graph_data.json` | — | `drug-discovery` | new (FIDL-06) |
+| `validation_report.json` auto-emitted | — | yes (RDKit skipped cleanly) | new (FIDL-07) |
+
+**V3 pipeline wins (model-independent):** Pydantic-validated extractions at write time (FIDL-02c) — zero silent drops; domain-aware metadata propagation (FIDL-06) — downstream consumers auto-detect domain without `--domain` on every call; auto-validator dispatch (FIDL-07) — `cmd_build` invoked `domains/drug-discovery/validation/run_validation.py` automatically and produced `validation_report.json` (gracefully skipped with "RDKit not installed" instead of hard-failing).
+
+The **4× jump in prophetic claims** (15 → 61) reflects Sonnet 4.6's thoroughness on patent forward-looking language ("is expected to", "may be prepared by") combined with v3's stricter validation keeping every extraction. The model change (Opus 4.6 → Sonnet 4.6) is a confound for raw node/edge counts; the FIDL-06/FIDL-07 artifacts are pipeline-level features independent of extractor choice.
+
+Rebuild artifacts: `tests/corpora/06_glp1_landscape/output-v3/` — `graph_data.json`, `communities.json`, `claims_layer.json`, `validation_report.json`, `graph.html`, `s06_delta.json`.
+
 #### Scenario Gallery
 
 <table>
