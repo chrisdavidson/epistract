@@ -596,6 +596,27 @@ These are real research questions a PhD scientist would ask. Each tests whether 
 - **Pass criteria:** All six assertions pass; YAML is fully-formed and Pydantic-valid; palette assignment is sort-order-deterministic (dict insertion order of input does NOT affect output).
 - **Dependency:** PyYAML, Pydantic v2 (both already pinned ≥2.5 via sift-kg); no sift-kg runtime; no fixtures.
 
+### UT-053: resolve_domain_arg path shim handles name, path, outside-domains cases
+- **Traces to:** FIDL-08 (D-07, D-08, D-17)
+- **Test:** Import `from core.run_sift import resolve_domain_arg`. Assertions:
+  - Bare name passthrough: `resolve_domain_arg("contracts") == "contracts"` AND `resolve_domain_arg("drug-discovery") == "drug-discovery"` — bare name never touches the filesystem (D-08 explicit non-ambiguity).
+  - Path → name extraction: `resolve_domain_arg(str(DOMAINS_DIR / "contracts" / "domain.yaml")) == "contracts"` AND same for drug-discovery.
+  - Outside-domains path: `resolve_domain_arg(str(tmp_path / "alien" / "domain.yaml"))` raises `SystemExit(non-zero)` with stderr containing `"--domain expects a name registered under domains/"`.
+- **Pass criteria:** All three branches behave per D-07/D-08; bare-name branch is filesystem-free (`"/" not in value and not value.endswith(".yaml")` check short-circuits).
+- **Dependency:** Real `domains/contracts/` and `domains/drug-discovery/` directories (always present in repo); `tmp_path` for the outside-domains case.
+
+### UT-054: --schema bypass creates domain package without importing LiteLLM
+- **Traces to:** FIDL-08 (D-09, D-10, D-11, D-18)
+- **Test:** Monkeypatch `sys.modules["litellm"] = None` so any `import litellm` fails. Build synthetic schema dict (2 entity types, 1 relation type + description/context/guidelines). Monkeypatch `core.domain_wizard.DOMAINS_DIR` to `tmp_path/domains` (prevents real-domain pollution). Call `main(["--schema", <schema>, "--name", "ut054-test-domain"])`. Assert: exit code 0; `tmp/domains/ut054-test-domain/{domain.yaml, SKILL.md, epistemic.py, workbench/template.yaml}` all exist; no LLM import fired (monkeypatch enforced — bypass never touches LiteLLM).
+- **Pass criteria:** Bypass completes without triggering LLM; all package files written; test leaves zero permanent state in repo's real `domains/`.
+- **Dependency:** No sift-kg, no LLM, no network — pure stdlib + PyYAML.
+
+### FT-020: End-to-end /epistract:domain --schema → domain package with valid WorkbenchTemplate
+- **Traces to:** FIDL-08 (D-09, D-10, D-11, D-19)
+- **Test:** Load fixture `tests/fixtures/wizard/schema.json` (3 entity types — PARTY, OBLIGATION, TERM; 2 relation types — HAS_OBLIGATION, EXPIRES_ON; optional metadata keys for description/system_context/extraction_guidelines). Monkeypatch `DOMAINS_DIR` → `tmp_path/domains`. Invoke `main(["--schema", <fixture>, "--name", "ft020-test-domain"])` in-process. Assert: all 7 expected package files exist (domain.yaml, SKILL.md, epistemic.py, __init__.py, references/entity-types.md, references/relation-types.md, workbench/template.yaml); the emitted `workbench/template.yaml` parses and validates against the Phase 17 `WorkbenchTemplate` Pydantic model; `entity_colors` keys match the fixture's 3 entity types.
+- **Pass criteria:** End-to-end wizard bypass produces a Pydantic-valid, complete domain package. Test leaves ZERO permanent state in real `domains/` dir — verified by `ls domains/ | grep -v -E '(contracts|drug-discovery)'` returning empty.
+- **Dependency:** `tests/fixtures/wizard/schema.json`; no sift-kg required (module-level `pytestmark` skipif(not HAS_SIFTKG) overridden by an explicit `@pytest.mark.skipif(False, ...)` decorator on FT-020); PyYAML + Pydantic for the validation gate.
+
 ---
 
 ## 4. Traceability Matrix
@@ -636,3 +657,6 @@ These are real research questions a PhD scientist would ask. Each tests whether 
 | FT-019 | FIDL-07 (D-05, D-06, D-16) | GENE, COMPOUND | TARGETS | Synthetic pdb_1abc + contracts fixture |
 | UT-051 | FIDL-08 (D-01, D-15) | N/A (slug helper) | N/A | Inline edge table |
 | UT-052 | FIDL-08 (D-04, D-16) | N/A (template emitter) | N/A | Synthetic entity_types dict |
+| UT-053 | FIDL-08 (D-07, D-08, D-17) | N/A (path shim) | N/A | tmp_path synthetic paths |
+| UT-054 | FIDL-08 (D-09, D-10, D-11, D-18) | N/A (schema bypass) | N/A | Synthetic schema dict |
+| FT-020 | FIDL-08 (D-09, D-10, D-11, D-19) | N/A (e2e wizard) | N/A | tests/fixtures/wizard/schema.json |

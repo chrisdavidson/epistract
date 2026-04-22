@@ -541,3 +541,65 @@ def test_ft019_validator_report_exists(tmp_path):
     assert "status" in report, (
         f"Expected 'status' key in report, got keys={list(report.keys())}"
     )
+
+
+# ===========================================================================
+# Phase 19 Plan 19-02 — FT-020 end-to-end wizard --schema (FIDL-08 D-19)
+# ===========================================================================
+
+
+@pytest.mark.e2e
+@pytest.mark.skipif(False, reason="wizard-only, no sift-kg needed")
+def test_ft020_wizard_schema_end_to_end(tmp_path, monkeypatch):
+    """FT-020: /epistract:domain --schema <file> --name <slug> end-to-end.
+
+    Invokes the wizard bypass via main(), asserts a complete domain package
+    materializes under a monkeypatched DOMAINS_DIR (no real domains/
+    pollution). Validates the emitted workbench/template.yaml against the
+    Phase 17 WorkbenchTemplate Pydantic contract — the schema-bypass output
+    is indistinguishable from an interactive-wizard output for template
+    shape.
+
+    Hard constraint: MUST NOT leave any file or directory inside the repo's
+    real domains/ — the test monkeypatches DOMAINS_DIR onto tmp_path.
+    """
+    import yaml as _yaml
+    from core.domain_wizard import main
+    from examples.workbench.template_schema import WorkbenchTemplate
+
+    # Redirect DOMAINS_DIR so the generated domain lands in tmp_path
+    # (hard constraint: no ft020-test-domain pollution of real domains/)
+    fake_domains = tmp_path / "domains"
+    fake_domains.mkdir()
+    monkeypatch.setattr("core.domain_wizard.DOMAINS_DIR", fake_domains)
+
+    schema_path = FIXTURES_DIR / "wizard" / "schema.json"
+    assert schema_path.exists(), f"test prerequisite missing: {schema_path}"
+
+    exit_code = main([
+        "--schema", str(schema_path),
+        "--name", "ft020-test-domain",
+    ])
+    assert exit_code == 0, f"expected exit 0, got {exit_code}"
+
+    # Assert every expected file exists
+    domain_dir = fake_domains / "ft020-test-domain"
+    expected_files = [
+        "domain.yaml",
+        "SKILL.md",
+        "epistemic.py",
+        "__init__.py",
+        "references/entity-types.md",
+        "references/relation-types.md",
+        "workbench/template.yaml",
+    ]
+    for rel in expected_files:
+        assert (domain_dir / rel).exists(), f"missing: {domain_dir / rel}"
+
+    # Validate emitted workbench/template.yaml against Phase 17 Pydantic contract
+    template_yaml = (domain_dir / "workbench" / "template.yaml").read_text()
+    parsed = _yaml.safe_load(template_yaml)
+    WorkbenchTemplate.model_validate(parsed)  # raises if shape is wrong
+
+    # Spot-check entity_colors cardinality matches the fixture's 3 entity types
+    assert set(parsed["entity_colors"].keys()) == {"PARTY", "OBLIGATION", "TERM"}
