@@ -533,6 +533,19 @@ These are real research questions a PhD scientist would ask. Each tests whether 
 - **Pass criteria:** All four branches return the expected Path/None; resolve_domain's dict has `validation_dir` key with correct value; no pre-existing key removed.
 - **Dependency:** None — real domains/ dir on disk is read-only; no sift-kg required.
 
+### UT-049: Structural doctype detection in both drug-discovery and core epistemic modules
+- **Traces to:** FIDL-07 (D-05, D-06, D-14)
+- **Test:** Dynamic-load `domains/drug-discovery/epistemic.py` via `importlib.util.spec_from_file_location` (hyphenated package not importable via regular `import`); also `from core import label_epistemic as le`. For each module, assert all six shapes:
+  1. `infer_doc_type("pdb_1abc")` == `"structural"` (underscore variant).
+  2. `infer_doc_type("pdb-7xyz")` == `"structural"` (hyphen variant, case-insensitive).
+  3. `infer_doc_type("pmid_12345")` == `"paper"` (regression guard — pmid_ still paper).
+  4. `_detect_structural_content("Crystal structure of KRAS resolved at 2.1 Å")` returns True; `_detect_structural_content("This paper studies protein folding")` returns False (regression guard).
+  5. `classify_epistemic_status("hypothesized structure", 0.95, "structural")` == `"asserted"` — high-confidence structural overrides hedging-regex false positive (D-06 short-circuit).
+  6. `classify_epistemic_status("suggests mechanism", 0.7, "structural")` == `"hypothesized"` — low-confidence structural falls through to normal hedging.
+  Both modules must pass identical assertions — this is the D-05 two-site convention-sync gate. Any drift between `domains/drug-discovery/epistemic.py` and `core/label_epistemic.py` is caught here.
+- **Pass criteria:** All six assertions pass for both modules (12+ asserts total). `grep -c "PDB_PATTERN"` returns 1 in each file (mirror invariant).
+- **Dependency:** None — pure function tests; no sift-kg, no fixtures, no tmp dirs.
+
 ### UT-050: Rule-failure isolation — one broken rule does not abort others
 - **Traces to:** FIDL-07 (D-02, D-09, D-15)
 - **Test:** Same synthetic-testdomain pattern as UT-047. `CUSTOM_RULES = [good_rule_a, broken_rule, good_rule_b]`. `good_rule_a` returns one INFO finding. `broken_rule` does `raise ValueError("boom")` as its first line. `good_rule_b` returns one INFO finding. Call `analyze_epistemic` as in UT-047. Assert:
@@ -579,4 +592,5 @@ These are real research questions a PhD scientist would ask. Each tests whether 
 | FT-018 | FIDL-06 (D-03, D-07, D-08, D-09, D-13) | N/A (e2e) | N/A | Stub graph_data.json |
 | UT-047 | FIDL-07 (D-01, D-02, D-12) | N/A (rule dispatch) | N/A | Synthetic tmpdir |
 | UT-048 | FIDL-07 (D-03, D-13) | N/A (resolver) | N/A | N/A (real domains/ dir) |
+| UT-049 | FIDL-07 (D-05, D-06, D-14) | N/A (doctype + status) | N/A | Inline assertions |
 | UT-050 | FIDL-07 (D-02, D-09, D-15) | N/A (rule isolation) | N/A | Synthetic tmpdir |

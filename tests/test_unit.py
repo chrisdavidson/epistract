@@ -1990,3 +1990,60 @@ def test_rule_failure_isolation(tmp_path, monkeypatch):
     assert cf["broken_rule"][0]["status"] == "error"
     assert "boom" in cf["broken_rule"][0]["error"]
     assert cf["broken_rule"][0]["rule_name"] == "broken_rule"
+
+
+# ===========================================================================
+# Phase 18 Plan 18-02 — UT-049 structural doctype detection (FIDL-07 D-05/D-06)
+# ===========================================================================
+
+
+@pytest.mark.unit
+def test_ut049_structural_doctype_detection():
+    """UT-049: PDB prefix → structural doc_type; ≥0.9 structural → asserted override.
+
+    Two-site convention sync (D-05): both drug-discovery and core modules
+    must recognize the same PDB_PATTERN + apply the same ≥0.9 short-circuit
+    in classify_epistemic_status. No shared import — each module carries
+    its own copy kept in sync by convention.
+    """
+    import importlib.util as _il
+
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+    # Dynamic-load drug-discovery epistemic (hyphenated package; not importable
+    # via regular import). Mirrors core.label_epistemic._load_domain_epistemic.
+    dd_path = PROJECT_ROOT / "domains" / "drug-discovery" / "epistemic.py"
+    spec = _il.spec_from_file_location("dd_epistemic_ut049", dd_path)
+    dd = _il.module_from_spec(spec)
+    spec.loader.exec_module(dd)
+
+    from core import label_epistemic as le
+
+    for mod, name in [(dd, "drug-discovery"), (le, "core.label_epistemic")]:
+        # (1) PDB underscore variant → structural
+        assert mod.infer_doc_type("pdb_1abc") == "structural", \
+            f"{name}: pdb_1abc should classify as structural"
+        # (2) PDB hyphen variant, case-insensitive
+        assert mod.infer_doc_type("pdb-7xyz") == "structural", \
+            f"{name}: pdb-7xyz (hyphen, case-insensitive) should classify as structural"
+        # (3) Regression guard: pmid_ still returns "paper"
+        assert mod.infer_doc_type("pmid_12345") == "paper", \
+            f"{name}: regression — pmid_* should still be paper"
+        # (4) Content signal detection
+        assert mod._detect_structural_content(
+            "Crystal structure of KRAS resolved at 2.1 Å"
+        ) is True, f"{name}: crystal structure + resolution content signal"
+        # Regression guard: generic text should NOT trigger
+        assert mod._detect_structural_content(
+            "This paper studies protein folding"
+        ) is False, f"{name}: generic text should not be structural content"
+        # (5) High-confidence structural beats hedging (D-06)
+        assert mod.classify_epistemic_status(
+            "hypothesized structure", 0.95, "structural"
+        ) == "asserted", \
+            f"{name}: high-conf structural overrides hedging regex (D-06)"
+        # (6) Low-confidence structural falls through to hedging
+        assert mod.classify_epistemic_status(
+            "suggests mechanism", 0.7, "structural"
+        ) == "hypothesized", \
+            f"{name}: low-conf structural falls through to hedging detection"
