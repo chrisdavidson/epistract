@@ -182,10 +182,34 @@ def analyze_clinicaltrials_epistemic(output_dir: Path, graph_data: dict) -> dict
     }
 
     evidence_counts: dict[str, int] = defaultdict(int)
+    status_counts: dict[str, int] = defaultdict(int)
+    # Reuse the core epistemic-status classifier so narrator + workbench chat
+    # see the same vocabulary (asserted / hypothesized / prophetic / etc.) as
+    # drug-discovery and contracts. Trial-protocol evidence defaults to
+    # "paper" doc_type since CT.gov protocols are not patents.
+    try:
+        from core.label_epistemic import classify_epistemic_status
+        _HAVE_CLASSIFIER = True
+    except ImportError:
+        _HAVE_CLASSIFIER = False
+
+    hypothesized_links: list[dict] = []
     for link in links:
         tier = _grade_relation(link, trial_lookup)
         link["evidence_tier"] = tier
         evidence_counts[tier] += 1
+
+        if _HAVE_CLASSIFIER:
+            evidence = link.get("evidence", "") or ""
+            confidence = float(link.get("confidence", 0.8) or 0.8)
+            # doc_type for trial protocols: "paper" (not patent). Phase III
+            # with randomized blinding tokens already pushed tier high; keep
+            # this as pure language classification.
+            status = classify_epistemic_status(evidence, confidence, "paper")
+            link["epistemic_status"] = status
+            status_counts[status] += 1
+            if status in ("hypothesized", "speculative"):
+                hypothesized_links.append(link)
 
     # Contradiction detection: same (source, target, relation_type) with conflicting tiers
     triple_to_tiers: dict[tuple, list[str]] = defaultdict(list)
@@ -196,20 +220,37 @@ def analyze_clinicaltrials_epistemic(output_dir: Path, graph_data: dict) -> dict
     for key, tiers in triple_to_tiers.items():
         if "high_evidence" in tiers and "low_evidence" in tiers:
             contradictions.append({
-                "source": key[0], "target": key[1], "relation_type": key[2],
+                "source_entity": key[0], "target_entity": key[1], "relation_type": key[2],
                 "tiers": tiers,
+            })
+
+    # "Contested" = relations that appear at both high_evidence and medium_evidence —
+    # same claim surfaces across trials with meaningfully different design rigor.
+    contested: list[dict] = []
+    for key, tiers in triple_to_tiers.items():
+        unique_tiers = set(tiers)
+        if "high_evidence" in unique_tiers and "medium_evidence" in unique_tiers:
+            contested.append({
+                "source_entity": key[0], "target_entity": key[1], "relation_type": key[2],
+                "tiers": tiers,
+                "epistemic_status": "contested",
             })
 
     return {
         "metadata": {
             "description": "Clinical-trial epistemic layer — phase-based evidence grading",
+            "domain": "clinicaltrials",
             "generated_from": str(output_dir / "graph_data.json"),
             "total_relations": len(links),
             "trial_count": len(trial_lookup),
         },
         "summary": {
             "evidence_tier_counts": dict(evidence_counts),
+            # v3 standard key — enables narrator + workbench chat parity across domains.
+            "epistemic_status_counts": dict(status_counts),
             "contradictions_found": len(contradictions),
+            "contested_found": len(contested),
+            "hypothesized_found": len(hypothesized_links),
             "trials_with_phase": sum(1 for n in trial_lookup.values() if _trial_phase(n)),
             "trials_with_enrollment": sum(1 for n in trial_lookup.values() if _enrollment(n) is not None),
         },
@@ -221,5 +262,9 @@ def analyze_clinicaltrials_epistemic(output_dir: Path, graph_data: dict) -> dict
             "description": "Medium/low/unclassified-evidence relations — smaller trials, early phase, or unclassifiable",
             "relation_count": sum(v for k, v in evidence_counts.items() if k != "high_evidence"),
             "contradictions": contradictions,
+            "contested_claims": contested,
+            # narrator looks for super_domain.hypotheses — clinicaltrials has no
+            # hypothesis grouping yet, so leave this empty (clean-contract).
+            "hypotheses": [],
         },
     }
