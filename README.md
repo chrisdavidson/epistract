@@ -150,6 +150,7 @@ All three live in `domains/` as self-contained packages. Schemas are human-reada
 
 - Showcase: [`docs/SHOWCASE-CLINICALTRIALS.md`](docs/SHOWCASE-CLINICALTRIALS.md)
 - Auto-generated analyst briefing: [`tests/corpora/07_glp1_phase3_trials/output/epistemic_narrative.md`](tests/corpora/07_glp1_phase3_trials/output/epistemic_narrative.md)
+- Workbench screenshots — [dashboard panel](docs/screenshots/clinicaltrials-01-dashboard.png) · [chat welcome](docs/screenshots/clinicaltrials-02-chat-welcome.png) · [graph panel](docs/screenshots/clinicaltrials-03-graph.png)
 - Interactive graph (open locally in browser): [`tests/corpora/07_glp1_phase3_trials/output/graph.html`](tests/corpora/07_glp1_phase3_trials/output/graph.html)
 - Scenario doc: [`tests/scenarios/scenario-07-clinicaltrials-glp1-phase3.md`](tests/scenarios/scenario-07-clinicaltrials-glp1-phase3.md)
 - Raw corpus: [`tests/corpora/07_glp1_phase3_trials/docs/`](tests/corpora/07_glp1_phase3_trials/docs/) (10 NCT protocol files)
