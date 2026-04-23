@@ -49,3 +49,4 @@ build/
 # lives at tests/baselines/v2/expected.json and IS committed.
 tests/baselines/v2/*
 !tests/baselines/v2/expected.json
+archive/

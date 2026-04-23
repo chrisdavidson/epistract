@@ -96,13 +96,13 @@ See v1 traceability below.
 
 - [x] **E2E-01**: Drug discovery scenarios (1-6) regenerate graphs with >=80% of V1 baseline entity/relation counts
 - [x] **E2E-02**: Contract scenario regenerates graph with >=80% of V1 baseline (341 nodes, 663 edges)
-- [ ] **E2E-03**: All extractions run through `/epistract:*` plugin commands (not raw scripts)
+- [x] **E2E-03**: All extractions run through `/epistract:*` plugin commands (not raw scripts)
 - [x] **E2E-04**: Both epistemic layers (molecular validation + conflict detection) produce correct output
 - [x] **E2E-05**: Repeatable regression script exists (`make regression`) that diffs against baseline snapshots
-- [ ] **E2E-06**: Graph visualizations are demonstration-ready for both domains
+- [x] **E2E-06**: Graph visualizations are demonstration-ready for both domains
 - [x] **REL-01**: Repository clean — no junk files, stale artifacts, or large binaries tracked
 - [x] **REL-02**: .gitignore comprehensive — .planning/, worktrees, extraction output, contract data excluded
-- [ ] **REL-03**: Feature branch synced, PR merged, v2.0.0 tagged and released on GitHub
+- [x] **REL-03**: Feature branch synced, PR merged, v2.0.0 tagged and released on GitHub
 
 ## v3 Requirements (In Progress)
 

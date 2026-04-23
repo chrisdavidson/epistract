@@ -1,6 +1,6 @@
 # Known Limitations
 
-This document records behavioral limits of the epistract pipeline that are deliberate design choices or deferred improvements. It is cited by the Phase 20 README "Pipeline Capacity & Limits" section — update here first, then let Phase 20 quote values from this file rather than re-deriving them.
+This document records behavioral limits of the epistract pipeline that are deliberate design choices or deferred improvements. Cited by [PIPELINE-CAPACITY.md](PIPELINE-CAPACITY.md) — update here first, then let PIPELINE-CAPACITY.md quote values from this file rather than re-deriving them.
 
 Each section is scoped to a subsystem. Add new sections as limitations are surfaced or deferred.
 
