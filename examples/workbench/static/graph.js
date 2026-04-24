@@ -10,6 +10,7 @@ let visNodes = null;
 let visEdges = null;
 let activeTypes = new Set();
 let callbacks = {};
+const pinnedNodes = new Set();
 
 function getEntityColor(type) {
     if (ENTITY_COLORS[type]) return ENTITY_COLORS[type];
@@ -193,6 +194,58 @@ function buildGraph() {
             network.fit({ nodes: [nodeId, ...connectedNodes], animation: { duration: 500 } });
         }
     });
+
+    // Drag-to-pin: when user drops a node, mark it fixed and paint accent border.
+    // Physics is already disabled post-stabilization so the node stays in place.
+    // Guard against canvas pan (params.nodes is empty for non-node drags — RESEARCH Pitfall 2).
+    network.on('dragEnd', (params) => {
+        if (!params.nodes || params.nodes.length === 0) return;
+        const updates = params.nodes.map(nodeId => {
+            pinnedNodes.add(nodeId);
+            return {
+                id: nodeId,
+                fixed: { x: true, y: true },
+                borderWidth: 2,
+                color: {
+                    border: '#4a6cf7',
+                    highlight: { border: '#4a6cf7' },
+                },
+            };
+        });
+        visNodes.update(updates);
+    });
+
+    // Fit View: recenter all nodes in the viewport with a short animation.
+    const fitBtn = document.getElementById('graph-fit-btn');
+    if (fitBtn) {
+        fitBtn.addEventListener('click', () => {
+            network.fit({ animation: { duration: 400 } });
+        });
+    }
+
+    // Reset Pins: unpin every pinned node and restore entity-type border color.
+    const resetPinsBtn = document.getElementById('graph-reset-pins-btn');
+    if (resetPinsBtn) {
+        resetPinsBtn.addEventListener('click', () => {
+            if (pinnedNodes.size === 0) return;
+            const unfixUpdates = [...pinnedNodes].map(nodeId => {
+                const node = allNodes.find(n => n.id === nodeId);
+                const entityColor = getEntityColor(node?.entity_type || '');
+                return {
+                    id: nodeId,
+                    fixed: false,
+                    borderWidth: 1,
+                    color: { border: entityColor, highlight: { border: entityColor } },
+                };
+            });
+            visNodes.update(unfixUpdates);
+            pinnedNodes.clear();
+        });
+    }
+
+    // Close any open node popover on window resize so it does not float
+    // in a stale DOM position (RESEARCH Pitfall 4).
+    window.addEventListener('resize', hideNodePopover);
 }
 
 function filterGraph() {
