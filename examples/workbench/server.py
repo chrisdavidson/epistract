@@ -108,6 +108,72 @@ def _filter_and_group_or_models(raw: list[dict]) -> list[dict]:
     return result
 
 
+async def _check_or_model_health(
+    models: list[dict],
+    client: "httpx.AsyncClient",  # noqa: F821
+) -> list[dict]:
+    """Parallel health check using the OpenRouter endpoints API.
+
+    For ALL models: exclude if endpoints array is empty (no active providers).
+    For free-tier models additionally: exclude if uptime signals indicate degraded service.
+
+    Three-value verdict per model:
+      "ok"           — healthy or no data to judge against
+      "no_endpoints" — empty endpoints array (exclude ALL models)
+      "low_uptime"   — below thresholds (exclude FREE models only)
+
+    Thresholds:
+      - uptime_last_5m >= 70%  -> INCLUDE (recent data, healthy)
+      - uptime_last_5m <  70%  -> EXCLUDE free; keep paid
+      - uptime_last_5m null AND uptime_last_1d >= 80%  -> INCLUDE
+      - uptime_last_5m null AND uptime_last_1d <  80%  -> EXCLUDE free; keep paid
+      - both null           -> INCLUDE (fail open: no data)
+      - Any network error   -> INCLUDE (fail open per-task)
+    """
+    import asyncio
+
+    async def fetch_health(model_id: str) -> tuple[str, str]:
+        url = f"https://openrouter.ai/api/v1/models/{model_id}/endpoints"
+        try:
+            resp = await client.get(url, timeout=5.0)
+            data = resp.json().get("data") or {}
+            endpoints = data.get("endpoints") or []
+            if not endpoints:
+                return model_id, "no_endpoints"
+            uptimes_5m = [
+                e["uptime_last_5m"]
+                for e in endpoints
+                if e.get("uptime_last_5m") is not None
+            ]
+            uptimes_1d = [
+                e["uptime_last_1d"]
+                for e in endpoints
+                if e.get("uptime_last_1d") is not None
+            ]
+            best_5m = max(uptimes_5m) if uptimes_5m else None
+            best_1d = max(uptimes_1d) if uptimes_1d else None
+            if best_5m is not None:
+                return model_id, "ok" if best_5m >= 70.0 else "low_uptime"
+            if best_1d is not None:
+                return model_id, "ok" if best_1d >= 80.0 else "low_uptime"
+            return model_id, "ok"
+        except Exception:
+            return model_id, "ok"
+
+    tasks = [fetch_health(m["id"]) for m in models]
+    results: dict[str, str] = dict(await asyncio.gather(*tasks))
+
+    filtered: list[dict] = []
+    for m in models:
+        verdict = results.get(m["id"], "ok")
+        if verdict == "no_endpoints":
+            continue
+        if verdict == "low_uptime" and m.get("free"):
+            continue
+        filtered.append(m)
+    return filtered
+
+
 async def _fetch_or_models() -> list[dict]:
     """Fetch and cache the OpenRouter text-output model list.
 
@@ -131,6 +197,15 @@ async def _fetch_or_models() -> list[dict]:
             resp.raise_for_status()
             raw = resp.json().get("data", []) or []
         models = _filter_and_group_or_models(raw)
+        # Plan 05: filter out operationally-broken models via parallel /endpoints probe.
+        # Separate AsyncClient with a connection-pool cap; fail-open at the gather level.
+        try:
+            async with httpx.AsyncClient(
+                timeout=10.0, limits=httpx.Limits(max_connections=50)
+            ) as health_client:
+                models = await _check_or_model_health(models, health_client)
+        except Exception:
+            pass  # fail-open: keep the pre-health-check filtered list
         _or_models_cache["data"] = models
         _or_models_cache["fetched_at"] = now
         return models

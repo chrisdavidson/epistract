@@ -4,6 +4,7 @@
 Maps to TEST_REQUIREMENTS.md unit tests UT-001 through UT-014.
 Run: python -m pytest tests/test_unit.py -m unit -v
 """
+
 import json
 import sys
 import tempfile
@@ -45,8 +46,12 @@ def test_ut001_domain_loads():
     from sift_kg import load_domain
 
     domain = load_domain(domain_path=DOMAIN_YAML)
-    assert len(domain.entity_types) == 17, f"Expected 17 entity types, got {len(domain.entity_types)}"
-    assert len(domain.relation_types) == 30, f"Expected 30 relation types, got {len(domain.relation_types)}"
+    assert len(domain.entity_types) == 17, (
+        f"Expected 17 entity types, got {len(domain.entity_types)}"
+    )
+    assert len(domain.relation_types) == 30, (
+        f"Expected 30 relation types, got {len(domain.relation_types)}"
+    )
 
 
 # ========================================================================
@@ -146,7 +151,10 @@ def test_ut008_validate_smiles_no_rdkit():
         vs_mod.RDKIT_AVAILABLE = False
         result = vs_mod.validate_smiles("CC(=O)Oc1ccccc1C(=O)O")
         assert result["valid"] is None
-        assert "not installed" in result.get("error", "").lower() or "rdkit" in result.get("error", "").lower()
+        assert (
+            "not installed" in result.get("error", "").lower()
+            or "rdkit" in result.get("error", "").lower()
+        )
     finally:
         vs_mod.RDKIT_AVAILABLE = orig_available
 
@@ -299,6 +307,7 @@ def test_ut014_validation_orchestrator():
 
         # Run validate_molecules via subprocess to avoid import side effects
         import subprocess
+
         result = subprocess.run(
             [sys.executable, str(DRUG_DISCOVERY_DIR / "validate_molecules.py"), tmpdir],
             capture_output=True,
@@ -307,11 +316,15 @@ def test_ut014_validation_orchestrator():
 
         # Check results.json was created
         results_path = Path(tmpdir) / "validation" / "results.json"
-        assert results_path.exists(), f"results.json not created. stderr: {result.stderr}"
+        assert results_path.exists(), (
+            f"results.json not created. stderr: {result.stderr}"
+        )
 
         data = json.loads(results_path.read_text())
         total_matches = data["stats"]["total_matches"]
-        assert total_matches > 0, f"Expected identifiers_found > 0, got stats: {data['stats']}"
+        assert total_matches > 0, (
+            f"Expected identifiers_found > 0, got stats: {data['stats']}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -326,7 +339,9 @@ def test_epistemic_dispatcher_generic_contract():
 
     mod = _load_domain_epistemic("contract")
     assert mod is not None, "Failed to load contract epistemic module"
-    assert hasattr(mod, "analyze_contract_epistemic"), "Missing analyze_contract_epistemic function"
+    assert hasattr(mod, "analyze_contract_epistemic"), (
+        "Missing analyze_contract_epistemic function"
+    )
 
 
 @pytest.mark.unit
@@ -336,7 +351,9 @@ def test_epistemic_dispatcher_generic_biomedical():
 
     mod = _load_domain_epistemic("drug-discovery")
     assert mod is not None, "Failed to load drug-discovery epistemic module"
-    assert hasattr(mod, "analyze_biomedical_epistemic"), "Missing analyze_biomedical_epistemic function"
+    assert hasattr(mod, "analyze_biomedical_epistemic"), (
+        "Missing analyze_biomedical_epistemic function"
+    )
 
 
 @pytest.mark.unit
@@ -346,7 +363,9 @@ def test_epistemic_dispatcher_alias_resolution():
 
     mod = _load_domain_epistemic("biomedical")
     assert mod is not None, "Failed to load biomedical alias"
-    assert hasattr(mod, "analyze_biomedical_epistemic"), "Alias didn't resolve to drug-discovery module"
+    assert hasattr(mod, "analyze_biomedical_epistemic"), (
+        "Alias didn't resolve to drug-discovery module"
+    )
 
 
 @pytest.mark.unit
@@ -368,7 +387,6 @@ def test_wizard_fixtures_exist():
     for sample in samples:
         text = sample.read_text()
         assert len(text) > 100, f"Sample {sample.name} too short ({len(text)} chars)"
-
 
 
 # ---------------------------------------------------------------------------
@@ -412,7 +430,9 @@ def test_wizard_generates_domain_yaml():
         "LANDLORD": {"description": "Property owner"},
         "TENANT": {"description": "Lessee"},
     }
-    relation_types = {"LEASES_TO": {"description": "Landlord leases property to tenant"}}
+    relation_types = {
+        "LEASES_TO": {"description": "Landlord leases property to tenant"}
+    }
     result = generate_domain_yaml(
         "Real Estate Leases",
         "Lease analysis domain",
@@ -466,10 +486,10 @@ def test_wizard_generates_epistemic_py():
     assert "metadata" in code
     assert "summary" in code
     # FIDL-07 D-10: wizard emits CUSTOM_RULES stub + pointer to canonical doc.
-    assert "CUSTOM_RULES" in code, \
-        "Wizard must emit CUSTOM_RULES stub (FIDL-07 D-10)"
-    assert "docs/known-limitations.md" in code, \
+    assert "CUSTOM_RULES" in code, "Wizard must emit CUSTOM_RULES stub (FIDL-07 D-10)"
+    assert "docs/known-limitations.md" in code, (
         "Wizard must link to canonical extensibility doc"
+    )
 
 
 @pytest.mark.unit
@@ -495,14 +515,17 @@ def test_wizard_generates_custom_rules_stub():
     # Generated code must remain syntactically valid Python.
     ast.parse(code)
     # The stub itself
-    assert "CUSTOM_RULES: list = []" in code, \
+    assert "CUSTOM_RULES: list = []" in code, (
         "Wizard must emit literal CUSTOM_RULES stub (FIDL-07 D-10)"
+    )
     # The rule-signature comment
-    assert "(nodes, links, context)" in code, \
+    assert "(nodes, links, context)" in code, (
         "Wizard must document rule callable signature in a comment"
+    )
     # The canonical-doc pointer
-    assert "docs/known-limitations.md" in code, \
+    assert "docs/known-limitations.md" in code, (
         "Wizard must point at canonical extensibility doc"
+    )
 
 
 @pytest.mark.unit
@@ -687,14 +710,20 @@ def test_multi_excerpt_prompt_contains_markers():
     from core.domain_wizard import build_schema_discovery_prompt
 
     fixture_path = (
-        PROJECT_ROOT / "tests" / "fixtures" / "wizard_sample_window" / "long_contract.txt"
+        PROJECT_ROOT
+        / "tests"
+        / "fixtures"
+        / "wizard_sample_window"
+        / "long_contract.txt"
     )
     fixture_text = fixture_path.read_text(encoding="utf-8")
     assert len(fixture_text) > 12000, (
         f"Fixture must be >12K chars to trigger multi-excerpt path, got {len(fixture_text)}"
     )
 
-    prompt = build_schema_discovery_prompt(fixture_text, "Synthetic long contract domain")
+    prompt = build_schema_discovery_prompt(
+        fixture_text, "Synthetic long contract domain"
+    )
 
     # D-04: three explicit excerpt markers on their own lines
     assert "[EXCERPT 1/3 — chars 0 to 4000 (head)]" in prompt, (
@@ -709,15 +738,21 @@ def test_multi_excerpt_prompt_contains_markers():
         "Treat them as non-contiguous samples of the same document, "
         "not as a single continuous passage." in prompt
     ), "D-05 preface missing or altered"
-    assert "**Document excerpts:**" in prompt, "Plural header missing (D-05 long-doc path)"
+    assert "**Document excerpts:**" in prompt, (
+        "Plural header missing (D-05 long-doc path)"
+    )
     assert "**Document text:**" not in prompt, (
         "Singular header leaked into long-doc path (D-05 violation)"
     )
 
     # D-10: all three sentinel phrases from the Plan 16-02 fixture appear
     assert "PARTY_SENTINEL_HEAD" in prompt, "Head sentinel missing from rendered prompt"
-    assert "OBLIGATION_SENTINEL_MIDDLE" in prompt, "Middle sentinel missing from rendered prompt"
-    assert "TERMINATION_SENTINEL_TAIL" in prompt, "Tail sentinel missing from rendered prompt"
+    assert "OBLIGATION_SENTINEL_MIDDLE" in prompt, (
+        "Middle sentinel missing from rendered prompt"
+    )
+    assert "TERMINATION_SENTINEL_TAIL" in prompt, (
+        "Tail sentinel missing from rendered prompt"
+    )
 
     # Domain description still interpolated
     assert "Synthetic long contract domain" in prompt, "Domain description missing"
@@ -752,7 +787,11 @@ def test_ft016_long_doc_captures_all_three_sentinels():
     from core.domain_wizard import build_schema_discovery_prompt
 
     fixture_path = (
-        PROJECT_ROOT / "tests" / "fixtures" / "wizard_sample_window" / "long_contract.txt"
+        PROJECT_ROOT
+        / "tests"
+        / "fixtures"
+        / "wizard_sample_window"
+        / "long_contract.txt"
     )
     fixture_text = fixture_path.read_text(encoding="utf-8")
     assert len(fixture_text) == 60200, (
@@ -858,6 +897,7 @@ def test_ft017_short_doc_prompt_is_strict_superset_of_pre_phase16():
 # Phase 13 — FIDL-02c: write-time validation + provenance threading
 # ========================================================================
 
+
 @pytest.mark.unit
 def test_normalize_coerces_schema_drift():
     """UT-022a: build_extraction._normalize_fields coerces drift.
@@ -928,7 +968,8 @@ def test_build_extraction_raises_on_invalid_entity():
     with tempfile.TemporaryDirectory() as tmpdir:
         with pytest.raises(ValueError) as exc_info:
             build_extraction.write_extraction(
-                "test_doc", tmpdir,
+                "test_doc",
+                tmpdir,
                 entities=[{"name": "x"}],  # missing entity_type
                 relations=[],
             )
@@ -944,14 +985,26 @@ def test_build_extraction_threads_model_flag(tmp_path):
     import subprocess
 
     script = PROJECT_ROOT / "core" / "build_extraction.py"
-    payload = json.dumps({
-        "entities": [{"name": "x", "entity_type": "COMPOUND"}],
-        "relations": [],
-    })
+    payload = json.dumps(
+        {
+            "entities": [{"name": "x", "entity_type": "COMPOUND"}],
+            "relations": [],
+        }
+    )
     result = subprocess.run(
-        ["python3", str(script), "test_doc", str(tmp_path),
-         "--model", "claude-sonnet-4-5", "--json", payload],
-        capture_output=True, text=True, cwd=str(PROJECT_ROOT),
+        [
+            "python3",
+            str(script),
+            "test_doc",
+            str(tmp_path),
+            "--model",
+            "claude-sonnet-4-5",
+            "--json",
+            payload,
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(PROJECT_ROOT),
     )
     assert result.returncode == 0, f"stderr: {result.stderr}"
     out = json.loads((tmp_path / "extractions" / "test_doc.json").read_text())
@@ -965,15 +1018,20 @@ def test_build_extraction_reads_model_env(tmp_path):
     import subprocess, os as _os
 
     script = PROJECT_ROOT / "core" / "build_extraction.py"
-    payload = json.dumps({
-        "entities": [{"name": "x", "entity_type": "COMPOUND"}],
-        "relations": [],
-    })
+    payload = json.dumps(
+        {
+            "entities": [{"name": "x", "entity_type": "COMPOUND"}],
+            "relations": [],
+        }
+    )
     env = dict(_os.environ)
     env["EPISTRACT_MODEL"] = "claude-opus-4-7"
     result = subprocess.run(
         ["python3", str(script), "test_doc", str(tmp_path), "--json", payload],
-        capture_output=True, text=True, env=env, cwd=str(PROJECT_ROOT),
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=str(PROJECT_ROOT),
     )
     assert result.returncode == 0, f"stderr: {result.stderr}"
     out = json.loads((tmp_path / "extractions" / "test_doc.json").read_text())
@@ -987,14 +1045,26 @@ def test_build_extraction_threads_cost_flag(tmp_path):
     import subprocess
 
     script = PROJECT_ROOT / "core" / "build_extraction.py"
-    payload = json.dumps({
-        "entities": [{"name": "x", "entity_type": "COMPOUND"}],
-        "relations": [],
-    })
+    payload = json.dumps(
+        {
+            "entities": [{"name": "x", "entity_type": "COMPOUND"}],
+            "relations": [],
+        }
+    )
     result = subprocess.run(
-        ["python3", str(script), "test_doc", str(tmp_path),
-         "--cost", "0.0123", "--json", payload],
-        capture_output=True, text=True, cwd=str(PROJECT_ROOT),
+        [
+            "python3",
+            str(script),
+            "test_doc",
+            str(tmp_path),
+            "--cost",
+            "0.0123",
+            "--json",
+            payload,
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(PROJECT_ROOT),
     )
     assert result.returncode == 0, f"stderr: {result.stderr}"
     out = json.loads((tmp_path / "extractions" / "test_doc.json").read_text())
@@ -1015,19 +1085,28 @@ def test_build_extraction_no_hardcoded_model(tmp_path):
     import subprocess, os as _os
 
     script = PROJECT_ROOT / "core" / "build_extraction.py"
-    payload = json.dumps({
-        "entities": [{"name": "x", "entity_type": "COMPOUND"}],
-        "relations": [],
-    })
+    payload = json.dumps(
+        {
+            "entities": [{"name": "x", "entity_type": "COMPOUND"}],
+            "relations": [],
+        }
+    )
     env = {k: v for k, v in _os.environ.items() if k != "EPISTRACT_MODEL"}
     result = subprocess.run(
         ["python3", str(script), "test_doc", str(tmp_path), "--json", payload],
-        capture_output=True, text=True, env=env, cwd=str(PROJECT_ROOT),
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=str(PROJECT_ROOT),
     )
     assert result.returncode == 0, f"stderr: {result.stderr}"
     out = json.loads((tmp_path / "extractions" / "test_doc.json").read_text())
-    assert out["model_used"] == "", f"Expected empty sift-kg default, got {out['model_used']!r}"
-    assert "claude-opus" not in (out["model_used"] or ""), "No fabricated model name on disk"
+    assert out["model_used"] == "", (
+        f"Expected empty sift-kg default, got {out['model_used']!r}"
+    )
+    assert "claude-opus" not in (out["model_used"] or ""), (
+        "No fabricated model name on disk"
+    )
 
 
 @pytest.mark.unit
@@ -1043,34 +1122,55 @@ def test_build_extraction_no_hardcoded_cost(tmp_path):
     import subprocess
 
     script = PROJECT_ROOT / "core" / "build_extraction.py"
-    payload = json.dumps({
-        "entities": [{"name": "x", "entity_type": "COMPOUND"}],
-        "relations": [],
-    })
+    payload = json.dumps(
+        {
+            "entities": [{"name": "x", "entity_type": "COMPOUND"}],
+            "relations": [],
+        }
+    )
     result = subprocess.run(
         ["python3", str(script), "test_doc", str(tmp_path), "--json", payload],
-        capture_output=True, text=True, cwd=str(PROJECT_ROOT),
+        capture_output=True,
+        text=True,
+        cwd=str(PROJECT_ROOT),
     )
     assert result.returncode == 0, f"stderr: {result.stderr}"
     out = json.loads((tmp_path / "extractions" / "test_doc.json").read_text())
-    assert out["cost_usd"] == 0.0, f"Expected 0.0 sift-kg default, got {out['cost_usd']!r}"
+    assert out["cost_usd"] == 0.0, (
+        f"Expected 0.0 sift-kg default, got {out['cost_usd']!r}"
+    )
 
 
 # ========================================================================
 # Phase 13 — FIDL-02b: normalize_extractions module
 # ========================================================================
 
-def _write_extraction_file(path: Path, doc_id: str | None, n_entities: int = 1, n_relations: int = 0) -> None:
+
+def _write_extraction_file(
+    path: Path, doc_id: str | None, n_entities: int = 1, n_relations: int = 0
+) -> None:
     """Helper: write a valid extraction JSON at `path`. Omit doc_id by passing None."""
     body = {
         "document_path": "",
         "chunks_processed": 1,
         "entities": [
-            {"name": f"e{i}", "entity_type": "COMPOUND", "attributes": {}, "confidence": 0.9, "context": ""}
+            {
+                "name": f"e{i}",
+                "entity_type": "COMPOUND",
+                "attributes": {},
+                "confidence": 0.9,
+                "context": "",
+            }
             for i in range(n_entities)
         ],
         "relations": [
-            {"relation_type": "INHIBITS", "source_entity": "e0", "target_entity": f"e{i}", "confidence": 0.9, "evidence": ""}
+            {
+                "relation_type": "INHIBITS",
+                "source_entity": "e0",
+                "target_entity": f"e{i}",
+                "confidence": 0.9,
+                "evidence": "",
+            }
             for i in range(n_relations)
         ],
         "cost_usd": None,
@@ -1167,7 +1267,9 @@ def test_normalize_coerces_schema_drift_via_module(tmp_path):
     drift = {
         "document_id": "drift",
         "document_path": "",
-        "entities": [{"name": "x", "type": "COMPOUND", "confidence": "0.9"}],  # schema drift
+        "entities": [
+            {"name": "x", "type": "COMPOUND", "confidence": "0.9"}
+        ],  # schema drift
         "relations": [],
     }
     (ext / "drift.json").write_text(json.dumps(drift, indent=2))
@@ -1195,7 +1297,16 @@ def test_normalize_writes_report(tmp_path):
     report_path = ext / "_normalization_report.json"
     assert report_path.exists()
     report = json.loads(report_path.read_text())
-    for key in ("total", "passed", "recovered", "unrecoverable", "pass_rate", "fail_threshold", "above_threshold", "actions"):
+    for key in (
+        "total",
+        "passed",
+        "recovered",
+        "unrecoverable",
+        "pass_rate",
+        "fail_threshold",
+        "above_threshold",
+        "actions",
+    ):
         assert key in report, f"Missing key in report: {key}"
     assert report["total"] == 1
     assert 0.0 <= report["pass_rate"] <= 1.0
@@ -1205,18 +1316,21 @@ def test_normalize_writes_report(tmp_path):
 # Phase 13 — FIDL-02a: extractor.md contract
 # ========================================================================
 
+
 @pytest.mark.unit
 def test_extractor_prompt_required_fields():
     """UT-017: agents/extractor.md declares document_id, entities, relations as REQUIRED; forbids direct Write."""
     prompt = (PROJECT_ROOT / "agents" / "extractor.md").read_text()
 
-    assert "REQUIRED top-level fields" in prompt, \
+    assert "REQUIRED top-level fields" in prompt, (
         "Missing REQUIRED top-level fields block (FIDL-02a D-09)"
+    )
     assert "document_id" in prompt, "Required field document_id not mentioned"
     assert "entities" in prompt, "Required field entities not mentioned"
     assert "relations" in prompt, "Required field relations not mentioned"
-    assert "DO NOT fall back to the Write tool" in prompt, \
+    assert "DO NOT fall back to the Write tool" in prompt, (
         "Missing Write-tool ban (FIDL-02a D-10)"
+    )
     assert "build_extraction.py" in prompt, "Agent must invoke build_extraction.py"
 
 
@@ -1226,23 +1340,28 @@ def test_extractor_prompt_stdin_fallback():
     prompt = (PROJECT_ROOT / "agents" / "extractor.md").read_text()
 
     # Stdin fallback is documented
-    assert "stdin pipe" in prompt.lower() or "echo '<" in prompt, \
+    assert "stdin pipe" in prompt.lower() or "echo '<" in prompt, (
         "Stdin fallback invocation not documented"
+    )
 
     # Path bug fix: must reference core/, never scripts/
-    assert "${CLAUDE_PLUGIN_ROOT}/core/build_extraction.py" in prompt, \
+    assert "${CLAUDE_PLUGIN_ROOT}/core/build_extraction.py" in prompt, (
         "Missing corrected core/ path"
-    assert "/scripts/build_extraction.py" not in prompt, \
+    )
+    assert "/scripts/build_extraction.py" not in prompt, (
         "Obsolete scripts/ path still present — path bug regression"
+    )
 
     # "report the failure" guidance so agents don't silently fall back to Write
-    assert "report the failure" in prompt.lower(), \
+    assert "report the failure" in prompt.lower(), (
         "Missing report-failure guidance (FIDL-02a D-10)"
+    )
 
 
 # ========================================================================
 # UT-031..UT-035 + UT-033b: Phase 14 chunk overlap substrate (FIDL-03)
 # ========================================================================
+
 
 @pytest.mark.unit
 def test_ut031_chonkie_imports():
@@ -1367,15 +1486,15 @@ def test_ut035_missing_chonkie_raises_loud(monkeypatch):
         importlib.import_module("chunk_document")
     msg = str(excinfo.value)
     assert "chonkie" in msg, f"ImportError message missing 'chonkie': {msg!r}"
-    assert (
-        "uv pip install" in msg
-        or "/epistract:setup" in msg
-    ), f"ImportError missing install hint: {msg!r}"
+    assert "uv pip install" in msg or "/epistract:setup" in msg, (
+        f"ImportError missing install hint: {msg!r}"
+    )
 
 
 # ========================================================================
 # UT-036, UT-036b, UT-037, UT-038: Phase 14 chunk overlap wiring (FIDL-03)
 # ========================================================================
+
 
 @pytest.mark.unit
 def test_ut036_chunk_json_schema():
@@ -1397,7 +1516,12 @@ def test_ut036_chunk_json_schema():
     assert len(chunks) >= 2, f"expected multi-chunk, got {len(chunks)}"
 
     for i, c in enumerate(chunks):
-        for key in ("overlap_prev_chars", "overlap_next_chars", "is_overlap_region", "char_offset"):
+        for key in (
+            "overlap_prev_chars",
+            "overlap_next_chars",
+            "is_overlap_region",
+            "char_offset",
+        ):
             assert key in c, f"chunk {i} missing key {key!r}: {list(c.keys())}"
         assert c["is_overlap_region"] is False
         assert isinstance(c["overlap_prev_chars"], int) and c["overlap_prev_chars"] >= 0
@@ -1476,7 +1600,7 @@ def test_ut036b_honest_offset_across_whitespace_gaps():
         assert probe == expected, (
             f"chunk {i} offset drift: char_offset={char_offset}\n"
             f"chunk.text[:30]: {probe!r}\n"
-            f"expected text[{char_offset}:{char_offset+30}]: {expected!r}"
+            f"expected text[{char_offset}:{char_offset + 30}]: {expected!r}"
         )
 
 
@@ -1512,7 +1636,11 @@ def test_ut037_overlap_at_article_boundary():
     )
 
     a2_idx = next(
-        (i for i, c in enumerate(chunks) if c["section_header"].upper().startswith("ARTICLE II")),
+        (
+            i
+            for i, c in enumerate(chunks)
+            if c["section_header"].upper().startswith("ARTICLE II")
+        ),
         None,
     )
     assert a2_idx is not None, (
@@ -1574,8 +1702,21 @@ def test_ut038_overlap_at_split_fixed_fallback():
 # FIDL-04 — Format Discovery Parity (Phase 15)
 # ---------------------------------------------------------------------------
 _FIDL04_TEXT_EXTENSIONS = [
-    ".pdf", ".pptx", ".md", ".epub", ".rtf", ".odt", ".csv",
-    ".xml", ".json", ".yaml", ".log", ".ipynb", ".bib", ".fb2", ".msg",
+    ".pdf",
+    ".pptx",
+    ".md",
+    ".epub",
+    ".rtf",
+    ".odt",
+    ".csv",
+    ".xml",
+    ".json",
+    ".yaml",
+    ".log",
+    ".ipynb",
+    ".bib",
+    ".fb2",
+    ".msg",
 ]
 
 
@@ -1600,8 +1741,7 @@ def test_discover_corpus_runtime_extension_set(tmp_path):
     suffixes = sorted(p.suffix.lower() for p in result)
 
     assert len(result) == len(_FIDL04_TEXT_EXTENSIONS), (
-        f"Expected {len(_FIDL04_TEXT_EXTENSIONS)} files, got {len(result)}: "
-        f"{suffixes}"
+        f"Expected {len(_FIDL04_TEXT_EXTENSIONS)} files, got {len(result)}: {suffixes}"
     )
     assert ".zip" not in suffixes, "D-05: .zip must be excluded"
     assert ".png" not in suffixes, "D-04: images must be excluded without ocr=True"
@@ -1682,19 +1822,23 @@ def test_cmd_build_writes_domain_metadata(tmp_path, monkeypatch):
         def stub_run_build(output_dir, domain):
             gp = Path(output_dir) / "graph_data.json"
             gp.parent.mkdir(parents=True, exist_ok=True)
-            gp.write_text(_json.dumps({
-                "metadata": {
-                    "created_at": "2026-04-21T00:00:00+00:00",
-                    "updated_at": "2026-04-21T00:00:00+00:00",
-                    "entity_count": 0,
-                    "relation_count": 0,
-                    "document_count": 0,
-                    "entity_type_summary": {},
-                    "sift_kg_version": "0.9.0-stub",
-                },
-                "nodes": [],
-                "links": [],
-            }))
+            gp.write_text(
+                _json.dumps(
+                    {
+                        "metadata": {
+                            "created_at": "2026-04-21T00:00:00+00:00",
+                            "updated_at": "2026-04-21T00:00:00+00:00",
+                            "entity_count": 0,
+                            "relation_count": 0,
+                            "document_count": 0,
+                            "entity_type_summary": {},
+                            "sift_kg_version": "0.9.0-stub",
+                        },
+                        "nodes": [],
+                        "links": [],
+                    }
+                )
+            )
 
             class _Stub:
                 entity_count = 0
@@ -1713,6 +1857,7 @@ def test_cmd_build_writes_domain_metadata(tmp_path, monkeypatch):
     # Also stub the community-labeling import path so the try/except doesn't
     # crash when label_communities can't run against a zero-node graph.
     import core.label_communities as lc
+
     monkeypatch.setattr(lc, "label_communities", lambda _p: None)
 
     # Branch 1: explicit domain
@@ -1722,8 +1867,13 @@ def test_cmd_build_writes_domain_metadata(tmp_path, monkeypatch):
     assert graph1["metadata"]["domain"] == "contracts"
     # D-02: all pre-existing metadata keys preserved
     for key in (
-        "created_at", "updated_at", "entity_count", "relation_count",
-        "document_count", "entity_type_summary", "sift_kg_version",
+        "created_at",
+        "updated_at",
+        "entity_count",
+        "relation_count",
+        "document_count",
+        "entity_type_summary",
+        "sift_kg_version",
     ):
         assert key in graph1["metadata"], f"metadata key {key!r} was dropped"
     assert graph1["nodes"] == [] and graph1["links"] == []
@@ -1748,9 +1898,15 @@ def test_resolve_domain_precedence(tmp_path, capsys):
 
     def _write(path, metadata):
         path.mkdir(parents=True, exist_ok=True)
-        (path / "graph_data.json").write_text(_json.dumps({
-            "metadata": metadata, "nodes": [], "links": [],
-        }))
+        (path / "graph_data.json").write_text(
+            _json.dumps(
+                {
+                    "metadata": metadata,
+                    "nodes": [],
+                    "links": [],
+                }
+            )
+        )
 
     # Branch 1: explicit wins over metadata (D-09)
     dir1 = tmp_path / "dir1"
@@ -1859,6 +2015,7 @@ def _build_synthetic_domain(tmp_root, domain_name, epistemic_src):
     provided source. Returns (domain_dir, module_path).
     """
     from pathlib import Path as _P
+
     domain_dir = _P(tmp_root) / "domains" / domain_name
     domain_dir.mkdir(parents=True, exist_ok=True)
     (domain_dir / "domain.yaml").write_text(
@@ -1879,27 +2036,33 @@ def _build_synthetic_domain(tmp_root, domain_name, epistemic_src):
 def _write_stub_graph(output_dir, domain_name):
     import json as _json
     from pathlib import Path as _P
+
     out = _P(output_dir)
     out.mkdir(parents=True, exist_ok=True)
-    (out / "graph_data.json").write_text(_json.dumps({
-        "metadata": {
-            "created_at": "2026-04-22T00:00:00+00:00",
-            "updated_at": "2026-04-22T00:00:00+00:00",
-            "entity_count": 0,
-            "relation_count": 0,
-            "document_count": 0,
-            "entity_type_summary": {},
-            "sift_kg_version": "0.9.0-stub",
-            "domain": domain_name,
-        },
-        "nodes": [],
-        "links": [],
-    }))
+    (out / "graph_data.json").write_text(
+        _json.dumps(
+            {
+                "metadata": {
+                    "created_at": "2026-04-22T00:00:00+00:00",
+                    "updated_at": "2026-04-22T00:00:00+00:00",
+                    "entity_count": 0,
+                    "relation_count": 0,
+                    "document_count": 0,
+                    "entity_type_summary": {},
+                    "sift_kg_version": "0.9.0-stub",
+                    "domain": domain_name,
+                },
+                "nodes": [],
+                "links": [],
+            }
+        )
+    )
     return out
 
 
 def _load_synthetic_module(module_path, mod_name):
     import importlib.util as _il
+
     spec = _il.spec_from_file_location(mod_name, module_path)
     mod = _il.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -2060,32 +2223,39 @@ def test_ut049_structural_doctype_detection():
 
     for mod, name in [(dd, "drug-discovery"), (le, "core.label_epistemic")]:
         # (1) PDB underscore variant → structural
-        assert mod.infer_doc_type("pdb_1abc") == "structural", \
+        assert mod.infer_doc_type("pdb_1abc") == "structural", (
             f"{name}: pdb_1abc should classify as structural"
+        )
         # (2) PDB hyphen variant, case-insensitive
-        assert mod.infer_doc_type("pdb-7xyz") == "structural", \
+        assert mod.infer_doc_type("pdb-7xyz") == "structural", (
             f"{name}: pdb-7xyz (hyphen, case-insensitive) should classify as structural"
+        )
         # (3) Regression guard: pmid_ still returns "paper"
-        assert mod.infer_doc_type("pmid_12345") == "paper", \
+        assert mod.infer_doc_type("pmid_12345") == "paper", (
             f"{name}: regression — pmid_* should still be paper"
+        )
         # (4) Content signal detection
-        assert mod._detect_structural_content(
-            "Crystal structure of KRAS resolved at 2.1 Å"
-        ) is True, f"{name}: crystal structure + resolution content signal"
+        assert (
+            mod._detect_structural_content(
+                "Crystal structure of KRAS resolved at 2.1 Å"
+            )
+            is True
+        ), f"{name}: crystal structure + resolution content signal"
         # Regression guard: generic text should NOT trigger
-        assert mod._detect_structural_content(
-            "This paper studies protein folding"
-        ) is False, f"{name}: generic text should not be structural content"
+        assert (
+            mod._detect_structural_content("This paper studies protein folding")
+            is False
+        ), f"{name}: generic text should not be structural content"
         # (5) High-confidence structural beats hedging (D-06)
-        assert mod.classify_epistemic_status(
-            "hypothesized structure", 0.95, "structural"
-        ) == "asserted", \
-            f"{name}: high-conf structural overrides hedging regex (D-06)"
+        assert (
+            mod.classify_epistemic_status("hypothesized structure", 0.95, "structural")
+            == "asserted"
+        ), f"{name}: high-conf structural overrides hedging regex (D-06)"
         # (6) Low-confidence structural falls through to hedging
-        assert mod.classify_epistemic_status(
-            "suggests mechanism", 0.7, "structural"
-        ) == "hypothesized", \
-            f"{name}: low-conf structural falls through to hedging detection"
+        assert (
+            mod.classify_epistemic_status("suggests mechanism", 0.7, "structural")
+            == "hypothesized"
+        ), f"{name}: low-conf structural falls through to hedging detection"
 
 
 # ---------------------------------------------------------------------------
@@ -2115,7 +2285,9 @@ def test_generate_slug_edge_cases(raw, expected):
     from core.domain_wizard import generate_slug
 
     result = generate_slug(raw)
-    assert result == expected, f"generate_slug({raw!r}) -> {result!r}, expected {expected!r}"
+    assert result == expected, (
+        f"generate_slug({raw!r}) -> {result!r}, expected {expected!r}"
+    )
     # Post-condition invariants (D-01 + D-03)
     assert result == result.strip("-"), f"slug has leading/trailing hyphen: {result!r}"
     assert "--" not in result, f"slug has double hyphen: {result!r}"
@@ -2215,7 +2387,9 @@ def test_resolve_domain_arg_path_shim(tmp_path, capsys):
 
     with pytest.raises(SystemExit) as exc_info:
         resolve_domain_arg(str(alien_yaml))
-    assert exc_info.value.code != 0, f"expected non-zero exit, got {exc_info.value.code}"
+    assert exc_info.value.code != 0, (
+        f"expected non-zero exit, got {exc_info.value.code}"
+    )
 
     captured = capsys.readouterr()
     assert "--domain expects a name registered under domains/" in captured.err, (
@@ -2260,10 +2434,15 @@ def test_wizard_schema_bypass_skips_llm(tmp_path, monkeypatch):
 
     # (d) invoke wizard main() directly with synthetic argv
     from core.domain_wizard import main
-    exit_code = main([
-        "--schema", str(schema_path),
-        "--name", "ut054-test-domain",
-    ])
+
+    exit_code = main(
+        [
+            "--schema",
+            str(schema_path),
+            "--name",
+            "ut054-test-domain",
+        ]
+    )
 
     # (e) bypass completed successfully
     assert exit_code == 0, f"expected exit 0, got {exit_code}"
@@ -2417,6 +2596,8 @@ def test_ut057_narrator_non_blocking_on_missing_credentials(tmp_path, monkeypatc
     assert not (tmp_path / "epistemic_narrative.md").exists()
     # Returned claims layer is well-formed
     assert "summary" in result
+
+
 # ========================================================================
 # Phase 21: ClinicalTrials + PubChem Domain (CTDM-01..CTDM-06)
 # Wave 0 stub tests — expected RED until Plans 21-01 and 21-02 land.
@@ -2431,17 +2612,23 @@ CT_FIXTURES = FIXTURES_DIR / "clinicaltrials"
 def test_ctdm01_clinicaltrials_domain_yaml():
     """CTDM-01: domain.yaml declares 12 entity types and 10 relation types."""
     from sift_kg import load_domain
+
     yaml_path = CLINICALTRIALS_DIR / "domain.yaml"
     assert yaml_path.exists(), f"Missing {yaml_path}"
     domain = load_domain(domain_path=yaml_path)
-    assert len(domain.entity_types) == 12, f"Expected 12 entity types, got {len(domain.entity_types)}"
-    assert len(domain.relation_types) == 10, f"Expected 10 relation types, got {len(domain.relation_types)}"
+    assert len(domain.entity_types) == 12, (
+        f"Expected 12 entity types, got {len(domain.entity_types)}"
+    )
+    assert len(domain.relation_types) == 10, (
+        f"Expected 10 relation types, got {len(domain.relation_types)}"
+    )
 
 
 @pytest.mark.unit
 def test_ctdm01_clinicaltrials_in_list_domains():
     """CTDM-01: domain is discovered by domain_resolver."""
     from core.domain_resolver import list_domains
+
     assert "clinicaltrials" in list_domains()
 
 
@@ -2449,6 +2636,7 @@ def test_ctdm01_clinicaltrials_in_list_domains():
 def test_ctdm01_clinicaltrials_alias_resolves():
     """CTDM-01: 'clinicaltrial' (singular) alias resolves to clinicaltrials directory."""
     from core.domain_resolver import resolve_domain
+
     info = resolve_domain("clinicaltrial")
     assert info["name"] == "clinicaltrial"
     assert "clinicaltrials" in info["dir"]
@@ -2468,6 +2656,7 @@ def test_ctdm02_clinicaltrials_skill_md():
 def test_ctdm03_clinicaltrials_epistemic_module():
     """CTDM-03: dispatcher finds analyze_clinicaltrials_epistemic (exact name per Pitfall 1)."""
     from core.label_epistemic import _load_domain_epistemic
+
     mod = _load_domain_epistemic("clinicaltrials")
     assert mod is not None, "Failed to load clinicaltrials epistemic module"
     assert hasattr(mod, "analyze_clinicaltrials_epistemic"), (
@@ -2479,6 +2668,7 @@ def test_ctdm03_clinicaltrials_epistemic_module():
 def test_ctdm03_clinicaltrials_epistemic_callable(tmp_path):
     """CTDM-03: analyze_clinicaltrials_epistemic returns the claims layer schema."""
     from core.label_epistemic import _load_domain_epistemic
+
     mod = _load_domain_epistemic("clinicaltrials")
     result = mod.analyze_clinicaltrials_epistemic(tmp_path, {"nodes": [], "links": []})
     assert isinstance(result, dict)
@@ -2491,6 +2681,7 @@ def test_ctdm04_ctgov_enrich_mock():
     """CTDM-04: _fetch_ct_gov returns trial metadata from CT.gov v2 response."""
     sys.path.insert(0, str(CLINICALTRIALS_DIR))
     import importlib
+
     enrich = importlib.import_module("enrich")
     mock_body = json.loads((CT_FIXTURES / "mock_ctgov_NCT04303780.json").read_text())
     with patch.object(enrich.requests, "get") as m:
@@ -2510,6 +2701,7 @@ def test_ctdm04_ctgov_404_returns_none():
     """CTDM-04: 404 response yields None, not exception."""
     sys.path.insert(0, str(CLINICALTRIALS_DIR))
     import importlib
+
     enrich = importlib.import_module("enrich")
     with patch.object(enrich.requests, "get") as m:
         resp = MagicMock()
@@ -2523,6 +2715,7 @@ def test_ctdm05_pubchem_enrich_mock():
     """CTDM-05: _fetch_pubchem reads ConnectivitySMILES (Pitfall 2)."""
     sys.path.insert(0, str(CLINICALTRIALS_DIR))
     import importlib
+
     enrich = importlib.import_module("enrich")
     mock_body = json.loads((CT_FIXTURES / "mock_pubchem_remdesivir.json").read_text())
     with patch.object(enrich.requests, "get") as m:
@@ -2534,9 +2727,9 @@ def test_ctdm05_pubchem_enrich_mock():
     assert result is not None
     assert result["pubchem_cid"] == 121304016
     assert result["molecular_formula"] == "C27H35N6O8P"
-    assert result["canonical_smiles"] and result["canonical_smiles"].startswith("CCC"), (
-        "canonical_smiles must be populated from ConnectivitySMILES response key"
-    )
+    assert result["canonical_smiles"] and result["canonical_smiles"].startswith(
+        "CCC"
+    ), "canonical_smiles must be populated from ConnectivitySMILES response key"
 
 
 @pytest.mark.unit
@@ -2544,6 +2737,7 @@ def test_ctdm05_pubchem_404_returns_none():
     """CTDM-05: PubChem 404 yields None without raising."""
     sys.path.insert(0, str(CLINICALTRIALS_DIR))
     import importlib
+
     enrich = importlib.import_module("enrich")
     with patch.object(enrich.requests, "get") as m:
         resp = MagicMock()
@@ -2557,12 +2751,17 @@ def test_ctdm06_enrich_report_written(tmp_path):
     """CTDM-06: enrich_graph writes _enrichment_report.json in the output dir."""
     sys.path.insert(0, str(CLINICALTRIALS_DIR))
     import importlib
+
     enrich = importlib.import_module("enrich")
     # Minimal fake graph — one Trial node, one Compound node
     graph_data = {
         "nodes": [
             {"id": "trial:nct04303780", "name": "NCT04303780", "entity_type": "Trial"},
-            {"id": "compound:remdesivir", "name": "remdesivir", "entity_type": "Compound"},
+            {
+                "id": "compound:remdesivir",
+                "name": "remdesivir",
+                "entity_type": "Compound",
+            },
         ],
         "links": [],
     }
@@ -2583,6 +2782,7 @@ def test_ctdm06_enrich_non_blocking():
     sys.path.insert(0, str(CLINICALTRIALS_DIR))
     import importlib
     import requests as _requests
+
     enrich = importlib.import_module("enrich")
     with patch.object(enrich.requests, "get") as m:
         m.side_effect = _requests.exceptions.ConnectionError("network down")
@@ -2604,9 +2804,16 @@ def test_fda09_domain_yaml_has_anchors():
 
     yaml_path = DOMAINS_DIR / "fda-product-labels" / "domain.yaml"
     schema = yaml.safe_load(yaml_path.read_text())
-    assert "community_label_anchors" in schema, "community_label_anchors missing from domain.yaml"
+    assert "community_label_anchors" in schema, (
+        "community_label_anchors missing from domain.yaml"
+    )
     anchors = schema["community_label_anchors"]
-    assert anchors == ["DRUG_PRODUCT", "ACTIVE_INGREDIENT", "INDICATION", "MANUFACTURER"]
+    assert anchors == [
+        "DRUG_PRODUCT",
+        "ACTIVE_INGREDIENT",
+        "INDICATION",
+        "MANUFACTURER",
+    ]
 
 
 @pytest.mark.unit
@@ -2619,7 +2826,9 @@ def test_fda09_anchor_types_exist_in_entity_types():
     schema = yaml.safe_load(yaml_path.read_text())
     entity_type_names = set(schema.get("entity_types", {}).keys())
     for anchor in schema["community_label_anchors"]:
-        assert anchor in entity_type_names, f"Anchor {anchor!r} not found in entity_types"
+        assert anchor in entity_type_names, (
+            f"Anchor {anchor!r} not found in entity_types"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -2844,9 +3053,7 @@ def test_resolve_api_config_model_override(monkeypatch):
     assert default_model == "claude-sonnet-4-20250514"
 
     # Override non-empty → substituted
-    _, _, overridden, _ = _resolve_api_config(
-        model_override="claude-opus-4-20250514"
-    )
+    _, _, overridden, _ = _resolve_api_config(model_override="claude-opus-4-20250514")
     assert overridden == "claude-opus-4-20250514"
 
     # Empty string → coerced to default
@@ -2936,7 +3143,9 @@ def test_get_models_anthropic(tmp_path, monkeypatch):
     assert data["provider"] == "anthropic"
     assert data["default_model"] == "claude-sonnet-4-20250514"
     assert isinstance(data["models"], list)
-    assert len(data["models"]) >= 3, f"Expected >=3 Anthropic models, got {len(data['models'])}"
+    assert len(data["models"]) >= 3, (
+        f"Expected >=3 Anthropic models, got {len(data['models'])}"
+    )
     # Every entry must have id + label (both strings)
     for entry in data["models"]:
         assert "id" in entry and isinstance(entry["id"], str) and entry["id"]
@@ -3023,7 +3232,9 @@ def test_filter_or_models_excludes_routers():
     result = _filter_and_group_or_models(raw)
     ids = [m["id"] for m in result]
     assert "openrouter/auto" not in ids, "openrouter/ prefix must be excluded"
-    assert "some-provider/variable-model" not in ids, "negative pricing must be excluded"
+    assert "some-provider/variable-model" not in ids, (
+        "negative pricing must be excluded"
+    )
     assert "old-provider/expired-model" not in ids, "expired models must be excluded"
     assert "anthropic/claude-haiku-4" in ids, "valid model must be included"
     assert len(result) == 1, f"Expected 1 valid model, got {len(result)}: {ids}"
@@ -3104,7 +3315,9 @@ def test_filter_or_models_label_format():
     assert "Anthropic: " not in paid["label"], (
         f"'Anthropic: ' prefix must be stripped from label, got {paid['label']!r}"
     )
-    assert paid["input_cost"] == 3.0, f"Expected input_cost=3.0, got {paid['input_cost']}"
+    assert paid["input_cost"] == 3.0, (
+        f"Expected input_cost=3.0, got {paid['input_cost']}"
+    )
     assert paid["free"] is False, f"Expected free=False, got {paid['free']}"
 
     free = result_map["meta-llama/llama-3-8b"]
@@ -3174,9 +3387,7 @@ def test_get_models_openrouter_live(tmp_path, monkeypatch):
             healthy.json = MagicMock(
                 return_value={
                     "data": {
-                        "endpoints": [
-                            {"uptime_last_5m": 99.9, "uptime_last_1d": 99.9}
-                        ]
+                        "endpoints": [{"uptime_last_5m": 99.9, "uptime_last_1d": 99.9}]
                     }
                 }
             )
@@ -3202,12 +3413,16 @@ def test_get_models_openrouter_live(tmp_path, monkeypatch):
     )
     for m in data["models"]:
         assert "group" in m, f"Every model must have 'group' field, missing in {m}"
-        assert "input_cost" in m, f"Every model must have 'input_cost' field, missing in {m}"
+        assert "input_cost" in m, (
+            f"Every model must have 'input_cost' field, missing in {m}"
+        )
     valid_ids = {m["id"] for m in data["models"]}
     assert (
         data["default_model"] in valid_ids
         or data["default_model"] == "anthropic/claude-sonnet-4"
-    ), f"default_model must be in models list or the fallback id; got {data['default_model']!r}"
+    ), (
+        f"default_model must be in models list or the fallback id; got {data['default_model']!r}"
+    )
 
 
 @pytest.mark.unit
@@ -3304,7 +3519,11 @@ def test_check_or_model_health_low_uptime():
     from examples.workbench.server import _check_or_model_health
 
     models = [
-        {"id": "google/gemma-3-27b-it:free", "free": True, "label": "Gemma 3 27B (free)"},
+        {
+            "id": "google/gemma-3-27b-it:free",
+            "free": True,
+            "label": "Gemma 3 27B (free)",
+        },
     ]
 
     async def mock_get(url, **kwargs):
@@ -3313,9 +3532,7 @@ def test_check_or_model_health_low_uptime():
         resp.json = MagicMock(
             return_value={
                 "data": {
-                    "endpoints": [
-                        {"uptime_last_5m": 37.8, "uptime_last_1d": 99.2}
-                    ]
+                    "endpoints": [{"uptime_last_5m": 37.8, "uptime_last_1d": 99.2}]
                 }
             }
         )
@@ -3348,9 +3565,7 @@ def test_check_or_model_health_null_5m_good_1d():
         resp.json = MagicMock(
             return_value={
                 "data": {
-                    "endpoints": [
-                        {"uptime_last_5m": None, "uptime_last_1d": 99.9}
-                    ]
+                    "endpoints": [{"uptime_last_5m": None, "uptime_last_1d": 99.9}]
                 }
             }
         )
@@ -3384,9 +3599,7 @@ def test_check_or_model_health_null_5m_bad_1d():
         resp.json = MagicMock(
             return_value={
                 "data": {
-                    "endpoints": [
-                        {"uptime_last_5m": None, "uptime_last_1d": 45.0}
-                    ]
+                    "endpoints": [{"uptime_last_5m": None, "uptime_last_1d": 45.0}]
                 }
             }
         )
@@ -3410,7 +3623,11 @@ def test_check_or_model_health_network_error():
     from examples.workbench.server import _check_or_model_health
 
     models = [
-        {"id": "google/gemma-3-27b-it:free", "free": True, "label": "Gemma 3 27B (free)"},
+        {
+            "id": "google/gemma-3-27b-it:free",
+            "free": True,
+            "label": "Gemma 3 27B (free)",
+        },
     ]
 
     async def mock_get(url, **kwargs):
@@ -3450,9 +3667,7 @@ def test_check_or_model_health_paid_uptime_passthrough():
         resp.json = MagicMock(
             return_value={
                 "data": {
-                    "endpoints": [
-                        {"uptime_last_5m": 20.0, "uptime_last_1d": 55.0}
-                    ]
+                    "endpoints": [{"uptime_last_5m": 20.0, "uptime_last_1d": 55.0}]
                 }
             }
         )
