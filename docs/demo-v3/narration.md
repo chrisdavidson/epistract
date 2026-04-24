@@ -2,180 +2,151 @@
 
 **Read from phone while recording.** Open Ghostty, `cd ~/code/epistract`, clear. Screen-record terminal + browser.
 
-Target: ~12 minutes, ~1,700 words at 140 wpm.
+Target: ~12 minutes, ~1,600 words at 140 wpm. Audience is Knowledge Graph specialists — lead with the graph, use life-sciences as a concrete example, save implementation details for the end.
+
+**Pre-launch workbenches before recording:**
+```bash
+python scripts/launch_workbench.py tests/corpora/06_glp1_landscape/output-v3 --domain drug-discovery --port 8000 &
+python scripts/launch_workbench.py tests/corpora/07_glp1_phase3_trials/output --domain clinicaltrials --port 8001 &
+```
 
 ---
 
-## Act 1 — Framework thesis (75s)
+## Act 1 — The KG problem we're addressing (75s)
 
-*Show title card, then fade to clean terminal.*
+*Title card, then a schematic slide.*
 
 **Say:**
 
-> "Most knowledge graph tools stop at 'extract entities and relations.' Epistract keeps going. Every relation in the graph is tagged with its epistemic status — asserted with evidence, prophetic from patent forward-looking language, hypothesized in hedged research wording, contested across conflicting sources, or contradictory outright.
+> "A knowledge graph has two kinds of content that most toolchains flatten together.
 >
-> And because every domain needs a different expert reading those classifications, each domain ships with an analyst persona that plays two roles at once: it's the system prompt for the workbench chat when you ask questions, and it's the prompt for an automatic briefing the pipeline writes after every run.
+> First, there are the **brute facts** — nodes and typed edges grounded to a domain ontology, each edge with a confidence score and a source-document citation. This is what virtually every KG tool produces.
 >
-> Three pre-built domains today — drug-discovery, contracts, and clinicaltrials — plus a wizard to build your own. Here's what that looks like running."
+> Second, there's the **epistemic content** — *how* each fact was stated. Was it asserted with quantitative evidence? Was it prophetic patent language — 'is expected to,' 'may be prepared by'? Was it hedged research wording — 'suggests,' 'appears to'? Does the same edge appear across sources with conflicting confidence, making it contested? Or do two sources outright contradict each other?
+>
+> Epistract treats that epistemic content as a first-class Super Domain layer on top of the brute facts KG. Every edge gets tagged. An analyst persona — different for each domain — reads the classified graph and writes a briefing. That's the framework."
 
 ---
 
-## Act 2 — S6 drug-discovery graph (90s)
+## Act 2 — A two-layer knowledge graph in action (150s)
 
-**Type:** `ls tests/corpora/06_glp1_landscape/docs/ | head -8`
+*Switch to browser at http://127.0.0.1:8000, Graph panel.*
 
-**Say:** "Our first corpus: thirty-four documents on GLP-1 receptor agonists — the drug class behind semaglutide and tirzepatide. Ten patent filings from Novo Nordisk, Pfizer, Eli Lilly. Twenty-four PubMed papers on mechanism, safety, emerging indications."
+**Say:** "Here's what that looks like. This is a knowledge graph built from thirty-four documents on a single drug class — we'll come back to the drug-discovery specifics in a minute. For now, focus on the graph structure."
 
-**Type (don't run):** `/epistract:ingest tests/corpora/06_glp1_landscape/docs --output tests/corpora/06_glp1_landscape/output-v3 --domain drug-discovery`
+*Pan/zoom the graph.*
 
-**Say:** "One slash command does the whole thing — read, chunk, extract, validate, build, render. Each document goes through a drug-discovery schema with thirteen entity types and twenty-two relation types. Molecular validators check every SMILES string with RDKit. Write-time Pydantic validation means no extraction silently drops. Two hundred seventy-eight entities, eight hundred fifty-five relations out of thirty-four documents."
+**Say:** "Two hundred seventy-eight entities across thirteen types. Eight hundred fifty-five typed relations. Ten Louvain communities. So far, this is a standard labeled property graph — you could reproduce the structure in Neo4j or NetworkX."
+
+*Click a community cluster to highlight it.*
+
+**Say:** "The community structure tells you *where* in the graph to look — which nodes are densely interconnected. Useful for navigation. It tells you nothing about *what kind of knowledge* you're looking at — a patent prophetic claim and a Phase 3 trial result sit in the same community, topologically indistinguishable."
+
+*Switch to terminal.*
 
 **Type:** `cat tests/corpora/06_glp1_landscape/output-v3/claims_layer.json | jq '.summary.epistemic_status_counts'`
 
-**Shows:** `{"asserted": 758, "prophetic": 61, "hypothesized": 31, "contested": 33, "contradictions": 2, "speculative": 2, "negative": 1}`
+**Say:** "This is the Super Domain layer. The same eight hundred fifty-five relations, but now each one is tagged with an epistemic status. Seven categories. Sixty-one prophetic — patent language claiming effects that haven't been demonstrated. Thirty-three contested — same entity pair, same relation type, but different sources give different confidence. Two outright contradictions. The rest cleanly asserted."
 
-**Say:** "And the epistemic layer has split those eight hundred fifty-five relations into seven status buckets. Sixty-one prophetic claims — patent forward-looking language. Thirty-three contested claims. Two outright contradictions. That's the base layer."
-
----
-
-## Act 3 — Workbench chat (120s)
-
-**Type:** `python scripts/launch_workbench.py tests/corpora/06_glp1_landscape/output-v3 --domain drug-discovery`
-
-**Switch to browser** (http://127.0.0.1:8000, pre-loaded, settled).
-
-**Say:** "This is the workbench. Three panels — dashboard summary, interactive graph, chat. Title auto-detected from graph metadata. No `--domain` flag on this command."
-
-**Click Graph panel.** *Pan the graph.*
-
-**Say:** "Two hundred seventy-eight nodes colored by entity type. Ten Louvain communities. Compounds in indigo, diseases in red, clinical trials in cyan."
-
-**Click Chat panel.** *Scroll starter questions into view.*
-
-**Say:** "But the chat panel is where the design shows up. System prompt is a senior drug-discovery CI analyst. It commits to citation discipline — every claim references source documents. And it commits to the epistemic-status vocabulary. Let me ask it the research question."
-
-**Type into chat:** `Which patents make prophetic claims about new indications, and where are the biggest gaps between prophetic breadth and asserted evidence?`
-
-*Wait for stream. Let the table render.*
-
-**Say:** "This is not retrieval. It's synthesis. The chat is reasoning about which prophetic claims are clinically plausible, which look like patent boilerplate, which trial data would resolve the gap. Every claim cites source documents by ID."
+**Say:** "This is what the Super Domain adds to the graph. You can now query by epistemic status. You can render contested edges in amber. You can write a policy that says 'never treat a prophetic relation the same as an asserted one.' The graph becomes a reasoning substrate, not just a lookup table."
 
 ---
 
-## Act 4 — Automatic narrator briefing (90s)
+## Act 3 — S6 life-sciences illustration (120s)
 
-**Back to terminal.**
+*Switch back to browser :8000. Click Chat panel.*
+
+**Say:** "Now let me make this concrete with the corpus we just saw. It's a drug-discovery corpus — thirty-four documents on a class of medications called GLP-1 receptor agonists. You've probably heard of semaglutide, sold as Ozempic and Wegovy, and tirzepatide, sold as Mounjaro and Zepbound. They're used for type-2 diabetes and obesity. The corpus is ten patent filings from Novo Nordisk, Pfizer, and Eli Lilly, plus twenty-four PubMed abstracts about mechanism, safety, and emerging indications."
+
+**Say:** "The chat panel is grounded in the graph data and runs on a senior drug-discovery analyst persona. The persona commits to citing every claim by source document and to using the epistemic-status vocabulary we just saw. Let me ask it the question the research analyst would ask."
+
+*Type into chat:* `Which patents make prophetic claims about new indications, and where are the biggest gaps between prophetic breadth and asserted evidence?`
+
+*Let the response stream. Let the table render.*
+
+**Say:** "This is cross-document synthesis. The chat is grouping prophetic claims by patent family, flagging the ones most likely to be boilerplate, and naming the asserted clinical evidence that would close each gap. Every specific claim cites the source by document ID. This is not retrieval. You couldn't do this with chunk-level RAG because the synthesis is happening at the graph level — the contested edges, the temporal stratification of confidence scores, the cross-patent clustering all live in the claims layer, not in the source text."
+
+---
+
+## Act 4 — The automatic analyst briefing (90s)
+
+*Back to terminal.*
 
 **Type:** `bat tests/corpora/06_glp1_landscape/output-v3/epistemic_narrative.md | head -80`
 
-**Say:** "The workbench chat answered reactively — I asked, it answered. But `/epistract:epistemic` does the same reasoning proactively. After the rule engine writes the claims layer, the pipeline calls the same analyst persona with the full classified graph and asks for a structured briefing. File committed alongside the graph."
+**Say:** "The chat just answered reactively — I asked, it responded. The same machinery runs proactively. After the epistemic classification writes the claims layer, the pipeline calls the same analyst persona with the full classified graph and asks for a structured briefing. File committed alongside the graph. Regenerated on every run."
 
-**Read verbatim from the narrative (scroll to show each excerpt as you read):**
+*Read verbatim from the narrative — scroll to each section as you read:*
 
 > "Sixty-one prophetic claims inflate the apparent indication breadth of these compounds. Cardiovascular risk reduction, neurodegeneration, and metabolic sub-disorders are largely patent-forward-looking, not empirically established."
 
 > "semaglutide INDICATED_FOR obesity — confidence range 0.55 to 0.97 across sources. The 0.55 instance likely reflects pre-STEP-trial patent language; the 0.97 instance reflects post-approval asserted status. These should be temporally stratified, not treated as equivalent evidence."
 
-> "Integrate SURPASS-2 trial data — add a clinical_trial:surpass_2 node with direct tirzepatide-vs-semaglutide efficacy relations. Source: NEJM 2021, Frías et al."
+> "Integrate SURPASS-2 trial data — add a clinical_trial:surpass_2 node with direct tirzepatide-vs-semaglutide efficacy relations to close the head-to-head gap. Source: NEJM 2021, Frías et al."
 
-**Say:** "This isn't a post-hoc summary. This is an analyst reading the graph and telling you what it's missing. And the persona that wrote it is the same string that powered the chat. Upgrade the persona once, both surfaces improve."
-
----
-
-## Act 5 — The second lens: clinicaltrials (75s)
-
-**Type:** `ls domains/`
-
-*Shows drug-discovery, contracts, clinicaltrials.*
-
-**Say:** "Three pre-built domains. Clinicaltrials is new in version three-point-one. It reads ClinicalTrials.gov protocols, IRB submissions, clinical study reports. Twelve entity types — Trial, Intervention, Cohort, TrialPhase, Outcome. Ten relation types. Phase-based evidence-tier grading built in."
-
-**Type:** `ls tests/corpora/07_glp1_phase3_trials/docs/`
-
-**Say:** "Scenario 7. Same molecular space. But instead of patents and papers, here's the authoritative source — ten Phase 3 trial protocols from ClinicalTrials.gov. SURPASS-2, SURMOUNT-1, all three STEP trials, both PIONEER cardiovascular studies, SUSTAIN-6, ACHIEVE-1. The exact trials the drug-discovery narrator just told us were missing."
-
-**Type (don't run):** `python scripts/fetch_ct_protocols.py tests/corpora/07_glp1_phase3_trials`
-
-**Say:** "One script call — CT.gov v2 API, stdlib urllib, ten protocols fetched. Then the standard pipeline with `--domain clinicaltrials`."
-
-**Type:** `cat tests/corpora/07_glp1_phase3_trials/output/graph_data.json | jq '.metadata | {nodes: .entity_count, edges: .relation_count}'`
-
-**Shows:** `{"nodes": 142, "edges": 395}`
-
-**Say:** "One hundred forty-two entities, three hundred ninety-five relations. Different domain, same pipeline."
+**Say:** "This is an analyst reading the graph and telling you what it's missing. The persona that produced this briefing is the same string that powered the chat you just saw — one YAML field used as the system prompt in two places. Upgrade the persona, both surfaces improve together. That's the domain's expert voice, stored exactly once."
 
 ---
 
-## Act 6 — Enrichment + phase-tier grading (90s)
+## Act 5 — Different analysts for different kinds of knowledge (120s)
 
-**Type:** `python domains/clinicaltrials/enrich.py tests/corpora/07_glp1_phase3_trials/output`
+*Switch to split-screen: browser :8000 on the left, browser :8001 on the right.*
 
-*Real execution — takes ~5 seconds.*
+**Say:** "Up to this point we've looked at one graph. But the framework claim is that the same pipeline works for any domain — the only thing that changes is the domain config. Let me show that as a graph-level claim."
 
-**Shows report:** 10/10 trials, 2/2 compounds, 100% hit rate.
+**Say:** "On the right is a completely different knowledge graph. Same molecular space — GLP-1 agonists — but the source is ten ClinicalTrials.gov trial protocols. SURPASS-2, SURMOUNT-1, STEP-1 through three, the PIONEER cardiovascular trials, SUSTAIN-6, ACHIEVE-1. And the domain here is `clinicaltrials`, not `drug-discovery`. Twelve entity types including Trial, Intervention, Cohort, TrialPhase, Outcome. Ten relation types. Phase-based evidence grading baked into the epistemic layer."
 
-**Say:** "The clinicaltrials domain ships with an enrichment layer. One command hits ClinicalTrials.gov v2 for every trial node — phase, enrollment, dates, status — and PubChem PUG REST for every compound — canonical SMILES, formula, InChI. Hundred percent hit rate. Non-blocking: network failures log counts but never abort."
+*Point at the right-side graph.*
 
-**Type:** `python -m core.label_epistemic tests/corpora/07_glp1_phase3_trials/output --domain clinicaltrials 2>&1 | tail -6`
+**Say:** "One hundred forty-two entities, three hundred ninety-five relations, eight communities. Different graph from a different domain, built by the same core pipeline."
 
-**Say:** "And now the phase-tier grader has data. A hundred seventy-seven relations marked high_evidence — Phase 3, randomized, enrollment over three hundred. Twenty medium. The remaining unclassified aren't failures — they're relations not connected to a trial node, which the grader correctly skips."
+**Say:** "Now the test. Same question, both chats."
 
-**Type:** `bat tests/corpora/07_glp1_phase3_trials/output/epistemic_narrative.md | head -25`
-
-**Say:** "New briefing, same pattern. This narrator is tuned differently — it reasons about arm-level enrollment, endpoint multiplicity, phase-tier coverage. Different persona, same framework."
-
----
-
-## Act 7 — Cross-domain side-by-side (90s)
-
-**Have both workbenches already launched.**
-```bash
-# Prep before recording:
-python scripts/launch_workbench.py tests/corpora/06_glp1_landscape/output-v3 --domain drug-discovery --port 8000 &
-python scripts/launch_workbench.py tests/corpora/07_glp1_phase3_trials/output --domain clinicaltrials --port 8001 &
-```
-
-**Switch to split screen.** Left = :8000 (drug-discovery). Right = :8001 (clinicaltrials).
-
-**Say:** "The competitive-intelligence move. Same question in both. Same molecular space. Different source material, different domain persona, different knowledge graph."
-
-**Type into BOTH chats simultaneously:** `What's the evidence for tirzepatide in obesity?`
+*Type into BOTH chats simultaneously:* `What's the evidence for tirzepatide in obesity?`
 
 *Let both stream in parallel.*
 
-**Say:** "Left side — drug-discovery persona reading the literature graph. It talks about patent claims, hedged research wording, what the trials should show. Right side — clinicaltrials persona reading the protocol graph. NCT numbers, enrollment counts, primary endpoints, phase-tier evidence grades."
+**Say:** "Left side — the drug-discovery analyst persona reading the literature graph. Cites patents and PubMed abstracts. Talks about prophetic claims, hedged research wording, what the trials should show. Right side — the clinical trials analyst persona reading the protocol graph. Cites NCT identifiers. Names enrollment counts, primary endpoints, phase-tier evidence grades."
 
-**Say:** "Neither alone is a CI brief. Together they are. Same pipeline. Same epistemic machinery. Same persona-dual-use pattern. Two domains, one integrated understanding."
+**Say:** "Neither graph alone is a competitive-intelligence brief. Together they are. And this is the graph-level claim: same epistemic machinery, same persona-dual-use pattern, different ontology commitments, produces two knowledge graphs that are complementary by construction."
 
 ---
 
-## Act 8 — Framework mechanics (60s)
+## Act 6 — For the tech geeks — how it's built (120s)
 
-**Back to terminal.**
+*Back to terminal.*
+
+**Say:** "For the implementers in the room. A quick look under the hood."
 
 **Type:** `tree domains/clinicaltrials/ -L 2`
 
-*Shows:* `domain.yaml`, `SKILL.md`, `epistemic.py`, `enrich.py`, `workbench/template.yaml`.
+**Say:** "A whole domain is four required files. Schema in YAML. Extraction prompt in Markdown. Epistemic rules in Python. Workbench config — including the analyst persona — in YAML. No core-code changes. The clinicaltrials package also ships an optional helper module to pull live metadata from its natural authoritative source, ClinicalTrials.gov. That's a package-level convenience, not a framework feature — any domain with a canonical external data source can include its own helper the same way."
 
-**Say:** "A whole domain is five files. Schema in YAML. Extraction prompt in Markdown. Epistemic rules and optional enrichment in Python. Workbench config in YAML. No core-code changes. That's the whole contract."
+**Type:** `cat domains/clinicaltrials/workbench/template.yaml | grep -A 3 "^persona"`
+
+**Say:** "This is the single string that drives both the reactive workbench chat and the proactive narrator. One source of truth per domain. Change it once, both surfaces pick up the change."
+
+**Type:** `ls core/`
+
+**Say:** "The core pipeline is domain-agnostic — no clinicaltrials or drug-discovery code anywhere in it. It resolves a domain package at runtime, applies the schema, runs the epistemic classifier, calls the narrator. LLM credential priority is Azure AI Foundry first, then Anthropic direct, then OpenRouter — your choice. Claude Sonnet at the time of this recording."
 
 **Type (don't execute):** `/epistract:domain --input ./my-sample-docs/ --name my-domain`
 
-**Say:** "And if you don't want to hand-write any of it, the domain wizard runs multi-pass LLM analysis on three to five sample documents, proposes a schema, and generates all five files."
+**Say:** "And if you don't want to hand-write any of it, the domain wizard runs multi-pass LLM analysis on three to five sample documents, proposes a schema, and emits all four required files. You have a working custom domain in about fifteen minutes. Open source, MIT license, runs as a Claude Code plugin."
 
 ---
 
-## Act 9 — Closing (40s)
+## Act 7 — Closing (45s)
 
-**Switch to:** https://github.com/usathyan/epistract/releases
+*Switch to https://github.com/usathyan/epistract/releases.*
 
-**Say:** "Epistract runs as a Claude Code plugin. Version three-point-one shipped April twenty-third. Open source, MIT license.
+**Say:** "Epistract version three-point-one shipped last week. Three pre-built domains — drug discovery, contracts, clinical trials — each demonstrating the two-layer architecture. Each with an analyst persona in the domain package. Each producing an auto-generated epistemic narrative on every run.
 >
-> The thesis again: communities tell you where in the graph to look. Super Domains tell you what kind of knowledge you're looking at. An analyst persona tells you what to do with it. That's the framework.
+> The framework's one-line summary: communities tell you where in the graph to look. Super Domains tell you what kind of knowledge you're looking at. Analyst personas tell you what to do with it.
 >
-> Happy to answer questions. Thanks for watching."
+> Happy to take questions now. Thank you."
 
-**Cut to title card.**
+*Cut to title card.*
 
 ---
 
@@ -201,5 +172,7 @@ python scripts/launch_workbench.py tests/corpora/07_glp1_phase3_trials/output --
 | Pydantic | "pie-DAN-tick" |
 | Louvain | "loo-VAN" |
 | PubMed | "pub-med" |
-| ClinicalTrials.gov v2 | "Clinical Trials dot gov version two" |
+| ClinicalTrials.gov | "Clinical Trials dot gov" |
 | Claude | "clawed" |
+| Novo Nordisk | "NOH-voh NOR-disk" |
+| Eli Lilly | "EE-lie LILL-ee" |
