@@ -1236,6 +1236,11 @@ def main(argv: list[str] | None = None) -> int:
     # When absent, generate_workbench_template falls back to the analyst-shaped
     # default with the domain slug substituted.
     persona = schema.get("persona")
+    # community_label_anchors: optional list of entity types used to anchor
+    # community labels (domain-aware labeling).  Must be read here so that
+    # --schema bypass callers can supply anchors without going through the
+    # interactive wizard.
+    community_label_anchors = schema.get("community_label_anchors") or None
 
     # D-11: bypass the 3-pass LLM discovery — call generate_domain_package directly.
     # Mirror commands/domain.md:140 slug convention (hyphens → underscores for function names).
@@ -1252,6 +1257,7 @@ def main(argv: list[str] | None = None) -> int:
         gap_target_types=gap_target_types,
         confidence_thresholds=confidence_thresholds,
         persona=persona,
+        community_label_anchors=community_label_anchors,
     )
 
     print(f"Domain package created at: {result['domain_dir']}")
