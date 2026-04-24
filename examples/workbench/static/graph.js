@@ -115,7 +115,11 @@ function buildGraph() {
         title: `${n.entity_type}: ${n.name}`,
         shape: 'dot',
         size: 12,
-        font: { size: 11, color: '#333' },
+        font: {
+            size: 12,
+            color: '#1a1a1a',
+            background: 'rgba(255, 255, 255, 0.85)',
+        },
         _data: n,
     }));
 
@@ -137,6 +141,15 @@ function buildGraph() {
             solver: 'barnesHut',
             barnesHut: { gravitationalConstant: -3000, springLength: 150 },
             stabilization: { iterations: 100 },
+        },
+        scaling: {
+            label: {
+                enabled: true,
+                min: 8,
+                max: 14,
+                maxVisible: 14,
+                drawThreshold: 6,
+            },
         },
         interaction: { hover: true, tooltipDelay: 200 },
     };
