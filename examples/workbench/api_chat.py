@@ -352,6 +352,18 @@ async def _stream_openai_compat(
                         break
                     try:
                         event = json.loads(data_str)
+                        # OpenRouter can embed errors inside the SSE stream
+                        # (not just as HTTP error codes) — surface them explicitly.
+                        error_obj = event.get("error")
+                        if error_obj:
+                            msg = error_obj.get("message", str(error_obj))
+                            yield {
+                                "data": json.dumps(
+                                    {"type": "error", "content": f"Model error: {msg}"}
+                                )
+                            }
+                            yield {"data": json.dumps({"type": "done"})}
+                            return
                         choices = event.get("choices", [])
                         if choices:
                             delta = choices[0].get("delta", {})

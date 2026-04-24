@@ -113,8 +113,12 @@ async function sendMessage(question) {
                         } else if (data.type === 'error') {
                             assistantDiv.innerHTML = `<div class="error-msg">${data.content}</div>`;
                         } else if (data.type === 'done') {
-                            // Final render with citation linking
-                            assistantDiv.innerHTML = linkifyCitations(renderMarkdown(fullResponse));
+                            if (!fullResponse) {
+                                assistantDiv.innerHTML = '<div class="error-msg">No response received. The model may be rate-limited, unavailable, or the request exceeded its context limit. Try a different model or a shorter question.</div>';
+                            } else {
+                                // Final render with citation linking
+                                assistantDiv.innerHTML = linkifyCitations(renderMarkdown(fullResponse));
+                            }
                         }
                     } catch (e) {
                         console.warn('SSE parse error:', line, e);
