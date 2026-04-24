@@ -2943,3 +2943,303 @@ def test_get_models_anthropic(tmp_path, monkeypatch):
         assert "label" in entry and isinstance(entry["label"], str) and entry["label"]
     # First entry is the default
     assert data["models"][0]["id"] == data["default_model"]
+
+
+# ========================================================================
+# Phase 05-04: Live OpenRouter model browser (WB-MODEL-01 extension)
+# Wave 0 stub tests — RED until Plan 05-04 Task 2 lands.
+# ========================================================================
+
+
+@pytest.mark.unit
+def test_filter_or_models_text_only():
+    """05-04: _filter_and_group_or_models drops models where output_modalities != ['text']."""
+    from examples.workbench.server import _filter_and_group_or_models
+
+    raw = [
+        {
+            "id": "anthropic/claude-sonnet-4",
+            "name": "Anthropic: Claude Sonnet 4",
+            "architecture": {"output_modalities": ["text"]},
+            "pricing": {"prompt": "0.000003", "completion": "0.000015"},
+            "context_length": 200000,
+            "expiration_date": None,
+        },
+        {
+            "id": "openai/dall-e-3",
+            "name": "OpenAI: DALL-E 3",
+            "architecture": {"output_modalities": ["image"]},
+            "pricing": {"prompt": "0.00004", "completion": "0.00004"},
+            "context_length": 4096,
+            "expiration_date": None,
+        },
+    ]
+    result = _filter_and_group_or_models(raw)
+    assert len(result) == 1, f"Expected 1 text-only model, got {len(result)}"
+    assert result[0]["id"] == "anthropic/claude-sonnet-4", (
+        f"Expected anthropic/claude-sonnet-4, got {result[0]['id']}"
+    )
+
+
+@pytest.mark.unit
+def test_filter_or_models_excludes_routers():
+    """05-04: _filter_and_group_or_models excludes openrouter/ prefix, negative pricing, and expired models."""
+    from examples.workbench.server import _filter_and_group_or_models
+
+    raw = [
+        {
+            "id": "anthropic/claude-haiku-4",
+            "name": "Anthropic: Claude Haiku 4",
+            "architecture": {"output_modalities": ["text"]},
+            "pricing": {"prompt": "0.0000008", "completion": "0.000001"},
+            "context_length": 200000,
+            "expiration_date": None,
+        },
+        {
+            "id": "openrouter/auto",
+            "name": "OpenRouter: Auto",
+            "architecture": {"output_modalities": ["text"]},
+            "pricing": {"prompt": "0", "completion": "0"},
+            "context_length": 200000,
+            "expiration_date": None,
+        },
+        {
+            "id": "some-provider/variable-model",
+            "name": "Some Provider: Variable",
+            "architecture": {"output_modalities": ["text"]},
+            "pricing": {"prompt": "-1", "completion": "-1"},
+            "context_length": 200000,
+            "expiration_date": None,
+        },
+        {
+            "id": "old-provider/expired-model",
+            "name": "Old Provider: Expired",
+            "architecture": {"output_modalities": ["text"]},
+            "pricing": {"prompt": "0.000001", "completion": "0.000002"},
+            "context_length": 8192,
+            "expiration_date": "2000-01-01",
+        },
+    ]
+    result = _filter_and_group_or_models(raw)
+    ids = [m["id"] for m in result]
+    assert "openrouter/auto" not in ids, "openrouter/ prefix must be excluded"
+    assert "some-provider/variable-model" not in ids, "negative pricing must be excluded"
+    assert "old-provider/expired-model" not in ids, "expired models must be excluded"
+    assert "anthropic/claude-haiku-4" in ids, "valid model must be included"
+    assert len(result) == 1, f"Expected 1 valid model, got {len(result)}: {ids}"
+
+
+@pytest.mark.unit
+def test_filter_or_models_grouping():
+    """05-04: _filter_and_group_or_models assigns correct group labels including tilde-alias handling."""
+    from examples.workbench.server import _filter_and_group_or_models
+
+    def _make_model(model_id):
+        return {
+            "id": model_id,
+            "name": f"Model: {model_id}",
+            "architecture": {"output_modalities": ["text"]},
+            "pricing": {"prompt": "0.000001", "completion": "0.000002"},
+            "context_length": 8192,
+            "expiration_date": None,
+        }
+
+    raw = [
+        _make_model("anthropic/x"),
+        _make_model("openai/x"),
+        _make_model("meta-llama/x"),
+        _make_model("~anthropic/y"),
+        _make_model("some-unknown-vendor/x"),
+    ]
+    result = _filter_and_group_or_models(raw)
+    group_map = {m["id"]: m["group"] for m in result}
+
+    assert group_map["anthropic/x"] == "Claude (Anthropic)", (
+        f"Expected 'Claude (Anthropic)', got {group_map['anthropic/x']!r}"
+    )
+    assert group_map["openai/x"] == "GPT / O-series (OpenAI)", (
+        f"Expected 'GPT / O-series (OpenAI)', got {group_map['openai/x']!r}"
+    )
+    assert group_map["meta-llama/x"] == "Llama (Meta)", (
+        f"Expected 'Llama (Meta)', got {group_map['meta-llama/x']!r}"
+    )
+    assert group_map["~anthropic/y"] == "Claude (Anthropic)", (
+        "Tilde-alias '~anthropic/y' must resolve to 'Claude (Anthropic)' after stripping '~'"
+    )
+    assert group_map["some-unknown-vendor/x"] == "Other", (
+        f"Expected 'Other' for unknown vendor, got {group_map['some-unknown-vendor/x']!r}"
+    )
+
+
+@pytest.mark.unit
+def test_filter_or_models_label_format():
+    """05-04: _filter_and_group_or_models formats labels with cost suffix and strips provider prefix."""
+    from examples.workbench.server import _filter_and_group_or_models
+
+    raw = [
+        {
+            "id": "anthropic/claude-sonnet-4",
+            "name": "Anthropic: Claude Sonnet 4",
+            "architecture": {"output_modalities": ["text"]},
+            "pricing": {"prompt": "0.000003", "completion": "0.000015"},
+            "context_length": 200000,
+            "expiration_date": None,
+        },
+        {
+            "id": "meta-llama/llama-3-8b",
+            "name": "Meta: Llama 3 8B",
+            "architecture": {"output_modalities": ["text"]},
+            "pricing": {"prompt": "0", "completion": "0"},
+            "context_length": 8192,
+            "expiration_date": None,
+        },
+    ]
+    result = _filter_and_group_or_models(raw)
+    result_map = {m["id"]: m for m in result}
+
+    paid = result_map["anthropic/claude-sonnet-4"]
+    assert "($3.00/M)" in paid["label"], (
+        f"Expected '($3.00/M)' in label, got {paid['label']!r}"
+    )
+    assert "Anthropic: " not in paid["label"], (
+        f"'Anthropic: ' prefix must be stripped from label, got {paid['label']!r}"
+    )
+    assert paid["input_cost"] == 3.0, f"Expected input_cost=3.0, got {paid['input_cost']}"
+    assert paid["free"] is False, f"Expected free=False, got {paid['free']}"
+
+    free = result_map["meta-llama/llama-3-8b"]
+    assert "(free)" in free["label"], (
+        f"Expected '(free)' in label, got {free['label']!r}"
+    )
+    assert free["free"] is True, f"Expected free=True, got {free['free']}"
+
+
+@pytest.mark.unit
+def test_get_models_openrouter_live(tmp_path, monkeypatch):
+    """05-04: GET /api/models with OPENROUTER_API_KEY fetches live list and returns grouped models."""
+    import json as _json
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    import examples.workbench.server as srv
+
+    _clear_llm_env(monkeypatch)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-v1-test-key")
+
+    # Reset cache so the test always triggers a fresh fetch
+    srv._or_models_cache["data"] = None
+    srv._or_models_cache["fetched_at"] = 0.0
+
+    (tmp_path / "graph_data.json").write_text(
+        _json.dumps({"nodes": [], "links": [], "metadata": {"domain": "contracts"}})
+    )
+
+    # Synthetic OpenRouter API response: 2 text-output, 1 image-output
+    mock_data = {
+        "data": [
+            {
+                "id": "anthropic/claude-sonnet-4",
+                "name": "Anthropic: Claude Sonnet 4",
+                "architecture": {"output_modalities": ["text"]},
+                "pricing": {"prompt": "0.000003", "completion": "0.000015"},
+                "context_length": 200000,
+                "expiration_date": None,
+            },
+            {
+                "id": "meta-llama/llama-3-8b",
+                "name": "Meta: Llama 3 8B",
+                "architecture": {"output_modalities": ["text"]},
+                "pricing": {"prompt": "0", "completion": "0"},
+                "context_length": 8192,
+                "expiration_date": None,
+            },
+            {
+                "id": "openai/dall-e-3",
+                "name": "OpenAI: DALL-E 3",
+                "architecture": {"output_modalities": ["image"]},
+                "pricing": {"prompt": "0.00004", "completion": "0.00004"},
+                "context_length": 4096,
+                "expiration_date": None,
+            },
+        ]
+    }
+
+    mock_response = MagicMock()
+    mock_response.raise_for_status = MagicMock()
+    mock_response.json = MagicMock(return_value=mock_data)
+
+    async def mock_get_fn(*args, **kwargs):
+        return mock_response
+
+    from examples.workbench.server import create_app
+    from starlette.testclient import TestClient
+
+    app = create_app(tmp_path, domain="contracts")
+    client = TestClient(app)
+
+    with patch("httpx.AsyncClient.get", new=AsyncMock(side_effect=mock_get_fn)):
+        resp = client.get("/api/models")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["provider"] == "openrouter", (
+        f"Expected provider=openrouter, got {data['provider']!r}"
+    )
+    assert len(data["models"]) == 2, (
+        f"Expected 2 text-only models (image filtered out), got {len(data['models'])}"
+    )
+    for m in data["models"]:
+        assert "group" in m, f"Every model must have 'group' field, missing in {m}"
+        assert "input_cost" in m, f"Every model must have 'input_cost' field, missing in {m}"
+    valid_ids = {m["id"] for m in data["models"]}
+    assert (
+        data["default_model"] in valid_ids
+        or data["default_model"] == "anthropic/claude-sonnet-4"
+    ), f"default_model must be in models list or the fallback id; got {data['default_model']!r}"
+
+
+@pytest.mark.unit
+def test_get_models_openrouter_fallback(tmp_path, monkeypatch):
+    """05-04: GET /api/models falls back to PROVIDER_MODELS['openrouter'] when fetch fails."""
+    import json as _json
+    from unittest.mock import AsyncMock, patch
+
+    import httpx
+
+    import examples.workbench.server as srv
+    from examples.workbench.api_chat import PROVIDER_MODELS
+
+    _clear_llm_env(monkeypatch)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-v1-test-key")
+
+    # Reset cache so the test always triggers a fresh fetch
+    srv._or_models_cache["data"] = None
+    srv._or_models_cache["fetched_at"] = 0.0
+
+    (tmp_path / "graph_data.json").write_text(
+        _json.dumps({"nodes": [], "links": [], "metadata": {"domain": "contracts"}})
+    )
+
+    async def mock_get_fn(*args, **kwargs):
+        raise httpx.ConnectError("boom")
+
+    from examples.workbench.server import create_app
+    from starlette.testclient import TestClient
+
+    app = create_app(tmp_path, domain="contracts")
+    client = TestClient(app)
+
+    with patch("httpx.AsyncClient.get", new=AsyncMock(side_effect=mock_get_fn)):
+        resp = client.get("/api/models")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["provider"] == "openrouter", (
+        f"Expected provider=openrouter even on fallback, got {data['provider']!r}"
+    )
+    assert data["models"] == PROVIDER_MODELS["openrouter"], (
+        "On network failure, models must equal static PROVIDER_MODELS['openrouter'] fallback"
+    )
+    for m in data["models"]:
+        assert "group" not in m, (
+            f"Static fallback models must NOT have 'group' field, found in {m}"
+        )
