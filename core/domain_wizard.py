@@ -417,6 +417,7 @@ def generate_domain_yaml(
     system_context: str,
     entity_types: dict,
     relation_types: dict,
+    community_label_anchors: list[str] | None = None,
 ) -> str:
     """Generate domain.yaml content as YAML string.
 
@@ -426,6 +427,9 @@ def generate_domain_yaml(
         system_context: System prompt for LLM extraction context.
         entity_types: Dict of entity type name -> {description}.
         relation_types: Dict of relation type name -> {description}.
+        community_label_anchors: Optional ordered list of entity type names used
+            as label anchors for community detection output. When provided, emitted
+            as the last top-level key in domain.yaml. Omitted when None.
 
     Returns:
         YAML string ready to write to domain.yaml.
@@ -438,6 +442,8 @@ def generate_domain_yaml(
         "entity_types": entity_types,
         "relation_types": relation_types,
     }
+    if community_label_anchors is not None:
+        schema["community_label_anchors"] = community_label_anchors
     return yaml.safe_dump(
         schema,
         default_flow_style=False,
@@ -1061,6 +1067,7 @@ def generate_domain_package(
     gap_target_types: dict | None = None,
     confidence_thresholds: dict | None = None,
     persona: str | None = None,
+    community_label_anchors: list[str] | None = None,
 ) -> dict:
     """Generate and write a complete domain package.
 
@@ -1097,6 +1104,7 @@ def generate_domain_package(
     # Generate all artifacts
     domain_yaml = generate_domain_yaml(
         domain_name, description, system_context, entity_types, relation_types,
+        community_label_anchors=community_label_anchors,
     )
     skill_md = generate_skill_md(
         domain_name, system_context, entity_types, relation_types,

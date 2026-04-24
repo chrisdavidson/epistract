@@ -2731,3 +2731,46 @@ def test_fda09_backward_compat_missing_domain_metadata(tmp_path):
 
     result = lc.label_communities(tmp_path)
     assert isinstance(result, dict)
+
+
+# ---------------------------------------------------------------------------
+# FDA-09: domain_wizard community_label_anchors emission — Task 3
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_fda09_wizard_generate_domain_yaml_with_anchors():
+    """generate_domain_yaml with anchors emits community_label_anchors in YAML."""
+    import yaml
+    from core.domain_wizard import generate_domain_yaml
+
+    result = generate_domain_yaml(
+        domain_name="Test Domain",
+        description="A test domain",
+        system_context="Extract test entities",
+        entity_types={"FOO": {"description": "Foo entity"}},
+        relation_types={"HAS_FOO": {"description": "Has foo"}},
+        community_label_anchors=["FOO"],
+    )
+    parsed = yaml.safe_load(result)
+    assert "community_label_anchors" in parsed, "anchors missing from generated YAML"
+    assert parsed["community_label_anchors"] == ["FOO"]
+
+
+@pytest.mark.unit
+def test_fda09_wizard_generate_domain_yaml_without_anchors():
+    """generate_domain_yaml without anchors does NOT emit community_label_anchors (backward compat)."""
+    import yaml
+    from core.domain_wizard import generate_domain_yaml
+
+    result = generate_domain_yaml(
+        domain_name="Test Domain",
+        description="A test domain",
+        system_context="Extract test entities",
+        entity_types={"FOO": {"description": "Foo entity"}},
+        relation_types={"HAS_FOO": {"description": "Has foo"}},
+    )
+    parsed = yaml.safe_load(result)
+    assert "community_label_anchors" not in parsed, (
+        "community_label_anchors should be absent when not provided"
+    )
