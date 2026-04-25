@@ -27,13 +27,18 @@ from urllib.request import Request, urlopen
 # ---------------------------------------------------------------------------
 # Target drugs — (query_value, query_field, output_filename_stem)
 # Application numbers verified against openFDA on 2026-04-25.
-# NDA208457 = injectable Ozempic (not NDA213051 which is oral Rybelsus combined).
+# NDA209637 = injectable Ozempic (SUBCUTANEOUS, semaglutide).
+# NDA208457 returned NOT_FOUND on openFDA; NDA209637 is the correct injectable record.
+# NDA213051 is oral semaglutide combined (OZEMPIC + RYBELSUS) — excluded per Pitfall #7.
+# BLA125057 = Humira (adalimumab) — replaces planned BLA761467 (KEYTRUDA QLEX).
+# BLA761467 has no boxed_warning field in openFDA structured data; Humira has a
+# confirmed BOXED WARNING (serious infections/malignancy) which the corpus requires.
 # ---------------------------------------------------------------------------
 DRUG_TARGETS: list[tuple[str, str, str]] = [
-    ("NDA208457", "openfda.application_number", "semaglutide_ozempic"),
+    ("NDA209637", "openfda.application_number", "semaglutide_ozempic"),
     ("NDA215256", "openfda.application_number", "semaglutide_wegovy"),
     ("NDA215866", "openfda.application_number", "tirzepatide_mounjaro"),
-    ("BLA761467", "openfda.application_number", "pembrolizumab_keytruda"),
+    ("BLA125057", "openfda.application_number", "adalimumab_humira"),
     ("NDA021588", "openfda.application_number", "imatinib_gleevec"),
     ("NDA020702", "openfda.application_number", "atorvastatin_lipitor"),
     ("ANDA040416", "openfda.application_number", "warfarin_jantoven"),
@@ -206,7 +211,14 @@ def render(record: dict, filename_stem: str) -> str:
             parts.append("")
 
     combined = "\n".join(parts).rstrip() + "\n"
-    return combined[:MAX_CHARS]
+    # Trim at byte boundary (UTF-8 multi-byte chars can push byte count over MAX_CHARS
+    # even when character count is exactly MAX_CHARS).  Encode → slice → decode with
+    # errors="ignore" to drop any incomplete multi-byte sequence at the cut point.
+    encoded = combined.encode("utf-8")
+    if len(encoded) > MAX_CHARS:
+        encoded = encoded[:MAX_CHARS]
+        return encoded.decode("utf-8", errors="ignore")
+    return combined
 
 
 # ---------------------------------------------------------------------------
