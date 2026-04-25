@@ -21,6 +21,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "core"))
 sys.path.insert(0, str(PROJECT_ROOT / "domains" / "drug-discovery" / "validation"))
 sys.path.insert(0, str(PROJECT_ROOT / "domains" / "drug-discovery"))
 sys.path.insert(0, str(PROJECT_ROOT / "domains" / "contracts"))
+sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
 # ---------------------------------------------------------------------------
 # Availability flags — importable by test files
