@@ -4,11 +4,13 @@
 
 Epistract is a domain-agnostic knowledge graph framework that runs as a [Claude Code](https://claude.ai/claude-code) plugin. Point it at a folder of PDFs, papers, patents, or contracts, tell it what kind of documents they are, and it produces a structured graph you can explore visually, ask questions about, and use to brief decisions.
 
-Two things make it different:
+Three things make it different:
 
-1. **It works for any domain.** Drug discovery. Contracts. ESG filings. Clinical trials. Patent portfolios. Plug in a domain schema — 15 entity types and 30 relation types is typical — and the same pipeline runs end-to-end. We ship two domains out of the box (drug-discovery, contracts); you can create a new one with `/epistract:domain` in under 15 minutes.
+1. **It works for any domain.** Drug discovery. Contracts. ESG filings. Clinical trials. Patent portfolios. Plug in a domain schema — 12–17 entity types and 10–22 relation types is typical — and the same pipeline runs end-to-end. We ship **four domains out of the box** (drug-discovery, contracts, clinicaltrials, fda-product-labels); you can create a new one with `/epistract:domain` in under 15 minutes.
 
 2. **Every graph carries an epistemic super-domain layer on top of the brute facts.** Most KG tools stop after "extract entities and relations." Epistract keeps going: which of those relations are *asserted* with quantitative evidence? Which are *prophetic* (patent forward-looking language)? Which are *hypothesized* (hedged wording)? Which *contradict* each other across sources? The epistemic layer is the difference between a bag of facts and a briefing you can act on.
+
+3. **Domain knowledge compounds across scenarios.** Each scenario you run against a domain sharpens it — patterns generalize, edge cases surface, the epistemic layer's coverage broadens, the analyst persona learns what to flag. The drug-discovery domain has been validated across **six showcases** (PICALM/Alzheimer's, KRAS G12C, Rare Disease, Immuno-Oncology, Cardiovascular, GLP-1 Competitive Intelligence — 111 documents collectively). The clinicaltrials domain launched with its first scenario (GLP-1 Phase 3 Trials, 10 CT.gov protocols). Contracts and fda-product-labels are schema scaffolds awaiting their first showcase corpus. **A domain's scenario count is its epistemic maturity signal**, and the framework rewards domains that accumulate use — see the Pre-built Domains table below.
 
 ---
 
@@ -127,14 +129,16 @@ More: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Pre-built domains
 
-| Domain | Entity types | Relation types | Use cases |
-|---|---:|---:|---|
-| drug-discovery | 13 | 22 | Biomedical literature, patents, clinical trial reports — molecular validation (RDKit / Biopython), patent prophetic-claim detection, regulatory / adverse-event capture |
-| contracts | 11 | 11 | Event/vendor contract analysis — cross-contract conflict detection, obligation gap scoring, risk indicators, SLA/force-majeure reasoning |
-| clinicaltrials | 12 | 10 | ClinicalTrials.gov protocols + IRB submissions + clinical study reports — NCT ID capture, Phase-based evidence grading, blinding/enrollment signals. Optional `--enrich` flag pulls live metadata from ClinicalTrials.gov v2 + PubChem PUG REST APIs |
-| fda-product-labels | 17 | 16 | FDA Structured Product Labeling (SPL) documents — drug products, indications, contraindications, boxed warnings, drug interactions, pharmacovigilance, lab-test monitoring. Four-level FDA epistemology classifier (established / reported / theoretical / asserted) plus the v3 epistemic vocabulary |
+| Domain | Schema | Scenarios validated | Specialty pipeline | Use cases |
+|---|---|---|---|---|
+| **drug-discovery** | 13 entity / 22 relation types | **6 scenarios** — [S1 PICALM / Alzheimer's](tests/scenarios/scenario-01-picalm-alzheimers-v2.md) (target validation, 183 nodes / 478 edges) · [S2 KRAS G12C](tests/scenarios/scenario-02-kras-g12c-landscape-v2.md) (CI, 140 / 432) · [S3 Rare Disease](tests/scenarios/scenario-03-rare-disease-v2.md) (due diligence, 110 / 278) · [S4 Immuno-oncology](tests/scenarios/scenario-04-immunooncology-v2.md) (combinations, 151 / 440) · [S5 Cardiovascular](tests/scenarios/scenario-05-cardiovascular-v2.md) (cardiology, 90 / 245) · **[S6 GLP-1 CI](tests/scenarios/scenario-06-glp1-landscape-v2.md)** (V3 rebuild, 278 / 855, full narrator briefing — see [SHOWCASE-GLP1](docs/SHOWCASE-GLP1.md)) | RDKit + Biopython molecular validation; prophetic-claim detection from patents; structural-biology doctype short-circuit | Biomedical literature, patents, clinical trial reports — competitive intelligence, target validation, regulatory / adverse-event capture |
+| **clinicaltrials** | 12 / 10 | **1 scenario** — **[S7 GLP-1 Phase 3 Trials](tests/scenarios/scenario-07-clinicaltrials-glp1-phase3.md)** (10 CT.gov protocols, 142 / 395, post-`--enrich` 177 high_evidence relations — see [SHOWCASE-CLINICALTRIALS](docs/SHOWCASE-CLINICALTRIALS.md)) | Phase-based evidence grading (Phase 3 + N≥300 → high; Phase 2 → medium; Phase 1 / observational → low); optional `--enrich` from CT.gov v2 + PubChem PUG REST | ClinicalTrials.gov protocols + IRB submissions + clinical study reports — NCT capture, blinding/enrollment signals, head-to-head comparison framing |
+| **contracts** | 11 / 11 | **0 scenarios** — schema scaffold; [showcase walkthrough](docs/showcases/contracts.md) describes the persona; bring your own contract corpus | Cross-contract conflict detection, obligation gap scoring, risk indicators, SLA / force-majeure reasoning | Event / vendor contract analysis, procurement portfolio review, legal due diligence |
+| **fda-product-labels** | 17 / 16 | **0 scenarios** — domain ships with a hand-tailored FDA-analyst persona; first showcase corpus in flight via [Issue #14](https://github.com/usathyan/epistract/issues/14) | Four-level FDA epistemology classifier (established / reported / theoretical / asserted), in addition to the v3 epistemic vocabulary | FDA Structured Product Labeling (SPL) — drug products, indications, contraindications, boxed warnings, drug interactions, pharmacovigilance, lab-test monitoring |
 
-All four live in `domains/` as self-contained packages. Schemas are human-readable YAML; inspect `domains/drug-discovery/domain.yaml`, `domains/contracts/domain.yaml`, `domains/clinicaltrials/domain.yaml`, or `domains/fda-product-labels/domain.yaml`.
+**Reading the table:** *Schema* is the static shape. *Scenarios validated* is the dynamic one — it tracks how much real-world corpus a domain has seen. A domain with six scenarios has accumulated patterns, edge cases, persona refinements, and epistemic-rule tuning that one with zero hasn't. As scenarios run, narrators write briefings, gaps surface, and the persona's voice gets tested — that compounding is the framework's primary value.
+
+All four live in `domains/` as self-contained packages — schemas are human-readable YAML; inspect any of `domains/drug-discovery/domain.yaml`, `domains/contracts/domain.yaml`, `domains/clinicaltrials/domain.yaml`, or `domains/fda-product-labels/domain.yaml`. To start a new scenario on an existing domain, just run `/epistract:ingest <your-corpus> --domain <name>` — no schema work needed.
 
 ### Showcases & visual artifacts
 
