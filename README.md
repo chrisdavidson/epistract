@@ -132,8 +132,9 @@ More: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 | drug-discovery | 13 | 22 | Biomedical literature, patents, clinical trial reports — molecular validation (RDKit / Biopython), patent prophetic-claim detection, regulatory / adverse-event capture |
 | contracts | 11 | 11 | Event/vendor contract analysis — cross-contract conflict detection, obligation gap scoring, risk indicators, SLA/force-majeure reasoning |
 | clinicaltrials | 12 | 10 | ClinicalTrials.gov protocols + IRB submissions + clinical study reports — NCT ID capture, Phase-based evidence grading, blinding/enrollment signals. Optional `--enrich` flag pulls live metadata from ClinicalTrials.gov v2 + PubChem PUG REST APIs |
+| fda-product-labels | 17 | 16 | FDA Structured Product Labeling (SPL) documents — drug products, indications, contraindications, boxed warnings, drug interactions, pharmacovigilance, lab-test monitoring. Four-level FDA epistemology classifier (established / reported / theoretical / asserted) plus the v3 epistemic vocabulary |
 
-All three live in `domains/` as self-contained packages. Schemas are human-readable YAML; inspect `domains/drug-discovery/domain.yaml`, `domains/contracts/domain.yaml`, or `domains/clinicaltrials/domain.yaml`.
+All four live in `domains/` as self-contained packages. Schemas are human-readable YAML; inspect `domains/drug-discovery/domain.yaml`, `domains/contracts/domain.yaml`, `domains/clinicaltrials/domain.yaml`, or `domains/fda-product-labels/domain.yaml`.
 
 ### Showcases & visual artifacts
 
@@ -160,6 +161,13 @@ All three live in `domains/` as self-contained packages. Schemas are human-reada
 - Showcase walkthrough: [`docs/showcases/contracts.md`](docs/showcases/contracts.md)
 - Domain package: [`domains/contracts/`](domains/contracts/) (schema, SKILL.md, epistemic.py, workbench template with a worked 57-document persona)
 - No bundled corpus graph in the public repo — the contracts domain is designed for private legal/procurement work. Run `/epistract:ingest <your-contract-corpus> --domain contracts` to produce your own graph + workbench view.
+
+**fda-product-labels** — FDA Structured Product Labeling, four-level epistemology classifier (new in v3.2)
+
+- Domain package: [`domains/fda-product-labels/`](domains/fda-product-labels/) (17 entity types, 16 relation types, hand-tailored senior FDA regulatory intelligence analyst persona)
+- Four-level FDA epistemology classifier in [`domains/fda-product-labels/epistemic.py`](domains/fda-product-labels/epistemic.py) — `established` (boxed warnings, contraindications, RCT evidence) / `reported` (adverse reactions, post-marketing surveillance) / `theoretical` (mechanism, pharmacology, in vitro) / `asserted` (default) — populated alongside the v3-standard `epistemic_status` field
+- Bring your own SPL corpus from openFDA. Sample query (8 SPL set IDs): `/epistract:ingest <your-spl-json-files> --domain fda-product-labels`
+- No bundled showcase graph yet — first showcase corpus is a v3.2.x candidate
 
 *GitHub renders `.html` files as source, not interactive pages — clone the repo and open the `graph.html` links locally in a browser to interact with the force-directed graphs.*
 
