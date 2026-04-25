@@ -37,9 +37,14 @@ Total narration: ~700 words at 140 wpm = ~5 min. Tight; rehearse twice before re
 **Title card:**
 ```
 EPISTRACT
-A two-layer knowledge graph framework
+A Two-Layer Knowledge Graph Framework
+with an Epistemic Super-Domain Layer
+
 github.com/usathyan/epistract · v3.2.0
+Paper: paper/v2/main.pdf · Umesh Bhatt · umesh@8thcross.com
 ```
+
+*The title is the paper's title. Same wording everywhere — the README hero, the paper, the title card — so a viewer who pauses can google it and land on the same artifact every time.*
 
 **Narration:**
 
@@ -121,25 +126,34 @@ bat tests/corpora/06_glp1_landscape/output-v3/epistemic_narrative.md
 
 ## Block 5 — Closing (30s, 4:30–5:00)
 
-**Surface:** Title card with GitHub URL + version + 4-domain summary.
+**Surface:** Brief picture-in-picture of the paper PDF (title page) for ~3 seconds while the closing card loads, then full closing card.
 
 **Narration:**
 
-> "Quick wrap-up. The framework is domain-agnostic — four pre-built domains today: drug-discovery, contracts, clinicaltrials, FDA product labels. Each domain is four required files — schema in YAML, extraction prompt in Markdown, epistemic rules in Python, analyst persona in YAML — plus optional helpers like an external-API enrichment module. Open source, MIT license. Runs as a Claude Code plugin. Code at github.com/usathyan/epistract. Happy to take questions."
+> "Quick wrap-up. The framework is domain-agnostic — four pre-built domains today: drug-discovery, contracts, clinicaltrials, FDA product labels. Each domain is four required files — schema in YAML, extraction prompt in Markdown, epistemic rules in Python, analyst persona in YAML — plus optional helpers like an external-API enrichment module. Open source, MIT license. Runs as a Claude Code plugin. There's a paper at `paper/v2/main.pdf` in the repo if you want the architectural detail and the per-domain epistemic rules — link's in the README. Code and paper both at github.com/usathyan/epistract. Happy to take questions."
 
-**Cut to title card:**
+**Cut to closing card:**
 ```
 EPISTRACT v3.2.0
-github.com/usathyan/epistract
-umesh@8thcross.com
+
+Paper:  Epistract — A Two-Layer Knowledge Graph Framework
+        with an Epistemic Super-Domain Layer
+        github.com/usathyan/epistract/blob/main/paper/v2/main.pdf
+
+Code:   github.com/usathyan/epistract
+Author: Umesh Bhatt · umesh@8thcross.com
+
 QnA →
 ```
+
+*Why the PDF flash on screen: it's a 3-second signal that "this isn't just a demo, there's a paper" — KGC audiences will look up the paper, and seeing the title twice (in narration + on screen) helps it stick. If you don't want screen-time on the PDF, just keep the closing card; the link is still discoverable.*
 
 ---
 
 ## Production checklist
 
 - [ ] **Pre-built artifacts**: `tests/corpora/06_glp1_landscape/output-v3/{graph_data.json, claims_layer.json, epistemic_narrative.md}` all present and committed
+- [ ] **Paper PDF**: `paper/v2/main.pdf` rebuilt against current main and committed (so the GitHub link resolves to the latest version on day-of). Title page open in Preview ahead of time for the Block 5 picture-in-picture.
 - [ ] **Workbench pre-launch** before recording: `python scripts/launch_workbench.py tests/corpora/06_glp1_landscape/output-v3 --domain drug-discovery --port 8000` — let physics settle for 30s before hitting record
 - [ ] **OpenRouter / Anthropic credits**: enough for the live `/epistract:epistemic` rerun in Block 2 (~$0.05–$0.10 for the narrator call)
 - [ ] **Terminal / browser layout**: pre-position so the switch from terminal to browser feels natural; consider a 2-up layout where the terminal stays visible in a corner during graph walkthrough
@@ -172,6 +186,8 @@ QnA →
 - "Can I bring my own LLM?" — Azure AI Foundry → Anthropic direct → OpenRouter, in priority order. All speak Anthropic-native or OpenAI-compat format.
 - "Why labeled property graph instead of RDF?" — sift-kg's NetworkX substrate. RDF / GraphML / Turtle exports via `/epistract:export`.
 - "Does the framework learn across scenarios?" — Not yet. Refinements are human-mediated. Issue #15 tracks the aspirational compounding mechanism.
+- "Is there a paper?" — Yes, two. The current v2 paper (April 2026, framework v3.2) is at `paper/v2/main.pdf` — covers the two-layer architecture, the epistemic super-domain, the persona dual-use pattern, and all four pre-built domains. The earlier v1 paper (March 2026) is preserved at `paper/main.pdf` and covers the GraphRAG-to-Epistract trajectory in more depth. Both are linked from the README.
+- "How are the paper's claims grounded?" — Every quantitative claim in the v2 paper traces to a committed artifact under `tests/corpora/`. The accuracy checklist (`docs/demo-v3/accuracy-checklist.md`) maps demo claims to their codebase sources too.
 
 ---
 

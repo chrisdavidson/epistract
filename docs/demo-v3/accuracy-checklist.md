@@ -59,6 +59,9 @@ Every factual claim in `demo-script.md` mapped to its source in the codebase. Ve
 | "Each domain is four required files" | `domain.yaml` + `SKILL.md` + `epistemic.py` + `workbench/template.yaml`. Plus optional helpers like enrich.py, references/, __init__.py | ✓ (corrected to "four required files" + "plus optional helpers") |
 | "Open source, MIT license" | `LICENSE` file confirms MIT | ✓ |
 | "Runs as a Claude Code plugin" | `.claude-plugin/plugin.json` exists | ✓ |
+| "There's a paper at `paper/v2/main.pdf`" | File exists, 18 pages, builds with tectonic. Title: "Epistract: A Two-Layer Knowledge Graph Framework with an Epistemic Super-Domain Layer" | ✓ |
+| Title-card paper citation matches the PDF's actual title | `paper/v2/main.tex` line 18-22 reads identically to title-card text | ✓ |
+| "Linked from the README" | `README.md` line 5 has the paper link near the top | ✓ |
 
 ## QnA-claim audit
 
