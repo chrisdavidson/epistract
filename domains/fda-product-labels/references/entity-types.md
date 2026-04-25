@@ -47,3 +47,6 @@ An FDA-recognized drug class designation (EPC, MoA, Chemical Structure, or PE cl
 
 ## REGULATORY_IDENTIFIER
 A regulatory code such as NDA/ANDA application number, NDC code, RxCUI, UNII, or SPL set ID
+
+## LABTEST
+A laboratory monitoring test referenced in the label for tracking drug safety or efficacy (e.g. liver function tests for hepatotoxic drugs, CBC for immunosuppressants, lipid panels for statins, INR for anticoagulants)

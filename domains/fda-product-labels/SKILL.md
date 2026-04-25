@@ -22,6 +22,7 @@ You are analyzing FDA Structured Product Labeling (SPL) documents — the author
 | CLINICAL_STUDY | A clinical trial or study referenced in the label to support safety or efficacy claims |
 | PHARMACOLOGIC_CLASS | An FDA-recognized drug class designation (EPC, MoA, Chemical Structure, or PE classification) |
 | REGULATORY_IDENTIFIER | A regulatory code such as NDA/ANDA application number, NDC code, RxCUI, UNII, or SPL set ID |
+| LABTEST | A laboratory monitoring test referenced in the label for tracking drug safety or efficacy (e.g. liver function tests for hepatotoxic drugs, CBC for immunosuppressants, lipid panels for statins, INR for anticoagulants) |
 
 ## Relation Types
 
@@ -62,3 +63,4 @@ You are analyzing FDA Structured Product Labeling (SPL) documents — the author
 14. Extract CLINICAL_STUDY from the clinical_studies section; include study design, population size, and primary endpoint if stated.
 15. Extract PHARMACOLOGIC_CLASS from openfda.pharm_class_epc, pharm_class_moa, pharm_class_cs, and pharm_class_pe; classify each by type (EPC, MoA, CS, or PE).
 16. Extract REGULATORY_IDENTIFIER from openfda.application_number (NDA/ANDA), openfda.product_ndc, openfda.rxcui, openfda.unii, and set_id/id (SPL IDs).
+17. Extract LABTEST from sections that reference laboratory monitoring (warnings_and_cautions, adverse_reactions, clinical_pharmacology); create one entity per distinct test (e.g. ALT, AST, total bilirubin, complete blood count, serum creatinine, INR, lipid panel); prefer named tests over generic phrases like "blood work". Include the monitoring purpose as context when stated (e.g. "monitor LFTs every 4 weeks during therapy").

@@ -59,6 +59,10 @@ entity_types:
   REGULATORY_IDENTIFIER:
     description: A regulatory code such as NDA/ANDA application number, NDC code,
       RxCUI, UNII, or SPL set ID
+  LABTEST:
+    description: A laboratory monitoring test referenced in the label for tracking
+      drug safety or efficacy (e.g. liver function tests for hepatotoxic drugs, CBC
+      for immunosuppressants, lipid panels for statins, INR for anticoagulants)
 relation_types:
   HAS_ACTIVE_INGREDIENT:
     description: Links a DRUG_PRODUCT to its ACTIVE_INGREDIENT(s)
