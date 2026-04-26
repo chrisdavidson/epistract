@@ -2,6 +2,88 @@
 
 All notable changes to epistract are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
+## [3.2.1] — 2026-04-26
+
+**S8 FDA Product Labels showcase corpus.** Ships the first bundled-corpus showcase for the fda-product-labels domain (added in v3.2.0): a 7-document FDA Structured Product Labeling corpus (Ozempic NDA209637, Wegovy NDA215256, Mounjaro NDA215866, Humira BLA125057, Gleevec NDA021588, Lipitor NDA020702, Jantoven ANDA040416), the openFDA fetch script that produced it, the full pipeline output (graph + claims layer + epistemic narrative), 4 workbench screenshots, the scenario validation doc, and the public-facing showcase doc. No code changes outside `scripts/fetch_fda_labels.py` — this is a pure showcase release on top of v3.2.0's domain implementation.
+
+### Highlights
+
+- **First bundled-corpus showcase for fda-product-labels.** Mirrors the clinicaltrials (S7) and drug-discovery (S6) showcase shape so the README "Showcases & visual artifacts" section now has parity across all three primary domains. The fda-product-labels block now links a real graph, narrative, and 4 workbench screenshots.
+- **`scripts/fetch_fda_labels.py`** — new openFDA SPL fetcher (~80-100 lines, urllib only, zero new deps). Mirrors the `scripts/fetch_ct_protocols.py` pattern: stdlib urllib + User-Agent header, render() with SECTION_MAP for SPL clinical sections, hard 80 KB trim per document, resume-safe writes, time.sleep between requests under the openFDA 40 req/min unauthenticated limit.
+- **7-document FDA SPL corpus** under `tests/corpora/08_fda_labels/docs/` covering GLP-1 agonists (Ozempic injectable + Wegovy + Mounjaro), TNF blocker immunology (Humira BLA125057 — boxed warning for serious infections + LABTEST density), pioneer targeted therapy (Gleevec multi-indication MoA), most-prescribed statin (Lipitor LFT/CYP3A4 monitoring), and the prototype anticoagulant (Jantoven INR + interaction density). Each label trimmed to no more than 80 KB to keep extraction cost in the $5-7 range.
+- **Full v3.2 pipeline run** — ingest (FIDL-03 chunking) -> extract (openai/gpt-oss-20b:free via OpenRouter) -> normalize (Pydantic pass_rate=1.0) -> graph build (81 nodes, 149 edges) -> epistemic analysis (4-level FDA tier `established`/`observed`/`reported`/`theoretical` plus v3 `epistemic_status` parity) -> narrator briefing (1,579 words with FDA-canonical citations: NDA/ANDA/BLA in backticks). All artifacts committed to `tests/corpora/08_fda_labels/output/`.
+- **4 workbench screenshots** at `docs/screenshots/fda-labels-{01-dashboard,02-chat-welcome,03-graph,04-chat-epistemic}.png` — captured at 1600x1000 viewport @ device_scale_factor 2 via `scripts/capture_workbench_screenshots.py 8044 fda-labels`. Mirrors the `clinicaltrials-{01..04}.png` set shipped for S7.
+- **Scenario validation doc** — `tests/scenarios/scenario-08-fda-product-labels.md` mirroring scenario-07's 9-section structure (status / purpose / corpus table / how-to-run / V3.2 results / entity-type distribution / epistemic layer / S6-S7-S8 comparison / FDA-specific notes including LABTEST and REGULATORY_IDENTIFIER showcase value).
+- **Public showcase doc** — `docs/SHOWCASE-FDA.md` mirroring SHOWCASE-CLINICALTRIALS.md's 8-section structure (try-it-yourself with port 8044 launch / why-it-matters as the regulatory-authoritative third leg of the drug intelligence trio / V3.2 numbers / verbatim analyst briefing excerpt / artifacts produced / cross-scenario S6-S7-S8 launch block / see-also).
+
+### Added
+
+- `scripts/fetch_fda_labels.py` — openFDA SPL fetcher
+- `tests/corpora/08_fda_labels/docs/{semaglutide_ozempic,semaglutide_wegovy,tirzepatide_mounjaro,adalimumab_humira,imatinib_gleevec,atorvastatin_lipitor,warfarin_jantoven}.txt` — 7 SPL label text files
+- `tests/corpora/08_fda_labels/output/` — full pipeline artifacts (ingested chunks, per-doc extractions, normalization report, graph_data.json, communities.json, claims_layer.json, epistemic_narrative.md, graph.html, extract_run.json)
+- `tests/scenarios/scenario-08-fda-product-labels.md` — scenario validation doc
+- `docs/SHOWCASE-FDA.md` — public-facing showcase doc
+- `docs/screenshots/fda-labels-01-dashboard.png`, `docs/screenshots/fda-labels-02-chat-welcome.png`, `docs/screenshots/fda-labels-03-graph.png`, `docs/screenshots/fda-labels-04-chat-epistemic.png` — 4 workbench screenshots
+
+### Changed
+
+- `README.md` "Showcases & visual artifacts" section — fda-product-labels block promoted to a full bundled-corpus entry mirroring the drug-discovery and clinicaltrials shape (showcase link, narrator briefing link, 4 screenshot links, interactive graph link, scenario doc link, raw corpus link)
+
+### Migration
+
+- No code changes outside the new `scripts/fetch_fda_labels.py`. All v3.2.0 behavior preserved byte-identically.
+- The fda-product-labels domain package itself is unchanged from v3.2.0 — this release adds the corpus and showcase artifacts only.
+- No breaking changes.
+
+---
+
+## [3.2.0] — 2026-04-25
+
+**Workbench enhancements + fourth pre-built domain (FDA Product Labels).** Adds the fda-product-labels domain (17 entity types, 16 relation types, four-level FDA epistemology classifier), a runtime LLM model selector with live OpenRouter model browsing and health filtering, interactive node pinning with Fit View / Reset Pins toolbar, and graph visual legibility improvements (degree-based node sizing, halo labels, zoom-aware scaling). Also adds the `community_label_anchors` schema field for domain-aware community labeling.
+
+### Highlights
+
+- **Phase 4 — Domain-aware community labeling.** New `community_label_anchors: list[str]` field in `domain.yaml` lets domains specify which entity types should drive community labels. `core/label_communities.py` gains `_anchor_label()` (priority-ordered lookup with truncation, slash format for 2 matches, "+N more" for 3+) and `_load_domain_anchors()` (reads anchors via `resolve_domain()`; backward compatible — empty list when missing). `core/domain_wizard.py:generate_workbench_template` and `generate_domain_package` accept `community_label_anchors` parameter; `--schema` bypass reads optional field from schema JSON.
+- **Phase 5-01 — Graph visual legibility.** Node font upgraded to 12px with rgba semi-transparent halo (`rgba(255,255,255,0.85)`) for legibility against background. Zoom-aware label scaling (`scaling.label.{enabled, min, max, maxVisible, drawThreshold}`) auto-hides labels at far zoom-out. Degree-based node sizing (8–24px range): hub nodes render larger, isolated nodes smaller. Multiselect, dragNodes, navigationButtons made explicit on the interaction block.
+- **Phase 5-02 — Interactive node pinning.** Drag-to-pin: dragging a node fixes it in place with a 2px accent (`#4a6cf7`) border. Group drag: dragging a pinned node moves connected neighbors with it. Fit View and Reset Pins toolbar buttons in the graph control bar. Window-resize handler closes stale popovers.
+- **Phase 5-03 — Runtime LLM model selector.** New `<select id="model-select">` dropdown in chat input. `GET /api/models` endpoint returns provider-specific model list. `ChatRequest.model: str | None` field allows per-request override. `_resolve_api_config(model_override=...)` threads override into Anthropic and OpenRouter branches (Foundry intentionally ignored). LocalStorage persists user selection. Foundry/no-key environments hide the dropdown.
+- **Phase 5-04 — Live OpenRouter model browser.** TTL-cached (1 hour) live fetch from `openrouter.ai/api/v1/models`. Filtering: drops non-text output_modalities, OpenRouter-router prefixes, negative pricing, expired entries. CATEGORY_MAP groups models by provider prefix into `<optgroup>` rows. Cost-sort toggle button (persistent via localStorage) flips between grouped-by-provider and flat-sorted-by-input-cost. Graceful network-error fallback to PROVIDER_MODELS["openrouter"].
+- **Phase 5-05 — Health-filtered model dropdown.** `_check_or_model_health()` parallel-probes OpenRouter `/endpoints` API for every candidate model before caching. Models with empty endpoints (broken at provider) are excluded entirely. Models with low uptime have free variants excluded. Fail-open at per-task and gather levels.
+- **SSE error surface fix.** `_stream_openai_compat` now detects error events embedded in OpenRouter's SSE stream and surfaces them through the chat panel instead of silently dropping the response.
+- **Fourth pre-built domain — fda-product-labels.** 17 entity types (DRUG_PRODUCT, ACTIVE_INGREDIENT, INACTIVE_INGREDIENT, MANUFACTURER, INDICATION, CONTRAINDICATION, ADVERSE_REACTION, WARNING, DRUG_INTERACTION, DOSAGE_REGIMEN, PATIENT_POPULATION, MECHANISM_OF_ACTION, PHARMACOKINETIC_PROPERTY, CLINICAL_STUDY, PHARMACOLOGIC_CLASS, REGULATORY_IDENTIFIER, LABTEST). 16 relation types. **Four-level FDA epistemology classifier** in `epistemic.py`: established / reported / theoretical / asserted. Populates v3-standard `epistemic_status` field on every relation alongside the FDA tier.
+- **Hand-tailored FDA-analyst persona.** Senior FDA regulatory intelligence analyst voice with depth in pharmacovigilance, formulary analysis, drug-interaction screening, SPL document review. Citation discipline scoped to FDA-canonical identifiers (SPL set ID, NDA/ANDA number, NDC, RxCUI, UNII).
+- **18 new unit tests** — 126 passed, 4 skipped total (no regressions against v3.1.0 baseline).
+
+### Added
+
+- `domains/fda-product-labels/` — fourth pre-built domain package (`domain.yaml`, `SKILL.md`, `epistemic.py`, `__init__.py`, `workbench/template.yaml`, `references/entity-types.md`, `references/relation-types.md`)
+- `examples/workbench/server.py` — `GET /api/models`, `_fetch_or_models()`, `_filter_and_group_or_models()`, `_check_or_model_health()`
+- `examples/workbench/api_chat.py` — `PROVIDER_MODELS`, `ChatRequest.model`, `_resolve_api_config(model_override=...)`, SSE error surface
+- `examples/workbench/static/index.html` — graph toolbar row, model select element
+- `examples/workbench/static/style.css` — toolbar, pin accent, model select styles
+- `examples/workbench/static/graph.js` — label halo, zoom scaling, degree sizing, pin Set, dragEnd handler, group drag, toolbar handlers, resize handler
+- `examples/workbench/static/chat.js` — `loadModelSelector()`, model send, localStorage, SSE error display
+- `core/label_communities.py` — `_anchor_label()`, `_load_domain_anchors()`, dispatch via anchor path with backward-compat fallback
+- `core/domain_wizard.py` — `community_label_anchors` parameter on `generate_workbench_template` + `generate_domain_package`; `--schema` bypass reads optional field
+- 18 new unit tests in `tests/test_unit.py`
+
+### Changed
+
+- `.claude-plugin/plugin.json` — version `3.1.0` → `3.2.0`; description names all four pre-built domains plus the workbench enhancement headline; keywords gain `fda`, `spl`, `pharmacovigilance`, `drug-labels`
+- `README.md` — Pre-built Domains table gains fda-product-labels row (17 / 16); Showcases & visual artifacts gains a brief fda-product-labels entry pointing at the domain package and persona
+
+### Attribution
+
+- Phase 4, Phase 5-01..05, fda-product-labels domain extraction prompt + epistemic.py + four-level FDA classifier authored by Chris Davidson (`Christopher.Davidson@gmail.com`). Hand-tailored FDA-analyst persona authored by Umesh Bhatt + Claude as a v3.1-spec follow-up.
+
+### Migration
+
+- Existing domains continue to work byte-identically. The new `community_label_anchors` field is optional — domains without it use the existing `_generate_label()` path unchanged.
+- Workbench frontend changes are additive — graph and chat both render correctly without the new toolbar / model selector if the corresponding env or API isn't present.
+- No breaking changes.
+
+---
+
 ## [3.1.0] — 2026-04-23
 
 **Clinical Trials domain + external API enrichment + usage guards.** Adds a third pre-built domain (`clinicaltrials`) alongside drug-discovery and contracts, plus post-build enrichment against ClinicalTrials.gov v2 + PubChem PUG REST via `--enrich`. Hardens all 12 `/epistract:*` commands with Usage Guard blocks. Ships on top of v3.0.0's narrator + persona framework — the clinicaltrials domain gets a full analyst persona that drives both the workbench chat (reactive) and the automatic narrator (proactive).
