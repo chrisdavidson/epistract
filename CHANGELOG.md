@@ -2,6 +2,31 @@
 
 All notable changes to epistract are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
+## [3.2.1] — 2026-04-26
+
+**S8 FDA Product Labels showcase corpus.** Ships the first bundled-corpus showcase for the fda-product-labels domain: a 7-document FDA SPL corpus (Ozempic NDA209637, Wegovy NDA215256, Mounjaro NDA215866, Humira BLA125057, Gleevec NDA021588, Lipitor NDA020702, Jantoven ANDA040416), the openFDA fetch script, the full pipeline output (81 nodes / 149 edges / 1,579-word narrative), 4 workbench screenshots, scenario validation doc, and public-facing showcase doc. Closes #14.
+
+### Added
+
+- `scripts/fetch_fda_labels.py` — openFDA SPL fetcher (stdlib urllib, zero new deps, mirrors `fetch_ct_protocols.py`)
+- `tests/corpora/08_fda_labels/docs/` — 7 SPL label text files (each ≤ 80 KB)
+- `tests/corpora/08_fda_labels/output/` — full pipeline artifacts (graph_data.json, communities.json, claims_layer.json, epistemic_narrative.md, graph.html, extract_run.json, per-doc extractions)
+- `tests/scenarios/scenario-08-fda-product-labels.md` — scenario validation doc (9-section, V3.2 results)
+- `docs/SHOWCASE-FDA.md` — public-facing showcase doc
+- `docs/screenshots/fda-labels-{01-dashboard,02-chat-welcome,03-graph,04-chat-epistemic}.png` — 4 workbench screenshots
+
+### Fixed
+
+- `domains/fda-product-labels/epistemic.py` — gap analysis loop iterated over string characters instead of entity-type dict keys (produced hundreds of spurious gap entries)
+- `scripts/extract_corpus.py` — added `_normalize_relation()` to handle `source`/`target` field name variants that were silently dropped by deduplication
+
+### Changed
+
+- `README.md` — fda-product-labels row updated to show S8 as its first validated scenario; showcase block expanded with graph/narrative/screenshot links
+- `.claude-plugin/plugin.json` — version bump 3.2.0 → 3.2.1
+
+---
+
 ## [3.2.0] — 2026-04-25
 
 **Workbench enhancements + fourth pre-built domain (FDA Product Labels).** Adds the fda-product-labels domain (17 entity types, 16 relation types, four-level FDA epistemology classifier), a runtime LLM model selector with live OpenRouter model browsing and health filtering, interactive node pinning with Fit View / Reset Pins toolbar, and graph visual legibility improvements (degree-based node sizing, halo labels, zoom-aware scaling). Also adds the `community_label_anchors` schema field for domain-aware community labeling.
