@@ -48,9 +48,9 @@ Paper: paper/v2/main.pdf · Umesh Bhatt · umesh@8thcross.com
 
 **Narration:**
 
-> "Hi, I'm Umesh. I want to show you a knowledge graph framework called Epistract. The motivating problem: most KG tools stop at extracting entities and typed relations. They tell you what's in a document but not *how* that something was stated — was it asserted with quantitative evidence? Was it patent forward-looking language? Was it hedged research wording? Does it contradict another source? Epistract treats that epistemic dimension as a first-class layer on top of the brute facts.
+> "Hi, I'm Umesh. Epistract is a knowledge graph workspace inside Claude Code — a scientist's question drives the corpus, the domain, and the graph that answers it. The motivating problem: most KG tools stop at extracting entities and typed relations. They tell you what's in a document but not *how* it's stated — asserted with quantitative evidence, patent forward-looking language, hedged research wording, or contradicting another source? Epistract treats that epistemic dimension as a first-class layer on top of the brute facts.
 >
-> To show you what that means concretely: I've already ingested thirty-four documents on GLP-1 receptor agonists — the drug class behind semaglutide and tirzepatide, used for type-2 diabetes and obesity. Ten patent filings from Novo Nordisk, Pfizer, Eli Lilly, Hanmi, and Zealand. Twenty-four PubMed papers on mechanism, safety, and emerging indications. The graph is already built. I'll trigger the analyst briefing now, and while it runs I'll walk through the graph itself."
+> My question for this demo: how does the contemporary GLP-1 receptor agonist competitive landscape stack up — asserted clinical evidence versus patent prophecy versus research hypothesis? To answer it, thirty-four documents: ten patent filings from Novo Nordisk, Pfizer, Eli Lilly, Hanmi, and Zealand, plus twenty-four PubMed papers. The graph is already built. I'll trigger the analyst briefing now, and while it runs I'll walk the graph itself."
 
 ---
 

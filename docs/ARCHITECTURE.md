@@ -1,5 +1,7 @@
 # Architecture
 
+Epistract is positioned as a **workspace pattern** inside [Claude Code](https://claude.ai/claude-code): a scientist starts with a question, identifies the corpus that can answer it, picks a domain whose schema and persona match the analytical frame, and the framework constructs a graph specifically for that question. The graph is bespoke — a different question, with a different corpus and possibly a different domain, produces a different graph. The framework's value is not in producing one canonical KG of biomedicine or contracts; it is in supporting the construction of many specialized KGs grounded to specific use cases. The scientist stays in the loop throughout. The architecture below describes the framework's mechanics.
+
 Epistract builds knowledge graphs in two layers. The first layer extracts brute facts — entities and relations pulled from documents by LLM agents, constrained by a domain schema grounded in established ontologies. The second layer applies epistemic analysis — domain-specific rules plus an LLM narrator that detect what is asserted versus hypothesized, what contradicts across documents, what is missing, and where risks lie.
 
 ## Two-Layer Knowledge Graph
