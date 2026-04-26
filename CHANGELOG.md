@@ -4,36 +4,26 @@ All notable changes to epistract are documented here. This project follows [Sema
 
 ## [3.2.1] — 2026-04-26
 
-**S8 FDA Product Labels showcase corpus.** Ships the first bundled-corpus showcase for the fda-product-labels domain (added in v3.2.0): a 7-document FDA Structured Product Labeling corpus (Ozempic NDA209637, Wegovy NDA215256, Mounjaro NDA215866, Humira BLA125057, Gleevec NDA021588, Lipitor NDA020702, Jantoven ANDA040416), the openFDA fetch script that produced it, the full pipeline output (graph + claims layer + epistemic narrative), 4 workbench screenshots, the scenario validation doc, and the public-facing showcase doc. No code changes outside `scripts/fetch_fda_labels.py` — this is a pure showcase release on top of v3.2.0's domain implementation.
-
-### Highlights
-
-- **First bundled-corpus showcase for fda-product-labels.** Mirrors the clinicaltrials (S7) and drug-discovery (S6) showcase shape so the README "Showcases & visual artifacts" section now has parity across all three primary domains. The fda-product-labels block now links a real graph, narrative, and 4 workbench screenshots.
-- **`scripts/fetch_fda_labels.py`** — new openFDA SPL fetcher (~80-100 lines, urllib only, zero new deps). Mirrors the `scripts/fetch_ct_protocols.py` pattern: stdlib urllib + User-Agent header, render() with SECTION_MAP for SPL clinical sections, hard 80 KB trim per document, resume-safe writes, time.sleep between requests under the openFDA 40 req/min unauthenticated limit.
-- **7-document FDA SPL corpus** under `tests/corpora/08_fda_labels/docs/` covering GLP-1 agonists (Ozempic injectable + Wegovy + Mounjaro), TNF blocker immunology (Humira BLA125057 — boxed warning for serious infections + LABTEST density), pioneer targeted therapy (Gleevec multi-indication MoA), most-prescribed statin (Lipitor LFT/CYP3A4 monitoring), and the prototype anticoagulant (Jantoven INR + interaction density). Each label trimmed to no more than 80 KB to keep extraction cost in the $5-7 range.
-- **Full v3.2 pipeline run** — ingest (FIDL-03 chunking) -> extract (openai/gpt-oss-20b:free via OpenRouter) -> normalize (Pydantic pass_rate=1.0) -> graph build (81 nodes, 149 edges) -> epistemic analysis (4-level FDA tier `established`/`observed`/`reported`/`theoretical` plus v3 `epistemic_status` parity) -> narrator briefing (1,579 words with FDA-canonical citations: NDA/ANDA/BLA in backticks). All artifacts committed to `tests/corpora/08_fda_labels/output/`.
-- **4 workbench screenshots** at `docs/screenshots/fda-labels-{01-dashboard,02-chat-welcome,03-graph,04-chat-epistemic}.png` — captured at 1600x1000 viewport @ device_scale_factor 2 via `scripts/capture_workbench_screenshots.py 8044 fda-labels`. Mirrors the `clinicaltrials-{01..04}.png` set shipped for S7.
-- **Scenario validation doc** — `tests/scenarios/scenario-08-fda-product-labels.md` mirroring scenario-07's 9-section structure (status / purpose / corpus table / how-to-run / V3.2 results / entity-type distribution / epistemic layer / S6-S7-S8 comparison / FDA-specific notes including LABTEST and REGULATORY_IDENTIFIER showcase value).
-- **Public showcase doc** — `docs/SHOWCASE-FDA.md` mirroring SHOWCASE-CLINICALTRIALS.md's 8-section structure (try-it-yourself with port 8044 launch / why-it-matters as the regulatory-authoritative third leg of the drug intelligence trio / V3.2 numbers / verbatim analyst briefing excerpt / artifacts produced / cross-scenario S6-S7-S8 launch block / see-also).
+**S8 FDA Product Labels showcase corpus.** Ships the first bundled-corpus showcase for the fda-product-labels domain: a 7-document FDA SPL corpus (Ozempic NDA209637, Wegovy NDA215256, Mounjaro NDA215866, Humira BLA125057, Gleevec NDA021588, Lipitor NDA020702, Jantoven ANDA040416), the openFDA fetch script, the full pipeline output (81 nodes / 149 edges / 1,579-word narrative), 4 workbench screenshots, scenario validation doc, and public-facing showcase doc. Closes #14.
 
 ### Added
 
-- `scripts/fetch_fda_labels.py` — openFDA SPL fetcher
-- `tests/corpora/08_fda_labels/docs/{semaglutide_ozempic,semaglutide_wegovy,tirzepatide_mounjaro,adalimumab_humira,imatinib_gleevec,atorvastatin_lipitor,warfarin_jantoven}.txt` — 7 SPL label text files
-- `tests/corpora/08_fda_labels/output/` — full pipeline artifacts (ingested chunks, per-doc extractions, normalization report, graph_data.json, communities.json, claims_layer.json, epistemic_narrative.md, graph.html, extract_run.json)
-- `tests/scenarios/scenario-08-fda-product-labels.md` — scenario validation doc
+- `scripts/fetch_fda_labels.py` — openFDA SPL fetcher (stdlib urllib, zero new deps, mirrors `fetch_ct_protocols.py`)
+- `tests/corpora/08_fda_labels/docs/` — 7 SPL label text files (each ≤ 80 KB)
+- `tests/corpora/08_fda_labels/output/` — full pipeline artifacts (graph_data.json, communities.json, claims_layer.json, epistemic_narrative.md, graph.html, extract_run.json, per-doc extractions)
+- `tests/scenarios/scenario-08-fda-product-labels.md` — scenario validation doc (9-section, V3.2 results)
 - `docs/SHOWCASE-FDA.md` — public-facing showcase doc
-- `docs/screenshots/fda-labels-01-dashboard.png`, `docs/screenshots/fda-labels-02-chat-welcome.png`, `docs/screenshots/fda-labels-03-graph.png`, `docs/screenshots/fda-labels-04-chat-epistemic.png` — 4 workbench screenshots
+- `docs/screenshots/fda-labels-{01-dashboard,02-chat-welcome,03-graph,04-chat-epistemic}.png` — 4 workbench screenshots
+
+### Fixed
+
+- `domains/fda-product-labels/epistemic.py` — gap analysis loop iterated over string characters instead of entity-type dict keys (produced hundreds of spurious gap entries)
+- `scripts/extract_corpus.py` — added `_normalize_relation()` to handle `source`/`target` field name variants that were silently dropped by deduplication
 
 ### Changed
 
-- `README.md` "Showcases & visual artifacts" section — fda-product-labels block promoted to a full bundled-corpus entry mirroring the drug-discovery and clinicaltrials shape (showcase link, narrator briefing link, 4 screenshot links, interactive graph link, scenario doc link, raw corpus link)
-
-### Migration
-
-- No code changes outside the new `scripts/fetch_fda_labels.py`. All v3.2.0 behavior preserved byte-identically.
-- The fda-product-labels domain package itself is unchanged from v3.2.0 — this release adds the corpus and showcase artifacts only.
-- No breaking changes.
+- `README.md` — fda-product-labels row updated to show S8 as its first validated scenario; showcase block expanded with graph/narrative/screenshot links
+- `.claude-plugin/plugin.json` — version bump 3.2.0 → 3.2.1
 
 ---
 

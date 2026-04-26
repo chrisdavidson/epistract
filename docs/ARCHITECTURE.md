@@ -1,5 +1,11 @@
 # Architecture
 
+Epistract is the **research-consolidation layer** inside [Claude Code](https://claude.ai/claude-code). Claude Code already provides rich deep-research capabilities — built-in web search and document fetch, plus a growing ecosystem of plugins and MCP servers for academic literature, patents, trial registries, and regulatory databases. Once a scientist has assembled a body of documents through that deep-research stage, Epistract consolidates the body into a structured knowledge graph project from which to answer a bundle of specific questions. The graph is bespoke to the consolidated body — a different body of deep research, with a different domain, produces a different graph. The framework's value is not in producing one canonical KG of biomedicine or contracts; it is in supporting the construction of many specialized KGs grounded to specific bodies of deep research. Deep research is upstream; the consolidation is Epistract's job; question-answering against the consolidated graph is the analyst's payoff.
+
+**Scope:** the design point is interactive consolidation sessions — small-to-medium corpora that comfortably fit a Claude Code environment (the eight validated scenarios range from 7 to 34 documents per corpus). For larger or persistent KGs, `/epistract:export` dumps the graph to GraphML, CSV, SQLite, or JSON for ingestion into external graph databases (Neo4j-class persistent stores).
+
+The architecture below describes the framework's mechanics.
+
 Epistract builds knowledge graphs in two layers. The first layer extracts brute facts — entities and relations pulled from documents by LLM agents, constrained by a domain schema grounded in established ontologies. The second layer applies epistemic analysis — domain-specific rules plus an LLM narrator that detect what is asserted versus hypothesized, what contradicts across documents, what is missing, and where risks lie.
 
 ## Two-Layer Knowledge Graph
@@ -7,6 +13,8 @@ Epistract builds knowledge graphs in two layers. The first layer extracts brute 
 - **Layer 1 — Brute Facts.** Entities and relations extracted from documents via LLM agents, constrained by the domain schema. Each entity is typed and grounded to domain standards (INN for drugs, HGNC for genes, MedDRA for adverse events, etc.). Each relation carries a confidence score and a verbatim evidence passage. Extraction is Pydantic-validated at write time — malformed extractions fail loud rather than silently dropping.
 
 - **Layer 2 — Epistemic Super Domain.** Domain-specific rules detect conflicts, gaps, confidence levels, and risks across the graph. The epistemic machinery is the same regardless of domain — only the rules change. Drug-discovery rules classify relations as *asserted* / *hypothesized* / *prophetic* (patent-sourced forward claims) / *contested* / *contradictions* / *negative* / *speculative*. Contract rules detect cross-contract conflicts, obligation gaps, and risk indicators. On top of the rule engine, an LLM analyst narrator reads the classified graph and writes `epistemic_narrative.md` — a structured briefing an analyst would produce.
+
+  **Predefined defaults, customizable per domain.** Every pre-built domain ships with a starter rule set: the seven-status taxonomy above, hedging-pattern regex rules that catch common research-language constructions, document-type inference defaults (patents, trial protocols, FDA labels, peer-reviewed papers), and the cross-source aggregation rule that flags `contested` edges. These defaults are the floor, not the ceiling. Customize per domain by editing `domains/<name>/epistemic.py`: add hedging patterns (one-line additions to `HEDGING_PATTERNS`), add domain-specific status types (clinicaltrials adds phase-based grading; fda-product-labels adds a four-level `established`/`reported`/`theoretical`/`asserted` classifier), or override cross-source thresholds. The wizard (`/epistract:domain`) generates a starter `epistemic.py` pre-populated with the shared taxonomy so authors edit rather than write from scratch.
 
 ## Domain Pluggability
 

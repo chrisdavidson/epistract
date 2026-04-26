@@ -1,0 +1,65 @@
+\section{Pre-built Domains}
+\label{sec:domains}
+
+The framework ships with four pre-built domains. Three have been validated against showcase corpora; one is a schema scaffold awaiting its first showcase corpus. Table~\ref{tab:domains} summarizes their state.
+
+\begin{table}[t]
+\centering
+\small
+\caption{The four pre-built domains in v3.2.1. ``Scenarios validated'' is the maturity signal -- a domain that has been pressure-tested across multiple varied corpora has had its persona, epistemic rules, and entity-type coverage refined in ways one with zero scenarios has not. Schema is static.}
+\label{tab:domains}
+\begin{tabular}{@{}lrrlp{4.5cm}@{}}
+\toprule
+\textbf{Domain} & \textbf{Entities} & \textbf{Relations} & \textbf{Scenarios} & \textbf{Specialty pipeline} \\
+\midrule
+drug-discovery       & 13 & 22 & S1--S6 (six)   & RDKit / Biopython molecular validation; structural-node enrichment \\
+clinicaltrials       & 12 & 10 & S7 (one)       & Phase-based evidence grading; optional CT.gov enrichment \\
+fda-product-labels   & 17 & 16 & S8 (one)       & Four-level FDA epistemology classifier (established / observed / reported / theoretical) \\
+contracts            & 11 & 11 & none yet       & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{drug-discovery}
+\label{sec:domain-drug-discovery}
+
+The most-developed and most-pressure-tested domain. Thirteen entity types: \texttt{COMPOUND}, \texttt{PROTEIN}, \texttt{DISEASE}, \texttt{MECHANISM\_OF\_ACTION}, \texttt{ORGANIZATION}, \texttt{PUBLICATION}, \texttt{CLINICAL\_TRIAL}, \texttt{BIOMARKER}, \texttt{PHENOTYPE}, \texttt{ADVERSE\_EVENT}, \texttt{PATHWAY}, \texttt{REGULATORY\_ACTION}, \texttt{DOCUMENT}. Twenty-two directed relation types. The schema was consolidated from an earlier 17-entity / 30-relation form by removing low-yield types observed across S1--S5 (entity types and relations that were under-exercised or overlapped with existing types). The S6 GLP-1 corpus rebuild validated the consolidated schema on 34 multi-source documents (10 patents, 24 PubMed papers).
+
+The domain ships with deterministic molecular validation: SMILES strings are validated and canonicalized with RDKit, protein and nucleotide sequences with Biopython, and structured identifiers (CAS registry numbers, NCT numbers, InChIKeys) by regex. Validated identifiers become first-class graph nodes (\texttt{CHEMICAL\_STRUCTURE}, \texttt{PEPTIDE\_SEQUENCE}) linked to their parent entities, carrying computed properties as attributes (molecular weight, Lipinski compliance, GC content, isoelectric point). The validation report (\texttt{validation\_report.json}) is auto-emitted alongside the graph.
+
+The persona is a senior drug-discovery competitive-intelligence analyst, with vocabulary calibrated to therapeutic-area, mechanism-of-action, and regulatory framing. The same persona drives the workbench chat and the narrator briefing on every drug-discovery scenario.
+
+\subsection{clinicaltrials}
+\label{sec:domain-clinicaltrials}
+
+A trial-protocol-aware domain~\cite{davidson2026clinicaltrials} for ingestion of \texttt{ClinicalTrials.gov} protocol records. Twelve entity types: \texttt{Trial}, \texttt{TrialPhase}, \texttt{Sponsor}, \texttt{Compound}, \texttt{Intervention}, \texttt{Condition}, \texttt{Cohort}, \texttt{Population}, \texttt{Outcome}, \texttt{Biomarker}, \texttt{Endpoint}, \texttt{DOCUMENT}. Ten directed relation types capturing trial structure (\texttt{HAS\_PHASE}, \texttt{SPONSORED\_BY}, \texttt{TESTS\_INTERVENTION}, \texttt{ENROLLS\_POPULATION}, \texttt{MEASURES\_OUTCOME}, etc.).
+
+The domain's epistemic module implements phase-based evidence grading: Phase 3 and Phase 4 outcome relations are promoted to \texttt{asserted}; Phase 2 retains the rule-engine default; Phase 1 outcomes are demoted to \texttt{hypothesized} unless the evidence quote contains explicit quantitative results. This captures a regulatory-grade evidence stratification that a domain-agnostic rule engine cannot infer from text alone.
+
+An optional \texttt{--enrich} flag during ingestion fetches additional structured fields from the CT.gov API (NCT-keyed lookup, currently using \texttt{urllib} due to a \texttt{httpx} 403 issue with the CT.gov upstream that the framework documents in \texttt{docs/known-limitations.md}). Enrichment is opt-in because it adds API latency and is unnecessary for protocols that are already self-contained in their JSON exports.
+
+The persona is a clinical trial design and competitive intelligence analyst, with vocabulary attuned to phase, endpoint hierarchy, sponsor strategy, and regulatory pathway.
+
+\subsection{contracts}
+
+A vendor- and event-contract domain. Eleven entity types covering contract parties (\texttt{Party}, \texttt{Vendor}, \texttt{Sponsor}), structural elements (\texttt{Obligation}, \texttt{Deadline}, \texttt{Deliverable}, \texttt{Payment}, \texttt{Termination}, \texttt{Renewal}), and metadata (\texttt{Document}, \texttt{Section}). Eleven directed relations capturing contractual structure. The domain has no validated showcase corpus; its inclusion in v3.2.0 demonstrates that the framework supports non-biomedical domains without pipeline modification.
+
+\subsection{fda-product-labels}
+
+A FDA Structured Product Label (SPL) domain. Seventeen entity types covering drug products (\texttt{DrugProduct}, \texttt{ActiveIngredient}, \texttt{Strength}, \texttt{DosageForm}), regulatory metadata (\texttt{NDC}, \texttt{NDA}, \texttt{ANDA}, \texttt{SetID}, \texttt{RxCUI}, \texttt{UNII}), label sections (\texttt{Indication}, \texttt{Contraindication}, \texttt{AdverseReaction}, \texttt{Interaction}, \texttt{Warning}, \texttt{LabTest}), and \texttt{DOCUMENT}. Sixteen directed relation types.
+
+The domain's epistemic module implements a four-level FDA epistemology classifier (\texttt{established}, \texttt{observed}, \texttt{reported}, \texttt{theoretical}) keyed to FDA's recognizable label-section structure mandated by 21 CFR §201.57: \texttt{established} for definitive labeling language (BOXED WARNING, CONTRAINDICATION, mandated dosing limits), \texttt{observed} for controlled clinical study data (CLINICAL STUDIES section: RCT-cited efficacy, dose-response), \texttt{reported} for post-market / spontaneous data (ADVERSE REACTIONS, POSTMARKETING, DRUG INTERACTIONS), and \texttt{theoretical} for mechanism-of-action inference (CLINICAL PHARMACOLOGY: in-vitro and mechanistic reasoning).
+
+The S8 showcase corpus validates the domain on a 7-document openFDA SPL set: Ozempic (NDA209637 injectable), Wegovy (NDA215256), Mounjaro (NDA215866), Humira (BLA125057, boxed warning), Gleevec (NDA021588), Lipitor (NDA020702), and Jantoven (ANDA040416). The build produced 81 nodes and 149 relations across 14 exercised entity types, with the four-level classifier yielding 4 \texttt{observed} relations (RCT-cited efficacy from CLINICAL STUDIES sections: SUSTAIN-6 in Ozempic, LDL-lowering in Lipitor, survival benefit in Gleevec, INR monitoring in Jantoven) and 145 \texttt{reported} relations (97\% of the corpus -- consistent with the structural reality that post-marketing pharmacovigilance dominates SPL labels). The persona is hand-tailored to FDA-canonical citations (SPL set ID, NDA/ANDA/BLA, NDC, RxCUI, UNII). The 1{,}571-word narrator briefing applies the four-tier stratification to surface boxed-warning entities, post-marketing safety signals, and drug-interaction patterns. Co-authored with Chris Davidson; landed in v3.2.1, closing GitHub Issue~\#14.
+
+\subsection{Adding a new domain}
+
+A new domain is four files. The framework ships an interactive wizard, \texttt{/epistract:domain create <name> <sample-corpus-path>}, that bootstraps the four files in three passes:
+
+\begin{enumerate}
+\item \emph{Sample analysis}. The wizard reads 5--10 documents from the sample corpus, identifies recurring entity surface forms, and proposes an initial schema (entity types and relation types).
+\item \emph{Schema refinement}. The user edits the proposed schema, accepts or rejects entity types, and approves naming standards. The wizard regenerates \texttt{domain.yaml}.
+\item \emph{Prompt and persona generation}. The wizard generates \texttt{SKILL.md} (extraction prompt with examples drawn from the sample corpus), \texttt{epistemic.py} (a starter rule engine with shared-taxonomy patterns plus any domain-specific additions the user requested), and \texttt{workbench/template.yaml} (a starter persona inferred from the domain's terminology).
+\end{enumerate}
+
+The total wall-clock time for a new domain, with a sample corpus in hand, is typically under 15 minutes. The output is immediately runnable -- \texttt{/epistract:ingest <corpus> --domain <new-name>} works on the freshly generated configuration.

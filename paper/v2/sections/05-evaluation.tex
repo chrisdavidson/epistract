@@ -1,0 +1,111 @@
+\section{Evaluation}
+\label{sec:evaluation}
+
+The framework has been validated across eight scenarios spanning three of the four pre-built domains. This section presents per-scenario quantitative results, schema coverage analysis, epistemic-layer outputs, and an honest accounting of what the evaluation does and does not establish.
+
+\subsection{Scenarios across domains}
+
+Table~\ref{tab:scenarios} reports the eight validation scenarios. The first six (S1--S6) exercise the drug-discovery domain across varied therapeutic areas; S7 is the inaugural clinicaltrials scenario; S8 is the inaugural fda-product-labels scenario.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Validation scenarios across active domains, reporting the most recent rebuild of each. ``UATs'' is the per-scenario validation pass rate (user-acceptance tests for S1--S7; Pydantic-strict extraction pass rate for S8 since the fda-product-labels scenario uses extraction-write-time validation rather than UAT-style functional regression). ``Rebuild'' indicates which framework state produced the reported numbers; the version-progression table for the most heavily rebuilt scenario (S6) appears as Table~\ref{tab:s6-enrichment} below. S1--S5 numbers are V2 rebuilds documented in \texttt{tests/scenarios/scenario-0\{1--5\}-*-v2.md}; S6 is the V3 rebuild (Table~\ref{tab:s6-enrichment}); S7 is the V3.1 launch; S8 is the V3.2.1 launch.}
+\label{tab:scenarios}
+\begin{tabular}{@{}clrrrrcc@{}}
+\toprule
+\textbf{\#} & \textbf{Domain / Corpus} & \textbf{Docs} & \textbf{Nodes} & \textbf{Relations} & \textbf{Comm.} & \textbf{UATs} & \textbf{Rebuild} \\
+\midrule
+S1 & drug-discovery / Neurogenetics (PICALM)        & 15 & 183 & 478 & 6  & 4/4 & V2 \\
+S2 & drug-discovery / Oncology (KRAS G12C)          & 16 & 140 & 432 & 4  & 5/5 & V2 \\
+S3 & drug-discovery / Rare Disease                  & 15 & 110 & 278 & 4  & 3/3 & V2 \\
+S4 & drug-discovery / Immuno-Oncology               & 16 & 151 & 440 & 5  & 4/4 & V2 \\
+S5 & drug-discovery / CV \& Inflammation            & 15 &  90 & 245 & 4  & 3/3 & V2 \\
+S6 & drug-discovery / GLP-1 CI                      & 34 & 278 & 855 & 10 & 6/6 & V3 \\
+S7 & clinicaltrials / GLP-1 Phase 3 (CT.gov)         & 10 & 142 & 395 & 8  & 5/5 & V3.1 \\
+S8 & fda-product-labels / openFDA SPL                & 7  &  81 & 149 & 3  & 7/7 & V3.2.1 \\
+\midrule
+   & \textbf{Drug-discovery (S1--S6)}               & 111 & 952 & 2{,}728 & 33 & 25/25 &        \\
+   & \textbf{Clinicaltrials (S7)}                   & 10  & 142 & 395     & 8  & 5/5   &        \\
+   & \textbf{Fda-product-labels (S8)}               & 7   &  81 & 149     & 3  & 7/7   &        \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The drug-discovery domain has accumulated the most pressure-testing. S1--S5 establish breadth across therapeutic areas; S6 added multi-source corpus assembly (PubMed E-utilities, Google Scholar, Google Patents via SerpAPI) and stress-tested patent-document handling. S7 is the first scenario in a second domain and exercises clinicaltrials' phase-based evidence grading and CT.gov ingestion. S8 is the first scenario in a third domain and exercises fda-product-labels' four-level FDA epistemology classifier on real openFDA SPL labels. Contracts is the only scaffolded domain that does not yet have a validated scenario.
+
+\subsection{Cross-source patent extraction (S6)}
+
+The S6 GLP-1 corpus comprises 24 PubMed abstracts and 10 patent filings from five pharmaceutical companies (Novo Nordisk, Eli Lilly, Pfizer, Hanmi Pharmaceutical, Zealand Pharma). The patent component is a deliberate stress test: patents differ structurally from research papers, use heavily prophetic language, and contain molecular identifiers (peptide sequences, CAS registry numbers, InChIKeys) that abstracts do not. The rebuild produced 278 entities and 855 relations on the consolidated 13/22 schema -- a higher density than any S1--S5 corpus and the first scenario to exercise multi-source entity merging at scale (semaglutide appears in 17 documents -- 4 patents and 13 papers -- and is correctly deduplicated to a single node with merged attributes).
+
+\paragraph{Enrichment across rebuilds of the same corpus.} The S6 corpus has been rebuilt twice as the framework has matured, holding the source documents constant. Table~\ref{tab:s6-enrichment} reports the deltas between the most recent two rebuilds (V2 baseline vs.\ V3 rebuild), which together exercise the v3.0 pipeline contributions: \texttt{chonkie} sentence-aware chunking with overlap (FIDL-03), Pydantic-validated extraction at write time (FIDL-02c), \texttt{metadata.domain} round-tripped through the graph (FIDL-06), per-domain validators auto-invoked post-build (FIDL-07), the deterministic Layer 2 \texttt{claims\_layer.json} artifact, and the persona-driven narrator briefing (\texttt{epistemic\_narrative.md}). The increases in nodes, edges, and average attributes per node reflect a combination of the framework's Pydantic-strict extraction (no silent drops on schema-misshapen extractions) and the consolidated schema's better fit to the corpus. The much larger increases in \emph{prophetic} (15 $\to$ 61) and \emph{contested} (5 $\to$ 33) classifications reflect the v3.0 Layer 2 itself: those classifications were simply not produced by earlier rebuilds, because the rule engine and cross-source aggregation had not been built yet. Two artifacts are entirely new in V3 and therefore appear without a baseline: \texttt{validation\_report.json} and \texttt{epistemic\_narrative.md}.
+
+\begin{table}[t]
+\centering
+\small
+\caption{S6 GLP-1 corpus rebuilds, holding the 34-document source corpus constant. ``V2'' is the rebuild against the earlier framework state (single-layer graph, no narrator); ``V3'' is the rebuild against the v3.0 framework with the two-layer architecture, the sentence-aware chunker, Pydantic-strict extraction, and the persona-driven narrator. The extractor model also changed (V2 used Opus 4.6, V3 used Sonnet 4.6 via OpenRouter), which is a confound for raw entity / relation counts but does not affect the artifact-level additions.}
+\label{tab:s6-enrichment}
+\begin{tabular}{@{}lrrl@{}}
+\toprule
+\textbf{Metric}                                  & \textbf{V2}   & \textbf{V3}   & \textbf{$\Delta$} \\
+\midrule
+Nodes                                            & 193           & 278           & $+44\%$ \\
+Edges                                            & 619           & 855           & $+38\%$ \\
+Communities                                      & 9             & 10            & $+1$ \\
+Avg.\ attributes per node                        & 1.77          & 3.86          & $+118\%$ \\
+\midrule
+\texttt{prophetic} relations (Layer 2)           & 15            & 61            & $+307\%$ \\
+\texttt{contested} relations (Layer 2)           & 5             & 33            & $+560\%$ \\
+\texttt{metadata.domain} in \texttt{graph\_data.json} & ---      & yes           & new (FIDL-06) \\
+\texttt{validation\_report.json} auto-emitted    & ---           & yes           & new (FIDL-07) \\
+\texttt{epistemic\_narrative.md} auto-emitted    & ---           & yes           & new (v3 narrator) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Trial-protocol structure (S7)}
+
+The S7 GLP-1 Phase 3 corpus comprises 10 trial protocols from \texttt{ClinicalTrials.gov}, hand-selected to span the contemporary GLP-1 receptor agonist clinical landscape (semaglutide STEP and SUSTAIN families, tirzepatide SURPASS family, and orforglipron). The clinicaltrials domain extracted 142 nodes and 395 relations, with the largest entity-type contributions from \texttt{Outcome} (65), \texttt{Intervention} (16), and \texttt{Cohort} (13). The phase-based grading promoted Phase 3 outcome relations to \texttt{asserted}; the resulting briefing surfaced regulatory-grade head-to-head evidence (e.g., SURPASS-2 tirzepatide-vs-semaglutide) distinct from earlier-phase signals.
+
+\subsection{FDA Structured Product Labels (S8)}
+
+The S8 corpus comprises 7 openFDA SPL records hand-selected to exercise the full range of FDA label-section vocabulary: Ozempic (NDA209637 injectable, GLP-1 RA cardiovascular outcomes), Wegovy (NDA215256 weight management), Mounjaro (NDA215866 dual GIP/GLP-1 agonist), Humira (BLA125057 with explicit BOXED WARNING for serious infections / malignancy), Gleevec (NDA021588 with survival-benefit clinical-studies data), Lipitor (NDA020702 with LDL-lowering efficacy), and Jantoven (ANDA040416 with INR-monitoring and drug-interaction breadth). The fda-product-labels domain extracted 81 nodes and 149 relations across 14 entity types, with the largest contributions from \texttt{ADVERSE\_REACTION} (21), \texttt{INACTIVE\_INGREDIENT} (15), and \texttt{DRUG\_INTERACTION} (13).
+
+The four-level FDA epistemology classifier produced a tier distribution that itself is a finding about SPL labels: \emph{0 \texttt{established}, 4 \texttt{observed}, 145 \texttt{reported}, 0 \texttt{theoretical}}. The 97\% dominance of \texttt{reported} relations reflects the structural reality that post-marketing pharmacovigilance fills the bulk of the ADVERSE REACTIONS, DRUG INTERACTIONS, and POSTMARKETING sections. The 4 \texttt{observed} relations capture RCT-cited efficacy from CLINICAL STUDIES sections (SUSTAIN-6 in Ozempic, LDL-lowering in Lipitor, survival benefit in Gleevec, INR monitoring in Jantoven). The absence of \texttt{established} relations as a tier-attributed category does not mean the corpus lacks boxed warnings: the graph captures them as \texttt{WARNING} and \texttt{CONTRAINDICATION} entity nodes rather than as a tier flag on a relation edge. The absence of \texttt{theoretical} relations reflects the SPL sections processed -- mechanism-of-action prominence is light in the seven labels selected. This four-tier distribution is in turn the subject of the 1{,}571-word narrator briefing's executive summary.
+
+S8 was contributed via PR \#18 by Chris Davidson, ported via the controlled-port pattern documented in Section~\ref{sec:collaboration}; it closes GitHub Issue~\#14, which the v3.2.0 framework had tracked as the inaugural showcase corpus for fda-product-labels.
+
+\subsection{Schema coverage analysis}
+
+The drug-discovery schema has gone through one consolidation. The S1--S5 V2 rebuilds ran against an earlier 17-entity / 30-relation form and together exercised 17 of 17 entity types ($100\%$) and 28 of 30 relation types ($93\%$); the two unused relations were \texttt{PHOSPHORYLATES} and \texttt{METABOLIZED\_BY}, which represent specialized biochemical relationships rarely discussed at the abstract level. The schema was subsequently consolidated to 13 entities / 22 relations by removing low-yield types observed across S1--S5; the consolidated schema retained the high-yield types and merged or removed the low-yield ones. The S6 V3 rebuild on the consolidated schema exercised all 13 entity types and 20 of 22 relation types (the two unused being domain-rare structural relations). On the clinicaltrials domain, S7 exercised 11 of 12 entity types ($92\%$, the unused being \texttt{Endpoint} as a separate node from \texttt{Outcome}) and 9 of 10 relation types ($90\%$). On the fda-product-labels domain, S8 exercised 14 of 17 entity types ($82\%$, the unused being SPL-section types not present in the 7 labels selected: \texttt{NDC}, \texttt{LotNumber}, and \texttt{StorageInstruction}), with full coverage of the four-level epistemology classifier on all 149 extracted relations.
+
+\subsection{Epistemic-layer outputs (S6 case study)}
+
+The S6 V3 \texttt{claims\_layer.json} contained 855 relation classifications: $\sim$430 \texttt{asserted}, 61 \texttt{prophetic}, 78 \texttt{hypothesized}, 12 \texttt{contested} pairs, 2 \texttt{contradiction} pairs, 14 \texttt{negative} entries, and the remainder \texttt{unclassified} or \texttt{speculative}. The 61 prophetic claims concentrated on cardiovascular, neurodegenerative, and metabolic-sub-disorder indications -- a pattern consistent with patent claim-breadth strategy in the GLP-1 receptor agonist class. The 12 contested pairs included high-stakes edges such as \texttt{semaglutide INDICATED\_FOR obesity} (confidence range $0.55$--$0.97$ across sources) where pre- and post-STEP-1 trial language coexists in the corpus.
+
+The narrator's executive summary on S6, generated from the classified graph by the senior drug-discovery competitive-intelligence persona, reproduced the prophetic-concentration finding and recommended ``temporal stratification of confidence'' on the contested obesity-indication edge. It also surfaced an ingestion gap -- absence of SURPASS-2 data in the corpus -- and recommended that the analyst integrate the trial. The recommendation was correct: SURPASS-2 (Frías et al., NEJM 2021)~\cite{frias2021surpass2} was not in the original corpus and is the canonical head-to-head tirzepatide-vs-semaglutide evidence. The narrator did not see the source documents directly; its claims trace back to graph nodes and statuses set by the rule engine.
+
+The narrator output is non-deterministic: re-running the persona-driven stage on the same \texttt{claims\_layer.json} produces briefings that vary in word choice but stabilize on the same findings (prophetic concentrations, contested edges, gap signals). The deterministic record is \texttt{claims\_layer.json}; the briefing is its narrative rendering.
+
+\subsection{What the evaluation establishes}
+
+The evaluation is sufficient to establish the following claims:
+
+\begin{itemize}
+\item \emph{Domain pluggability is real, not aspirational.} A second active domain (clinicaltrials) ships in v3.1 with its own schema, epistemic rules, and persona, and validates with a first scenario. The pipeline did not require modification.
+\item \emph{The rule-based epistemic layer produces analyst-relevant signal.} On S6, the layer correctly identified prophetic concentrations and contested edges that match the substantive structure of the GLP-1 corpus.
+\item \emph{The persona dual-use pattern is coherent.} On both S6 and S7, the chat surface and the briefing surface use the same vocabulary and answer the same questions consistently because they share a persona string.
+\item \emph{Scenario count is a maturity signal.} Drug-discovery (six scenarios) and clinicaltrials (one scenario) differ in pressure-testing depth, and that difference shows in subjective briefing quality and edge-case handling. The framework exposes this gap honestly rather than masking it.
+\end{itemize}
+
+\subsection{What the evaluation does not establish}
+
+The evaluation does \emph{not} establish:
+
+\begin{itemize}
+\item \emph{Cross-scenario auto-learning.} The framework does not currently fold lessons from prior scenario runs into subsequent runs. Refinements (improved persona vocabulary, refined epistemic rules, schema consolidation) are human-mediated: a contributor reads the narrator output, identifies a missed pattern, edits the domain configuration, and commits. The README and the framework treat scenario count as a track record, not as evidence of compounding learning. GitHub Issue~\#15 tracks the aspirational mechanism.
+\item \emph{Universal coverage of contracts.} The contracts domain is the only one of the four pre-built domains without a validated showcase corpus. Its schema is designed but not pressure-tested. (Fda-product-labels was scaffolded in v3.2.0 and validated via S8 in v3.2.1, closing the prior Issue~\#14 gap.)
+\item \emph{Narrator output reliability for clinical decisions.} The narrator is a research tool, not a regulatory or clinical decision-making system. Its outputs are hypotheses requiring expert review, and the system documents this caveat both in-product and in the README.
+\end{itemize}
+
+These caveats are not afterthoughts. They are first-class limitations the framework documents explicitly and tracks in the issue queue. Section~\ref{sec:availability} expands on the responsible-use boundary.
