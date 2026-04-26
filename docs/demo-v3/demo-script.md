@@ -187,6 +187,7 @@ QnA →
 - "Can I bring my own LLM?" — Azure AI Foundry → Anthropic direct → OpenRouter, in priority order. All speak Anthropic-native or OpenAI-compat format.
 - "Why labeled property graph instead of RDF?" — sift-kg's NetworkX substrate. RDF / GraphML / Turtle exports via `/epistract:export`.
 - "Does the framework learn across scenarios?" — Not yet. Refinements are human-mediated. Issue #15 tracks the aspirational compounding mechanism.
+- "What corpus size does this handle?" — Designed for small-to-medium corpora that fit a Claude Code session. The seven validated scenarios range from 10 to 34 documents per corpus. The upper bound at which the chat or briefing degrades is undetermined — not yet tested at hundreds or thousands of documents. For scale beyond the workspace, `/epistract:export` dumps to GraphML, CSV, SQLite, or JSON for Neo4j-class persistent stores. MCP-based data-source connectors for on-demand corpus assembly are a future direction.
 - "Is there a paper?" — Yes, at `paper/v2/main.pdf` — covers the two-layer architecture, the epistemic super-domain layer, the persona dual-use pattern, the four pre-built domains, and the seven validation scenarios. Linked from the README.
 - "How are the paper's claims grounded?" — Every quantitative claim in the paper traces to a committed artifact under `tests/corpora/`. The accuracy checklist (`docs/demo-v3/accuracy-checklist.md`) maps demo claims to their codebase sources too.
 
