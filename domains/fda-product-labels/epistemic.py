@@ -149,14 +149,13 @@ def analyze_fda_product_labels_epistemic(
     for node in nodes:
         node_types[node.get("entity_type", "")] += 1
 
-    for gap_category, expected_types in _GAP_TARGET_TYPES.items():
-        for expected in expected_types:
-            if node_types.get(expected, 0) == 0:
-                gaps.append({
-                    "category": gap_category,
-                    "missing_type": expected,
-                    "description": f"No {expected} entities found in graph",
-                })
+    for gap_category, description in _GAP_TARGET_TYPES.items():
+        if node_types.get(gap_category, 0) == 0:
+            gaps.append({
+                "category": gap_category,
+                "missing_type": gap_category,
+                "description": description,
+            })
 
     # --- Cross-document linking ---
     doc_entities: dict[str, set] = defaultdict(set)
@@ -170,6 +169,16 @@ def analyze_fda_product_labels_epistemic(
     ]
 
     # --- Build claims_layer ---
+    # Top-level evidence_tier_counts: FDA four-level evidence vocabulary
+    # (established / observed / reported / theoretical). Required by S8-03.
+    # Top-level epistemic_status_counts: v3 standard parity (same values,
+    # different key name used by the generic epistemic verifier).
+    _tier_counts = {
+        "established": established_count,
+        "observed": observed_count,
+        "reported": reported_count,
+        "theoretical": theoretical_count,
+    }
     claims_layer = {
         "metadata": {
             "domain": "fda_product_labels",
@@ -177,16 +186,14 @@ def analyze_fda_product_labels_epistemic(
             "generated_from": str(output_dir / "graph_data.json"),
             "total_relations": len(links),
         },
+        # S8-03 acceptance criterion: both keys must exist at the top level.
+        "evidence_tier_counts": _tier_counts,
+        "epistemic_status_counts": _tier_counts,
         "summary": {
             "conflicts_found": len(conflicts),
             "gaps_found": len(gaps),
             "cross_document_entities": len(cross_doc_entities),
-            "epistemic_status_counts": {
-                "established": established_count,
-                "observed": observed_count,
-                "reported": reported_count,
-                "theoretical": theoretical_count,
-            },
+            "epistemic_status_counts": _tier_counts,
         },
         "base_domain": {
             "description": "Factual fda_product_labels knowledge graph relations",

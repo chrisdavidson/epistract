@@ -141,11 +141,21 @@ def _dedupe_entities(entities: list[dict]) -> list[dict]:
     return out
 
 
+def _normalize_relation(r: dict) -> dict:
+    """Normalize source/target field name variants to source_entity/target_entity."""
+    if "source_entity" not in r and "source" in r:
+        r = {**r, "source_entity": r["source"]}
+    if "target_entity" not in r and "target" in r:
+        r = {**r, "target_entity": r["target"]}
+    return r
+
+
 def _dedupe_relations(relations: list[dict]) -> list[dict]:
     """Dedupe by (source, target, relation_type)."""
     seen: set[tuple[str, str, str]] = set()
     out: list[dict] = []
     for r in relations:
+        r = _normalize_relation(r)
         key = (
             str(r.get("source_entity", "")).strip(),
             str(r.get("target_entity", "")).strip(),
