@@ -149,14 +149,13 @@ def analyze_fda_product_labels_epistemic(
     for node in nodes:
         node_types[node.get("entity_type", "")] += 1
 
-    for gap_category, expected_types in _GAP_TARGET_TYPES.items():
-        for expected in expected_types:
-            if node_types.get(expected, 0) == 0:
-                gaps.append({
-                    "category": gap_category,
-                    "missing_type": expected,
-                    "description": f"No {expected} entities found in graph",
-                })
+    for gap_category, description in _GAP_TARGET_TYPES.items():
+        if node_types.get(gap_category, 0) == 0:
+            gaps.append({
+                "category": gap_category,
+                "missing_type": gap_category,
+                "description": description,
+            })
 
     # --- Cross-document linking ---
     doc_entities: dict[str, set] = defaultdict(set)
