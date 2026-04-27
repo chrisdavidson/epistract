@@ -2424,6 +2424,7 @@ def test_ut057_narrator_non_blocking_on_missing_credentials(tmp_path, monkeypatc
 
 CLINICALTRIALS_DIR = PROJECT_ROOT / "domains" / "clinicaltrials"
 CT_FIXTURES = FIXTURES_DIR / "clinicaltrials"
+ARXIV_CS_DIR = PROJECT_ROOT / "domains" / "arxiv-cs"
 
 
 @pytest.mark.unit
@@ -2589,3 +2590,106 @@ def test_ctdm06_enrich_non_blocking():
         # Must return None, not raise
         assert enrich._fetch_ct_gov("NCT04303780") is None
         assert enrich._fetch_pubchem("remdesivir") is None
+
+
+# ========================================================================
+# Phase 08: arXiv CS Domain (ACS-01..ACS-04)
+# ========================================================================
+
+
+@pytest.mark.unit
+@pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
+def test_acs01_arxiv_cs_domain_yaml():
+    """ACS-01: domain.yaml loads with exactly 12 entity types and 10 relation types."""
+    from sift_kg import load_domain
+    yaml_path = ARXIV_CS_DIR / "domain.yaml"
+    assert yaml_path.exists(), f"Missing {yaml_path}"
+    domain = load_domain(domain_path=yaml_path)
+    assert len(domain.entity_types) == 12, f"Expected 12 entity types, got {len(domain.entity_types)}"
+    assert len(domain.relation_types) == 10, f"Expected 10 relation types, got {len(domain.relation_types)}"
+
+
+@pytest.mark.unit
+def test_acs01_arxiv_cs_in_list_domains():
+    """ACS-01: arxiv-cs domain is discoverable by domain_resolver."""
+    from core.domain_resolver import list_domains
+    assert "arxiv-cs" in list_domains(), "arxiv-cs must appear in domain_resolver.list_domains()"
+
+
+@pytest.mark.unit
+def test_acs02_arxiv_cs_relation_types():
+    """ACS-02: domain.yaml contains all 10 required relation type keys."""
+    import yaml as _yaml
+    yaml_path = ARXIV_CS_DIR / "domain.yaml"
+    assert yaml_path.exists(), f"Missing {yaml_path}"
+    schema = _yaml.safe_load(yaml_path.read_text())
+    rel_types = set(schema.get("relation_types", {}).keys())
+    required = {
+        "PROPOSES", "CITES", "AUTHORED_BY", "AFFILIATED_WITH",
+        "EVALUATES_ON", "OUTPERFORMS", "TRAINED_ON",
+        "IMPLEMENTED_IN", "PUBLISHED_AT", "ACHIEVES",
+    }
+    missing = required - rel_types
+    assert not missing, f"Missing relation types: {missing}"
+
+
+@pytest.mark.unit
+def test_acs03_arxiv_cs_skill_md():
+    """ACS-03: SKILL.md exists and contains CS/ML nomenclature section."""
+    skill_path = ARXIV_CS_DIR / "SKILL.md"
+    assert skill_path.exists(), f"Missing {skill_path}"
+    text = skill_path.read_text()
+    assert "Nomenclature Standards" in text, "SKILL.md must contain Nomenclature Standards section"
+    assert "arXiv ID" in text, "SKILL.md must mention arXiv ID canonicalization"
+    assert "ALGORITHM" in text, "SKILL.md must mention ALGORITHM entity type"
+    assert "DATASET" in text, "SKILL.md must mention DATASET entity type"
+    assert "BENCHMARK" in text, "SKILL.md must mention BENCHMARK entity type"
+
+
+@pytest.mark.unit
+@pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
+def test_acs04_arxiv_cs_epistemic_module():
+    """ACS-04: dispatcher finds analyze_arxiv_cs_epistemic via _load_domain_epistemic."""
+    from core.label_epistemic import _load_domain_epistemic
+    mod = _load_domain_epistemic("arxiv-cs")
+    assert mod is not None, "Failed to load arxiv-cs epistemic module"
+    assert hasattr(mod, "analyze_arxiv_cs_epistemic"), (
+        "Missing analyze_arxiv_cs_epistemic — dispatcher derives this from domain slug"
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
+def test_acs04_arxiv_cs_epistemic_callable(tmp_path):
+    """ACS-04: analyze_arxiv_cs_epistemic returns claims layer with required keys."""
+    from core.label_epistemic import _load_domain_epistemic
+    mod = _load_domain_epistemic("arxiv-cs")
+    result = mod.analyze_arxiv_cs_epistemic(tmp_path, {"nodes": [], "links": []})
+    assert isinstance(result, dict)
+    for key in ("metadata", "summary", "base_domain", "super_domain"):
+        assert key in result, f"claims layer missing '{key}'"
+    assert "evidence_tier_counts" in result, "claims layer missing evidence_tier_counts"
+    assert "epistemic_status_counts" in result, "claims layer missing epistemic_status_counts"
+
+
+@pytest.mark.unit
+@pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
+def test_acs04_arxiv_cs_epistemic_levels(tmp_path):
+    """ACS-04: epistemic classifier assigns correct levels from trigger phrases."""
+    from core.label_epistemic import _load_domain_epistemic
+    mod = _load_domain_epistemic("arxiv-cs")
+    links = [
+        {"id": "l1", "evidence": "we achieve state-of-the-art accuracy on GLUE", "confidence": 0.9},
+        {"id": "l2", "evidence": "we prove by induction that the bound holds", "confidence": 0.9},
+        {"id": "l3", "evidence": "we reproduce the results of Vaswani et al.", "confidence": 0.9},
+    ]
+    mod.analyze_arxiv_cs_epistemic(tmp_path, {"nodes": [], "links": links})
+    assert links[0].get("epistemic_status") == "claimed", (
+        f"'we achieve' should classify as claimed, got {links[0].get('epistemic_status')}"
+    )
+    assert links[1].get("epistemic_status") == "theoretical", (
+        f"'we prove' should classify as theoretical, got {links[1].get('epistemic_status')}"
+    )
+    assert links[2].get("epistemic_status") == "reproduced", (
+        f"'we reproduce' should classify as reproduced, got {links[2].get('epistemic_status')}"
+    )
