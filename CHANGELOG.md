@@ -2,6 +2,29 @@
 
 All notable changes to epistract are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
+## [3.2.2] — 2026-04-27
+
+**arXiv CS domain + showcase corpus (v1.1).** Ships the fifth pre-built domain (`arxiv-cs`) with a 12-entity-type / 10-relation-type schema, four-level preprint epistemology (claimed / reproduced / ablated / theoretical), and the first bundled arXiv corpus: 8 landmark CS papers (Transformer, BERT, GPT-3, LLaMA, ResNet, ViT, CLIP, Adam) producing 94 nodes / 179 edges / 1637-word narrator briefing. Includes fetch script, full pipeline output, 4 workbench screenshots, scenario validation doc, and public showcase doc. Closes ACS-01 through ACS-08.
+
+### Added
+
+- `domains/arxiv-cs/` — fifth pre-built domain package (`domain.yaml`, `SKILL.md`, `epistemic.py`, `__init__.py`, `workbench/template.yaml`): 12 entity types (PAPER, AUTHOR, INSTITUTION, ALGORITHM, DATASET, BENCHMARK, METRIC, TASK, FRAMEWORK, VENUE, RESULT, ARXIV_CATEGORY), 10 relation types, four-level preprint epistemology (claimed / reproduced / ablated / theoretical)
+- `scripts/fetch_arxiv_papers.py` — arXiv Atom API fetcher (stdlib urllib + xml.etree.ElementTree, zero new deps)
+- `tests/fixtures/arxiv_api_mock.xml` — minimal Atom XML fixture for unit tests
+- `tests/corpora/09_arxiv_cs/docs/` — 8 arXiv CS abstract text files (cs.CL: 1706.03762, 1810.04805, 2005.14165, 2302.13971; cs.CV: 1512.03385, 2010.11929, 2103.00020; cs.LG: 1412.6980)
+- `tests/corpora/09_arxiv_cs/output/` — full pipeline artifacts (graph_data.json, communities.json, claims_layer.json, epistemic_narrative.md, graph.html, extract_run.json, per-doc extractions)
+- `tests/scenarios/scenario-09-arxiv-cs-papers.md` — scenario validation doc (S9 arXiv CS Papers, V1.1)
+- `docs/SHOWCASE-ARXIV-CS.md` — public-facing showcase doc (workbench quickstart port 8045, V1.1 numbers table, analyst briefing excerpt)
+- `docs/screenshots/arxiv-cs-{01-dashboard,02-chat-welcome,03-graph,04-chat-epistemic}.png` — 4 workbench screenshots
+- `tests/test_unit.py` — new unit tests covering ACS-01 through ACS-06 (domain.yaml load, relation types, SKILL.md content, epistemic dispatcher, epistemic level classification, fetch script XML parse, PAPER node abs_url enrichment)
+
+### Changed
+
+- `README.md` — Pre-built Domains table gains arxiv-cs row (12 / 10); domain count updated from four to five; `domains/arxiv-cs/domain.yaml` added to footer domain list
+- `CHANGELOG.md` — this entry
+
+---
+
 ## [3.2.1] — 2026-04-26
 
 **S8 FDA Product Labels showcase corpus.** Ships the first bundled-corpus showcase for the fda-product-labels domain: a 7-document FDA SPL corpus (Ozempic NDA209637, Wegovy NDA215256, Mounjaro NDA215866, Humira BLA125057, Gleevec NDA021588, Lipitor NDA020702, Jantoven ANDA040416), the openFDA fetch script, the full pipeline output (81 nodes / 149 edges / 1,579-word narrative), 4 workbench screenshots, scenario validation doc, and public-facing showcase doc. Closes #14.
