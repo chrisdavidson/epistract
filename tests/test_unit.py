@@ -2693,3 +2693,69 @@ def test_acs04_arxiv_cs_epistemic_levels(tmp_path):
     assert links[2].get("epistemic_status") == "reproduced", (
         f"'we reproduce' should classify as reproduced, got {links[2].get('epistemic_status')}"
     )
+
+
+# ACS-05: fetch script unit tests (no live network — uses arxiv_api_mock.xml fixture)
+
+
+@pytest.mark.unit
+def test_acs05_fetch_parse_mock_xml():
+    """ACS-05: _parse_entries correctly parses Atom XML fixture into paper dicts."""
+    sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+    import importlib
+
+    fetch_mod = importlib.import_module("fetch_arxiv_papers")
+    xml_text = (FIXTURES_DIR / "arxiv_api_mock.xml").read_text(encoding="utf-8")
+    papers = fetch_mod._parse_entries(xml_text)
+    assert len(papers) == 2, f"Expected 2 papers from mock XML, got {len(papers)}"
+    ids = {p["arxiv_id"] for p in papers}
+    assert "1706.03762" in ids, f"Expected 1706.03762 in parsed IDs, got {ids}"
+    for paper in papers:
+        assert paper.get("abstract"), f"abstract must be non-empty, got: {paper.get('abstract')!r}"
+        assert paper.get("title"), f"title must be non-empty, got: {paper.get('title')!r}"
+        assert isinstance(paper.get("authors"), list), "authors must be a list"
+        arxiv_id = paper["arxiv_id"]
+        assert "v" not in arxiv_id or arxiv_id.index("v") < 4, (
+            f"arxiv_id must not contain version suffix like 'v7', got: {arxiv_id!r}"
+        )
+        assert "/" not in arxiv_id, (
+            f"arxiv_id must not contain URL path, got: {arxiv_id!r}"
+        )
+
+
+@pytest.mark.unit
+def test_acs05_fetch_render_fields():
+    """ACS-05: render() produces correct headers and respects MAX_CHARS limit."""
+    sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+    import importlib
+
+    fetch_mod = importlib.import_module("fetch_arxiv_papers")
+    paper = {
+        "arxiv_id": "1706.03762",
+        "title": "Attention Is All You Need",
+        "authors": ["Ashish Vaswani", "Noam Shazeer"],
+        "primary_cat": "cs.CL",
+        "categories": ["cs.CL", "cs.LG"],
+        "published": "2017-06-12",
+        "journal_ref": "Advances in Neural Information Processing Systems",
+        "comment": "15 pages, 5 figures",
+        "abstract": (
+            "The dominant sequence transduction models are based on complex "
+            "recurrent or convolutional neural networks that include an encoder "
+            "and a decoder connected through an attention mechanism."
+        ),
+        "abs_url": "https://arxiv.org/abs/1706.03762",
+        "pdf_url": "https://arxiv.org/pdf/1706.03762",
+        "updated": "2023-08-02",
+    }
+    output = fetch_mod.render(paper, "1706_03762_attention_is_all_you_need")
+    assert output.startswith("arXiv Paper:"), (
+        f"Output must start with 'arXiv Paper:', got: {output[:60]!r}"
+    )
+    assert "=== ABSTRACT ===" in output, "render() must include === ABSTRACT === header"
+    assert "Attention Is All You Need" in output, "Title must appear in rendered output"
+    assert "Ashish Vaswani" in output, "Authors must appear in rendered output"
+    byte_len = len(output.encode("utf-8"))
+    assert byte_len <= fetch_mod.MAX_CHARS, (
+        f"Rendered output ({byte_len} bytes) exceeds MAX_CHARS={fetch_mod.MAX_CHARS}"
+    )
