@@ -1,0 +1,146 @@
+{
+  "document_id": "2010_11929_vit",
+  "document_path": "",
+  "chunks_processed": 1,
+  "entities": [
+    {
+      "name": "2010.11929",
+      "entity_type": "PAPER",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Alexey Dosovitskiy",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Lucas Beyer",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Alexander Kolesnikov",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Dirk Weissenborn",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Xiaohua Zhai",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Thomas Unterthiner",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Mostafa Dehghani",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Matthias Minderer",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Georg Heigold",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Sylvain Gelly",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Jakob Uszkoreit",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Neil Houlsby",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Vision Transformer",
+      "entity_type": "ALGORITHM",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "ImageNet",
+      "entity_type": "BENCHMARK",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "CIFAR-100",
+      "entity_type": "BENCHMARK",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "VTAB",
+      "entity_type": "BENCHMARK",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "image classification",
+      "entity_type": "TASK",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "ICLR 2021",
+      "entity_type": "VENUE",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "cs.CV",
+      "entity_type": "ARXIV_CATEGORY",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "cs.AI",
+      "entity_type": "ARXIV_CATEGORY",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "cs.LG",
+      "entity_type": "ARXIV_CATEGORY",
+      "context": "",
+      "attributes": {}
+    }
+  ],
+  "relations": [],
+  "cost_usd": 0.0,
+  "model_used": "nvidia/nemotron-3-super-120b-a12b:free",
+  "domain_name": "arxiv-cs",
+  "chunk_size": 10000,
+  "extracted_at": "2026-04-27T00:58:37.620695+00:00",
+  "error": null
+}

@@ -1,0 +1,762 @@
+review_threshold: 0.7
+relations:
+- source_id: paper:1412_6980
+  source_name: '1412.6980'
+  target_id: algorithm:adam
+  target_name: Adam
+  relation_type: PROPOSES
+  confidence: 0.5
+  evidence: ''
+  source_document: 1412_6980_adam
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: paper:1412_6980
+  source_name: '1412.6980'
+  target_id: algorithm:adamax
+  target_name: AdaMax
+  relation_type: PROPOSES
+  confidence: 0.5
+  evidence: ''
+  source_document: 1412_6980_adam
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: paper:1412_6980
+  source_name: '1412.6980'
+  target_id: venue:iclr_2015
+  target_name: ICLR 2015
+  relation_type: PUBLISHED_AT
+  confidence: 0.5
+  evidence: ''
+  source_document: 1412_6980_adam
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:diederik_p_kingma
+  source_name: Diederik P. Kingma
+  target_id: paper:1412_6980
+  target_name: '1412.6980'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 1412_6980_adam
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:jimmy_ba
+  source_name: Jimmy Ba
+  target_id: paper:1412_6980
+  target_name: '1412.6980'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 1412_6980_adam
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: paper:1512_03385
+  source_name: '1512.03385'
+  target_id: algorithm:resnet
+  target_name: ResNet
+  relation_type: PROPOSES
+  confidence: 0.5
+  evidence: ''
+  source_document: 1512_03385_resnet
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: paper:1512_03385
+  source_name: '1512.03385'
+  target_id: algorithm:resnet
+  target_name: ResNet
+  relation_type: EVALUATES_ON
+  confidence: 0.5
+  evidence: ''
+  source_document: 1512_03385_resnet
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: paper:1512_03385
+  source_name: '1512.03385'
+  target_id: result:3_57_error_on_imagenet
+  target_name: 3.57% error on ImageNet
+  relation_type: ACHIEVES
+  confidence: 0.5
+  evidence: ''
+  source_document: 1512_03385_resnet
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:kaiming_he
+  source_name: Kaiming He
+  target_id: paper:1512_03385
+  target_name: '1512.03385'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 1512_03385_resnet
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:xiangyu_zhang
+  source_name: Xiangyu Zhang
+  target_id: paper:1512_03385
+  target_name: '1512.03385'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 1512_03385_resnet
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:shaoqing_ren
+  source_name: Shaoqing Ren
+  target_id: paper:1512_03385
+  target_name: '1512.03385'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 1512_03385_resnet
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:jian_sun
+  source_name: Jian Sun
+  target_id: paper:1512_03385
+  target_name: '1512.03385'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 1512_03385_resnet
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: algorithm:resnet
+  source_name: ResNet
+  target_id: dataset:imagenet
+  target_name: ImageNet
+  relation_type: TRAINED_ON
+  confidence: 0.5
+  evidence: ''
+  source_document: 1512_03385_resnet
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: algorithm:resnet
+  source_name: ResNet
+  target_id: dataset:cifar_10
+  target_name: CIFAR-10
+  relation_type: TRAINED_ON
+  confidence: 0.5
+  evidence: ''
+  source_document: 1512_03385_resnet
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: algorithm:resnet
+  source_name: ResNet
+  target_id: dataset:coco
+  target_name: COCO
+  relation_type: TRAINED_ON
+  confidence: 0.5
+  evidence: ''
+  source_document: 1512_03385_resnet
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: paper:1810_04805
+  source_name: '1810.04805'
+  target_id: algorithm:bert
+  target_name: BERT
+  relation_type: PROPOSES
+  confidence: 0.5
+  evidence: ''
+  source_document: 1810_04805_bert
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: paper:1810_04805
+  source_name: '1810.04805'
+  target_id: benchmark:glue
+  target_name: GLUE
+  relation_type: EVALUATES_ON
+  confidence: 0.5
+  evidence: ''
+  source_document: 1810_04805_bert
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: paper:1810_04805
+  source_name: '1810.04805'
+  target_id: dataset:multinli
+  target_name: MultiNLI
+  relation_type: EVALUATES_ON
+  confidence: 0.5
+  evidence: ''
+  source_document: 1810_04805_bert
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: paper:1810_04805
+  source_name: '1810.04805'
+  target_id: dataset:squad_v1_1
+  target_name: SQuAD v1.1
+  relation_type: EVALUATES_ON
+  confidence: 0.5
+  evidence: ''
+  source_document: 1810_04805_bert
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: paper:1810_04805
+  source_name: '1810.04805'
+  target_id: dataset:squad_v2_0
+  target_name: SQuAD v2.0
+  relation_type: EVALUATES_ON
+  confidence: 0.5
+  evidence: ''
+  source_document: 1810_04805_bert
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:jacob_devlin
+  source_name: Jacob Devlin
+  target_id: paper:1810_04805
+  target_name: '1810.04805'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 1810_04805_bert
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:ming_wei_chang
+  source_name: Ming-Wei Chang
+  target_id: paper:1810_04805
+  target_name: '1810.04805'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 1810_04805_bert
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:kenton_lee
+  source_name: Kenton Lee
+  target_id: paper:1810_04805
+  target_name: '1810.04805'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 1810_04805_bert
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:kristina_toutanova
+  source_name: Kristina Toutanova
+  target_id: paper:1810_04805
+  target_name: '1810.04805'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 1810_04805_bert
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: algorithm:bert
+  source_name: BERT
+  target_id: result:80_5_glue_score_on_glue
+  target_name: 80.5% GLUE score on GLUE
+  relation_type: ACHIEVES
+  confidence: 0.5
+  evidence: ''
+  source_document: 1810_04805_bert
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: algorithm:bert
+  source_name: BERT
+  target_id: result:86_7_accuracy_on_multinli
+  target_name: 86.7% accuracy on MultiNLI
+  relation_type: ACHIEVES
+  confidence: 0.5
+  evidence: ''
+  source_document: 1810_04805_bert
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: algorithm:bert
+  source_name: BERT
+  target_id: result:93_2_f1_on_squad_v1_1
+  target_name: 93.2 F1 on SQuAD v1.1
+  relation_type: ACHIEVES
+  confidence: 0.5
+  evidence: ''
+  source_document: 1810_04805_bert
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: algorithm:bert
+  source_name: BERT
+  target_id: result:83_1_f1_on_squad_v2_0
+  target_name: 83.1 F1 on SQuAD v2.0
+  relation_type: ACHIEVES
+  confidence: 0.5
+  evidence: ''
+  source_document: 1810_04805_bert
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: paper:2005_14165
+  source_name: '2005.14165'
+  target_id: algorithm:gpt_3
+  target_name: GPT-3
+  relation_type: PROPOSES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:tom_b_brown
+  source_name: Tom B. Brown
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:benjamin_mann
+  source_name: Benjamin Mann
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:nick_ryder
+  source_name: Nick Ryder
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:melanie_subbiah
+  source_name: Melanie Subbiah
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:jared_kaplan
+  source_name: Jared Kaplan
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:prafulla_dhariwal
+  source_name: Prafulla Dhariwal
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:arvind_neelakantan
+  source_name: Arvind Neelakantan
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:pranav_shyam
+  source_name: Pranav Shyam
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:girish_sastry
+  source_name: Girish Sastry
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:amanda_askell
+  source_name: Amanda Askell
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:sandhini_agarwal
+  source_name: Sandhini Agarwal
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:ariel_herbert_voss
+  source_name: Ariel Herbert-Voss
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:gretchen_krueger
+  source_name: Gretchen Krueger
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:tom_henighan
+  source_name: Tom Henighan
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:rewon_child
+  source_name: Rewon Child
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:aditya_ramesh
+  source_name: Aditya Ramesh
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:daniel_m_ziegler
+  source_name: Daniel M. Ziegler
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:jeffrey_wu
+  source_name: Jeffrey Wu
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:clemens_winter
+  source_name: Clemens Winter
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:christopher_hesse
+  source_name: Christopher Hesse
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:mark_chen
+  source_name: Mark Chen
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:eric_sigler
+  source_name: Eric Sigler
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:mateusz_litwin
+  source_name: Mateusz Litwin
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:scott_gray
+  source_name: Scott Gray
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:benjamin_chess
+  source_name: Benjamin Chess
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:jack_clark
+  source_name: Jack Clark
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:christopher_berner
+  source_name: Christopher Berner
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:sam_mccandlish
+  source_name: Sam McCandlish
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:alec_radford
+  source_name: Alec Radford
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:ilya_sutskever
+  source_name: Ilya Sutskever
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:dario_amodei
+  source_name: Dario Amodei
+  target_id: paper:2005_14165
+  target_name: '2005.14165'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2005_14165_gpt3
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: paper:2302_13971
+  source_name: '2302.13971'
+  target_id: algorithm:llama
+  target_name: LLaMA
+  relation_type: PROPOSES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2302_13971_llama
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:hugo_touvron
+  source_name: Hugo Touvron
+  target_id: paper:2302_13971
+  target_name: '2302.13971'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2302_13971_llama
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:thibaut_lavril
+  source_name: Thibaut Lavril
+  target_id: paper:2302_13971
+  target_name: '2302.13971'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2302_13971_llama
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:gautier_izacard
+  source_name: Gautier Izacard
+  target_id: paper:2302_13971
+  target_name: '2302.13971'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2302_13971_llama
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:xavier_martinet
+  source_name: Xavier Martinet
+  target_id: paper:2302_13971
+  target_name: '2302.13971'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2302_13971_llama
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:marie_anne_lachaux
+  source_name: Marie-Anne Lachaux
+  target_id: paper:2302_13971
+  target_name: '2302.13971'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2302_13971_llama
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:timothee_lacroix
+  source_name: Timothée Lacroix
+  target_id: paper:2302_13971
+  target_name: '2302.13971'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2302_13971_llama
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:baptiste_roziere
+  source_name: Baptiste Rozière
+  target_id: paper:2302_13971
+  target_name: '2302.13971'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2302_13971_llama
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:naman_goyal
+  source_name: Naman Goyal
+  target_id: paper:2302_13971
+  target_name: '2302.13971'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2302_13971_llama
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:eric_hambro
+  source_name: Eric Hambro
+  target_id: paper:2302_13971
+  target_name: '2302.13971'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2302_13971_llama
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:faisal_azhar
+  source_name: Faisal Azhar
+  target_id: paper:2302_13971
+  target_name: '2302.13971'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2302_13971_llama
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:aurelien_rodriguez
+  source_name: Aurelien Rodriguez
+  target_id: paper:2302_13971
+  target_name: '2302.13971'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2302_13971_llama
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:armand_joulin
+  source_name: Armand Joulin
+  target_id: paper:2302_13971
+  target_name: '2302.13971'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2302_13971_llama
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:edouard_grave
+  source_name: Edouard Grave
+  target_id: paper:2302_13971
+  target_name: '2302.13971'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2302_13971_llama
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: author:guillaume_lample
+  source_name: Guillaume Lample
+  target_id: paper:2302_13971
+  target_name: '2302.13971'
+  relation_type: AUTHORES
+  confidence: 0.5
+  evidence: ''
+  source_document: 2302_13971_llama
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)
+- source_id: algorithm:llama_13b
+  source_name: LLaMA-13B
+  target_id: algorithm:gpt_3
+  target_name: GPT-3
+  relation_type: OUTPERFORMS
+  confidence: 0.5
+  evidence: ''
+  source_document: 2302_13971_llama
+  status: DRAFT
+  flag_reason: Low confidence (0.50 < 0.7)

@@ -1,0 +1,97 @@
+{
+  "document_id": "1412_6980_adam",
+  "document_path": "",
+  "chunks_processed": 1,
+  "entities": [
+    {
+      "name": "1412.6980",
+      "entity_type": "PAPER",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Diederik P. Kingma",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Jimmy Ba",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Adam",
+      "entity_type": "ALGORITHM",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "AdaMax",
+      "entity_type": "ALGORITHM",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "cs.LG",
+      "entity_type": "ARXIV_CATEGORY",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "ICLR 2015",
+      "entity_type": "VENUE",
+      "context": "",
+      "attributes": {}
+    }
+  ],
+  "relations": [
+    {
+      "source": "1412.6980",
+      "target": "Diederik P. Kingma",
+      "source_entity": "1412.6980",
+      "target_entity": "Diederik P. Kingma",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "1412.6980",
+      "target": "Jimmy Ba",
+      "source_entity": "1412.6980",
+      "target_entity": "Jimmy Ba",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "1412.6980",
+      "target": "Adam",
+      "source_entity": "1412.6980",
+      "target_entity": "Adam",
+      "relation_type": "PROPOSES",
+      "evidence": ""
+    },
+    {
+      "source": "1412.6980",
+      "target": "AdaMax",
+      "source_entity": "1412.6980",
+      "target_entity": "AdaMax",
+      "relation_type": "PROPOSES",
+      "evidence": ""
+    },
+    {
+      "source": "1412.6980",
+      "target": "ICLR 2015",
+      "source_entity": "1412.6980",
+      "target_entity": "ICLR 2015",
+      "relation_type": "PUBLISHED_AT",
+      "evidence": ""
+    }
+  ],
+  "cost_usd": 0.0,
+  "model_used": "nvidia/nemotron-3-super-120b-a12b:free",
+  "domain_name": "arxiv-cs",
+  "chunk_size": 10000,
+  "extracted_at": "2026-04-27T00:45:16.859047+00:00",
+  "error": null
+}

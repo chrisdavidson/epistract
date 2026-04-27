@@ -1,0 +1,44 @@
+{
+  "total": 8,
+  "passed": 8,
+  "recovered": 0,
+  "unrecoverable": 0,
+  "pass_rate": 1.0,
+  "fail_threshold": 0.95,
+  "above_threshold": true,
+  "generated_at": "2026-04-27T01:23:50.167986+00:00",
+  "actions": [
+    {
+      "file": "1412_6980_adam.json",
+      "action": "passed"
+    },
+    {
+      "file": "1512_03385_resnet.json",
+      "action": "passed"
+    },
+    {
+      "file": "1706_03762_attention_is_all_you_need.json",
+      "action": "passed"
+    },
+    {
+      "file": "1810_04805_bert.json",
+      "action": "passed"
+    },
+    {
+      "file": "2005_14165_gpt3.json",
+      "action": "passed"
+    },
+    {
+      "file": "2010_11929_vit.json",
+      "action": "passed"
+    },
+    {
+      "file": "2103_00020_clip.json",
+      "action": "passed"
+    },
+    {
+      "file": "2302_13971_llama.json",
+      "action": "passed"
+    }
+  ]
+}

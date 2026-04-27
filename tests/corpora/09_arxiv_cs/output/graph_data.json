@@ -1,0 +1,5457 @@
+{
+  "metadata": {
+    "created_at": "2026-04-26T21:23:58.566251",
+    "updated_at": "2026-04-26T21:24:01.895264",
+    "entity_count": 94,
+    "relation_count": 179,
+    "document_count": 8,
+    "entity_type_summary": {
+      "DOCUMENT": 8,
+      "PAPER": 6,
+      "AUTHOR": 56,
+      "ALGORITHM": 8,
+      "VENUE": 1,
+      "DATASET": 6,
+      "RESULT": 5,
+      "BENCHMARK": 2,
+      "INSTITUTION": 1,
+      "TASK": 1
+    },
+    "sift_kg_version": "0.9.0",
+    "domain": "arxiv-cs"
+  },
+  "nodes": [
+    {
+      "id": "doc:1412_6980_adam",
+      "entity_type": "DOCUMENT",
+      "name": "1412_6980_adam",
+      "confidence": 1.0,
+      "source_documents": [
+        "1412_6980_adam"
+      ],
+      "attributes": {
+        "path": ""
+      }
+    },
+    {
+      "id": "paper:1412_6980",
+      "entity_type": "PAPER",
+      "name": "1412.6980",
+      "confidence": 0.5,
+      "source_documents": [
+        "1412_6980_adam"
+      ],
+      "attributes": {},
+      "context": ""
+    },
+    {
+      "id": "author:diederik_p_kingma",
+      "entity_type": "AUTHOR",
+      "name": "Diederik P. Kingma",
+      "confidence": 0.5,
+      "source_documents": [
+        "1412_6980_adam"
+      ],
+      "attributes": {},
+      "context": ""
+    },
+    {
+      "id": "author:jimmy_ba",
+      "entity_type": "AUTHOR",
+      "name": "Jimmy Ba",
+      "confidence": 0.5,
+      "source_documents": [
+        "1412_6980_adam"
+      ],
+      "attributes": {},
+      "context": ""
+    },
+    {
+      "id": "algorithm:adam",
+      "entity_type": "ALGORITHM",
+      "name": "Adam",
+      "confidence": 0.5,
+      "source_documents": [
+        "1412_6980_adam"
+      ],
+      "attributes": {},
+      "context": ""
+    },
+    {
+      "id": "algorithm:adamax",
+      "entity_type": "ALGORITHM",
+      "name": "AdaMax",
+      "confidence": 0.5,
+      "source_documents": [
+        "1412_6980_adam"
+      ],
+      "attributes": {},
+      "context": ""
+    },
+    {
+      "id": "venue:iclr_2015",
+      "entity_type": "VENUE",
+      "name": "ICLR 2015",
+      "confidence": 0.5,
+      "source_documents": [
+        "1412_6980_adam"
+      ],
+      "attributes": {},
+      "context": ""
+    },
+    {
+      "id": "doc:1512_03385_resnet",
+      "entity_type": "DOCUMENT",
+      "name": "1512_03385_resnet",
+      "confidence": 1.0,
+      "source_documents": [
+        "1512_03385_resnet"
+      ],
+      "attributes": {
+        "path": ""
+      }
+    },
+    {
+      "id": "paper:1512_03385",
+      "entity_type": "PAPER",
+      "name": "1512.03385",
+      "confidence": 0.5,
+      "source_documents": [
+        "1512_03385_resnet"
+      ],
+      "attributes": {
+        "title": "Deep Residual Learning for Image Recognition"
+      },
+      "context": "",
+      "community": "1512.03385 / 3.57% Error On Imagenet / Cifar-10"
+    },
+    {
+      "id": "author:kaiming_he",
+      "entity_type": "AUTHOR",
+      "name": "Kaiming He",
+      "confidence": 0.5,
+      "source_documents": [
+        "1512_03385_resnet"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "1512.03385 / 3.57% Error On Imagenet / Cifar-10"
+    },
+    {
+      "id": "author:xiangyu_zhang",
+      "entity_type": "AUTHOR",
+      "name": "Xiangyu Zhang",
+      "confidence": 0.5,
+      "source_documents": [
+        "1512_03385_resnet"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "1512.03385 / 3.57% Error On Imagenet / Cifar-10"
+    },
+    {
+      "id": "author:shaoqing_ren",
+      "entity_type": "AUTHOR",
+      "name": "Shaoqing Ren",
+      "confidence": 0.5,
+      "source_documents": [
+        "1512_03385_resnet"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "1512.03385 / 3.57% Error On Imagenet / Cifar-10"
+    },
+    {
+      "id": "author:jian_sun",
+      "entity_type": "AUTHOR",
+      "name": "Jian Sun",
+      "confidence": 0.5,
+      "source_documents": [
+        "1512_03385_resnet"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "1512.03385 / 3.57% Error On Imagenet / Cifar-10"
+    },
+    {
+      "id": "algorithm:resnet",
+      "entity_type": "ALGORITHM",
+      "name": "ResNet",
+      "confidence": 0.5,
+      "source_documents": [
+        "1512_03385_resnet"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "1512.03385 / 3.57% Error On Imagenet / Cifar-10"
+    },
+    {
+      "id": "dataset:imagenet",
+      "entity_type": "DATASET",
+      "name": "ImageNet",
+      "confidence": 0.5,
+      "source_documents": [
+        "1512_03385_resnet"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "1512.03385 / 3.57% Error On Imagenet / Cifar-10"
+    },
+    {
+      "id": "dataset:cifar_10",
+      "entity_type": "DATASET",
+      "name": "CIFAR-10",
+      "confidence": 0.5,
+      "source_documents": [
+        "1512_03385_resnet"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "1512.03385 / 3.57% Error On Imagenet / Cifar-10"
+    },
+    {
+      "id": "dataset:coco",
+      "entity_type": "DATASET",
+      "name": "COCO",
+      "confidence": 0.5,
+      "source_documents": [
+        "1512_03385_resnet"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "1512.03385 / 3.57% Error On Imagenet / Cifar-10"
+    },
+    {
+      "id": "result:3_57_error_on_imagenet",
+      "entity_type": "RESULT",
+      "name": "3.57% error on ImageNet",
+      "confidence": 0.5,
+      "source_documents": [
+        "1512_03385_resnet"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "1512.03385 / 3.57% Error On Imagenet / Cifar-10"
+    },
+    {
+      "id": "doc:1706_03762_attention_is_all_you_need",
+      "entity_type": "DOCUMENT",
+      "name": "1706_03762_attention_is_all_you_need",
+      "confidence": 1.0,
+      "source_documents": [
+        "1706_03762_attention_is_all_you_need"
+      ],
+      "attributes": {
+        "path": ""
+      }
+    },
+    {
+      "id": "doc:1810_04805_bert",
+      "entity_type": "DOCUMENT",
+      "name": "1810_04805_bert",
+      "confidence": 1.0,
+      "source_documents": [
+        "1810_04805_bert"
+      ],
+      "attributes": {
+        "path": ""
+      }
+    },
+    {
+      "id": "paper:1810_04805",
+      "entity_type": "PAPER",
+      "name": "1810.04805",
+      "confidence": 0.5,
+      "source_documents": [
+        "1810_04805_bert"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "1810.04805 / 80.5% Glue Score On Glue / 83.1 F1 On Squad V2.0"
+    },
+    {
+      "id": "author:jacob_devlin",
+      "entity_type": "AUTHOR",
+      "name": "Jacob Devlin",
+      "confidence": 0.5,
+      "source_documents": [
+        "1810_04805_bert"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "1810.04805 / 80.5% Glue Score On Glue / 83.1 F1 On Squad V2.0"
+    },
+    {
+      "id": "author:ming_wei_chang",
+      "entity_type": "AUTHOR",
+      "name": "Ming-Wei Chang",
+      "confidence": 0.5,
+      "source_documents": [
+        "1810_04805_bert"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "1810.04805 / 80.5% Glue Score On Glue / 83.1 F1 On Squad V2.0"
+    },
+    {
+      "id": "author:kenton_lee",
+      "entity_type": "AUTHOR",
+      "name": "Kenton Lee",
+      "confidence": 0.5,
+      "source_documents": [
+        "1810_04805_bert"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "1810.04805 / 80.5% Glue Score On Glue / 83.1 F1 On Squad V2.0"
+    },
+    {
+      "id": "author:kristina_toutanova",
+      "entity_type": "AUTHOR",
+      "name": "Kristina Toutanova",
+      "confidence": 0.5,
+      "source_documents": [
+        "1810_04805_bert"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "1810.04805 / 80.5% Glue Score On Glue / 83.1 F1 On Squad V2.0"
+    },
+    {
+      "id": "algorithm:bert",
+      "entity_type": "ALGORITHM",
+      "name": "BERT",
+      "confidence": 0.5,
+      "source_documents": [
+        "1810_04805_bert"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "1810.04805 / 80.5% Glue Score On Glue / 83.1 F1 On Squad V2.0"
+    },
+    {
+      "id": "dataset:squad_v1_1",
+      "entity_type": "DATASET",
+      "name": "SQuAD v1.1",
+      "confidence": 0.5,
+      "source_documents": [
+        "1810_04805_bert"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "1810.04805 / 80.5% Glue Score On Glue / 83.1 F1 On Squad V2.0"
+    },
+    {
+      "id": "dataset:squad_v2_0",
+      "entity_type": "DATASET",
+      "name": "SQuAD v2.0",
+      "confidence": 0.5,
+      "source_documents": [
+        "1810_04805_bert"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "1810.04805 / 80.5% Glue Score On Glue / 83.1 F1 On Squad V2.0"
+    },
+    {
+      "id": "dataset:multinli",
+      "entity_type": "DATASET",
+      "name": "MultiNLI",
+      "confidence": 0.5,
+      "source_documents": [
+        "1810_04805_bert"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "1810.04805 / 80.5% Glue Score On Glue / 83.1 F1 On Squad V2.0"
+    },
+    {
+      "id": "benchmark:glue",
+      "entity_type": "BENCHMARK",
+      "name": "GLUE",
+      "confidence": 0.5,
+      "source_documents": [
+        "1810_04805_bert"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "1810.04805 / 80.5% Glue Score On Glue / 83.1 F1 On Squad V2.0"
+    },
+    {
+      "id": "result:80_5_glue_score_on_glue",
+      "entity_type": "RESULT",
+      "name": "80.5% GLUE score on GLUE",
+      "confidence": 0.5,
+      "source_documents": [
+        "1810_04805_bert"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "1810.04805 / 80.5% Glue Score On Glue / 83.1 F1 On Squad V2.0"
+    },
+    {
+      "id": "result:86_7_accuracy_on_multinli",
+      "entity_type": "RESULT",
+      "name": "86.7% accuracy on MultiNLI",
+      "confidence": 0.5,
+      "source_documents": [
+        "1810_04805_bert"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "1810.04805 / 80.5% Glue Score On Glue / 83.1 F1 On Squad V2.0"
+    },
+    {
+      "id": "result:93_2_f1_on_squad_v1_1",
+      "entity_type": "RESULT",
+      "name": "93.2 F1 on SQuAD v1.1",
+      "confidence": 0.5,
+      "source_documents": [
+        "1810_04805_bert"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "1810.04805 / 80.5% Glue Score On Glue / 83.1 F1 On Squad V2.0"
+    },
+    {
+      "id": "result:83_1_f1_on_squad_v2_0",
+      "entity_type": "RESULT",
+      "name": "83.1 F1 on SQuAD v2.0",
+      "confidence": 0.5,
+      "source_documents": [
+        "1810_04805_bert"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "1810.04805 / 80.5% Glue Score On Glue / 83.1 F1 On Squad V2.0"
+    },
+    {
+      "id": "doc:2005_14165_gpt3",
+      "entity_type": "DOCUMENT",
+      "name": "2005_14165_gpt3",
+      "confidence": 1.0,
+      "source_documents": [
+        "2005_14165_gpt3"
+      ],
+      "attributes": {
+        "path": ""
+      }
+    },
+    {
+      "id": "paper:2005_14165",
+      "entity_type": "PAPER",
+      "name": "2005.14165",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
+    },
+    {
+      "id": "author:tom_b_brown",
+      "entity_type": "AUTHOR",
+      "name": "Tom B. Brown",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
+    },
+    {
+      "id": "author:benjamin_mann",
+      "entity_type": "AUTHOR",
+      "name": "Benjamin Mann",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
+    },
+    {
+      "id": "author:nick_ryder",
+      "entity_type": "AUTHOR",
+      "name": "Nick Ryder",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
+    },
+    {
+      "id": "author:melanie_subbiah",
+      "entity_type": "AUTHOR",
+      "name": "Melanie Subbiah",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
+    },
+    {
+      "id": "author:jared_kaplan",
+      "entity_type": "AUTHOR",
+      "name": "Jared Kaplan",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
+    },
+    {
+      "id": "author:prafulla_dhariwal",
+      "entity_type": "AUTHOR",
+      "name": "Prafulla Dhariwal",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
+    },
+    {
+      "id": "author:arvind_neelakantan",
+      "entity_type": "AUTHOR",
+      "name": "Arvind Neelakantan",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
+    },
+    {
+      "id": "author:pranav_shyam",
+      "entity_type": "AUTHOR",
+      "name": "Pranav Shyam",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
+    },
+    {
+      "id": "author:girish_sastry",
+      "entity_type": "AUTHOR",
+      "name": "Girish Sastry",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3",
+        "2103_00020_clip"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
+    },
+    {
+      "id": "author:amanda_askell",
+      "entity_type": "AUTHOR",
+      "name": "Amanda Askell",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3",
+        "2103_00020_clip"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
+    },
+    {
+      "id": "author:sandhini_agarwal",
+      "entity_type": "AUTHOR",
+      "name": "Sandhini Agarwal",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3",
+        "2103_00020_clip"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
+    },
+    {
+      "id": "author:ariel_herbert_voss",
+      "entity_type": "AUTHOR",
+      "name": "Ariel Herbert-Voss",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
+    },
+    {
+      "id": "author:gretchen_krueger",
+      "entity_type": "AUTHOR",
+      "name": "Gretchen Krueger",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3",
+        "2103_00020_clip"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
+    },
+    {
+      "id": "author:tom_henighan",
+      "entity_type": "AUTHOR",
+      "name": "Tom Henighan",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
+    },
+    {
+      "id": "author:rewon_child",
+      "entity_type": "AUTHOR",
+      "name": "Rewon Child",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
+    },
+    {
+      "id": "author:aditya_ramesh",
+      "entity_type": "AUTHOR",
+      "name": "Aditya Ramesh",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3",
+        "2103_00020_clip"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
+    },
+    {
+      "id": "author:daniel_m_ziegler",
+      "entity_type": "AUTHOR",
+      "name": "Daniel M. Ziegler",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
+    },
+    {
+      "id": "author:jeffrey_wu",
+      "entity_type": "AUTHOR",
+      "name": "Jeffrey Wu",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
+    },
+    {
+      "id": "author:clemens_winter",
+      "entity_type": "AUTHOR",
+      "name": "Clemens Winter",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
+    },
+    {
+      "id": "author:christopher_hesse",
+      "entity_type": "AUTHOR",
+      "name": "Christopher Hesse",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
+    },
+    {
+      "id": "author:mark_chen",
+      "entity_type": "AUTHOR",
+      "name": "Mark Chen",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
+    },
+    {
+      "id": "author:eric_sigler",
+      "entity_type": "AUTHOR",
+      "name": "Eric Sigler",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
+    },
+    {
+      "id": "author:mateusz_litwin",
+      "entity_type": "AUTHOR",
+      "name": "Mateusz Litwin",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
+    },
+    {
+      "id": "author:scott_gray",
+      "entity_type": "AUTHOR",
+      "name": "Scott Gray",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
+    },
+    {
+      "id": "author:benjamin_chess",
+      "entity_type": "AUTHOR",
+      "name": "Benjamin Chess",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
+    },
+    {
+      "id": "author:jack_clark",
+      "entity_type": "AUTHOR",
+      "name": "Jack Clark",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3",
+        "2103_00020_clip"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
+    },
+    {
+      "id": "author:christopher_berner",
+      "entity_type": "AUTHOR",
+      "name": "Christopher Berner",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
+    },
+    {
+      "id": "author:sam_mccandlish",
+      "entity_type": "AUTHOR",
+      "name": "Sam McCandlish",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
+    },
+    {
+      "id": "author:alec_radford",
+      "entity_type": "AUTHOR",
+      "name": "Alec Radford",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3",
+        "2103_00020_clip"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2103.00020 / Alec Radford / Clip"
+    },
+    {
+      "id": "author:ilya_sutskever",
+      "entity_type": "AUTHOR",
+      "name": "Ilya Sutskever",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3",
+        "2103_00020_clip"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2103.00020 / Alec Radford / Clip"
+    },
+    {
+      "id": "author:dario_amodei",
+      "entity_type": "AUTHOR",
+      "name": "Dario Amodei",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
+    },
+    {
+      "id": "algorithm:gpt_3",
+      "entity_type": "ALGORITHM",
+      "name": "GPT-3",
+      "confidence": 0.5,
+      "source_documents": [
+        "2005_14165_gpt3",
+        "2302_13971_llama"
+      ],
+      "attributes": {},
+      "context": ""
+    },
+    {
+      "id": "doc:2010_11929_vit",
+      "entity_type": "DOCUMENT",
+      "name": "2010_11929_vit",
+      "confidence": 1.0,
+      "source_documents": [
+        "2010_11929_vit"
+      ],
+      "attributes": {
+        "path": ""
+      }
+    },
+    {
+      "id": "benchmark:imagenet",
+      "entity_type": "BENCHMARK",
+      "name": "ImageNet",
+      "confidence": 0.5,
+      "source_documents": [
+        "2010_11929_vit",
+        "2103_00020_clip"
+      ],
+      "attributes": {},
+      "context": "CLIP matches ResNet-50 accuracy on ImageNet zero-shot",
+      "community": "2103.00020 / Alec Radford / Clip"
+    },
+    {
+      "id": "doc:2103_00020_clip",
+      "entity_type": "DOCUMENT",
+      "name": "2103_00020_clip",
+      "confidence": 1.0,
+      "source_documents": [
+        "2103_00020_clip"
+      ],
+      "attributes": {
+        "path": ""
+      }
+    },
+    {
+      "id": "paper:2103_00020",
+      "entity_type": "PAPER",
+      "name": "2103.00020",
+      "confidence": 0.5,
+      "source_documents": [
+        "2103_00020_clip"
+      ],
+      "attributes": {},
+      "context": "CLIP paper by Radford et al.",
+      "community": "2103.00020 / Alec Radford / Clip"
+    },
+    {
+      "id": "author:jong_wook_kim",
+      "entity_type": "AUTHOR",
+      "name": "Jong Wook Kim",
+      "confidence": 0.5,
+      "source_documents": [
+        "2103_00020_clip"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2103.00020 / Alec Radford / Clip"
+    },
+    {
+      "id": "institution:openai",
+      "entity_type": "INSTITUTION",
+      "name": "OpenAI",
+      "confidence": 0.5,
+      "source_documents": [
+        "2103_00020_clip"
+      ],
+      "attributes": {},
+      "context": "Authors affiliated with OpenAI",
+      "community": "2103.00020 / Alec Radford / Clip"
+    },
+    {
+      "id": "algorithm:clip",
+      "entity_type": "ALGORITHM",
+      "name": "CLIP",
+      "confidence": 0.5,
+      "source_documents": [
+        "2103_00020_clip"
+      ],
+      "attributes": {},
+      "context": "Contrastive Language-Image Pretraining - learns visual representations from natural language supervision",
+      "community": "2103.00020 / Alec Radford / Clip"
+    },
+    {
+      "id": "task:zero_shot_image_classification",
+      "entity_type": "TASK",
+      "name": "zero-shot image classification",
+      "confidence": 0.5,
+      "source_documents": [
+        "2103_00020_clip"
+      ],
+      "attributes": {},
+      "context": "CLIP enables zero-shot transfer to downstream vision tasks",
+      "community": "2103.00020 / Alec Radford / Clip"
+    },
+    {
+      "id": "doc:2302_13971_llama",
+      "entity_type": "DOCUMENT",
+      "name": "2302_13971_llama",
+      "confidence": 1.0,
+      "source_documents": [
+        "2302_13971_llama"
+      ],
+      "attributes": {
+        "path": ""
+      }
+    },
+    {
+      "id": "paper:2302_13971",
+      "entity_type": "PAPER",
+      "name": "2302.13971",
+      "confidence": 0.5,
+      "source_documents": [
+        "2302_13971_llama"
+      ],
+      "attributes": {
+        "title": "LLaMA: Open and Efficient Foundation Language Models"
+      },
+      "context": "",
+      "community": "2302.13971 / Armand Joulin / Aurelien Rodriguez"
+    },
+    {
+      "id": "author:hugo_touvron",
+      "entity_type": "AUTHOR",
+      "name": "Hugo Touvron",
+      "confidence": 0.5,
+      "source_documents": [
+        "2302_13971_llama"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2302.13971 / Armand Joulin / Aurelien Rodriguez"
+    },
+    {
+      "id": "author:thibaut_lavril",
+      "entity_type": "AUTHOR",
+      "name": "Thibaut Lavril",
+      "confidence": 0.5,
+      "source_documents": [
+        "2302_13971_llama"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2302.13971 / Armand Joulin / Aurelien Rodriguez"
+    },
+    {
+      "id": "author:gautier_izacard",
+      "entity_type": "AUTHOR",
+      "name": "Gautier Izacard",
+      "confidence": 0.5,
+      "source_documents": [
+        "2302_13971_llama"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2302.13971 / Armand Joulin / Aurelien Rodriguez"
+    },
+    {
+      "id": "author:xavier_martinet",
+      "entity_type": "AUTHOR",
+      "name": "Xavier Martinet",
+      "confidence": 0.5,
+      "source_documents": [
+        "2302_13971_llama"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2302.13971 / Armand Joulin / Aurelien Rodriguez"
+    },
+    {
+      "id": "author:marie_anne_lachaux",
+      "entity_type": "AUTHOR",
+      "name": "Marie-Anne Lachaux",
+      "confidence": 0.5,
+      "source_documents": [
+        "2302_13971_llama"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2302.13971 / Armand Joulin / Aurelien Rodriguez"
+    },
+    {
+      "id": "author:timothee_lacroix",
+      "entity_type": "AUTHOR",
+      "name": "Timoth\u00e9e Lacroix",
+      "confidence": 0.5,
+      "source_documents": [
+        "2302_13971_llama"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2302.13971 / Armand Joulin / Aurelien Rodriguez"
+    },
+    {
+      "id": "author:baptiste_roziere",
+      "entity_type": "AUTHOR",
+      "name": "Baptiste Rozi\u00e8re",
+      "confidence": 0.5,
+      "source_documents": [
+        "2302_13971_llama"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2302.13971 / Armand Joulin / Aurelien Rodriguez"
+    },
+    {
+      "id": "author:naman_goyal",
+      "entity_type": "AUTHOR",
+      "name": "Naman Goyal",
+      "confidence": 0.5,
+      "source_documents": [
+        "2302_13971_llama"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2302.13971 / Armand Joulin / Aurelien Rodriguez"
+    },
+    {
+      "id": "author:eric_hambro",
+      "entity_type": "AUTHOR",
+      "name": "Eric Hambro",
+      "confidence": 0.5,
+      "source_documents": [
+        "2302_13971_llama"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2302.13971 / Armand Joulin / Aurelien Rodriguez"
+    },
+    {
+      "id": "author:faisal_azhar",
+      "entity_type": "AUTHOR",
+      "name": "Faisal Azhar",
+      "confidence": 0.5,
+      "source_documents": [
+        "2302_13971_llama"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2302.13971 / Armand Joulin / Aurelien Rodriguez"
+    },
+    {
+      "id": "author:aurelien_rodriguez",
+      "entity_type": "AUTHOR",
+      "name": "Aurelien Rodriguez",
+      "confidence": 0.5,
+      "source_documents": [
+        "2302_13971_llama"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2302.13971 / Armand Joulin / Aurelien Rodriguez"
+    },
+    {
+      "id": "author:armand_joulin",
+      "entity_type": "AUTHOR",
+      "name": "Armand Joulin",
+      "confidence": 0.5,
+      "source_documents": [
+        "2302_13971_llama"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2302.13971 / Armand Joulin / Aurelien Rodriguez"
+    },
+    {
+      "id": "author:edouard_grave",
+      "entity_type": "AUTHOR",
+      "name": "Edouard Grave",
+      "confidence": 0.5,
+      "source_documents": [
+        "2302_13971_llama"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2302.13971 / Armand Joulin / Aurelien Rodriguez"
+    },
+    {
+      "id": "author:guillaume_lample",
+      "entity_type": "AUTHOR",
+      "name": "Guillaume Lample",
+      "confidence": 0.5,
+      "source_documents": [
+        "2302_13971_llama"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2302.13971 / Armand Joulin / Aurelien Rodriguez"
+    },
+    {
+      "id": "algorithm:llama",
+      "entity_type": "ALGORITHM",
+      "name": "LLaMA",
+      "confidence": 0.5,
+      "source_documents": [
+        "2302_13971_llama"
+      ],
+      "attributes": {},
+      "context": "",
+      "community": "2302.13971 / Armand Joulin / Aurelien Rodriguez"
+    },
+    {
+      "id": "algorithm:llama_13b",
+      "entity_type": "ALGORITHM",
+      "name": "LLaMA-13B",
+      "confidence": 0.5,
+      "source_documents": [
+        "2302_13971_llama"
+      ],
+      "attributes": {},
+      "context": ""
+    }
+  ],
+  "links": [
+    {
+      "source": "paper:1412_6980",
+      "target": "doc:1412_6980_adam",
+      "relation_id": "paper:1412_6980|MENTIONED_IN|doc:1412_6980_adam",
+      "canonical_key": "paper:1412_6980|MENTIONED_IN|doc:1412_6980_adam",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1412_6980_adam",
+      "support_count": 1,
+      "support_documents": [
+        "1412_6980_adam"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1412_6980_adam",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:1412_6980|MENTIONED_IN|doc:1412_6980_adam"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "paper:1412_6980",
+      "target": "algorithm:adam",
+      "relation_id": "paper:1412_6980|PROPOSES|algorithm:adam",
+      "canonical_key": "paper:1412_6980|PROPOSES|algorithm:adam",
+      "relation_type": "PROPOSES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1412_6980_adam",
+      "support_count": 1,
+      "support_documents": [
+        "1412_6980_adam"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1412_6980_adam",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:1412_6980|PROPOSES|algorithm:adam|1412_6980_adam"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "paper:1412_6980",
+      "target": "algorithm:adamax",
+      "relation_id": "paper:1412_6980|PROPOSES|algorithm:adamax",
+      "canonical_key": "paper:1412_6980|PROPOSES|algorithm:adamax",
+      "relation_type": "PROPOSES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1412_6980_adam",
+      "support_count": 1,
+      "support_documents": [
+        "1412_6980_adam"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1412_6980_adam",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:1412_6980|PROPOSES|algorithm:adamax|1412_6980_adam"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "paper:1412_6980",
+      "target": "venue:iclr_2015",
+      "relation_id": "paper:1412_6980|PUBLISHED_AT|venue:iclr_2015",
+      "canonical_key": "paper:1412_6980|PUBLISHED_AT|venue:iclr_2015",
+      "relation_type": "PUBLISHED_AT",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1412_6980_adam",
+      "support_count": 1,
+      "support_documents": [
+        "1412_6980_adam"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1412_6980_adam",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:1412_6980|PUBLISHED_AT|venue:iclr_2015|1412_6980_adam"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:diederik_p_kingma",
+      "target": "doc:1412_6980_adam",
+      "relation_id": "author:diederik_p_kingma|MENTIONED_IN|doc:1412_6980_adam",
+      "canonical_key": "author:diederik_p_kingma|MENTIONED_IN|doc:1412_6980_adam",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1412_6980_adam",
+      "support_count": 1,
+      "support_documents": [
+        "1412_6980_adam"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1412_6980_adam",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:diederik_p_kingma|MENTIONED_IN|doc:1412_6980_adam"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:diederik_p_kingma",
+      "target": "paper:1412_6980",
+      "relation_id": "paper:1412_6980|AUTHORED_BY|author:diederik_p_kingma",
+      "canonical_key": "paper:1412_6980|AUTHORED_BY|author:diederik_p_kingma",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1412_6980_adam",
+      "support_count": 1,
+      "support_documents": [
+        "1412_6980_adam"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1412_6980_adam",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:1412_6980|AUTHORED_BY|author:diederik_p_kingma|1412_6980_adam"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:jimmy_ba",
+      "target": "doc:1412_6980_adam",
+      "relation_id": "author:jimmy_ba|MENTIONED_IN|doc:1412_6980_adam",
+      "canonical_key": "author:jimmy_ba|MENTIONED_IN|doc:1412_6980_adam",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1412_6980_adam",
+      "support_count": 1,
+      "support_documents": [
+        "1412_6980_adam"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1412_6980_adam",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:jimmy_ba|MENTIONED_IN|doc:1412_6980_adam"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:jimmy_ba",
+      "target": "paper:1412_6980",
+      "relation_id": "paper:1412_6980|AUTHORED_BY|author:jimmy_ba",
+      "canonical_key": "paper:1412_6980|AUTHORED_BY|author:jimmy_ba",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1412_6980_adam",
+      "support_count": 1,
+      "support_documents": [
+        "1412_6980_adam"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1412_6980_adam",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:1412_6980|AUTHORED_BY|author:jimmy_ba|1412_6980_adam"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "algorithm:adam",
+      "target": "doc:1412_6980_adam",
+      "relation_id": "algorithm:adam|MENTIONED_IN|doc:1412_6980_adam",
+      "canonical_key": "algorithm:adam|MENTIONED_IN|doc:1412_6980_adam",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1412_6980_adam",
+      "support_count": 1,
+      "support_documents": [
+        "1412_6980_adam"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1412_6980_adam",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "algorithm:adam|MENTIONED_IN|doc:1412_6980_adam"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "algorithm:adamax",
+      "target": "doc:1412_6980_adam",
+      "relation_id": "algorithm:adamax|MENTIONED_IN|doc:1412_6980_adam",
+      "canonical_key": "algorithm:adamax|MENTIONED_IN|doc:1412_6980_adam",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1412_6980_adam",
+      "support_count": 1,
+      "support_documents": [
+        "1412_6980_adam"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1412_6980_adam",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "algorithm:adamax|MENTIONED_IN|doc:1412_6980_adam"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "venue:iclr_2015",
+      "target": "doc:1412_6980_adam",
+      "relation_id": "venue:iclr_2015|MENTIONED_IN|doc:1412_6980_adam",
+      "canonical_key": "venue:iclr_2015|MENTIONED_IN|doc:1412_6980_adam",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1412_6980_adam",
+      "support_count": 1,
+      "support_documents": [
+        "1412_6980_adam"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1412_6980_adam",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "venue:iclr_2015|MENTIONED_IN|doc:1412_6980_adam"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "paper:1512_03385",
+      "target": "doc:1512_03385_resnet",
+      "relation_id": "paper:1512_03385|MENTIONED_IN|doc:1512_03385_resnet",
+      "canonical_key": "paper:1512_03385|MENTIONED_IN|doc:1512_03385_resnet",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1512_03385_resnet",
+      "support_count": 1,
+      "support_documents": [
+        "1512_03385_resnet"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1512_03385_resnet",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:1512_03385|MENTIONED_IN|doc:1512_03385_resnet"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "paper:1512_03385",
+      "target": "algorithm:resnet",
+      "relation_id": "paper:1512_03385|PROPOSES|algorithm:resnet",
+      "canonical_key": "paper:1512_03385|PROPOSES|algorithm:resnet",
+      "relation_type": "PROPOSES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1512_03385_resnet",
+      "support_count": 1,
+      "support_documents": [
+        "1512_03385_resnet"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1512_03385_resnet",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:1512_03385|PROPOSES|algorithm:resnet|1512_03385_resnet"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "paper:1512_03385",
+      "target": "algorithm:resnet",
+      "relation_id": "paper:1512_03385|EVALUATES_ON|algorithm:resnet",
+      "canonical_key": "paper:1512_03385|EVALUATES_ON|algorithm:resnet",
+      "relation_type": "EVALUATES_ON",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1512_03385_resnet",
+      "support_count": 1,
+      "support_documents": [
+        "1512_03385_resnet"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1512_03385_resnet",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:1512_03385|EVALUATES_ON|algorithm:resnet|1512_03385_resnet"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "paper:1512_03385",
+      "target": "result:3_57_error_on_imagenet",
+      "relation_id": "paper:1512_03385|ACHIEVES|result:3_57_error_on_imagenet",
+      "canonical_key": "paper:1512_03385|ACHIEVES|result:3_57_error_on_imagenet",
+      "relation_type": "ACHIEVES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1512_03385_resnet",
+      "support_count": 1,
+      "support_documents": [
+        "1512_03385_resnet"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1512_03385_resnet",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:1512_03385|ACHIEVES|result:3_57_error_on_imagenet|1512_03385_resnet"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:kaiming_he",
+      "target": "doc:1512_03385_resnet",
+      "relation_id": "author:kaiming_he|MENTIONED_IN|doc:1512_03385_resnet",
+      "canonical_key": "author:kaiming_he|MENTIONED_IN|doc:1512_03385_resnet",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1512_03385_resnet",
+      "support_count": 1,
+      "support_documents": [
+        "1512_03385_resnet"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1512_03385_resnet",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:kaiming_he|MENTIONED_IN|doc:1512_03385_resnet"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:kaiming_he",
+      "target": "paper:1512_03385",
+      "relation_id": "paper:1512_03385|AUTHORED_BY|author:kaiming_he",
+      "canonical_key": "paper:1512_03385|AUTHORED_BY|author:kaiming_he",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1512_03385_resnet",
+      "support_count": 1,
+      "support_documents": [
+        "1512_03385_resnet"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1512_03385_resnet",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:1512_03385|AUTHORED_BY|author:kaiming_he|1512_03385_resnet"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:xiangyu_zhang",
+      "target": "doc:1512_03385_resnet",
+      "relation_id": "author:xiangyu_zhang|MENTIONED_IN|doc:1512_03385_resnet",
+      "canonical_key": "author:xiangyu_zhang|MENTIONED_IN|doc:1512_03385_resnet",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1512_03385_resnet",
+      "support_count": 1,
+      "support_documents": [
+        "1512_03385_resnet"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1512_03385_resnet",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:xiangyu_zhang|MENTIONED_IN|doc:1512_03385_resnet"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:xiangyu_zhang",
+      "target": "paper:1512_03385",
+      "relation_id": "paper:1512_03385|AUTHORED_BY|author:xiangyu_zhang",
+      "canonical_key": "paper:1512_03385|AUTHORED_BY|author:xiangyu_zhang",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1512_03385_resnet",
+      "support_count": 1,
+      "support_documents": [
+        "1512_03385_resnet"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1512_03385_resnet",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:1512_03385|AUTHORED_BY|author:xiangyu_zhang|1512_03385_resnet"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:shaoqing_ren",
+      "target": "doc:1512_03385_resnet",
+      "relation_id": "author:shaoqing_ren|MENTIONED_IN|doc:1512_03385_resnet",
+      "canonical_key": "author:shaoqing_ren|MENTIONED_IN|doc:1512_03385_resnet",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1512_03385_resnet",
+      "support_count": 1,
+      "support_documents": [
+        "1512_03385_resnet"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1512_03385_resnet",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:shaoqing_ren|MENTIONED_IN|doc:1512_03385_resnet"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:shaoqing_ren",
+      "target": "paper:1512_03385",
+      "relation_id": "paper:1512_03385|AUTHORED_BY|author:shaoqing_ren",
+      "canonical_key": "paper:1512_03385|AUTHORED_BY|author:shaoqing_ren",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1512_03385_resnet",
+      "support_count": 1,
+      "support_documents": [
+        "1512_03385_resnet"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1512_03385_resnet",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:1512_03385|AUTHORED_BY|author:shaoqing_ren|1512_03385_resnet"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:jian_sun",
+      "target": "doc:1512_03385_resnet",
+      "relation_id": "author:jian_sun|MENTIONED_IN|doc:1512_03385_resnet",
+      "canonical_key": "author:jian_sun|MENTIONED_IN|doc:1512_03385_resnet",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1512_03385_resnet",
+      "support_count": 1,
+      "support_documents": [
+        "1512_03385_resnet"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1512_03385_resnet",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:jian_sun|MENTIONED_IN|doc:1512_03385_resnet"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:jian_sun",
+      "target": "paper:1512_03385",
+      "relation_id": "paper:1512_03385|AUTHORED_BY|author:jian_sun",
+      "canonical_key": "paper:1512_03385|AUTHORED_BY|author:jian_sun",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1512_03385_resnet",
+      "support_count": 1,
+      "support_documents": [
+        "1512_03385_resnet"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1512_03385_resnet",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:1512_03385|AUTHORED_BY|author:jian_sun|1512_03385_resnet"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "algorithm:resnet",
+      "target": "doc:1512_03385_resnet",
+      "relation_id": "algorithm:resnet|MENTIONED_IN|doc:1512_03385_resnet",
+      "canonical_key": "algorithm:resnet|MENTIONED_IN|doc:1512_03385_resnet",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1512_03385_resnet",
+      "support_count": 1,
+      "support_documents": [
+        "1512_03385_resnet"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1512_03385_resnet",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "algorithm:resnet|MENTIONED_IN|doc:1512_03385_resnet"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "algorithm:resnet",
+      "target": "dataset:imagenet",
+      "relation_id": "algorithm:resnet|TRAINED_ON|dataset:imagenet",
+      "canonical_key": "algorithm:resnet|TRAINED_ON|dataset:imagenet",
+      "relation_type": "TRAINED_ON",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1512_03385_resnet",
+      "support_count": 1,
+      "support_documents": [
+        "1512_03385_resnet"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1512_03385_resnet",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "algorithm:resnet|TRAINED_ON|dataset:imagenet|1512_03385_resnet"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "algorithm:resnet",
+      "target": "dataset:cifar_10",
+      "relation_id": "algorithm:resnet|TRAINED_ON|dataset:cifar_10",
+      "canonical_key": "algorithm:resnet|TRAINED_ON|dataset:cifar_10",
+      "relation_type": "TRAINED_ON",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1512_03385_resnet",
+      "support_count": 1,
+      "support_documents": [
+        "1512_03385_resnet"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1512_03385_resnet",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "algorithm:resnet|TRAINED_ON|dataset:cifar_10|1512_03385_resnet"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "algorithm:resnet",
+      "target": "dataset:coco",
+      "relation_id": "algorithm:resnet|TRAINED_ON|dataset:coco",
+      "canonical_key": "algorithm:resnet|TRAINED_ON|dataset:coco",
+      "relation_type": "TRAINED_ON",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1512_03385_resnet",
+      "support_count": 1,
+      "support_documents": [
+        "1512_03385_resnet"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1512_03385_resnet",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "algorithm:resnet|TRAINED_ON|dataset:coco|1512_03385_resnet"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "dataset:imagenet",
+      "target": "doc:1512_03385_resnet",
+      "relation_id": "dataset:imagenet|MENTIONED_IN|doc:1512_03385_resnet",
+      "canonical_key": "dataset:imagenet|MENTIONED_IN|doc:1512_03385_resnet",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1512_03385_resnet",
+      "support_count": 1,
+      "support_documents": [
+        "1512_03385_resnet"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1512_03385_resnet",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "dataset:imagenet|MENTIONED_IN|doc:1512_03385_resnet"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "dataset:cifar_10",
+      "target": "doc:1512_03385_resnet",
+      "relation_id": "dataset:cifar_10|MENTIONED_IN|doc:1512_03385_resnet",
+      "canonical_key": "dataset:cifar_10|MENTIONED_IN|doc:1512_03385_resnet",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1512_03385_resnet",
+      "support_count": 1,
+      "support_documents": [
+        "1512_03385_resnet"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1512_03385_resnet",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "dataset:cifar_10|MENTIONED_IN|doc:1512_03385_resnet"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "dataset:coco",
+      "target": "doc:1512_03385_resnet",
+      "relation_id": "dataset:coco|MENTIONED_IN|doc:1512_03385_resnet",
+      "canonical_key": "dataset:coco|MENTIONED_IN|doc:1512_03385_resnet",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1512_03385_resnet",
+      "support_count": 1,
+      "support_documents": [
+        "1512_03385_resnet"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1512_03385_resnet",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "dataset:coco|MENTIONED_IN|doc:1512_03385_resnet"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "result:3_57_error_on_imagenet",
+      "target": "doc:1512_03385_resnet",
+      "relation_id": "result:3_57_error_on_imagenet|MENTIONED_IN|doc:1512_03385_resnet",
+      "canonical_key": "result:3_57_error_on_imagenet|MENTIONED_IN|doc:1512_03385_resnet",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1512_03385_resnet",
+      "support_count": 1,
+      "support_documents": [
+        "1512_03385_resnet"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1512_03385_resnet",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "result:3_57_error_on_imagenet|MENTIONED_IN|doc:1512_03385_resnet"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "paper:1810_04805",
+      "target": "doc:1810_04805_bert",
+      "relation_id": "paper:1810_04805|MENTIONED_IN|doc:1810_04805_bert",
+      "canonical_key": "paper:1810_04805|MENTIONED_IN|doc:1810_04805_bert",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1810_04805_bert",
+      "support_count": 1,
+      "support_documents": [
+        "1810_04805_bert"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1810_04805_bert",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:1810_04805|MENTIONED_IN|doc:1810_04805_bert"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "paper:1810_04805",
+      "target": "algorithm:bert",
+      "relation_id": "paper:1810_04805|PROPOSES|algorithm:bert",
+      "canonical_key": "paper:1810_04805|PROPOSES|algorithm:bert",
+      "relation_type": "PROPOSES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1810_04805_bert",
+      "support_count": 1,
+      "support_documents": [
+        "1810_04805_bert"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1810_04805_bert",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:1810_04805|PROPOSES|algorithm:bert|1810_04805_bert"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "paper:1810_04805",
+      "target": "benchmark:glue",
+      "relation_id": "paper:1810_04805|EVALUATES_ON|benchmark:glue",
+      "canonical_key": "paper:1810_04805|EVALUATES_ON|benchmark:glue",
+      "relation_type": "EVALUATES_ON",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1810_04805_bert",
+      "support_count": 1,
+      "support_documents": [
+        "1810_04805_bert"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1810_04805_bert",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:1810_04805|EVALUATES_ON|benchmark:glue|1810_04805_bert"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "paper:1810_04805",
+      "target": "dataset:multinli",
+      "relation_id": "paper:1810_04805|EVALUATES_ON|dataset:multinli",
+      "canonical_key": "paper:1810_04805|EVALUATES_ON|dataset:multinli",
+      "relation_type": "EVALUATES_ON",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1810_04805_bert",
+      "support_count": 1,
+      "support_documents": [
+        "1810_04805_bert"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1810_04805_bert",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:1810_04805|EVALUATES_ON|dataset:multinli|1810_04805_bert"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "paper:1810_04805",
+      "target": "dataset:squad_v1_1",
+      "relation_id": "paper:1810_04805|EVALUATES_ON|dataset:squad_v1_1",
+      "canonical_key": "paper:1810_04805|EVALUATES_ON|dataset:squad_v1_1",
+      "relation_type": "EVALUATES_ON",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1810_04805_bert",
+      "support_count": 1,
+      "support_documents": [
+        "1810_04805_bert"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1810_04805_bert",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:1810_04805|EVALUATES_ON|dataset:squad_v1_1|1810_04805_bert"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "paper:1810_04805",
+      "target": "dataset:squad_v2_0",
+      "relation_id": "paper:1810_04805|EVALUATES_ON|dataset:squad_v2_0",
+      "canonical_key": "paper:1810_04805|EVALUATES_ON|dataset:squad_v2_0",
+      "relation_type": "EVALUATES_ON",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1810_04805_bert",
+      "support_count": 1,
+      "support_documents": [
+        "1810_04805_bert"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1810_04805_bert",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:1810_04805|EVALUATES_ON|dataset:squad_v2_0|1810_04805_bert"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:jacob_devlin",
+      "target": "doc:1810_04805_bert",
+      "relation_id": "author:jacob_devlin|MENTIONED_IN|doc:1810_04805_bert",
+      "canonical_key": "author:jacob_devlin|MENTIONED_IN|doc:1810_04805_bert",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1810_04805_bert",
+      "support_count": 1,
+      "support_documents": [
+        "1810_04805_bert"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1810_04805_bert",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:jacob_devlin|MENTIONED_IN|doc:1810_04805_bert"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:jacob_devlin",
+      "target": "paper:1810_04805",
+      "relation_id": "paper:1810_04805|AUTHORED_BY|author:jacob_devlin",
+      "canonical_key": "paper:1810_04805|AUTHORED_BY|author:jacob_devlin",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1810_04805_bert",
+      "support_count": 1,
+      "support_documents": [
+        "1810_04805_bert"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1810_04805_bert",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:1810_04805|AUTHORED_BY|author:jacob_devlin|1810_04805_bert"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:ming_wei_chang",
+      "target": "doc:1810_04805_bert",
+      "relation_id": "author:ming_wei_chang|MENTIONED_IN|doc:1810_04805_bert",
+      "canonical_key": "author:ming_wei_chang|MENTIONED_IN|doc:1810_04805_bert",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1810_04805_bert",
+      "support_count": 1,
+      "support_documents": [
+        "1810_04805_bert"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1810_04805_bert",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:ming_wei_chang|MENTIONED_IN|doc:1810_04805_bert"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:ming_wei_chang",
+      "target": "paper:1810_04805",
+      "relation_id": "paper:1810_04805|AUTHORED_BY|author:ming_wei_chang",
+      "canonical_key": "paper:1810_04805|AUTHORED_BY|author:ming_wei_chang",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1810_04805_bert",
+      "support_count": 1,
+      "support_documents": [
+        "1810_04805_bert"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1810_04805_bert",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:1810_04805|AUTHORED_BY|author:ming_wei_chang|1810_04805_bert"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:kenton_lee",
+      "target": "doc:1810_04805_bert",
+      "relation_id": "author:kenton_lee|MENTIONED_IN|doc:1810_04805_bert",
+      "canonical_key": "author:kenton_lee|MENTIONED_IN|doc:1810_04805_bert",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1810_04805_bert",
+      "support_count": 1,
+      "support_documents": [
+        "1810_04805_bert"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1810_04805_bert",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:kenton_lee|MENTIONED_IN|doc:1810_04805_bert"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:kenton_lee",
+      "target": "paper:1810_04805",
+      "relation_id": "paper:1810_04805|AUTHORED_BY|author:kenton_lee",
+      "canonical_key": "paper:1810_04805|AUTHORED_BY|author:kenton_lee",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1810_04805_bert",
+      "support_count": 1,
+      "support_documents": [
+        "1810_04805_bert"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1810_04805_bert",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:1810_04805|AUTHORED_BY|author:kenton_lee|1810_04805_bert"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:kristina_toutanova",
+      "target": "doc:1810_04805_bert",
+      "relation_id": "author:kristina_toutanova|MENTIONED_IN|doc:1810_04805_bert",
+      "canonical_key": "author:kristina_toutanova|MENTIONED_IN|doc:1810_04805_bert",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1810_04805_bert",
+      "support_count": 1,
+      "support_documents": [
+        "1810_04805_bert"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1810_04805_bert",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:kristina_toutanova|MENTIONED_IN|doc:1810_04805_bert"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:kristina_toutanova",
+      "target": "paper:1810_04805",
+      "relation_id": "paper:1810_04805|AUTHORED_BY|author:kristina_toutanova",
+      "canonical_key": "paper:1810_04805|AUTHORED_BY|author:kristina_toutanova",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1810_04805_bert",
+      "support_count": 1,
+      "support_documents": [
+        "1810_04805_bert"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1810_04805_bert",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:1810_04805|AUTHORED_BY|author:kristina_toutanova|1810_04805_bert"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "algorithm:bert",
+      "target": "doc:1810_04805_bert",
+      "relation_id": "algorithm:bert|MENTIONED_IN|doc:1810_04805_bert",
+      "canonical_key": "algorithm:bert|MENTIONED_IN|doc:1810_04805_bert",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1810_04805_bert",
+      "support_count": 1,
+      "support_documents": [
+        "1810_04805_bert"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1810_04805_bert",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "algorithm:bert|MENTIONED_IN|doc:1810_04805_bert"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "algorithm:bert",
+      "target": "result:80_5_glue_score_on_glue",
+      "relation_id": "algorithm:bert|ACHIEVES|result:80_5_glue_score_on_glue",
+      "canonical_key": "algorithm:bert|ACHIEVES|result:80_5_glue_score_on_glue",
+      "relation_type": "ACHIEVES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1810_04805_bert",
+      "support_count": 1,
+      "support_documents": [
+        "1810_04805_bert"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1810_04805_bert",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "algorithm:bert|ACHIEVES|result:80_5_glue_score_on_glue|1810_04805_bert"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "algorithm:bert",
+      "target": "result:86_7_accuracy_on_multinli",
+      "relation_id": "algorithm:bert|ACHIEVES|result:86_7_accuracy_on_multinli",
+      "canonical_key": "algorithm:bert|ACHIEVES|result:86_7_accuracy_on_multinli",
+      "relation_type": "ACHIEVES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1810_04805_bert",
+      "support_count": 1,
+      "support_documents": [
+        "1810_04805_bert"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1810_04805_bert",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "algorithm:bert|ACHIEVES|result:86_7_accuracy_on_multinli|1810_04805_bert"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "algorithm:bert",
+      "target": "result:93_2_f1_on_squad_v1_1",
+      "relation_id": "algorithm:bert|ACHIEVES|result:93_2_f1_on_squad_v1_1",
+      "canonical_key": "algorithm:bert|ACHIEVES|result:93_2_f1_on_squad_v1_1",
+      "relation_type": "ACHIEVES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1810_04805_bert",
+      "support_count": 1,
+      "support_documents": [
+        "1810_04805_bert"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1810_04805_bert",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "algorithm:bert|ACHIEVES|result:93_2_f1_on_squad_v1_1|1810_04805_bert"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "algorithm:bert",
+      "target": "result:83_1_f1_on_squad_v2_0",
+      "relation_id": "algorithm:bert|ACHIEVES|result:83_1_f1_on_squad_v2_0",
+      "canonical_key": "algorithm:bert|ACHIEVES|result:83_1_f1_on_squad_v2_0",
+      "relation_type": "ACHIEVES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1810_04805_bert",
+      "support_count": 1,
+      "support_documents": [
+        "1810_04805_bert"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1810_04805_bert",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "algorithm:bert|ACHIEVES|result:83_1_f1_on_squad_v2_0|1810_04805_bert"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "dataset:squad_v1_1",
+      "target": "doc:1810_04805_bert",
+      "relation_id": "dataset:squad_v1_1|MENTIONED_IN|doc:1810_04805_bert",
+      "canonical_key": "dataset:squad_v1_1|MENTIONED_IN|doc:1810_04805_bert",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1810_04805_bert",
+      "support_count": 1,
+      "support_documents": [
+        "1810_04805_bert"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1810_04805_bert",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "dataset:squad_v1_1|MENTIONED_IN|doc:1810_04805_bert"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "dataset:squad_v2_0",
+      "target": "doc:1810_04805_bert",
+      "relation_id": "dataset:squad_v2_0|MENTIONED_IN|doc:1810_04805_bert",
+      "canonical_key": "dataset:squad_v2_0|MENTIONED_IN|doc:1810_04805_bert",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1810_04805_bert",
+      "support_count": 1,
+      "support_documents": [
+        "1810_04805_bert"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1810_04805_bert",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "dataset:squad_v2_0|MENTIONED_IN|doc:1810_04805_bert"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "dataset:multinli",
+      "target": "doc:1810_04805_bert",
+      "relation_id": "dataset:multinli|MENTIONED_IN|doc:1810_04805_bert",
+      "canonical_key": "dataset:multinli|MENTIONED_IN|doc:1810_04805_bert",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1810_04805_bert",
+      "support_count": 1,
+      "support_documents": [
+        "1810_04805_bert"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1810_04805_bert",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "dataset:multinli|MENTIONED_IN|doc:1810_04805_bert"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "benchmark:glue",
+      "target": "doc:1810_04805_bert",
+      "relation_id": "benchmark:glue|MENTIONED_IN|doc:1810_04805_bert",
+      "canonical_key": "benchmark:glue|MENTIONED_IN|doc:1810_04805_bert",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1810_04805_bert",
+      "support_count": 1,
+      "support_documents": [
+        "1810_04805_bert"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1810_04805_bert",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "benchmark:glue|MENTIONED_IN|doc:1810_04805_bert"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "result:80_5_glue_score_on_glue",
+      "target": "doc:1810_04805_bert",
+      "relation_id": "result:80_5_glue_score_on_glue|MENTIONED_IN|doc:1810_04805_bert",
+      "canonical_key": "result:80_5_glue_score_on_glue|MENTIONED_IN|doc:1810_04805_bert",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1810_04805_bert",
+      "support_count": 1,
+      "support_documents": [
+        "1810_04805_bert"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1810_04805_bert",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "result:80_5_glue_score_on_glue|MENTIONED_IN|doc:1810_04805_bert"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "result:86_7_accuracy_on_multinli",
+      "target": "doc:1810_04805_bert",
+      "relation_id": "result:86_7_accuracy_on_multinli|MENTIONED_IN|doc:1810_04805_bert",
+      "canonical_key": "result:86_7_accuracy_on_multinli|MENTIONED_IN|doc:1810_04805_bert",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1810_04805_bert",
+      "support_count": 1,
+      "support_documents": [
+        "1810_04805_bert"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1810_04805_bert",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "result:86_7_accuracy_on_multinli|MENTIONED_IN|doc:1810_04805_bert"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "result:93_2_f1_on_squad_v1_1",
+      "target": "doc:1810_04805_bert",
+      "relation_id": "result:93_2_f1_on_squad_v1_1|MENTIONED_IN|doc:1810_04805_bert",
+      "canonical_key": "result:93_2_f1_on_squad_v1_1|MENTIONED_IN|doc:1810_04805_bert",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1810_04805_bert",
+      "support_count": 1,
+      "support_documents": [
+        "1810_04805_bert"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1810_04805_bert",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "result:93_2_f1_on_squad_v1_1|MENTIONED_IN|doc:1810_04805_bert"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "result:83_1_f1_on_squad_v2_0",
+      "target": "doc:1810_04805_bert",
+      "relation_id": "result:83_1_f1_on_squad_v2_0|MENTIONED_IN|doc:1810_04805_bert",
+      "canonical_key": "result:83_1_f1_on_squad_v2_0|MENTIONED_IN|doc:1810_04805_bert",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "1810_04805_bert",
+      "support_count": 1,
+      "support_documents": [
+        "1810_04805_bert"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "1810_04805_bert",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "result:83_1_f1_on_squad_v2_0|MENTIONED_IN|doc:1810_04805_bert"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "paper:2005_14165",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "paper:2005_14165|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "paper:2005_14165|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "paper:2005_14165",
+      "target": "algorithm:gpt_3",
+      "relation_id": "paper:2005_14165|PROPOSES|algorithm:gpt_3",
+      "canonical_key": "paper:2005_14165|PROPOSES|algorithm:gpt_3",
+      "relation_type": "PROPOSES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|PROPOSES|algorithm:gpt_3|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:tom_b_brown",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:tom_b_brown|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:tom_b_brown|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:tom_b_brown|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:tom_b_brown",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:tom_b_brown",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:tom_b_brown",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:tom_b_brown|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:benjamin_mann",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:benjamin_mann|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:benjamin_mann|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:benjamin_mann|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:benjamin_mann",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:benjamin_mann",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:benjamin_mann",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:benjamin_mann|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:nick_ryder",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:nick_ryder|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:nick_ryder|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:nick_ryder|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:nick_ryder",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:nick_ryder",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:nick_ryder",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:nick_ryder|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:melanie_subbiah",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:melanie_subbiah|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:melanie_subbiah|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:melanie_subbiah|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:melanie_subbiah",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:melanie_subbiah",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:melanie_subbiah",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:melanie_subbiah|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:jared_kaplan",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:jared_kaplan|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:jared_kaplan|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:jared_kaplan|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:jared_kaplan",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:jared_kaplan",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:jared_kaplan",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:jared_kaplan|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:prafulla_dhariwal",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:prafulla_dhariwal|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:prafulla_dhariwal|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:prafulla_dhariwal|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:prafulla_dhariwal",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:prafulla_dhariwal",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:prafulla_dhariwal",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:prafulla_dhariwal|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:arvind_neelakantan",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:arvind_neelakantan|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:arvind_neelakantan|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:arvind_neelakantan|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:arvind_neelakantan",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:arvind_neelakantan",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:arvind_neelakantan",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:arvind_neelakantan|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:pranav_shyam",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:pranav_shyam|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:pranav_shyam|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:pranav_shyam|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:pranav_shyam",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:pranav_shyam",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:pranav_shyam",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:pranav_shyam|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:girish_sastry",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:girish_sastry|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:girish_sastry|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:girish_sastry|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:girish_sastry",
+      "target": "doc:2103_00020_clip",
+      "relation_id": "author:girish_sastry|MENTIONED_IN|doc:2103_00020_clip",
+      "canonical_key": "author:girish_sastry|MENTIONED_IN|doc:2103_00020_clip",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2103_00020_clip",
+      "support_count": 1,
+      "support_documents": [
+        "2103_00020_clip"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2103_00020_clip",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:girish_sastry|MENTIONED_IN|doc:2103_00020_clip"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:girish_sastry",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:girish_sastry",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:girish_sastry",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:girish_sastry|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:amanda_askell",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:amanda_askell|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:amanda_askell|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:amanda_askell|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:amanda_askell",
+      "target": "doc:2103_00020_clip",
+      "relation_id": "author:amanda_askell|MENTIONED_IN|doc:2103_00020_clip",
+      "canonical_key": "author:amanda_askell|MENTIONED_IN|doc:2103_00020_clip",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2103_00020_clip",
+      "support_count": 1,
+      "support_documents": [
+        "2103_00020_clip"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2103_00020_clip",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:amanda_askell|MENTIONED_IN|doc:2103_00020_clip"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:amanda_askell",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:amanda_askell",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:amanda_askell",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:amanda_askell|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:sandhini_agarwal",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:sandhini_agarwal|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:sandhini_agarwal|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:sandhini_agarwal|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:sandhini_agarwal",
+      "target": "doc:2103_00020_clip",
+      "relation_id": "author:sandhini_agarwal|MENTIONED_IN|doc:2103_00020_clip",
+      "canonical_key": "author:sandhini_agarwal|MENTIONED_IN|doc:2103_00020_clip",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2103_00020_clip",
+      "support_count": 1,
+      "support_documents": [
+        "2103_00020_clip"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2103_00020_clip",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:sandhini_agarwal|MENTIONED_IN|doc:2103_00020_clip"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:sandhini_agarwal",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:sandhini_agarwal",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:sandhini_agarwal",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:sandhini_agarwal|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:ariel_herbert_voss",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:ariel_herbert_voss|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:ariel_herbert_voss|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:ariel_herbert_voss|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:ariel_herbert_voss",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:ariel_herbert_voss",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:ariel_herbert_voss",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:ariel_herbert_voss|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:gretchen_krueger",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:gretchen_krueger|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:gretchen_krueger|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:gretchen_krueger|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:gretchen_krueger",
+      "target": "doc:2103_00020_clip",
+      "relation_id": "author:gretchen_krueger|MENTIONED_IN|doc:2103_00020_clip",
+      "canonical_key": "author:gretchen_krueger|MENTIONED_IN|doc:2103_00020_clip",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2103_00020_clip",
+      "support_count": 1,
+      "support_documents": [
+        "2103_00020_clip"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2103_00020_clip",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:gretchen_krueger|MENTIONED_IN|doc:2103_00020_clip"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:gretchen_krueger",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:gretchen_krueger",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:gretchen_krueger",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:gretchen_krueger|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:tom_henighan",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:tom_henighan|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:tom_henighan|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:tom_henighan|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:tom_henighan",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:tom_henighan",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:tom_henighan",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:tom_henighan|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:rewon_child",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:rewon_child|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:rewon_child|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:rewon_child|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:rewon_child",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:rewon_child",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:rewon_child",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:rewon_child|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:aditya_ramesh",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:aditya_ramesh|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:aditya_ramesh|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:aditya_ramesh|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:aditya_ramesh",
+      "target": "doc:2103_00020_clip",
+      "relation_id": "author:aditya_ramesh|MENTIONED_IN|doc:2103_00020_clip",
+      "canonical_key": "author:aditya_ramesh|MENTIONED_IN|doc:2103_00020_clip",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2103_00020_clip",
+      "support_count": 1,
+      "support_documents": [
+        "2103_00020_clip"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2103_00020_clip",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:aditya_ramesh|MENTIONED_IN|doc:2103_00020_clip"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:aditya_ramesh",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:aditya_ramesh",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:aditya_ramesh",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:aditya_ramesh|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:daniel_m_ziegler",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:daniel_m_ziegler|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:daniel_m_ziegler|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:daniel_m_ziegler|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:daniel_m_ziegler",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:daniel_m_ziegler",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:daniel_m_ziegler",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:daniel_m_ziegler|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:jeffrey_wu",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:jeffrey_wu|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:jeffrey_wu|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:jeffrey_wu|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:jeffrey_wu",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:jeffrey_wu",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:jeffrey_wu",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:jeffrey_wu|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:clemens_winter",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:clemens_winter|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:clemens_winter|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:clemens_winter|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:clemens_winter",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:clemens_winter",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:clemens_winter",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:clemens_winter|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:christopher_hesse",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:christopher_hesse|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:christopher_hesse|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:christopher_hesse|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:christopher_hesse",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:christopher_hesse",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:christopher_hesse",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:christopher_hesse|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:mark_chen",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:mark_chen|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:mark_chen|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:mark_chen|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:mark_chen",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:mark_chen",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:mark_chen",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:mark_chen|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:eric_sigler",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:eric_sigler|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:eric_sigler|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:eric_sigler|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:eric_sigler",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:eric_sigler",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:eric_sigler",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:eric_sigler|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:mateusz_litwin",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:mateusz_litwin|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:mateusz_litwin|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:mateusz_litwin|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:mateusz_litwin",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:mateusz_litwin",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:mateusz_litwin",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:mateusz_litwin|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:scott_gray",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:scott_gray|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:scott_gray|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:scott_gray|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:scott_gray",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:scott_gray",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:scott_gray",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:scott_gray|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:benjamin_chess",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:benjamin_chess|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:benjamin_chess|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:benjamin_chess|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:benjamin_chess",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:benjamin_chess",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:benjamin_chess",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:benjamin_chess|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:jack_clark",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:jack_clark|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:jack_clark|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:jack_clark|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:jack_clark",
+      "target": "doc:2103_00020_clip",
+      "relation_id": "author:jack_clark|MENTIONED_IN|doc:2103_00020_clip",
+      "canonical_key": "author:jack_clark|MENTIONED_IN|doc:2103_00020_clip",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2103_00020_clip",
+      "support_count": 1,
+      "support_documents": [
+        "2103_00020_clip"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2103_00020_clip",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:jack_clark|MENTIONED_IN|doc:2103_00020_clip"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:jack_clark",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:jack_clark",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:jack_clark",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:jack_clark|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:christopher_berner",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:christopher_berner|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:christopher_berner|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:christopher_berner|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:christopher_berner",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:christopher_berner",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:christopher_berner",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:christopher_berner|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:sam_mccandlish",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:sam_mccandlish|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:sam_mccandlish|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:sam_mccandlish|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:sam_mccandlish",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:sam_mccandlish",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:sam_mccandlish",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:sam_mccandlish|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:alec_radford",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:alec_radford|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:alec_radford|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:alec_radford|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:alec_radford",
+      "target": "doc:2103_00020_clip",
+      "relation_id": "author:alec_radford|MENTIONED_IN|doc:2103_00020_clip",
+      "canonical_key": "author:alec_radford|MENTIONED_IN|doc:2103_00020_clip",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2103_00020_clip",
+      "support_count": 1,
+      "support_documents": [
+        "2103_00020_clip"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2103_00020_clip",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:alec_radford|MENTIONED_IN|doc:2103_00020_clip"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:alec_radford",
+      "target": "institution:openai",
+      "relation_id": "author:alec_radford|AFFILIATED_WITH|institution:openai",
+      "canonical_key": "author:alec_radford|AFFILIATED_WITH|institution:openai",
+      "relation_type": "AFFILIATED_WITH",
+      "confidence": 0.95,
+      "evidence": "CLIP is an OpenAI research paper",
+      "source_document": "2103_00020_clip",
+      "support_count": 1,
+      "support_documents": [
+        "2103_00020_clip"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2103_00020_clip",
+          "confidence": 0.95,
+          "evidence": "CLIP is an OpenAI research paper",
+          "relation_id": "author:alec_radford|AFFILIATED_WITH|institution:openai|2103_00020_clip"
+        }
+      ],
+      "epistemic_status": "claimed"
+    },
+    {
+      "source": "author:alec_radford",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:alec_radford",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:alec_radford",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:alec_radford|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:alec_radford",
+      "target": "paper:2103_00020",
+      "relation_id": "paper:2103_00020|AUTHORED_BY|author:alec_radford",
+      "canonical_key": "paper:2103_00020|AUTHORED_BY|author:alec_radford",
+      "relation_type": "AUTHORES",
+      "confidence": 1.0,
+      "evidence": "Learning Transferable Visual Models From Natural Language Supervision authored by Alec Radford et al.",
+      "source_document": "2103_00020_clip",
+      "support_count": 1,
+      "support_documents": [
+        "2103_00020_clip"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2103_00020_clip",
+          "confidence": 1.0,
+          "evidence": "Learning Transferable Visual Models From Natural Language Supervision authored by Alec Radford et al.",
+          "relation_id": "paper:2103_00020|AUTHORED_BY|author:alec_radford|2103_00020_clip"
+        }
+      ],
+      "epistemic_status": "claimed"
+    },
+    {
+      "source": "author:ilya_sutskever",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:ilya_sutskever|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:ilya_sutskever|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:ilya_sutskever|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:ilya_sutskever",
+      "target": "doc:2103_00020_clip",
+      "relation_id": "author:ilya_sutskever|MENTIONED_IN|doc:2103_00020_clip",
+      "canonical_key": "author:ilya_sutskever|MENTIONED_IN|doc:2103_00020_clip",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2103_00020_clip",
+      "support_count": 1,
+      "support_documents": [
+        "2103_00020_clip"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2103_00020_clip",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:ilya_sutskever|MENTIONED_IN|doc:2103_00020_clip"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:ilya_sutskever",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:ilya_sutskever",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:ilya_sutskever",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:ilya_sutskever|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:ilya_sutskever",
+      "target": "paper:2103_00020",
+      "relation_id": "paper:2103_00020|AUTHORED_BY|author:ilya_sutskever",
+      "canonical_key": "paper:2103_00020|AUTHORED_BY|author:ilya_sutskever",
+      "relation_type": "AUTHORES",
+      "confidence": 1.0,
+      "evidence": "Co-authored by Ilya Sutskever",
+      "source_document": "2103_00020_clip",
+      "support_count": 1,
+      "support_documents": [
+        "2103_00020_clip"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2103_00020_clip",
+          "confidence": 1.0,
+          "evidence": "Co-authored by Ilya Sutskever",
+          "relation_id": "paper:2103_00020|AUTHORED_BY|author:ilya_sutskever|2103_00020_clip"
+        }
+      ],
+      "epistemic_status": "claimed"
+    },
+    {
+      "source": "author:dario_amodei",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "author:dario_amodei|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "author:dario_amodei|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:dario_amodei|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:dario_amodei",
+      "target": "paper:2005_14165",
+      "relation_id": "paper:2005_14165|AUTHORED_BY|author:dario_amodei",
+      "canonical_key": "paper:2005_14165|AUTHORED_BY|author:dario_amodei",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2005_14165|AUTHORED_BY|author:dario_amodei|2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "algorithm:gpt_3",
+      "target": "doc:2005_14165_gpt3",
+      "relation_id": "algorithm:gpt_3|MENTIONED_IN|doc:2005_14165_gpt3",
+      "canonical_key": "algorithm:gpt_3|MENTIONED_IN|doc:2005_14165_gpt3",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2005_14165_gpt3",
+      "support_count": 1,
+      "support_documents": [
+        "2005_14165_gpt3"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2005_14165_gpt3",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "algorithm:gpt_3|MENTIONED_IN|doc:2005_14165_gpt3"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "algorithm:gpt_3",
+      "target": "doc:2302_13971_llama",
+      "relation_id": "algorithm:gpt_3|MENTIONED_IN|doc:2302_13971_llama",
+      "canonical_key": "algorithm:gpt_3|MENTIONED_IN|doc:2302_13971_llama",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "algorithm:gpt_3|MENTIONED_IN|doc:2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "benchmark:imagenet",
+      "target": "doc:2010_11929_vit",
+      "relation_id": "benchmark:imagenet|MENTIONED_IN|doc:2010_11929_vit",
+      "canonical_key": "benchmark:imagenet|MENTIONED_IN|doc:2010_11929_vit",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2010_11929_vit",
+      "support_count": 1,
+      "support_documents": [
+        "2010_11929_vit"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2010_11929_vit",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "benchmark:imagenet|MENTIONED_IN|doc:2010_11929_vit"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "benchmark:imagenet",
+      "target": "doc:2103_00020_clip",
+      "relation_id": "benchmark:imagenet|MENTIONED_IN|doc:2103_00020_clip",
+      "canonical_key": "benchmark:imagenet|MENTIONED_IN|doc:2103_00020_clip",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2103_00020_clip",
+      "support_count": 1,
+      "support_documents": [
+        "2103_00020_clip"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2103_00020_clip",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "benchmark:imagenet|MENTIONED_IN|doc:2103_00020_clip"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "paper:2103_00020",
+      "target": "doc:2103_00020_clip",
+      "relation_id": "paper:2103_00020|MENTIONED_IN|doc:2103_00020_clip",
+      "canonical_key": "paper:2103_00020|MENTIONED_IN|doc:2103_00020_clip",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2103_00020_clip",
+      "support_count": 1,
+      "support_documents": [
+        "2103_00020_clip"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2103_00020_clip",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2103_00020|MENTIONED_IN|doc:2103_00020_clip"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "paper:2103_00020",
+      "target": "algorithm:clip",
+      "relation_id": "paper:2103_00020|PROPOSES|algorithm:clip",
+      "canonical_key": "paper:2103_00020|PROPOSES|algorithm:clip",
+      "relation_type": "PROPOSES",
+      "confidence": 1.0,
+      "evidence": "We demonstrate that the simple pre-training task of predicting which caption goes with which image is an efficient and scalable way to learn SOTA image representations",
+      "source_document": "2103_00020_clip",
+      "support_count": 1,
+      "support_documents": [
+        "2103_00020_clip"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2103_00020_clip",
+          "confidence": 1.0,
+          "evidence": "We demonstrate that the simple pre-training task of predicting which caption goes with which image is an efficient and scalable way to learn SOTA image representations",
+          "relation_id": "paper:2103_00020|PROPOSES|algorithm:clip|2103_00020_clip"
+        }
+      ],
+      "epistemic_status": "claimed"
+    },
+    {
+      "source": "author:jong_wook_kim",
+      "target": "doc:2103_00020_clip",
+      "relation_id": "author:jong_wook_kim|MENTIONED_IN|doc:2103_00020_clip",
+      "canonical_key": "author:jong_wook_kim|MENTIONED_IN|doc:2103_00020_clip",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2103_00020_clip",
+      "support_count": 1,
+      "support_documents": [
+        "2103_00020_clip"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2103_00020_clip",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:jong_wook_kim|MENTIONED_IN|doc:2103_00020_clip"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:jong_wook_kim",
+      "target": "paper:2103_00020",
+      "relation_id": "paper:2103_00020|AUTHORED_BY|author:jong_wook_kim",
+      "canonical_key": "paper:2103_00020|AUTHORED_BY|author:jong_wook_kim",
+      "relation_type": "AUTHORES",
+      "confidence": 1.0,
+      "evidence": "Co-authored by Jong Wook Kim",
+      "source_document": "2103_00020_clip",
+      "support_count": 1,
+      "support_documents": [
+        "2103_00020_clip"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2103_00020_clip",
+          "confidence": 1.0,
+          "evidence": "Co-authored by Jong Wook Kim",
+          "relation_id": "paper:2103_00020|AUTHORED_BY|author:jong_wook_kim|2103_00020_clip"
+        }
+      ],
+      "epistemic_status": "claimed"
+    },
+    {
+      "source": "institution:openai",
+      "target": "doc:2103_00020_clip",
+      "relation_id": "institution:openai|MENTIONED_IN|doc:2103_00020_clip",
+      "canonical_key": "institution:openai|MENTIONED_IN|doc:2103_00020_clip",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2103_00020_clip",
+      "support_count": 1,
+      "support_documents": [
+        "2103_00020_clip"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2103_00020_clip",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "institution:openai|MENTIONED_IN|doc:2103_00020_clip"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "algorithm:clip",
+      "target": "doc:2103_00020_clip",
+      "relation_id": "algorithm:clip|MENTIONED_IN|doc:2103_00020_clip",
+      "canonical_key": "algorithm:clip|MENTIONED_IN|doc:2103_00020_clip",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2103_00020_clip",
+      "support_count": 1,
+      "support_documents": [
+        "2103_00020_clip"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2103_00020_clip",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "algorithm:clip|MENTIONED_IN|doc:2103_00020_clip"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "algorithm:clip",
+      "target": "benchmark:imagenet",
+      "relation_id": "algorithm:clip|EVALUATES_ON|benchmark:imagenet",
+      "canonical_key": "algorithm:clip|EVALUATES_ON|benchmark:imagenet",
+      "relation_type": "EVALUATES_ON",
+      "confidence": 1.0,
+      "evidence": "we match the accuracy of the original ResNet-50 on ImageNet zero-shot without needing to use any of the 1.28 million training examples",
+      "source_document": "2103_00020_clip",
+      "support_count": 1,
+      "support_documents": [
+        "2103_00020_clip"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2103_00020_clip",
+          "confidence": 1.0,
+          "evidence": "we match the accuracy of the original ResNet-50 on ImageNet zero-shot without needing to use any of the 1.28 million training examples",
+          "relation_id": "algorithm:clip|EVALUATES_ON|benchmark:imagenet|2103_00020_clip"
+        }
+      ],
+      "epistemic_status": "claimed"
+    },
+    {
+      "source": "algorithm:clip",
+      "target": "task:zero_shot_image_classification",
+      "relation_id": "algorithm:clip|ACHIEVES|task:zero_shot_image_classification",
+      "canonical_key": "algorithm:clip|ACHIEVES|task:zero_shot_image_classification",
+      "relation_type": "ACHIEVES",
+      "confidence": 0.9,
+      "evidence": "enabling zero-shot transfer of the model to downstream tasks",
+      "source_document": "2103_00020_clip",
+      "support_count": 1,
+      "support_documents": [
+        "2103_00020_clip"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2103_00020_clip",
+          "confidence": 0.9,
+          "evidence": "enabling zero-shot transfer of the model to downstream tasks",
+          "relation_id": "algorithm:clip|ACHIEVES|task:zero_shot_image_classification|2103_00020_clip"
+        }
+      ],
+      "epistemic_status": "claimed"
+    },
+    {
+      "source": "task:zero_shot_image_classification",
+      "target": "doc:2103_00020_clip",
+      "relation_id": "task:zero_shot_image_classification|MENTIONED_IN|doc:2103_00020_clip",
+      "canonical_key": "task:zero_shot_image_classification|MENTIONED_IN|doc:2103_00020_clip",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2103_00020_clip",
+      "support_count": 1,
+      "support_documents": [
+        "2103_00020_clip"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2103_00020_clip",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "task:zero_shot_image_classification|MENTIONED_IN|doc:2103_00020_clip"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "paper:2302_13971",
+      "target": "doc:2302_13971_llama",
+      "relation_id": "paper:2302_13971|MENTIONED_IN|doc:2302_13971_llama",
+      "canonical_key": "paper:2302_13971|MENTIONED_IN|doc:2302_13971_llama",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2302_13971|MENTIONED_IN|doc:2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "paper:2302_13971",
+      "target": "algorithm:llama",
+      "relation_id": "paper:2302_13971|PROPOSES|algorithm:llama",
+      "canonical_key": "paper:2302_13971|PROPOSES|algorithm:llama",
+      "relation_type": "PROPOSES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2302_13971|PROPOSES|algorithm:llama|2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:hugo_touvron",
+      "target": "doc:2302_13971_llama",
+      "relation_id": "author:hugo_touvron|MENTIONED_IN|doc:2302_13971_llama",
+      "canonical_key": "author:hugo_touvron|MENTIONED_IN|doc:2302_13971_llama",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:hugo_touvron|MENTIONED_IN|doc:2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:hugo_touvron",
+      "target": "paper:2302_13971",
+      "relation_id": "paper:2302_13971|AUTHORED_BY|author:hugo_touvron",
+      "canonical_key": "paper:2302_13971|AUTHORED_BY|author:hugo_touvron",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2302_13971|AUTHORED_BY|author:hugo_touvron|2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:thibaut_lavril",
+      "target": "doc:2302_13971_llama",
+      "relation_id": "author:thibaut_lavril|MENTIONED_IN|doc:2302_13971_llama",
+      "canonical_key": "author:thibaut_lavril|MENTIONED_IN|doc:2302_13971_llama",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:thibaut_lavril|MENTIONED_IN|doc:2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:thibaut_lavril",
+      "target": "paper:2302_13971",
+      "relation_id": "paper:2302_13971|AUTHORED_BY|author:thibaut_lavril",
+      "canonical_key": "paper:2302_13971|AUTHORED_BY|author:thibaut_lavril",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2302_13971|AUTHORED_BY|author:thibaut_lavril|2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:gautier_izacard",
+      "target": "doc:2302_13971_llama",
+      "relation_id": "author:gautier_izacard|MENTIONED_IN|doc:2302_13971_llama",
+      "canonical_key": "author:gautier_izacard|MENTIONED_IN|doc:2302_13971_llama",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:gautier_izacard|MENTIONED_IN|doc:2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:gautier_izacard",
+      "target": "paper:2302_13971",
+      "relation_id": "paper:2302_13971|AUTHORED_BY|author:gautier_izacard",
+      "canonical_key": "paper:2302_13971|AUTHORED_BY|author:gautier_izacard",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2302_13971|AUTHORED_BY|author:gautier_izacard|2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:xavier_martinet",
+      "target": "doc:2302_13971_llama",
+      "relation_id": "author:xavier_martinet|MENTIONED_IN|doc:2302_13971_llama",
+      "canonical_key": "author:xavier_martinet|MENTIONED_IN|doc:2302_13971_llama",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:xavier_martinet|MENTIONED_IN|doc:2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:xavier_martinet",
+      "target": "paper:2302_13971",
+      "relation_id": "paper:2302_13971|AUTHORED_BY|author:xavier_martinet",
+      "canonical_key": "paper:2302_13971|AUTHORED_BY|author:xavier_martinet",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2302_13971|AUTHORED_BY|author:xavier_martinet|2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:marie_anne_lachaux",
+      "target": "doc:2302_13971_llama",
+      "relation_id": "author:marie_anne_lachaux|MENTIONED_IN|doc:2302_13971_llama",
+      "canonical_key": "author:marie_anne_lachaux|MENTIONED_IN|doc:2302_13971_llama",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:marie_anne_lachaux|MENTIONED_IN|doc:2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:marie_anne_lachaux",
+      "target": "paper:2302_13971",
+      "relation_id": "paper:2302_13971|AUTHORED_BY|author:marie_anne_lachaux",
+      "canonical_key": "paper:2302_13971|AUTHORED_BY|author:marie_anne_lachaux",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2302_13971|AUTHORED_BY|author:marie_anne_lachaux|2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:timothee_lacroix",
+      "target": "doc:2302_13971_llama",
+      "relation_id": "author:timothee_lacroix|MENTIONED_IN|doc:2302_13971_llama",
+      "canonical_key": "author:timothee_lacroix|MENTIONED_IN|doc:2302_13971_llama",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:timothee_lacroix|MENTIONED_IN|doc:2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:timothee_lacroix",
+      "target": "paper:2302_13971",
+      "relation_id": "paper:2302_13971|AUTHORED_BY|author:timothee_lacroix",
+      "canonical_key": "paper:2302_13971|AUTHORED_BY|author:timothee_lacroix",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2302_13971|AUTHORED_BY|author:timothee_lacroix|2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:baptiste_roziere",
+      "target": "doc:2302_13971_llama",
+      "relation_id": "author:baptiste_roziere|MENTIONED_IN|doc:2302_13971_llama",
+      "canonical_key": "author:baptiste_roziere|MENTIONED_IN|doc:2302_13971_llama",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:baptiste_roziere|MENTIONED_IN|doc:2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:baptiste_roziere",
+      "target": "paper:2302_13971",
+      "relation_id": "paper:2302_13971|AUTHORED_BY|author:baptiste_roziere",
+      "canonical_key": "paper:2302_13971|AUTHORED_BY|author:baptiste_roziere",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2302_13971|AUTHORED_BY|author:baptiste_roziere|2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:naman_goyal",
+      "target": "doc:2302_13971_llama",
+      "relation_id": "author:naman_goyal|MENTIONED_IN|doc:2302_13971_llama",
+      "canonical_key": "author:naman_goyal|MENTIONED_IN|doc:2302_13971_llama",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:naman_goyal|MENTIONED_IN|doc:2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:naman_goyal",
+      "target": "paper:2302_13971",
+      "relation_id": "paper:2302_13971|AUTHORED_BY|author:naman_goyal",
+      "canonical_key": "paper:2302_13971|AUTHORED_BY|author:naman_goyal",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2302_13971|AUTHORED_BY|author:naman_goyal|2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:eric_hambro",
+      "target": "doc:2302_13971_llama",
+      "relation_id": "author:eric_hambro|MENTIONED_IN|doc:2302_13971_llama",
+      "canonical_key": "author:eric_hambro|MENTIONED_IN|doc:2302_13971_llama",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:eric_hambro|MENTIONED_IN|doc:2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:eric_hambro",
+      "target": "paper:2302_13971",
+      "relation_id": "paper:2302_13971|AUTHORED_BY|author:eric_hambro",
+      "canonical_key": "paper:2302_13971|AUTHORED_BY|author:eric_hambro",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2302_13971|AUTHORED_BY|author:eric_hambro|2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:faisal_azhar",
+      "target": "doc:2302_13971_llama",
+      "relation_id": "author:faisal_azhar|MENTIONED_IN|doc:2302_13971_llama",
+      "canonical_key": "author:faisal_azhar|MENTIONED_IN|doc:2302_13971_llama",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:faisal_azhar|MENTIONED_IN|doc:2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:faisal_azhar",
+      "target": "paper:2302_13971",
+      "relation_id": "paper:2302_13971|AUTHORED_BY|author:faisal_azhar",
+      "canonical_key": "paper:2302_13971|AUTHORED_BY|author:faisal_azhar",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2302_13971|AUTHORED_BY|author:faisal_azhar|2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:aurelien_rodriguez",
+      "target": "doc:2302_13971_llama",
+      "relation_id": "author:aurelien_rodriguez|MENTIONED_IN|doc:2302_13971_llama",
+      "canonical_key": "author:aurelien_rodriguez|MENTIONED_IN|doc:2302_13971_llama",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:aurelien_rodriguez|MENTIONED_IN|doc:2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:aurelien_rodriguez",
+      "target": "paper:2302_13971",
+      "relation_id": "paper:2302_13971|AUTHORED_BY|author:aurelien_rodriguez",
+      "canonical_key": "paper:2302_13971|AUTHORED_BY|author:aurelien_rodriguez",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2302_13971|AUTHORED_BY|author:aurelien_rodriguez|2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:armand_joulin",
+      "target": "doc:2302_13971_llama",
+      "relation_id": "author:armand_joulin|MENTIONED_IN|doc:2302_13971_llama",
+      "canonical_key": "author:armand_joulin|MENTIONED_IN|doc:2302_13971_llama",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:armand_joulin|MENTIONED_IN|doc:2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:armand_joulin",
+      "target": "paper:2302_13971",
+      "relation_id": "paper:2302_13971|AUTHORED_BY|author:armand_joulin",
+      "canonical_key": "paper:2302_13971|AUTHORED_BY|author:armand_joulin",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2302_13971|AUTHORED_BY|author:armand_joulin|2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:edouard_grave",
+      "target": "doc:2302_13971_llama",
+      "relation_id": "author:edouard_grave|MENTIONED_IN|doc:2302_13971_llama",
+      "canonical_key": "author:edouard_grave|MENTIONED_IN|doc:2302_13971_llama",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:edouard_grave|MENTIONED_IN|doc:2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:edouard_grave",
+      "target": "paper:2302_13971",
+      "relation_id": "paper:2302_13971|AUTHORED_BY|author:edouard_grave",
+      "canonical_key": "paper:2302_13971|AUTHORED_BY|author:edouard_grave",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2302_13971|AUTHORED_BY|author:edouard_grave|2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:guillaume_lample",
+      "target": "doc:2302_13971_llama",
+      "relation_id": "author:guillaume_lample|MENTIONED_IN|doc:2302_13971_llama",
+      "canonical_key": "author:guillaume_lample|MENTIONED_IN|doc:2302_13971_llama",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "author:guillaume_lample|MENTIONED_IN|doc:2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "author:guillaume_lample",
+      "target": "paper:2302_13971",
+      "relation_id": "paper:2302_13971|AUTHORED_BY|author:guillaume_lample",
+      "canonical_key": "paper:2302_13971|AUTHORED_BY|author:guillaume_lample",
+      "relation_type": "AUTHORES",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "paper:2302_13971|AUTHORED_BY|author:guillaume_lample|2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "algorithm:llama",
+      "target": "doc:2302_13971_llama",
+      "relation_id": "algorithm:llama|MENTIONED_IN|doc:2302_13971_llama",
+      "canonical_key": "algorithm:llama|MENTIONED_IN|doc:2302_13971_llama",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "algorithm:llama|MENTIONED_IN|doc:2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "algorithm:llama_13b",
+      "target": "doc:2302_13971_llama",
+      "relation_id": "algorithm:llama_13b|MENTIONED_IN|doc:2302_13971_llama",
+      "canonical_key": "algorithm:llama_13b|MENTIONED_IN|doc:2302_13971_llama",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "algorithm:llama_13b|MENTIONED_IN|doc:2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    },
+    {
+      "source": "algorithm:llama_13b",
+      "target": "algorithm:gpt_3",
+      "relation_id": "algorithm:llama_13b|OUTPERFORMS|algorithm:gpt_3",
+      "canonical_key": "algorithm:llama_13b|OUTPERFORMS|algorithm:gpt_3",
+      "relation_type": "OUTPERFORMS",
+      "confidence": 0.5,
+      "evidence": "",
+      "source_document": "2302_13971_llama",
+      "support_count": 1,
+      "support_documents": [
+        "2302_13971_llama"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "2302_13971_llama",
+          "confidence": 0.5,
+          "evidence": "",
+          "relation_id": "algorithm:llama_13b|OUTPERFORMS|algorithm:gpt_3|2302_13971_llama"
+        }
+      ],
+      "epistemic_status": "theoretical"
+    }
+  ]
+}

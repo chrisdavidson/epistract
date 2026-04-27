@@ -1,0 +1,277 @@
+{
+  "document_id": "2302_13971_llama",
+  "document_path": "",
+  "chunks_processed": 1,
+  "entities": [
+    {
+      "name": "2302.13971",
+      "attributes": {
+        "title": "LLaMA: Open and Efficient Foundation Language Models"
+      },
+      "entity_type": "PAPER",
+      "context": ""
+    },
+    {
+      "name": "Hugo Touvron",
+      "attributes": {},
+      "entity_type": "AUTHOR",
+      "context": ""
+    },
+    {
+      "name": "Thibaut Lavril",
+      "attributes": {},
+      "entity_type": "AUTHOR",
+      "context": ""
+    },
+    {
+      "name": "Gautier Izacard",
+      "attributes": {},
+      "entity_type": "AUTHOR",
+      "context": ""
+    },
+    {
+      "name": "Xavier Martinet",
+      "attributes": {},
+      "entity_type": "AUTHOR",
+      "context": ""
+    },
+    {
+      "name": "Marie-Anne Lachaux",
+      "attributes": {},
+      "entity_type": "AUTHOR",
+      "context": ""
+    },
+    {
+      "name": "Timoth\u00e9e Lacroix",
+      "attributes": {},
+      "entity_type": "AUTHOR",
+      "context": ""
+    },
+    {
+      "name": "Baptiste Rozi\u00e8re",
+      "attributes": {},
+      "entity_type": "AUTHOR",
+      "context": ""
+    },
+    {
+      "name": "Naman Goyal",
+      "attributes": {},
+      "entity_type": "AUTHOR",
+      "context": ""
+    },
+    {
+      "name": "Eric Hambro",
+      "attributes": {},
+      "entity_type": "AUTHOR",
+      "context": ""
+    },
+    {
+      "name": "Faisal Azhar",
+      "attributes": {},
+      "entity_type": "AUTHOR",
+      "context": ""
+    },
+    {
+      "name": "Aurelien Rodriguez",
+      "attributes": {},
+      "entity_type": "AUTHOR",
+      "context": ""
+    },
+    {
+      "name": "Armand Joulin",
+      "attributes": {},
+      "entity_type": "AUTHOR",
+      "context": ""
+    },
+    {
+      "name": "Edouard Grave",
+      "attributes": {},
+      "entity_type": "AUTHOR",
+      "context": ""
+    },
+    {
+      "name": "Guillaume Lample",
+      "attributes": {},
+      "entity_type": "AUTHOR",
+      "context": ""
+    },
+    {
+      "name": "LLaMA",
+      "attributes": {},
+      "entity_type": "ALGORITHM",
+      "context": ""
+    },
+    {
+      "name": "LLaMA-13B",
+      "attributes": {},
+      "entity_type": "ALGORITHM",
+      "context": ""
+    },
+    {
+      "name": "LLaMA-65B",
+      "attributes": {},
+      "entity_type": "ALGORITHM",
+      "context": ""
+    },
+    {
+      "name": "GPT-3",
+      "attributes": {},
+      "entity_type": "ALGORITHM",
+      "context": ""
+    },
+    {
+      "name": "Chinchilla-70B",
+      "attributes": {},
+      "entity_type": "ALGORITHM",
+      "context": ""
+    },
+    {
+      "name": "PaLM-540B",
+      "attributes": {},
+      "entity_type": "ALGORITHM",
+      "context": ""
+    },
+    {
+      "name": "cs.CL",
+      "attributes": {},
+      "entity_type": "ARXIV_CATEGORY",
+      "context": ""
+    }
+  ],
+  "relations": [
+    {
+      "source": "2302.13971",
+      "target": "Hugo Touvron",
+      "source_entity": "2302.13971",
+      "target_entity": "Hugo Touvron",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2302.13971",
+      "target": "Thibaut Lavril",
+      "source_entity": "2302.13971",
+      "target_entity": "Thibaut Lavril",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2302.13971",
+      "target": "Gautier Izacard",
+      "source_entity": "2302.13971",
+      "target_entity": "Gautier Izacard",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2302.13971",
+      "target": "Xavier Martinet",
+      "source_entity": "2302.13971",
+      "target_entity": "Xavier Martinet",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2302.13971",
+      "target": "Marie-Anne Lachaux",
+      "source_entity": "2302.13971",
+      "target_entity": "Marie-Anne Lachaux",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2302.13971",
+      "target": "Timoth\u00e9e Lacroix",
+      "source_entity": "2302.13971",
+      "target_entity": "Timoth\u00e9e Lacroix",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2302.13971",
+      "target": "Baptiste Rozi\u00e8re",
+      "source_entity": "2302.13971",
+      "target_entity": "Baptiste Rozi\u00e8re",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2302.13971",
+      "target": "Naman Goyal",
+      "source_entity": "2302.13971",
+      "target_entity": "Naman Goyal",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2302.13971",
+      "target": "Eric Hambro",
+      "source_entity": "2302.13971",
+      "target_entity": "Eric Hambro",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2302.13971",
+      "target": "Faisal Azhar",
+      "source_entity": "2302.13971",
+      "target_entity": "Faisal Azhar",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2302.13971",
+      "target": "Aurelien Rodriguez",
+      "source_entity": "2302.13971",
+      "target_entity": "Aurelien Rodriguez",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2302.13971",
+      "target": "Armand Joulin",
+      "source_entity": "2302.13971",
+      "target_entity": "Armand Joulin",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2302.13971",
+      "target": "Edouard Grave",
+      "source_entity": "2302.13971",
+      "target_entity": "Edouard Grave",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2302.13971",
+      "target": "Guillaume Lample",
+      "source_entity": "2302.13971",
+      "target_entity": "Guillaume Lample",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2302.13971",
+      "target": "LLaMA",
+      "source_entity": "2302.13971",
+      "target_entity": "LLaMA",
+      "relation_type": "PROPOSES",
+      "evidence": ""
+    },
+    {
+      "source": "LLaMA-13B",
+      "target": "GPT-3",
+      "source_entity": "LLaMA-13B",
+      "target_entity": "GPT-3",
+      "relation_type": "OUTPERFORMS",
+      "evidence": ""
+    }
+  ],
+  "cost_usd": 0.0,
+  "model_used": "nvidia/nemotron-3-super-120b-a12b:free",
+  "domain_name": "arxiv-cs",
+  "chunk_size": 10000,
+  "extracted_at": "2026-04-27T01:08:37.028252+00:00",
+  "error": null
+}

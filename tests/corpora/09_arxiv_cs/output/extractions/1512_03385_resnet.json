@@ -1,0 +1,203 @@
+{
+  "document_id": "1512_03385_resnet",
+  "document_path": "",
+  "chunks_processed": 1,
+  "entities": [
+    {
+      "name": "1512.03385",
+      "attributes": {
+        "title": "Deep Residual Learning for Image Recognition"
+      },
+      "entity_type": "PAPER",
+      "context": ""
+    },
+    {
+      "name": "Kaiming He",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Xiangyu Zhang",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Shaoqing Ren",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Jian Sun",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "ResNet",
+      "entity_type": "ALGORITHM",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "ImageNet",
+      "entity_type": "DATASET",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "CIFAR-10",
+      "entity_type": "DATASET",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "COCO",
+      "entity_type": "DATASET",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "ILSVRC 2015",
+      "entity_type": "BENCHMARK",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "error",
+      "entity_type": "METRIC",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "3.57% error on ImageNet",
+      "entity_type": "RESULT",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "image classification",
+      "entity_type": "TASK",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "object detection",
+      "entity_type": "TASK",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "localization",
+      "entity_type": "TASK",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "segmentation",
+      "entity_type": "TASK",
+      "context": "",
+      "attributes": {}
+    }
+  ],
+  "relations": [
+    {
+      "source": "1512.03385",
+      "target": "Kaiming He",
+      "source_entity": "1512.03385",
+      "target_entity": "Kaiming He",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "1512.03385",
+      "target": "Xiangyu Zhang",
+      "source_entity": "1512.03385",
+      "target_entity": "Xiangyu Zhang",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "1512.03385",
+      "target": "Shaoqing Ren",
+      "source_entity": "1512.03385",
+      "target_entity": "Shaoqing Ren",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "1512.03385",
+      "target": "Jian Sun",
+      "source_entity": "1512.03385",
+      "target_entity": "Jian Sun",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "1512.03385",
+      "target": "ResNet",
+      "source_entity": "1512.03385",
+      "target_entity": "ResNet",
+      "relation_type": "PROPOSES",
+      "evidence": ""
+    },
+    {
+      "source": "1512.03385",
+      "target": "ResNet",
+      "attributes": {
+        "datasets": [
+          "ImageNet",
+          "CIFAR-10",
+          "COCO"
+        ]
+      },
+      "source_entity": "1512.03385",
+      "target_entity": "ResNet",
+      "relation_type": "EVALUATES_ON",
+      "evidence": ""
+    },
+    {
+      "source": "ResNet",
+      "target": "ImageNet",
+      "source_entity": "ResNet",
+      "target_entity": "ImageNet",
+      "relation_type": "TRAINED_ON",
+      "evidence": ""
+    },
+    {
+      "source": "ResNet",
+      "target": "CIFAR-10",
+      "source_entity": "ResNet",
+      "target_entity": "CIFAR-10",
+      "relation_type": "TRAINED_ON",
+      "evidence": ""
+    },
+    {
+      "source": "ResNet",
+      "target": "COCO",
+      "source_entity": "ResNet",
+      "target_entity": "COCO",
+      "relation_type": "TRAINED_ON",
+      "evidence": ""
+    },
+    {
+      "source": "1512.03385",
+      "target": "3.57% error on ImageNet",
+      "attributes": {
+        "on": "ILSVRC 2015 classification task"
+      },
+      "source_entity": "1512.03385",
+      "target_entity": "3.57% error on ImageNet",
+      "relation_type": "ACHIEVES",
+      "evidence": ""
+    }
+  ],
+  "cost_usd": 0.0,
+  "model_used": "nvidia/nemotron-3-super-120b-a12b:free",
+  "domain_name": "arxiv-cs",
+  "chunk_size": 10000,
+  "extracted_at": "2026-04-27T00:49:10.891256+00:00",
+  "error": null
+}

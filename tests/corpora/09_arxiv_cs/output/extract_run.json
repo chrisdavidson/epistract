@@ -1,0 +1,26 @@
+{
+  "docs_total": 8,
+  "docs_done": 1,
+  "docs_skipped": 6,
+  "docs_failed": 1,
+  "total_cost_usd": 0.0,
+  "total_tokens": 5958,
+  "model": "nvidia/nemotron-3-super-120b-a12b:free",
+  "domain": "arxiv-cs",
+  "results": [
+    {
+      "doc_id": "1706_03762_attention_is_all_you_need",
+      "chunks": 1,
+      "entities": 19,
+      "relations": 0,
+      "cost_usd": 0.0,
+      "total_tokens": 5958,
+      "build_extraction_rc": 0,
+      "build_extraction_stderr": ""
+    },
+    {
+      "doc_id": "2103_00020_clip",
+      "error": "LLM call failed after 3 retries: 'NoneType' object is not subscriptable"
+    }
+  ]
+}

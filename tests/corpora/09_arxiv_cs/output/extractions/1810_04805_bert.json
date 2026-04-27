@@ -1,0 +1,233 @@
+{
+  "document_id": "1810_04805_bert",
+  "document_path": "",
+  "chunks_processed": 1,
+  "entities": [
+    {
+      "name": "1810.04805",
+      "entity_type": "PAPER",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Jacob Devlin",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Ming-Wei Chang",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Kenton Lee",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Kristina Toutanova",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "BERT",
+      "entity_type": "ALGORITHM",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "SQuAD v1.1",
+      "entity_type": "DATASET",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "SQuAD v2.0",
+      "entity_type": "DATASET",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "MultiNLI",
+      "entity_type": "DATASET",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "GLUE",
+      "entity_type": "BENCHMARK",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "GLUE score",
+      "entity_type": "METRIC",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "accuracy",
+      "entity_type": "METRIC",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "F1",
+      "entity_type": "METRIC",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "question answering",
+      "entity_type": "TASK",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "language inference",
+      "entity_type": "TASK",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "80.5% GLUE score on GLUE",
+      "entity_type": "RESULT",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "86.7% accuracy on MultiNLI",
+      "entity_type": "RESULT",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "93.2 F1 on SQuAD v1.1",
+      "entity_type": "RESULT",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "83.1 F1 on SQuAD v2.0",
+      "entity_type": "RESULT",
+      "context": "",
+      "attributes": {}
+    }
+  ],
+  "relations": [
+    {
+      "source": "1810.04805",
+      "target": "Jacob Devlin",
+      "source_entity": "1810.04805",
+      "target_entity": "Jacob Devlin",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "1810.04805",
+      "target": "Ming-Wei Chang",
+      "source_entity": "1810.04805",
+      "target_entity": "Ming-Wei Chang",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "1810.04805",
+      "target": "Kenton Lee",
+      "source_entity": "1810.04805",
+      "target_entity": "Kenton Lee",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "1810.04805",
+      "target": "Kristina Toutanova",
+      "source_entity": "1810.04805",
+      "target_entity": "Kristina Toutanova",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "1810.04805",
+      "target": "BERT",
+      "source_entity": "1810.04805",
+      "target_entity": "BERT",
+      "relation_type": "PROPOSES",
+      "evidence": ""
+    },
+    {
+      "source": "1810.04805",
+      "target": "GLUE",
+      "source_entity": "1810.04805",
+      "target_entity": "GLUE",
+      "relation_type": "EVALUATES_ON",
+      "evidence": ""
+    },
+    {
+      "source": "1810.04805",
+      "target": "MultiNLI",
+      "source_entity": "1810.04805",
+      "target_entity": "MultiNLI",
+      "relation_type": "EVALUATES_ON",
+      "evidence": ""
+    },
+    {
+      "source": "1810.04805",
+      "target": "SQuAD v1.1",
+      "source_entity": "1810.04805",
+      "target_entity": "SQuAD v1.1",
+      "relation_type": "EVALUATES_ON",
+      "evidence": ""
+    },
+    {
+      "source": "1810.04805",
+      "target": "SQuAD v2.0",
+      "source_entity": "1810.04805",
+      "target_entity": "SQuAD v2.0",
+      "relation_type": "EVALUATES_ON",
+      "evidence": ""
+    },
+    {
+      "source": "BERT",
+      "target": "80.5% GLUE score on GLUE",
+      "source_entity": "BERT",
+      "target_entity": "80.5% GLUE score on GLUE",
+      "relation_type": "ACHIEVES",
+      "evidence": ""
+    },
+    {
+      "source": "BERT",
+      "target": "86.7% accuracy on MultiNLI",
+      "source_entity": "BERT",
+      "target_entity": "86.7% accuracy on MultiNLI",
+      "relation_type": "ACHIEVES",
+      "evidence": ""
+    },
+    {
+      "source": "BERT",
+      "target": "93.2 F1 on SQuAD v1.1",
+      "source_entity": "BERT",
+      "target_entity": "93.2 F1 on SQuAD v1.1",
+      "relation_type": "ACHIEVES",
+      "evidence": ""
+    },
+    {
+      "source": "BERT",
+      "target": "83.1 F1 on SQuAD v2.0",
+      "source_entity": "BERT",
+      "target_entity": "83.1 F1 on SQuAD v2.0",
+      "relation_type": "ACHIEVES",
+      "evidence": ""
+    }
+  ],
+  "cost_usd": 0.0,
+  "model_used": "nvidia/nemotron-3-super-120b-a12b:free",
+  "domain_name": "arxiv-cs",
+  "chunk_size": 10000,
+  "extracted_at": "2026-04-27T00:54:51.059125+00:00",
+  "error": null
+}

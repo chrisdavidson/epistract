@@ -1,0 +1,511 @@
+{
+  "document_id": "2005_14165_gpt3",
+  "document_path": "",
+  "chunks_processed": 1,
+  "entities": [
+    {
+      "name": "2005.14165",
+      "entity_type": "PAPER",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Tom B. Brown",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Benjamin Mann",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Nick Ryder",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Melanie Subbiah",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Jared Kaplan",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Prafulla Dhariwal",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Arvind Neelakantan",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Pranav Shyam",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Girish Sastry",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Amanda Askell",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Sandhini Agarwal",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Ariel Herbert-Voss",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Gretchen Krueger",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Tom Henighan",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Rewon Child",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Aditya Ramesh",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Daniel M. Ziegler",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Jeffrey Wu",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Clemens Winter",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Christopher Hesse",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Mark Chen",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Eric Sigler",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Mateusz Litwin",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Scott Gray",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Benjamin Chess",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Jack Clark",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Christopher Berner",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Sam McCandlish",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Alec Radford",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Ilya Sutskever",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Dario Amodei",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "GPT-3",
+      "entity_type": "ALGORITHM",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "translation",
+      "entity_type": "TASK",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "question answering",
+      "entity_type": "TASK",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "cloze task",
+      "entity_type": "TASK",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "unscrambling words",
+      "entity_type": "TASK",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "using a novel word in a sentence",
+      "entity_type": "TASK",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "performing 3-digit arithmetic",
+      "entity_type": "TASK",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "cs.CL",
+      "entity_type": "ARXIV_CATEGORY",
+      "context": "",
+      "attributes": {}
+    }
+  ],
+  "relations": [
+    {
+      "source": "2005.14165",
+      "target": "Tom B. Brown",
+      "source_entity": "2005.14165",
+      "target_entity": "Tom B. Brown",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "Benjamin Mann",
+      "source_entity": "2005.14165",
+      "target_entity": "Benjamin Mann",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "Nick Ryder",
+      "source_entity": "2005.14165",
+      "target_entity": "Nick Ryder",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "Melanie Subbiah",
+      "source_entity": "2005.14165",
+      "target_entity": "Melanie Subbiah",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "Jared Kaplan",
+      "source_entity": "2005.14165",
+      "target_entity": "Jared Kaplan",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "Prafulla Dhariwal",
+      "source_entity": "2005.14165",
+      "target_entity": "Prafulla Dhariwal",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "Arvind Neelakantan",
+      "source_entity": "2005.14165",
+      "target_entity": "Arvind Neelakantan",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "Pranav Shyam",
+      "source_entity": "2005.14165",
+      "target_entity": "Pranav Shyam",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "Girish Sastry",
+      "source_entity": "2005.14165",
+      "target_entity": "Girish Sastry",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "Amanda Askell",
+      "source_entity": "2005.14165",
+      "target_entity": "Amanda Askell",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "Sandhini Agarwal",
+      "source_entity": "2005.14165",
+      "target_entity": "Sandhini Agarwal",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "Ariel Herbert-Voss",
+      "source_entity": "2005.14165",
+      "target_entity": "Ariel Herbert-Voss",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "Gretchen Krueger",
+      "source_entity": "2005.14165",
+      "target_entity": "Gretchen Krueger",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "Tom Henighan",
+      "source_entity": "2005.14165",
+      "target_entity": "Tom Henighan",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "Rewon Child",
+      "source_entity": "2005.14165",
+      "target_entity": "Rewon Child",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "Aditya Ramesh",
+      "source_entity": "2005.14165",
+      "target_entity": "Aditya Ramesh",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "Daniel M. Ziegler",
+      "source_entity": "2005.14165",
+      "target_entity": "Daniel M. Ziegler",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "Jeffrey Wu",
+      "source_entity": "2005.14165",
+      "target_entity": "Jeffrey Wu",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "Clemens Winter",
+      "source_entity": "2005.14165",
+      "target_entity": "Clemens Winter",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "Christopher Hesse",
+      "source_entity": "2005.14165",
+      "target_entity": "Christopher Hesse",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "Mark Chen",
+      "source_entity": "2005.14165",
+      "target_entity": "Mark Chen",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "Eric Sigler",
+      "source_entity": "2005.14165",
+      "target_entity": "Eric Sigler",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "Mateusz Litwin",
+      "source_entity": "2005.14165",
+      "target_entity": "Mateusz Litwin",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "Scott Gray",
+      "source_entity": "2005.14165",
+      "target_entity": "Scott Gray",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "Benjamin Chess",
+      "source_entity": "2005.14165",
+      "target_entity": "Benjamin Chess",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "Jack Clark",
+      "source_entity": "2005.14165",
+      "target_entity": "Jack Clark",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "Christopher Berner",
+      "source_entity": "2005.14165",
+      "target_entity": "Christopher Berner",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "Sam McCandlish",
+      "source_entity": "2005.14165",
+      "target_entity": "Sam McCandlish",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "Alec Radford",
+      "source_entity": "2005.14165",
+      "target_entity": "Alec Radford",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "Ilya Sutskever",
+      "source_entity": "2005.14165",
+      "target_entity": "Ilya Sutskever",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "Dario Amodei",
+      "source_entity": "2005.14165",
+      "target_entity": "Dario Amodei",
+      "relation_type": "AUTHORED_BY",
+      "evidence": ""
+    },
+    {
+      "source": "2005.14165",
+      "target": "GPT-3",
+      "source_entity": "2005.14165",
+      "target_entity": "GPT-3",
+      "relation_type": "PROPOSES",
+      "evidence": ""
+    }
+  ],
+  "cost_usd": 0.0,
+  "model_used": "nvidia/nemotron-3-super-120b-a12b:free",
+  "domain_name": "arxiv-cs",
+  "chunk_size": 10000,
+  "extracted_at": "2026-04-27T00:56:38.099833+00:00",
+  "error": null
+}

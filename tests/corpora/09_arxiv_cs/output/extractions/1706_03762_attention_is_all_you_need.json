@@ -1,0 +1,129 @@
+{
+  "document_id": "1706_03762_attention_is_all_you_need",
+  "document_path": "",
+  "chunks_processed": 1,
+  "entities": [
+    {
+      "name": "1706.03762",
+      "title": "Attention Is All You Need",
+      "entity_type": "PAPER",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Ashish Vaswani",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Noam Shazeer",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Niki Parmar",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Jakob Uszkoreit",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Llion Jones",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Aidan N. Gomez",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Lukasz Kaiser",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Illia Polosukhin",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Transformer",
+      "entity_type": "ALGORITHM",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "WMT 2014 English-to-German",
+      "entity_type": "BENCHMARK",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "WMT 2014 English-to-French",
+      "entity_type": "BENCHMARK",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "BLEU",
+      "entity_type": "METRIC",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "machine translation",
+      "entity_type": "TASK",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "English constituency parsing",
+      "entity_type": "TASK",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "28.4 BLEU on WMT 2014 English-to-German",
+      "entity_type": "RESULT",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "41.8 BLEU on WMT 2014 English-to-French",
+      "entity_type": "RESULT",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "cs.CL",
+      "entity_type": "ARXIV_CATEGORY",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "cs.LG",
+      "entity_type": "ARXIV_CATEGORY",
+      "context": "",
+      "attributes": {}
+    }
+  ],
+  "relations": [],
+  "cost_usd": 0.0,
+  "model_used": "nvidia/nemotron-3-super-120b-a12b:free",
+  "domain_name": "arxiv-cs",
+  "chunk_size": 10000,
+  "extracted_at": "2026-04-27T01:12:20.918258+00:00",
+  "error": null
+}

@@ -1,0 +1,183 @@
+{
+  "document_id": "2103_00020_clip",
+  "document_path": "",
+  "chunks_processed": 1,
+  "entities": [
+    {
+      "name": "2103.00020",
+      "title": "Learning Transferable Visual Models From Natural Language Supervision",
+      "entity_type": "PAPER",
+      "context": "CLIP paper by Radford et al.",
+      "attributes": {}
+    },
+    {
+      "name": "Alec Radford",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Jong Wook Kim",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Chris Hallacy",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Aditya Ramesh",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Gabriel Goh",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Sandhini Agarwal",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Girish Sastry",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Amanda Askell",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Pamela Mishkin",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Jack Clark",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Gretchen Krueger",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "Ilya Sutskever",
+      "entity_type": "AUTHOR",
+      "context": "",
+      "attributes": {}
+    },
+    {
+      "name": "OpenAI",
+      "entity_type": "INSTITUTION",
+      "context": "Authors affiliated with OpenAI",
+      "attributes": {}
+    },
+    {
+      "name": "CLIP",
+      "entity_type": "ALGORITHM",
+      "context": "Contrastive Language-Image Pretraining - learns visual representations from natural language supervision",
+      "attributes": {}
+    },
+    {
+      "name": "zero-shot image classification",
+      "entity_type": "TASK",
+      "context": "CLIP enables zero-shot transfer to downstream vision tasks",
+      "attributes": {}
+    },
+    {
+      "name": "image-text contrastive pretraining",
+      "entity_type": "TASK",
+      "context": "predicting which caption goes with which image across 400M pairs",
+      "attributes": {}
+    },
+    {
+      "name": "ImageNet",
+      "entity_type": "BENCHMARK",
+      "context": "CLIP matches ResNet-50 accuracy on ImageNet zero-shot",
+      "attributes": {}
+    },
+    {
+      "name": "cs.CV",
+      "entity_type": "ARXIV_CATEGORY",
+      "context": "Primary arXiv category",
+      "attributes": {}
+    },
+    {
+      "name": "cs.LG",
+      "entity_type": "ARXIV_CATEGORY",
+      "context": "Secondary arXiv category",
+      "attributes": {}
+    }
+  ],
+  "relations": [
+    {
+      "source_entity": "2103.00020",
+      "target_entity": "Alec Radford",
+      "relation_type": "AUTHORED_BY",
+      "confidence": 1.0,
+      "evidence": "Learning Transferable Visual Models From Natural Language Supervision authored by Alec Radford et al."
+    },
+    {
+      "source_entity": "2103.00020",
+      "target_entity": "Jong Wook Kim",
+      "relation_type": "AUTHORED_BY",
+      "confidence": 1.0,
+      "evidence": "Co-authored by Jong Wook Kim"
+    },
+    {
+      "source_entity": "2103.00020",
+      "target_entity": "Ilya Sutskever",
+      "relation_type": "AUTHORED_BY",
+      "confidence": 1.0,
+      "evidence": "Co-authored by Ilya Sutskever"
+    },
+    {
+      "source_entity": "Alec Radford",
+      "target_entity": "OpenAI",
+      "relation_type": "AFFILIATED_WITH",
+      "confidence": 0.95,
+      "evidence": "CLIP is an OpenAI research paper"
+    },
+    {
+      "source_entity": "2103.00020",
+      "target_entity": "CLIP",
+      "relation_type": "PROPOSES",
+      "confidence": 1.0,
+      "evidence": "We demonstrate that the simple pre-training task of predicting which caption goes with which image is an efficient and scalable way to learn SOTA image representations"
+    },
+    {
+      "source_entity": "CLIP",
+      "target_entity": "ImageNet",
+      "relation_type": "EVALUATES_ON",
+      "confidence": 1.0,
+      "evidence": "we match the accuracy of the original ResNet-50 on ImageNet zero-shot without needing to use any of the 1.28 million training examples"
+    },
+    {
+      "source_entity": "CLIP",
+      "target_entity": "zero-shot image classification",
+      "relation_type": "ACHIEVES",
+      "confidence": 0.9,
+      "evidence": "enabling zero-shot transfer of the model to downstream tasks"
+    }
+  ],
+  "extracted_at": "2026-04-27T00:00:00+00:00",
+  "domain_name": "arxiv-cs",
+  "cost_usd": 0.0,
+  "model_used": ""
+}

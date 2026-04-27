@@ -1,0 +1,89 @@
+{
+  "metadata": {
+    "domain": "arxiv-cs",
+    "description": "Epistemic analysis for arxiv_cs domain",
+    "generated_from": "tests/corpora/09_arxiv_cs/output/graph_data.json",
+    "total_relations": 179
+  },
+  "evidence_tier_counts": {
+    "reproduced": 0,
+    "claimed": 7,
+    "ablated": 0,
+    "theoretical": 172
+  },
+  "epistemic_status_counts": {
+    "reproduced": 0,
+    "claimed": 7,
+    "ablated": 0,
+    "theoretical": 172
+  },
+  "summary": {
+    "conflicts_found": 0,
+    "gaps_found": 1,
+    "cross_document_entities": 10,
+    "epistemic_status_counts": {
+      "reproduced": 0,
+      "claimed": 7,
+      "ablated": 0,
+      "theoretical": 172
+    }
+  },
+  "base_domain": {
+    "description": "Factual arxiv_cs knowledge graph relations",
+    "relation_count": 7
+  },
+  "super_domain": {
+    "domain": "arxiv-cs",
+    "description": "Epistemic layer -- conflicts, gaps, cross-document linking",
+    "conflicts": [],
+    "coverage_gaps": [
+      {
+        "category": "METRIC",
+        "missing_type": "METRIC",
+        "description": "Paper claims performance improvement but names no evaluation metric."
+      }
+    ],
+    "cross_document_entities": [
+      {
+        "name": "ImageNet",
+        "document_count": 3
+      },
+      {
+        "name": "Girish Sastry",
+        "document_count": 2
+      },
+      {
+        "name": "Amanda Askell",
+        "document_count": 2
+      },
+      {
+        "name": "Sandhini Agarwal",
+        "document_count": 2
+      },
+      {
+        "name": "Gretchen Krueger",
+        "document_count": 2
+      },
+      {
+        "name": "Aditya Ramesh",
+        "document_count": 2
+      },
+      {
+        "name": "Jack Clark",
+        "document_count": 2
+      },
+      {
+        "name": "Alec Radford",
+        "document_count": 2
+      },
+      {
+        "name": "Ilya Sutskever",
+        "document_count": 2
+      },
+      {
+        "name": "GPT-3",
+        "document_count": 2
+      }
+    ]
+  }
+}
