@@ -1,0 +1,65 @@
+name: arxiv-cs
+version: 1.0.0
+description: |
+  Domain for extracting structured knowledge graphs from arXiv Computer
+  Science preprints. Covers papers, authors, institutions, algorithms,
+  datasets, benchmarks, metrics, tasks, frameworks, venues, results, and
+  arXiv subject categories. Optimized for ML/NLP/CV research landscape analysis.
+system_context: |
+  You are analyzing arXiv Computer Science preprints — non-peer-reviewed
+  research papers submitted directly by authors. Each document contains
+  metadata (arXiv ID, title, authors, categories) and an abstract describing
+  the paper's contributions. Extract structured entities and relationships
+  that reveal algorithmic contributions, empirical evaluations, benchmark
+  comparisons, and cross-paper connections in the CS research landscape.
+entity_types:
+  PAPER:
+    description: An arXiv preprint identified by arXiv ID (e.g., "1706.03762"). Primary document node.
+  AUTHOR:
+    description: A named researcher contributing to the paper. Use full name as canonical form.
+  INSTITUTION:
+    description: A university, lab, or company authoring the work (e.g., "Google Brain", "Stanford University").
+  ALGORITHM:
+    description: A named ML/AI algorithm, model architecture, or method (e.g., "Transformer", "ResNet-50", "BERT").
+  DATASET:
+    description: A named training or evaluation dataset (e.g., "ImageNet", "SQuAD 1.1", "WMT14 EN-DE").
+  BENCHMARK:
+    description: A named evaluation benchmark or challenge with a standardized comparison (e.g., "GLUE", "SuperGLUE", "MMLU").
+  METRIC:
+    description: A named evaluation metric (e.g., "BLEU score", "top-1 accuracy", "F1", "perplexity").
+  TASK:
+    description: A defined NLP/CV/ML task (e.g., "machine translation", "object detection", "text classification").
+  FRAMEWORK:
+    description: A software framework or library used in implementation (e.g., "PyTorch", "JAX", "TensorFlow").
+  VENUE:
+    description: A conference, journal, or workshop (e.g., "NeurIPS 2017", "ICLR 2021").
+  RESULT:
+    description: A specific quantitative performance claim (e.g., "28.4 BLEU on WMT14 EN-DE"). Extract for primary benchmark results only.
+  ARXIV_CATEGORY:
+    description: An arXiv subject category (e.g., "cs.CL", "cs.CV"). Anchor for community detection.
+relation_types:
+  AUTHORED_BY:
+    description: Paper was authored by an Author
+  AFFILIATED_WITH:
+    description: Author is affiliated with an Institution
+  PROPOSES:
+    description: Paper proposes or introduces an Algorithm or Method
+  EVALUATES_ON:
+    description: Paper evaluates an Algorithm on a Benchmark or Dataset
+  OUTPERFORMS:
+    description: An Algorithm outperforms another Algorithm on a Benchmark
+  TRAINED_ON:
+    description: An Algorithm was trained on a Dataset
+  IMPLEMENTED_IN:
+    description: An Algorithm or Paper uses a Framework
+  PUBLISHED_AT:
+    description: Paper was published or submitted to a Venue
+  CITES:
+    description: Paper cites another Paper (abstract-only; extract only when explicitly named in text)
+  ACHIEVES:
+    description: Paper or Algorithm achieves a Result on a Benchmark or Task
+community_label_anchors:
+  - PAPER
+  - ALGORITHM
+  - DATASET
+  - BENCHMARK
