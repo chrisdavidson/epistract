@@ -1,0 +1,41 @@
+\section{Relation to similarity-based KG construction}
+\label{sec:evolution}
+
+For readers approaching this work from the GraphRAG~\cite{edge2024graphrag} or embedding-similarity tradition of knowledge graph construction, this section sketches where Epistract sits relative to that work. It is meant as orientation, not as a structural argument; the framework is what it is, and a reader who skips this section loses no part of the contribution.
+
+\begin{table}[t]
+\centering
+\caption{Where Epistract sits relative to similarity-based KG construction.}
+\label{tab:evolution-three}
+\small
+\begin{tabular}{@{}lp{3.5cm}p{6.0cm}@{}}
+\toprule
+\textbf{Dimension} & \textbf{Similarity-based KG (e.g., GraphRAG)} & \textbf{Epistract} \\
+\midrule
+Relationship basis   & Embedding similarity                & LLM comprehension + categorical epistemic typing \\
+Layers               & One                                 & Two (brute facts + epistemic super-domain) \\
+Schema               & Generic NER                         & Domain-specific: four pre-built domains, 11--17 ent / 10--22 rel each \\
+Relation typing      & Untyped                             & Typed, directional, with per-relation epistemic status \\
+Evidence             & None                                & Verbatim source passage, confidence, classification rule, doc-type inference \\
+Validation           & None                                & Domain-specific: RDKit, Biopython, NCT/CAS for drug-discovery; opt-in CT.gov enrichment for clinicaltrials \\
+Briefing             & None                                & Auto-generated narrator briefing per run \\
+Chat surface         & None                                & Workbench chat, same persona as briefing \\
+Persona              & N/A                                 & One YAML string per domain, drives both briefing and chat \\
+Source types         & Single-corpus                       & PubMed, Google Scholar, Google Patents, ClinicalTrials.gov, user-provided PDFs \\
+Reproducibility      & Code on GitHub                      & Plugin + committed artifacts; reproducible epistemic layer; non-deterministic narrator stable in structure \\
+Documented gaps      & None enumerated                     & Issue~\#15 (cross-scenario auto-learning), \texttt{docs/known-limitations.md}; Issue~\#14 (fda showcase corpus) closed in v3.2.1 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Comprehension over similarity.}
+Similarity-based KG construction~\cite{edge2024graphrag} extracts edges from embedding proximity over text chunks: two entities that frequently co-occur in similar contexts get connected. The resulting graph is useful for retrieval and clustering but does not capture mechanistic, causal, or regulatory relationships -- the kinds of relationships that matter for biomedical, clinical, and regulatory analytical work. Epistract's Layer 1 is built on a different substrate: an LLM agent reads a full document with domain-specific extraction guidance and produces typed, directional, evidence-backed relations. The graph that results captures meaning rather than co-occurrence, and supports queries that similarity-based graphs cannot serve -- ``what compounds inhibit KRAS G12C?'' returns a list of compounds with explicit \texttt{INHIBITS} relationships, not a list of nearest neighbors in an embedding space.
+
+\paragraph{The epistemic dimension.}
+Beyond typed relations, Epistract adds a categorical \emph{epistemic} dimension that similarity-based and most comprehension-based extractors lack. A relation between \emph{semaglutide} and \emph{cardiovascular disease} is not by itself a useful unit of analysis: the relation could be asserted by post-approval clinical evidence, prophesied by patent claim breadth, or hypothesized in research speculation. Layer 2 makes this distinction explicit, by category, on every edge. The analyst querying the graph can stratify by status; the persona-driven briefing surfaces patterns at the corpus level (``61 prophetic claims concentrated on cardiovascular indications'').
+
+\paragraph{The graph as substrate, not endpoint.}
+This is the structural difference that matters most. Most KG construction frameworks treat the graph as the product: documents come in, a graph comes out, the graph is inspected in a viewer or queried directly. Epistract treats the graph as the \emph{substrate for a second analytical pass}. Once Layer 1 is built, the framework continues to think about what the graph contains. The Layer 2 rule engine classifies every relation by epistemic status. The cross-source aggregation step looks for the same triple across documents and flags variance. The narrator stage reads the classified graph (not the source text) and asks a domain-specific persona to surface patterns -- prophetic concentrations, contested edges with confidence ranges, gap signals where entity types are under-connected, follow-up questions worth chasing. The workbench chat answers reactive questions against the same classified graph and the same persona. The framework's output is not the graph alone; it is the graph plus the framework's continued analysis of what the graph contains and what else it might answer. RAG ends at retrieval; flat KG construction ends at extraction; Epistract continues into analysis.
+
+\paragraph{Honest accounting.}
+The framework is explicit about what it does and does not do. The README, the in-product documentation, and Section~\ref{sec:evaluation} of this paper distinguish ``track record'' (a domain has been pressure-tested across multiple scenarios) from ``compounding learning'' (the framework would automatically benefit from prior runs). The framework does the first; the second is aspirational and tracked as Issue~\#15. The framework also tracks specific scaffolded-but-unvalidated state honestly: fda-product-labels shipped with a schema and persona in v3.2.0, was tracked as Issue~\#14, and was validated in v3.2.1 via the S8 showcase (closing \#14); the contracts domain remains scaffolded. These caveats are first-class limitations, documented in the issue queue rather than buried in footnotes.
