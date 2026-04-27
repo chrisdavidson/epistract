@@ -1,0 +1,9 @@
+{
+  "model": "claude-haiku-3-5-20241022",
+  "captured_at": "2026-04-27T14:03:57.151260+00:00",
+  "request_body": {
+    "question": "test from browser check",
+    "history": [],
+    "model": "claude-haiku-3-5-20241022"
+  }
+}

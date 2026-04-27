@@ -1,5 +1,5 @@
 // app.js - Main application coordinator
-import { initChat } from './chat.js';
+import { initChat, loadModelSelector } from './chat.js';
 import { initGraph } from './graph.js';
 // sources.js removed -- source docs now accessed via dashboard links
 
@@ -91,6 +91,10 @@ function populateStarterCards(template) {
     }
 }
 
+function escDash(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 async function populateDashboard(template) {
     const dashContent = document.getElementById('dashboard-content');
     if (!dashContent) return;
@@ -101,11 +105,11 @@ async function populateDashboard(template) {
             dashContent.innerHTML = dashData.html;
         } else {
             // Auto-generate summary
-            let autoHtml = '<h2 class="dashboard-title">' + (dashData.title || 'Knowledge Graph Summary') + '</h2>';
-            if (dashData.subtitle) autoHtml += '<p class="dashboard-subtitle">' + dashData.subtitle + '</p>';
+            let autoHtml = '<h2 class="dashboard-title">' + escDash(dashData.title || 'Knowledge Graph Summary') + '</h2>';
+            if (dashData.subtitle) autoHtml += '<p class="dashboard-subtitle">' + escDash(dashData.subtitle) + '</p>';
             autoHtml += '<h3>Entity Summary</h3><div class="dashboard-table-wrap"><table class="dashboard-table"><thead><tr><th>Entity Type</th><th>Count</th></tr></thead><tbody>';
             for (const [type, count] of Object.entries(dashData.entity_counts || {})) {
-                autoHtml += '<tr><td>' + type + '</td><td>' + count + '</td></tr>';
+                autoHtml += `<tr><td>${escDash(type)}</td><td>${escDash(count)}</td></tr>`;
             }
             autoHtml += '</tbody></table></div>';
             autoHtml += '<p>Total entities: ' + (dashData.total_nodes || 0) + ' | Total relationships: ' + (dashData.total_edges || 0) + '</p>';
@@ -207,6 +211,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         switchPanel('sources');
         window.dispatchEvent(new CustomEvent('navigate-source', { detail: { docId, section } }));
     }});
+    loadModelSelector();
     await initGraph({ template, openChat: (question) => {
         switchPanel('chat');
         window.dispatchEvent(new CustomEvent('ask-question', { detail: { question } }));

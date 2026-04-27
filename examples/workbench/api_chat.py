@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from typing import AsyncGenerator
 
 import httpx
@@ -18,6 +19,25 @@ from examples.workbench.system_prompt import (
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
+PROVIDER_MODELS: dict[str, list[dict[str, str]]] = {
+    "anthropic": [
+        {"id": "claude-sonnet-4-20250514", "label": "Claude Sonnet 4"},
+        {"id": "claude-opus-4-20250514", "label": "Claude Opus 4"},
+        {"id": "claude-haiku-3-5-20241022", "label": "Claude Haiku 3.5"},
+    ],
+    "openrouter": [
+        {"id": "anthropic/claude-sonnet-4", "label": "Claude Sonnet 4"},
+        {"id": "anthropic/claude-opus-4", "label": "Claude Opus 4"},
+        {"id": "anthropic/claude-haiku-4", "label": "Claude Haiku 4"},
+        {"id": "anthropic/claude-sonnet-4-5", "label": "Claude Sonnet 4.5"},
+        {"id": "anthropic/claude-haiku-3-5", "label": "Claude Haiku 3.5"},
+    ],
+}
+
+# OpenRouter live-model TTL cache (5 min). Populated by GET /api/models.
+_OPENROUTER_MODELS_CACHE: dict[str, object] = {"data": None, "fetched_at": 0.0}
+_OPENROUTER_CACHE_TTL_SECONDS = 300.0
+
 
 # ---------------------------------------------------------------------------
 # Request model
@@ -29,6 +49,10 @@ class ChatRequest(BaseModel):
 
     question: str
     history: list[dict] = []  # [{"role": "user"|"assistant", "content": "..."}]
+    model: str | None = None  # None = use provider default (curated via /api/models)
+
+
+VALID_ROLES: frozenset[str] = frozenset({"user", "assistant"})
 
 
 # ---------------------------------------------------------------------------
@@ -57,7 +81,9 @@ def _ensure_messages_suffix(url: str) -> str:
     return url + "/v1/messages"
 
 
-def _resolve_api_config() -> tuple[str | None, str, str, str]:
+def _resolve_api_config(
+    model_override: str | None = None,
+) -> tuple[str | None, str, str, str]:
     """Return (api_key, base_url, model, provider) from available env vars.
 
     Priority:
@@ -89,6 +115,8 @@ def _resolve_api_config() -> tuple[str | None, str, str, str]:
     (ANTHROPIC_FOUNDRY_*) rather than the cloud (AZURE_FOUNDRY_*); both
     prefixes are accepted as synonyms throughout the Foundry block.
     """
+    effective_model = (model_override or "").strip() or None
+
     # --- Foundry block ---
     # Accept either AZURE_FOUNDRY_* or ANTHROPIC_FOUNDRY_* naming. We look
     # up both for every field and prefer AZURE_* when both are set (the
@@ -127,6 +155,8 @@ def _resolve_api_config() -> tuple[str | None, str, str, str]:
                 "  AZURE_FOUNDRY_RESOURCE=<azure-resource-name>\n"
                 "Or unset the API key to fall back to ANTHROPIC_API_KEY / OPENROUTER_API_KEY."
             )
+        # Foundry deployment is fixed by AZURE_FOUNDRY_DEPLOYMENT;
+        # model_override is intentionally ignored here.
         return foundry_key, base_url, deployment, "anthropic"
 
     anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
@@ -134,7 +164,7 @@ def _resolve_api_config() -> tuple[str | None, str, str, str]:
         return (
             anthropic_key,
             "https://api.anthropic.com/v1/messages",
-            "claude-sonnet-4-20250514",
+            effective_model or "claude-sonnet-4-20250514",
             "anthropic",
         )
 
@@ -143,7 +173,7 @@ def _resolve_api_config() -> tuple[str | None, str, str, str]:
         return (
             openrouter_key,
             "https://openrouter.ai/api/v1/chat/completions",
-            "anthropic/claude-sonnet-4",
+            effective_model or "anthropic/claude-sonnet-4",
             "openrouter",
         )
 
@@ -159,7 +189,7 @@ def _resolve_api_config() -> tuple[str | None, str, str, str]:
 async def chat(request: Request, body: ChatRequest):
     """Stream an LLM response as SSE events."""
     try:
-        api_key, base_url, model, provider = _resolve_api_config()
+        api_key, base_url, model, provider = _resolve_api_config(model_override=body.model)
     except RuntimeError as exc:
         return EventSourceResponse(_error_stream(str(exc)))
     if not api_key:
@@ -187,7 +217,11 @@ async def chat(request: Request, body: ChatRequest):
     messages = []
     recent_history = body.history[-10:] if len(body.history) > 10 else body.history
     for msg in recent_history:
-        messages.append({"role": msg["role"], "content": msg["content"]})
+        role = msg.get("role", "")
+        content = msg.get("content", "")
+        if role not in VALID_ROLES or not isinstance(content, str):
+            continue
+        messages.append({"role": role, "content": content})
     messages.append({"role": "user", "content": user_content})
 
     if provider == "anthropic":
@@ -225,12 +259,12 @@ async def _stream_anthropic(
                 "POST", base_url, json=payload, headers=headers
             ) as resp:
                 if resp.status_code != 200:
-                    body = await resp.aread()
+                    raw_error = await resp.aread()
                     yield {
                         "data": json.dumps(
                             {
                                 "type": "error",
-                                "content": f"API error {resp.status_code}: {body.decode()[:500]}",
+                                "content": f"API error {resp.status_code}: {raw_error.decode()[:500]}",
                             }
                         )
                     }
@@ -287,12 +321,12 @@ async def _stream_openai_compat(
                 "POST", base_url, json=payload, headers=headers
             ) as resp:
                 if resp.status_code != 200:
-                    body = await resp.aread()
+                    raw_error = await resp.aread()
                     yield {
                         "data": json.dumps(
                             {
                                 "type": "error",
-                                "content": f"API error {resp.status_code}: {body.decode()[:500]}",
+                                "content": f"API error {resp.status_code}: {raw_error.decode()[:500]}",
                             }
                         )
                     }
@@ -329,3 +363,141 @@ async def _error_stream(message: str) -> AsyncGenerator[dict, None]:
     """Stream an error message."""
     yield {"data": json.dumps({"type": "error", "content": message})}
     yield {"data": json.dumps({"type": "done"})}
+
+
+# ---------------------------------------------------------------------------
+# Model catalog endpoint
+# ---------------------------------------------------------------------------
+
+
+def _detect_provider_inline() -> str:
+    """Detect provider from env vars without invoking _resolve_api_config.
+
+    Mirrors the priority order in _resolve_api_config but stays inline to avoid
+    raising RuntimeError for incomplete Foundry config (the catalog endpoint
+    must still return a sensible response when keys are partially set).
+    """
+    if os.environ.get("AZURE_FOUNDRY_API_KEY") or os.environ.get(
+        "ANTHROPIC_FOUNDRY_API_KEY"
+    ):
+        return "foundry"
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        return "anthropic"
+    if os.environ.get("OPENROUTER_API_KEY"):
+        return "openrouter"
+    return "none"
+
+
+def _foundry_deployment_name() -> str:
+    return (
+        os.environ.get("AZURE_FOUNDRY_DEPLOYMENT")
+        or os.environ.get("ANTHROPIC_FOUNDRY_DEPLOYMENT")
+        or "claude-sonnet-4-6"
+    )
+
+
+_OPENROUTER_GROUP_KEYWORDS: list[tuple[str, str]] = [
+    ("anthropic/", "Claude (Anthropic)"),
+    ("claude", "Claude (Anthropic)"),
+    ("openai/", "GPT / O-series (OpenAI)"),
+    ("gpt-", "GPT / O-series (OpenAI)"),
+    ("o1", "GPT / O-series (OpenAI)"),
+    ("o3", "GPT / O-series (OpenAI)"),
+    ("qwen", "Qwen (Alibaba)"),
+    ("google/", "Gemini / Gemma (Google)"),
+    ("gemini", "Gemini / Gemma (Google)"),
+    ("gemma", "Gemini / Gemma (Google)"),
+    ("mistral", "Mistral"),
+    ("meta-llama", "Llama (Meta)"),
+    ("llama", "Llama (Meta)"),
+    ("deepseek", "DeepSeek"),
+    ("x-ai/", "Grok (xAI)"),
+    ("grok", "Grok (xAI)"),
+    ("nvidia", "Nvidia"),
+    ("amazon", "Amazon"),
+    ("perplexity", "Perplexity"),
+    ("cohere", "Cohere"),
+]
+
+
+def _classify_openrouter_group(model_id: str) -> str:
+    lid = model_id.lower()
+    for needle, label in _OPENROUTER_GROUP_KEYWORDS:
+        if needle in lid:
+            return label
+    return "Other"
+
+
+async def _fetch_openrouter_models(api_key: str) -> list[dict] | None:
+    """Fetch live OpenRouter model list with TTL cache. Returns None on error."""
+    now = time.time()
+    cached = _OPENROUTER_MODELS_CACHE.get("data")
+    fetched_at = float(_OPENROUTER_MODELS_CACHE.get("fetched_at") or 0.0)
+    if cached and (now - fetched_at) < _OPENROUTER_CACHE_TTL_SECONDS:
+        return cached  # type: ignore[return-value]
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "HTTP-Referer": "https://github.com/epistract",
+        "X-Title": "Epistract Workbench",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=10.0, proxy=None) as client:
+            resp = await client.get(
+                "https://openrouter.ai/api/v1/models", headers=headers
+            )
+            if resp.status_code != 200:
+                return None
+            payload = resp.json()
+            raw_models = payload.get("data") or []
+            shaped: list[dict] = []
+            for m in raw_models:
+                model_id = m.get("id")
+                if not model_id:
+                    continue
+                label = m.get("name") or model_id
+                pricing = m.get("pricing") or {}
+                # OpenRouter returns prompt cost as USD-per-token strings.
+                try:
+                    prompt_cost = float(pricing.get("prompt") or 0.0)
+                except (TypeError, ValueError):
+                    prompt_cost = 0.0
+                shaped.append(
+                    {
+                        "id": model_id,
+                        "label": label,
+                        "group": _classify_openrouter_group(model_id),
+                        "prompt_cost": prompt_cost,
+                    }
+                )
+            _OPENROUTER_MODELS_CACHE["data"] = shaped
+            _OPENROUTER_MODELS_CACHE["fetched_at"] = now
+            return shaped
+    except Exception:
+        return None
+
+
+@router.get("/models")
+async def list_models() -> dict:
+    """Return the curated model catalog for the active provider.
+
+    Response shape: {"provider": str, "models": list[dict]}.
+    Frontend hides the selector when len(models) <= 1.
+    """
+    provider = _detect_provider_inline()
+    if provider == "foundry":
+        deployment = _foundry_deployment_name()
+        return {
+            "provider": "foundry",
+            "models": [{"id": deployment, "label": deployment}],
+        }
+    if provider == "anthropic":
+        return {"provider": "anthropic", "models": PROVIDER_MODELS["anthropic"]}
+    if provider == "openrouter":
+        api_key = os.environ.get("OPENROUTER_API_KEY") or ""
+        live = await _fetch_openrouter_models(api_key)
+        if live:
+            return {"provider": "openrouter", "models": live}
+        # Fallback to curated static list if live fetch fails.
+        return {"provider": "openrouter", "models": PROVIDER_MODELS["openrouter"]}
+    return {"provider": "none", "models": []}

@@ -80,6 +80,8 @@
     </div>
 
     <form class="chat-input" id="chat-form">
+      <button type="button" id="model-sort-btn" class="model-sort-btn" title="Sort by cost (cheapest first)" style="display:none">$&uarr;</button>
+      <select id="model-select" class="model-select" title="Select model" style="display:none"></select>
       <textarea id="chat-input" placeholder="Ask a question..." rows="1"></textarea>
       <button type="submit" class="send-btn">Send</button>
     </form>
@@ -126,6 +128,7 @@
 
   <script src="/static/vis-network.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
   <script type="module" src="/static/app.js"></script>
   <script>
     // Source document modal handler
