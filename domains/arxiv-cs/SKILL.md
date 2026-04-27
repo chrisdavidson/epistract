@@ -73,3 +73,7 @@ Extract CITES only when the abstract explicitly names another paper, author name
    (e.g., "Google Brain" not "Google"; "FAIR" for Meta AI Research).
 
 7. **Venues**: Include year when stated (e.g., "NeurIPS 2017", "ICLR 2021").
+
+## Metadata Attributes
+
+- For PAPER entities, capture `abs_url` in attributes: `https://arxiv.org/abs/{arxiv_id}` (e.g., `https://arxiv.org/abs/1706.03762`). This attribute is injected automatically during epistemic analysis — extractors do not need to generate it.

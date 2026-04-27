@@ -13,6 +13,7 @@ preprints. Classifies relations using a four-level preprint epistemology:
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from pathlib import Path
 
@@ -20,6 +21,8 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 # Domain-specific parameters
 # ---------------------------------------------------------------------------
+
+_ARXIV_ID_RE = re.compile(r"^\d+\.\d+$")
 
 _CONTRADICTION_PAIRS = [
     ("OUTPERFORMS", "OUTPERFORMS"),
@@ -164,6 +167,18 @@ def analyze_arxiv_cs_epistemic(
             ablated_count += 1
         else:
             theoretical_count += 1
+
+    # --- URL enrichment: inject abs_url onto PAPER nodes ---
+    # The arXiv ID is already the node name (e.g. "1706.03762").
+    # The abs_url is 100% deterministic — no LLM extraction needed.
+    # _ARXIV_ID_RE guard rejects non-arXiv names (algorithms, authors, etc.)
+    for node in nodes:
+        if node.get("entity_type") == "PAPER":
+            name = node.get("name", "")
+            if _ARXIV_ID_RE.match(name):
+                if not node.get("attributes"):
+                    node["attributes"] = {}
+                node["attributes"]["abs_url"] = f"https://arxiv.org/abs/{name}"
 
     # --- Gap analysis ---
     gaps: list[dict] = []

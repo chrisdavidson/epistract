@@ -2759,3 +2759,41 @@ def test_acs05_fetch_render_fields():
     assert byte_len <= fetch_mod.MAX_CHARS, (
         f"Rendered output ({byte_len} bytes) exceeds MAX_CHARS={fetch_mod.MAX_CHARS}"
     )
+
+
+# ========================================================================
+# ACS-06 addendum: PAPER nodes carry abs_url after epistemic enrichment
+# ========================================================================
+
+
+@pytest.mark.unit
+def test_acs06_paper_nodes_have_abs_url():
+    """ACS-06 addendum: every PAPER node in graph_data.json has attributes.abs_url
+    pointing to https://arxiv.org/abs/{arxiv_id}.
+
+    This test is RED until epistemic.py URL enrichment is applied and
+    label_epistemic is re-run to rebuild graph_data.json.
+    """
+    graph_path = (
+        PROJECT_ROOT
+        / "tests"
+        / "corpora"
+        / "09_arxiv_cs"
+        / "output"
+        / "graph_data.json"
+    )
+    assert graph_path.exists(), (
+        f"graph_data.json missing — run 08-03 pipeline first: {graph_path}"
+    )
+    graph_data = json.loads(graph_path.read_text(encoding="utf-8"))
+    paper_nodes = [
+        n for n in graph_data.get("nodes", []) if n.get("entity_type") == "PAPER"
+    ]
+    assert len(paper_nodes) > 0, "No PAPER nodes found in graph_data.json"
+    for node in paper_nodes:
+        attrs = node.get("attributes", {})
+        abs_url = attrs.get("abs_url", "")
+        assert abs_url.startswith("https://arxiv.org/abs/"), (
+            f"PAPER node {node.get('name')!r} missing abs_url — "
+            f"got attributes={attrs!r}"
+        )
