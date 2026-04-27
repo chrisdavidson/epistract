@@ -8,7 +8,9 @@
       "title": "Learning Transferable Visual Models From Natural Language Supervision",
       "entity_type": "PAPER",
       "context": "CLIP paper by Radford et al.",
-      "attributes": {}
+      "attributes": {
+        "abs_url": "https://arxiv.org/abs/2103.00020"
+      }
     },
     {
       "name": "Alec Radford",

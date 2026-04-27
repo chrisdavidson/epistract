@@ -8,7 +8,9 @@
       "title": "Attention Is All You Need",
       "entity_type": "PAPER",
       "context": "",
-      "attributes": {}
+      "attributes": {
+        "abs_url": "https://arxiv.org/abs/1706.03762"
+      }
     },
     {
       "name": "Ashish Vaswani",

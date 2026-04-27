@@ -7,7 +7,9 @@
       "name": "1810.04805",
       "entity_type": "PAPER",
       "context": "",
-      "attributes": {}
+      "attributes": {
+        "abs_url": "https://arxiv.org/abs/1810.04805"
+      }
     },
     {
       "name": "Jacob Devlin",

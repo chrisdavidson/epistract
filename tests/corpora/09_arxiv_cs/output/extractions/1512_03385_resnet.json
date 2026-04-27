@@ -6,7 +6,8 @@
     {
       "name": "1512.03385",
       "attributes": {
-        "title": "Deep Residual Learning for Image Recognition"
+        "title": "Deep Residual Learning for Image Recognition",
+        "abs_url": "https://arxiv.org/abs/1512.03385"
       },
       "entity_type": "PAPER",
       "context": ""

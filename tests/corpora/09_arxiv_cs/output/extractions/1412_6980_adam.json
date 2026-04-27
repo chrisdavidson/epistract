@@ -7,7 +7,9 @@
       "name": "1412.6980",
       "entity_type": "PAPER",
       "context": "",
-      "attributes": {}
+      "attributes": {
+        "abs_url": "https://arxiv.org/abs/1412.6980"
+      }
     },
     {
       "name": "Diederik P. Kingma",

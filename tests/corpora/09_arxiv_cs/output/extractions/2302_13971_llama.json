@@ -6,7 +6,8 @@
     {
       "name": "2302.13971",
       "attributes": {
-        "title": "LLaMA: Open and Efficient Foundation Language Models"
+        "title": "LLaMA: Open and Efficient Foundation Language Models",
+        "abs_url": "https://arxiv.org/abs/2302.13971"
       },
       "entity_type": "PAPER",
       "context": ""

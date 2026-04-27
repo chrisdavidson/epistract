@@ -41,7 +41,9 @@
       "source_documents": [
         "1412_6980_adam"
       ],
-      "attributes": {},
+      "attributes": {
+        "abs_url": "https://arxiv.org/abs/1412.6980"
+      },
       "context": ""
     },
     {
@@ -120,7 +122,8 @@
         "1512_03385_resnet"
       ],
       "attributes": {
-        "title": "Deep Residual Learning for Image Recognition"
+        "title": "Deep Residual Learning for Image Recognition",
+        "abs_url": "https://arxiv.org/abs/1512.03385"
       },
       "context": "",
       "community": "1512.03385 / 3.57% Error On Imagenet / Cifar-10"
@@ -265,7 +268,9 @@
       "source_documents": [
         "1810_04805_bert"
       ],
-      "attributes": {},
+      "attributes": {
+        "abs_url": "https://arxiv.org/abs/1810.04805"
+      },
       "context": "",
       "community": "1810.04805 / 80.5% Glue Score On Glue / 83.1 F1 On Squad V2.0"
     },
@@ -445,7 +450,9 @@
       "source_documents": [
         "2005_14165_gpt3"
       ],
-      "attributes": {},
+      "attributes": {
+        "abs_url": "https://arxiv.org/abs/2005.14165"
+      },
       "context": "",
       "community": "2005.14165 / Aditya Ramesh / Amanda Askell"
     },
@@ -886,7 +893,9 @@
       "source_documents": [
         "2103_00020_clip"
       ],
-      "attributes": {},
+      "attributes": {
+        "abs_url": "https://arxiv.org/abs/2103.00020"
+      },
       "context": "CLIP paper by Radford et al.",
       "community": "2103.00020 / Alec Radford / Clip"
     },
@@ -959,7 +968,8 @@
         "2302_13971_llama"
       ],
       "attributes": {
-        "title": "LLaMA: Open and Efficient Foundation Language Models"
+        "title": "LLaMA: Open and Efficient Foundation Language Models",
+        "abs_url": "https://arxiv.org/abs/2302.13971"
       },
       "context": "",
       "community": "2302.13971 / Armand Joulin / Aurelien Rodriguez"
