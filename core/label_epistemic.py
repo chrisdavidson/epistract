@@ -24,6 +24,7 @@ Reference:
 import importlib.util
 import inspect
 import json
+import os
 import re
 import sys
 from collections import defaultdict
@@ -478,6 +479,60 @@ def _summarize_graph_for_narrator(graph_data: dict, claims_layer: dict) -> str:
     for k, v in sorted(by_type.items(), key=lambda kv: -kv[1])[:10]:
         parts.append(f"  - {k}: {v}")
 
+    # Named entities for low-cardinality types (so the narrator can cite them).
+    # Threshold of 15: Filer/AuditFirm/Restatement/AdverseAction get listed by
+    # name; high-cardinality types (Risk, Officer in a proxy) are skipped.
+    nodes_by_type: dict[str, list[dict]] = defaultdict(list)
+    for n in nodes:
+        nodes_by_type[n.get("entity_type") or "UNKNOWN"].append(n)
+    rare_types = sorted(
+        ((t, ns) for t, ns in nodes_by_type.items() if 0 < len(ns) <= 15),
+        key=lambda tn: tn[0],
+    )
+    if rare_types:
+        parts.append("")
+        parts.append("## NAMED ENTITIES (rare types — listed by name)")
+        for type_name, ns in rare_types:
+            names = []
+            for n in ns[:25]:
+                nm = n.get("name") or n.get("id") or "?"
+                attrs = n.get("attributes") or {}
+                tag = ""
+                if attrs.get("epistemic_status"):
+                    tag = f" [{attrs['epistemic_status']}]"
+                role = attrs.get("role") or attrs.get("form") or attrs.get("item")
+                role_tail = f" ({role})" if role else ""
+                names.append(f"{nm}{role_tail}{tag}")
+            parts.append(f"- **{type_name}** ({len(ns)}): {'; '.join(names)}")
+
+    # Node-level contested/contradicted attribute scan (CORRESP-style tagging).
+    contested_nodes = [
+        n for n in nodes
+        if (n.get("attributes") or {}).get("epistemic_status") in {"contested", "contradicted"}
+    ]
+    if contested_nodes:
+        parts.append("")
+        parts.append(
+            f"## CONTESTED/CONTRADICTED ENTITIES ({len(contested_nodes)} total; first 15 shown)"
+        )
+        for n in contested_nodes[:15]:
+            attrs = n.get("attributes") or {}
+            status = attrs.get("epistemic_status", "?")
+            nm = n.get("name") or n.get("id") or "?"
+            et = n.get("entity_type") or "?"
+            parts.append(f"- [{et}] `{nm}` status=`{status}`")
+
+    # Relation-type distribution gives the narrator the structural shape of
+    # the graph (how many FILES, AUDITS, CONTRADICTS, COMMENTS_ON, etc.).
+    rel_by_type: dict[str, int] = defaultdict(int)
+    for l in links:
+        rel_by_type[l.get("relation_type") or l.get("type") or "UNKNOWN"] += 1
+    if rel_by_type:
+        parts.append("")
+        parts.append("## RELATION TYPE DISTRIBUTION")
+        for k, v in sorted(rel_by_type.items(), key=lambda kv: -kv[1]):
+            parts.append(f"- {k}: {v}")
+
     if status_counts:
         parts.append("")
         parts.append("## EPISTEMIC STATUS COUNTS")
@@ -599,7 +654,7 @@ def narrate_claims_layer(
     narrative = call_llm(
         system=system_prompt,
         user=_NARRATOR_USER_PROMPT,
-        max_tokens=4096,
+        max_tokens=int(os.environ.get("EPISTRACT_NARRATOR_MAX_TOKENS", "4096")),
         temperature=0.3,
     )
     return narrative
