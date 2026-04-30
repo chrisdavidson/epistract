@@ -1,0 +1,123 @@
+name: sec-filings
+version: 1.0.0
+description: 'Public-company filings from SEC EDGAR (10-K, 10-Q, 8-K, S-1, DEF 14A,
+  comment-letter exchanges). Epistract focuses on the narrative epistemic layer: contradicted
+  guidance, going-concern and material-weakness language, unresolved comment-letter
+  disputes, auditor changes, and restatements. Structured-tabular financial line items
+  are out of scope unless they appear in narrative context.'
+system_context: 'You are extracting a knowledge graph from SEC EDGAR filings (10-K,
+  10-Q, 8-K, S-1, DEF 14A, and SEC comment-letter exchanges) for forensic-accounting
+  and equity-research analysis. Focus on narrative content: management discussion,
+  risk factors, forward-looking statements, going-concern and material-weakness disclosures,
+  auditor changes, restatements, comment-letter disputes, segment reporting, customer
+  concentration, and officer signatures. Do NOT extract individual financial line
+  items as Layer-1 facts unless they appear in narrative context (aggregators like
+  FactSet handle structured-tabular extraction better). Capture epistemic status precisely:
+  forward-looking statements are PROPHETIC, risk-factor ''may/could/might'' language
+  is HYPOTHESIZED, audited and restated figures are ASSERTED, comment-letter disputes
+  and qualified opinions are CONTESTED, 8-K reversals and restatements are CONTRADICTED,
+  explicit denials are NEGATIVE, aspirational claims without quantitative anchors
+  are SPECULATIVE.'
+entity_types:
+  Filer:
+    description: 'A public company or registrant that submits filings to the SEC.
+      Identified by CIK (10-digit numeric) and ticker symbol when applicable. Examples:
+      ''Acme Therapeutics, Inc. (CIK 0001234567, NASDAQ:ACME)''.'
+  Filing:
+    description: A specific document submitted to SEC EDGAR. Forms include 10-K (annual),
+      10-Q (quarterly), 8-K (current/material event), S-1 (IPO registration), DEF
+      14A (proxy), 10-K/A or 10-Q/A (amendments), and SEC comment-letter exchanges
+      (UPLOAD/CORRESP). Capture form type, filing date, and period of report.
+  Segment:
+    description: A reportable business segment or operating segment as disclosed in
+      the filing (e.g., 'Oncology', 'Diagnostics', 'Consumer Health'). Tied to a Filer
+      via HAS_SEGMENT.
+  Geography:
+    description: A country, region, or geographic market in which the Filer or a Segment
+      operates (e.g., 'United States', 'EMEA', 'Greater China'). Linked via OPERATES_IN.
+  AuditFirm:
+    description: An independent registered public accounting firm that audits the
+      Filer's financial statements (e.g., 'Deloitte & Touche LLP', 'PricewaterhouseCoopers
+      LLP', 'BDO USA, LLP').
+  Customer:
+    description: A counterparty disclosed as a major customer, typically one accounting
+      for 10%+ of revenue. May be a named entity or a generic descriptor ('Customer
+      A') when redacted.
+  Risk:
+    description: A risk factor disclosed in Item 1A (10-K) or comparable sections.
+      Includes operational, regulatory, financial, market, and going-concern risks.
+      Hedging language ('may', 'could', 'might') marks the risk as hypothesized.
+  Guidance:
+    description: Forward-looking management guidance about future financial or operational
+      performance (revenue ranges, EPS targets, margin expansion, product launch timelines).
+      Always epistemically prophetic; safe-harbor language is the canonical signal.
+  ActualResult:
+    description: An audited or reported actual financial or operational result that
+      can be compared against prior Guidance (e.g., reported quarterly revenue, segment
+      operating income, FDA approval status as reported). Epistemically asserted when
+      audited.
+  Restatement:
+    description: A formal correction or revision of previously issued financial statements,
+      typically disclosed via 8-K Item 4.02 (non-reliance) or in a 10-K/A or 10-Q/A
+      amendment. Identifies the periods restated and the nature of the error.
+  AdverseAction:
+    description: 'A material adverse event affecting the Filer''s reporting integrity
+      or operations: SEC enforcement action, going-concern qualification, material
+      weakness disclosure, qualified or adverse audit opinion, NT-10K late-filing
+      notice, or delisting notification.'
+  Officer:
+    description: A named executive, director, or principal officer who signs filings
+      or is referenced in proxy materials. Includes CEO, CFO, Chairman, audit-committee
+      members, and certifying officers under SOX 302/906.
+relation_types:
+  FILES:
+    description: 'Links a Filing to the Filer that submitted it. Source: Filing. Target:
+      Filer.'
+  ISSUES_GUIDANCE:
+    description: 'Links a Filer (or a specific Filing) to a Guidance entity it issues.
+      Source: Filer or Filing. Target: Guidance.'
+  REPORTS:
+    description: 'Links a Filer (or Filing) to an ActualResult it reports. Source:
+      Filer or Filing. Target: ActualResult.'
+  DISCLOSES_RISK:
+    description: 'Links a Filing to a Risk it discloses (typically Item 1A or MD&A
+      risk-factor language). Source: Filing. Target: Risk.'
+  AMENDS:
+    description: 'Links an amended filing (10-K/A, 10-Q/A) to the original Filing
+      it amends. Source: amending Filing. Target: original Filing.'
+  RESTATES:
+    description: 'Links a Restatement to the prior Filing(s) or ActualResult(s) whose
+      figures it corrects. Source: Restatement. Target: Filing or ActualResult.'
+  CONTRADICTS:
+    description: Links a later disclosure (Guidance, ActualResult, Restatement, or
+      8-K event) to an earlier Guidance or ActualResult that it materially reverses
+      or invalidates. Drives epistemic 'contradicted' status.
+  AUDITS:
+    description: 'Links a Filer or Filing to the AuditFirm that issued the audit opinion.
+      Source: Filer or Filing. Target: AuditFirm.'
+  CHANGES_AUDITOR:
+    description: Links a Filer to a new AuditFirm following an auditor change (typically
+      disclosed via 8-K Item 4.01). Captures the transition; pair with AUDITS
+      edges to the prior and successor firms.
+  HAS_SEGMENT:
+    description: 'Links a Filer to a reportable Segment it discloses. Source: Filer.
+      Target: Segment.'
+  OPERATES_IN:
+    description: 'Links a Filer or Segment to a Geography in which it operates or
+      generates revenue. Source: Filer or Segment. Target: Geography.'
+  HAS_MAJOR_CUSTOMER:
+    description: 'Links a Filer to a Customer disclosed as material (typically 10%+
+      of revenue). Source: Filer. Target: Customer.'
+  COMMENTS_ON:
+    description: 'Links an SEC staff comment-letter Filing (UPLOAD) to the underlying
+      Filing it questions. Source: comment-letter Filing. Target: underlying Filing.'
+  RESPONDS_TO:
+    description: 'Links an SEC staff comment letter to the Filer''s response correspondence
+      (CORRESP). Source: comment-letter Filing. Target: response Filing.'
+  HAS_SIGNATORY:
+    description: 'Links a Filing to an Officer who signed or certified it (e.g., SOX
+      302/906 certifications). Source: Filing. Target: Officer.'
+community_label_anchors:
+- Filer
+- Segment
+- AuditFirm
