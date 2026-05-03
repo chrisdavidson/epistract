@@ -574,6 +574,8 @@ body {
   padding: var(--space-md);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   max-width: 320px;
+  max-height: 70vh;
+  overflow-y: auto;
   z-index: 100;
   font-size: var(--size-body);
 }
@@ -620,6 +622,118 @@ body {
 
 .ask-about-btn:hover {
   opacity: 0.9;
+}
+
+/* Edge popover — multi-source view of an edge, with epistemic_status badge,
+   per-mention confidence, and verbatim evidence quotes. */
+.edge-popover {
+  position: absolute;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: var(--space-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-width: 380px;
+  max-height: 70vh;
+  overflow-y: auto;
+  z-index: 100;
+  font-size: var(--size-body);
+}
+
+.edge-popover .edge-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.edge-popover .edge-relation {
+  font-family: var(--font-data);
+  font-weight: 600;
+  font-size: var(--size-data);
+  color: #1a1a1a;
+}
+
+.edge-popover .epistemic-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: var(--size-label);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.edge-popover .epistemic-badge.status-asserted { background: #dcfce7; color: #166534; }
+.edge-popover .epistemic-badge.status-prophetic { background: #ede9fe; color: #5b21b6; }
+.edge-popover .epistemic-badge.status-hypothesized { background: #fef3c7; color: #92400e; }
+.edge-popover .epistemic-badge.status-contested { background: #fee2e2; color: #991b1b; }
+.edge-popover .epistemic-badge.status-contradiction { background: #fecaca; color: #7f1d1d; }
+.edge-popover .epistemic-badge.status-negative { background: #f3f4f6; color: #374151; }
+.edge-popover .epistemic-badge.status-speculative { background: #e0e7ff; color: #3730a3; }
+.edge-popover .epistemic-badge.status-unknown { background: #f3f4f6; color: #6b7280; }
+
+.edge-popover .edge-pair {
+  font-size: var(--size-label);
+  color: #555;
+  margin-bottom: var(--space-md);
+  word-break: break-word;
+}
+
+.edge-popover .mentions-header {
+  font-size: var(--size-label);
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: var(--space-sm) 0 var(--space-xs);
+}
+
+.edge-popover .edge-mention {
+  border-top: 1px solid #f0f0f0;
+  padding: var(--space-sm) 0;
+}
+
+.edge-popover .edge-mention:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.edge-popover .mention-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--size-label);
+  color: #666;
+  margin-bottom: var(--space-xs);
+}
+
+.edge-popover .confidence-pill {
+  font-family: var(--font-data);
+  font-weight: 600;
+  font-size: var(--size-data);
+  color: #1a1a1a;
+}
+
+.edge-popover .mention-evidence {
+  font-style: italic;
+  color: #333;
+  border-left: 2px solid var(--color-accent);
+  padding: 0 0 0 var(--space-sm);
+  margin: var(--space-xs) 0 0;
+  font-size: var(--size-label);
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.edge-popover .mention-evidence-empty {
+  color: #999;
+  font-size: var(--size-label);
+  font-style: italic;
+  margin-top: var(--space-xs);
 }
 
 /* ---------------------------------------------------------------------------

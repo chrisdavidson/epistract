@@ -177,12 +177,16 @@ function buildGraph() {
         network.setOptions({ physics: false });
     });
 
-    // Click node -> show popover (D-16)
+    // Click node -> node popover; click edge -> edge popover (D-16)
+    // Node-first ordering: vis populates params.edges with the connected
+    // edges of a clicked node, so we must check nodes before edges.
     network.on('click', (params) => {
         if (params.nodes.length > 0) {
             showNodePopover(params.nodes[0], params.pointer.DOM);
+        } else if (params.edges && params.edges.length > 0) {
+            showEdgePopover(params.edges[0], params.pointer.DOM);
         } else {
-            hideNodePopover();
+            hideAllPopovers();
         }
     });
 
@@ -242,9 +246,9 @@ function buildGraph() {
         });
     }
 
-    // Close any open node popover on window resize so it does not float
+    // Close any open popover on window resize so it does not float
     // in a stale DOM position (RESEARCH Pitfall 4).
-    window.addEventListener('resize', hideNodePopover);
+    window.addEventListener('resize', hideAllPopovers);
 }
 
 function filterGraph() {
@@ -301,7 +305,7 @@ function showNodePopover(nodeId, position) {
     const node = allNodes.find(n => n.id === nodeId);
     if (!node) return;
 
-    hideNodePopover();
+    hideAllPopovers();
 
     const popover = document.createElement('div');
     popover.className = 'node-popover';
@@ -376,9 +380,156 @@ function showNodePopover(nodeId, position) {
     popover.appendChild(askBtn);
 
     document.getElementById('graph-panel').appendChild(popover);
+    clampPopoverIntoView(popover);
 }
 
 function hideNodePopover() {
     const existing = document.getElementById('node-popover');
     if (existing) existing.remove();
+}
+
+function hideEdgePopover() {
+    const existing = document.getElementById('edge-popover');
+    if (existing) existing.remove();
+}
+
+function hideAllPopovers() {
+    hideNodePopover();
+    hideEdgePopover();
+}
+
+// Keep popovers fully inside the graph panel. Tall content like a 25-attribute
+// Compound node, or a multi-mention edge popover, can overflow the viewport
+// when anchored at the click point — shift it so the bottom/right edges stay
+// 8px inside the panel. Vertical overflow inside the popover itself is handled
+// by `max-height: 70vh; overflow-y: auto` in CSS.
+function clampPopoverIntoView(popover) {
+    const panel = document.getElementById('graph-panel');
+    if (!panel) return;
+    const panelRect = panel.getBoundingClientRect();
+    const popRect = popover.getBoundingClientRect();
+    const margin = 8;
+
+    let dx = 0;
+    let dy = 0;
+    if (popRect.right > panelRect.right - margin) {
+        dx = (panelRect.right - margin) - popRect.right;
+    }
+    if (popRect.bottom > panelRect.bottom - margin) {
+        dy = (panelRect.bottom - margin) - popRect.bottom;
+    }
+    if (popRect.left + dx < panelRect.left + margin) {
+        dx = (panelRect.left + margin) - popRect.left;
+    }
+    if (popRect.top + dy < panelRect.top + margin) {
+        dy = (panelRect.top + margin) - popRect.top;
+    }
+
+    if (dx !== 0 || dy !== 0) {
+        const currentLeft = parseFloat(popover.style.left) || 0;
+        const currentTop = parseFloat(popover.style.top) || 0;
+        popover.style.left = (currentLeft + dx) + 'px';
+        popover.style.top = (currentTop + dy) + 'px';
+    }
+}
+
+function showEdgePopover(edgeId, position) {
+    const edgeRecord = visEdges && visEdges.get(edgeId);
+    if (!edgeRecord) return;
+    const edge = edgeRecord._data || {};
+
+    hideAllPopovers();
+
+    const popover = document.createElement('div');
+    popover.className = 'edge-popover';
+    popover.id = 'edge-popover';
+    popover.style.left = position.x + 'px';
+    popover.style.top = position.y + 'px';
+
+    // SEC-01 / VUL-02: relation_type, evidence, source_document, and entity
+    // names all originate from extracted document text. Build the popover via
+    // DOM API + textContent so a quote like `<img src=x onerror=alert(1)>`
+    // cannot inject HTML into the workbench.
+
+    // Header: relation_type + epistemic_status badge.
+    const header = document.createElement('div');
+    header.className = 'edge-header';
+    const relationEl = document.createElement('span');
+    relationEl.className = 'edge-relation';
+    relationEl.textContent = edge.relation_type || 'RELATION';
+    header.appendChild(relationEl);
+
+    const status = String(edge.epistemic_status || 'unknown').toLowerCase();
+    const safeStatusClass = status.replace(/[^a-z0-9_-]/g, '');
+    const badge = document.createElement('span');
+    badge.className = 'epistemic-badge status-' + safeStatusClass;
+    badge.textContent = status;
+    header.appendChild(badge);
+    popover.appendChild(header);
+
+    // source -> target row.
+    const sourceNode = allNodes.find(n => n.id === edge.source);
+    const targetNode = allNodes.find(n => n.id === edge.target);
+    const pair = document.createElement('div');
+    pair.className = 'edge-pair';
+    const srcStrong = document.createElement('strong');
+    srcStrong.textContent = sourceNode?.name || edge.source || '';
+    pair.appendChild(srcStrong);
+    pair.appendChild(document.createTextNode(' → '));
+    const tgtStrong = document.createElement('strong');
+    tgtStrong.textContent = targetNode?.name || edge.target || '';
+    pair.appendChild(tgtStrong);
+    popover.appendChild(pair);
+
+    // Multi-source view: one block per mention. This makes contested confidence
+    // (e.g. semaglutide INDICATED_FOR obesity at 0.55 vs 0.97) visible at the
+    // click moment instead of being averaged away.
+    const mentions = Array.isArray(edge.mentions) && edge.mentions.length
+        ? edge.mentions
+        : [{
+            source_document: edge.source_document,
+            confidence: edge.confidence,
+            evidence: edge.evidence,
+        }];
+
+    const mentionsHeader = document.createElement('div');
+    mentionsHeader.className = 'mentions-header';
+    mentionsHeader.textContent = mentions.length === 1
+        ? 'Source'
+        : 'Sources (' + mentions.length + ')';
+    popover.appendChild(mentionsHeader);
+
+    for (const m of mentions) {
+        const block = document.createElement('div');
+        block.className = 'edge-mention';
+
+        const meta = document.createElement('div');
+        meta.className = 'mention-meta';
+        const docEl = document.createElement('span');
+        docEl.textContent = m.source_document || '(unknown source)';
+        meta.appendChild(docEl);
+        const confEl = document.createElement('span');
+        confEl.className = 'confidence-pill';
+        const conf = typeof m.confidence === 'number' ? m.confidence : null;
+        confEl.textContent = conf !== null ? conf.toFixed(2) : '—';
+        meta.appendChild(confEl);
+        block.appendChild(meta);
+
+        const ev = String(m.evidence || '').trim();
+        if (ev) {
+            const quote = document.createElement('blockquote');
+            quote.className = 'mention-evidence';
+            quote.textContent = ev;
+            block.appendChild(quote);
+        } else {
+            const empty = document.createElement('div');
+            empty.className = 'mention-evidence-empty';
+            empty.textContent = 'No evidence quote (typically a document-link relation)';
+            block.appendChild(empty);
+        }
+        popover.appendChild(block);
+    }
+
+    document.getElementById('graph-panel').appendChild(popover);
+    clampPopoverIntoView(popover);
 }
