@@ -4,11 +4,11 @@ milestone: v1.4
 milestone_name: Domain Management
 status: in_progress
 last_updated: "2026-05-07T00:00:00.000Z"
-last_activity: 2026-05-07 — Phase 12 complete; 6/6 UAT passed
+last_activity: 2026-05-07 — Phase 13 planned; 3 plans in 3 waves
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 3
+  total_plans: 6
   completed_plans: 3
   percent: 33
 ---
@@ -19,7 +19,7 @@ progress:
 
 Phase: 13 — Domain Update Wizard — Core Editing
 Plan: —
-Status: Phase 12 complete (UAT verified); ready to plan Phase 13
+Status: Phase 13 planned; 3 plans in 3 waves — ready to execute
 Last activity: 2026-05-07 — Phase 12 complete; 6/6 UAT passed
 
 ```

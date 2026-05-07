@@ -129,7 +129,25 @@ Plans:
   2. User selects "Edit schema" in the wizard, receives guided prompts to add, remove, or rename entity types and relation types, and the wizard validates schema consistency (no dangling relation endpoints, no duplicate names) before writing `domain.yaml`
   3. User selects "Edit extraction prompt" in the wizard, reviews the current `SKILL.md` content, provides a revised version via guided prompts, and the wizard writes the updated `SKILL.md`
   4. User selects "Edit epistemic analysis" in the wizard, receives guided prompts to adjust confidence tiers, evidence types, and conflict detection logic, and the wizard writes the updated `epistemic.py`
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 13-01-PLAN.md — TDD: Write 6 unit tests for schema validation (UPDT-02) and file-access contracts (UPDT-03, UPDT-04)
+- [ ] 13-02-PLAN.md — Implement validate_schema() and validate subcommand in scripts/manage_domains.py
+- [ ] 13-03-PLAN.md — Create commands/domain-update.md wizard command file
+
+**Wave 1** — RED tests
+- 13-01: Six unit tests (4 schema validation RED, 2 file-access GREEN immediately)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- 13-02: validate_schema() + cmd_validate() in manage_domains.py; turns 4 RED tests GREEN
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- 13-03: commands/domain-update.md full wizard (UPDT-01, UPDT-02, UPDT-03, UPDT-04)
+
+**Cross-cutting constraints:**
+- validate_schema() must run BEFORE the "yes" confirmation gate — never after (D-06 invariant, Plans 13-02 + 13-03)
+- Every user-input step must have the hard-pause "Do not auto-advance" directive (D-01 pattern, Plan 13-03)
 
 ---
 
@@ -151,5 +169,5 @@ Plans:
 |-------|----------------|--------|-----------|
 | 11. Relation Type Filter + Min-Degree Slider | 3/3 | Complete | 2026-05-06 |
 | 12. Domain List and Delete Commands | 0/3 | Planning done | - |
-| 13. Domain Update Wizard — Core Editing | 0/? | Not started | - |
+| 13. Domain Update Wizard — Core Editing | 0/3 | Planning done | - |
 | 14. Domain Update Wizard — Corpus Re-run | 0/? | Not started | - |
