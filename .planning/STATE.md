@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Domain Management
-status: in_progress
-last_updated: "2026-05-07T11:30:00.000Z"
-last_activity: 2026-05-07 — Phase 13 complete; 4/4 UAT passed
+status: complete
+last_updated: "2026-05-07T21:00:00.000Z"
+last_activity: 2026-05-07 — Phase 14 complete; v1.4 milestone complete
 progress:
   total_phases: 3
-  completed_phases: 2
-  total_plans: 6
-  completed_plans: 6
-  percent: 67
+  completed_phases: 3
+  total_plans: 8
+  completed_plans: 8
+  percent: 100
 ---
 
 # GSD State
@@ -19,11 +19,11 @@ progress:
 
 Phase: 14 — Domain Update Wizard — Corpus Re-run
 Plan: —
-Status: Phase 13 complete; ready to plan Phase 14
-Last activity: 2026-05-07 — Phase 13 complete; 4/4 UAT passed
+Status: Complete ✅ — v1.4 milestone complete
+Last activity: 2026-05-07 — Phase 14 complete; 13/13 criteria verified
 
 ```
-Progress: ██████░░░░ 67%  (6/6 plans complete, 2/3 phases)
+Progress: ██████████ 100%  (8/8 plans complete, 3/3 phases)
 ```
 
 ## Current Milestone
@@ -34,7 +34,7 @@ Progress: ██████░░░░ 67%  (6/6 plans complete, 2/3 phases)
 |-------|------|--------------|--------|
 | 12. Domain List and Delete Commands | Users can inspect and safely remove domains | LIST-01, LIST-02, DEL-01, DEL-02, DEL-03, DEL-04 | ✅ Complete |
 | 13. Domain Update Wizard — Core Editing | Guided-prompt wizard edits domain.yaml, SKILL.md, epistemic.py | UPDT-01, UPDT-02, UPDT-03, UPDT-04 | ✅ Complete |
-| 14. Domain Update Wizard — Corpus Re-run | Wizard extends with corpus re-analysis and per-suggestion approval | UPDT-05 | Not started |
+| 14. Domain Update Wizard — Corpus Re-run | Wizard extends with corpus re-analysis and per-suggestion approval | UPDT-05 | ✅ Complete |
 
 ## Accumulated Context
 

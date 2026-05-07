@@ -6,7 +6,7 @@
 - ✅ **v1.1 Workbench Security Hardening** — Phase 08 (shipped 2026-04-28)
 - ✅ **v1.2 Workbench Graph Enhancements** — Phases 09–10 (shipped 2026-05-06)
 - ✅ **v1.3 Workbench Filter Polish** — Phase 11 (shipped 2026-05-06)
-- 🔄 **v1.4 Domain Management** — Phases 12–14 (in progress)
+- ✅ **v1.4 Domain Management** — Phases 12–14 (completed 2026-05-07)
 
 ## Phases
 
@@ -50,7 +50,7 @@ Full archive: [.planning/milestones/v1.2-ROADMAP.md](.planning/milestones/v1.2-R
 
 - [x] **Phase 12: Domain List and Delete Commands** — Completed 2026-05-07; 3/3 plans; 6/6 UAT criteria verified
 - [x] **Phase 13: Domain Update Wizard — Core Editing** — Completed 2026-05-07; 3/3 plans; 4/4 UAT criteria verified
-- [ ] **Phase 14: Domain Update Wizard — Corpus Re-run** - Extend update wizard with corpus re-analysis to suggest schema additions
+- [x] **Phase 14: Domain Update Wizard — Corpus Re-run** — Completed 2026-05-07; 2/2 plans; 13/13 criteria verified
 
 ---
 
@@ -159,7 +159,11 @@ Plans:
   1. User selects "Re-run corpus analysis" in the update wizard, provides a path to new documents, and the wizard runs the corpus analyzer (equivalent to `/epistract:domain` creation flow) against those documents
   2. Wizard presents each suggested schema change (new entity type, new relation type, modified description) as a discrete confirmation prompt; user approves or rejects each suggestion individually before any file is written
   3. Only approved suggestions are written to `domain.yaml`; rejected suggestions are discarded without modifying the domain; the wizard reports a summary of accepted vs. rejected changes
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 14-01-PLAN.md — TDD: 4 unit tests for net-new type diff and merge-preserves-top-level logic
+- [ ] 14-02-PLAN.md — Extend commands/domain-update.md with menu item (4) and full Corpus Re-run Branch
 
 ---
 
@@ -170,4 +174,4 @@ Plans:
 | 11. Relation Type Filter + Min-Degree Slider | 3/3 | Complete | 2026-05-06 |
 | 12. Domain List and Delete Commands | 0/3 | Planning done | - |
 | 13. Domain Update Wizard — Core Editing | 3/3 | Complete | 2026-05-07 |
-| 14. Domain Update Wizard — Corpus Re-run | 0/? | Not started | - |
+| 14. Domain Update Wizard — Corpus Re-run | 0/2 | Planning done | - |
