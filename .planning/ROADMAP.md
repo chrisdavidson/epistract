@@ -49,7 +49,7 @@ Full archive: [.planning/milestones/v1.2-ROADMAP.md](.planning/milestones/v1.2-R
 **v1.4 Domain Management**
 
 - [x] **Phase 12: Domain List and Delete Commands** — Completed 2026-05-07; 3/3 plans; 6/6 UAT criteria verified
-- [ ] **Phase 13: Domain Update Wizard — Core Editing** - Conversational guided-prompt wizard for editing domain.yaml, SKILL.md, and epistemic.py
+- [x] **Phase 13: Domain Update Wizard — Core Editing** — Completed 2026-05-07; 3/3 plans; 4/4 UAT criteria verified
 - [ ] **Phase 14: Domain Update Wizard — Corpus Re-run** - Extend update wizard with corpus re-analysis to suggest schema additions
 
 ---
@@ -169,5 +169,5 @@ Plans:
 |-------|----------------|--------|-----------|
 | 11. Relation Type Filter + Min-Degree Slider | 3/3 | Complete | 2026-05-06 |
 | 12. Domain List and Delete Commands | 0/3 | Planning done | - |
-| 13. Domain Update Wizard — Core Editing | 0/3 | Planning done | - |
+| 13. Domain Update Wizard — Core Editing | 3/3 | Complete | 2026-05-07 |
 | 14. Domain Update Wizard — Corpus Re-run | 0/? | Not started | - |
