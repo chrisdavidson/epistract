@@ -4,6 +4,47 @@ import { initSidebar, showNodeDetail, showEdgeDetail, hideSidebar } from './side
 
 const PALETTE = ['#6366f1','#f59e0b','#ef4444','#10b981','#8b5cf6','#06b6d4','#64748b','#ec4899','#f97316','#14b8a6','#a855f7','#0ea5e9'];
 
+// ---------------------------------------------------------------------------
+// Tuning constants — these are the knobs a developer retunes by eye in the
+// dashboard (see Task 3 checkpoint in 260802-cu1-PLAN.md). One-line edits.
+// ---------------------------------------------------------------------------
+const LABEL_MIN_NODE_COUNT = 80;      // graphs smaller than this: every node stays labelled at every zoom level (no gating)
+const LABEL_ZOOM_STOPS = [
+    // Ordered most-zoomed-in -> most-zoomed-out. Walk top-down and take the
+    // FIRST stop whose `scale` is <= network.getScale(); `maxLabels` is then
+    // the budget of labels to draw, and the degree cutoff is derived as the
+    // degree of the maxLabels-th highest-degree node. The final stop MUST
+    // have scale: 0 so the lookup always terminates.
+    //
+    // maxLabels (a count) rather than a fraction of maxDegree, because
+    // maxDegree is set by a single outlier hub and the mapping from fraction
+    // to on-screen label count is wildly non-linear. On the 278-node GLP-1
+    // graph (maxDegree 79) fractions 0.03/0.05/0.20 yielded 152/109/24
+    // labels — unpredictable. A count is the thing we actually want to
+    // control, so tune these numbers directly against what looks right.
+    { scale: 2.00, maxLabels: Infinity }, // deep zoom: label everything
+    { scale: 1.20, maxLabels: 120 },
+    { scale: 0.80, maxLabels: 60 },
+    { scale: 0.50, maxLabels: 30 },
+    { scale: 0.00, maxLabels: 15 },       // fit view / zoomed out: hubs only
+];
+const LABEL_HIDDEN_FONT_SIZE = 0;     // vis-network skips drawing a label at font size 0 without dropping the label string (tooltips/search still work)
+const LABEL_VISIBLE_FONT_SIZE = 12;   // matches the previous unconditional label size
+const LABEL_UPDATE_THROTTLE_MS = 120; // trailing-debounce window; vis fires `zoom` continuously during a scroll gesture
+const NODE_FONT_BASE = {              // non-size font properties — single source of truth for node mapping + label controller
+    color: '#1a1a1a',
+    background: 'rgba(255, 255, 255, 0.85)',
+};
+const EDGE_SMOOTH_MAX_EDGES = 400;              // above this edge count, render straight edges — curved edges are visual mud and a per-frame render cost at scale
+const PHYSICS_STABILIZATION_ITERATIONS = 400;   // raise for a better-separated layout at the cost of a longer time-to-stabilize
+const PHYSICS_STABILIZATION_UPDATE_INTERVAL = 50; // how often vis reports stabilization progress and redraws while settling
+const FA2_GRAVITATIONAL_CONSTANT = -120;        // node-node repulsion; more negative pushes clusters further apart
+const FA2_CENTRAL_GRAVITY = 0.005;              // pull toward the centre; lower lets clusters spread
+const FA2_SPRING_LENGTH = 160;                  // rest length of an edge
+const FA2_SPRING_CONSTANT = 0.05;               // edge stiffness
+const FA2_DAMPING = 0.5;                        // higher settles faster with less oscillation
+const FA2_AVOID_OVERLAP = 0.6;                  // 0 to 1; adds a node-radius-aware repulsion term that stops dots from stacking
+
 let ENTITY_COLORS = {};
 let network = null;
 let allNodes = [];
@@ -21,6 +62,9 @@ let confidenceThreshold = 0;             // populated by initConfidenceSlider() 
 let activeRelationTypes = new Set();      // populated by buildRelationTypeDropdown() (Phase 11)
 let minDegreeThreshold = 0;               // populated by initMinDegreeSlider() (Phase 11)
 let maxDegree = 0;                        // hoisted from buildGraph() local; read by initMinDegreeSlider() (Phase 11 D-10)
+let sortedDegrees = [];                   // node degrees, descending; rebuilt with degreeMap in buildGraph() (260802-cu1)
+let _labelUpdateTimer = null;             // pending throttled applyLabelVisibility() call (260802-cu1)
+let _lastLabelDegreeCutoff = null;        // last-applied degree cutoff; skip DataSet write when unchanged (260802-cu1)
 
 function getEntityColor(type) {
     if (ENTITY_COLORS[type]) return ENTITY_COLORS[type];
@@ -141,6 +185,68 @@ let _sliderListenerAttached = false; // WR-02: guard confidence slider duplicate
 let _relationFilterListenerAttached = false; // WR-02: guard relation-type bulk-action listeners
 let _degreeSliderListenerAttached = false;   // WR-02: guard min-degree slider duplicate registration
 
+// ---------------------------------------------------------------------------
+// 260802-cu1: node label declutter. Gates node label visibility on zoom
+// scale multiplied by node degree, so only hub nodes are labelled when
+// zoomed out. Edge labels are removed entirely (see edge mapping above);
+// relation type stays reachable via hover tooltip + sidebar edge detail.
+// ---------------------------------------------------------------------------
+function applyLabelVisibility() {
+    if (!network || !visNodes) return;
+
+    if (allNodes.length < LABEL_MIN_NODE_COUNT) {
+        // Small graphs: never gate — every node stays labelled at every zoom.
+        const updates = visNodes.getIds().map(id => ({
+            id,
+            font: { ...NODE_FONT_BASE, size: LABEL_VISIBLE_FONT_SIZE },
+        }));
+        if (updates.length) visNodes.update(updates);
+        return;
+    }
+
+    const scale = network.getScale();
+    const stop = LABEL_ZOOM_STOPS.find(s => scale >= s.scale) || LABEL_ZOOM_STOPS[LABEL_ZOOM_STOPS.length - 1];
+
+    // Translate the label budget into a degree cutoff: the degree of the
+    // maxLabels-th highest-degree node. sortedDegrees is descending and built
+    // once per buildGraph(). Ties at the cutoff degree let a few extra labels
+    // through — acceptable, and preferable to arbitrarily dropping one of two
+    // equally-connected nodes. A budget at or past the end of the array (or
+    // Infinity) yields cutoff 0, which labels everything.
+    const budget = stop.maxLabels;
+    const cutoff = (budget >= sortedDegrees.length) ? 0 : (sortedDegrees[budget - 1] || 0);
+
+    // Bail out when the cutoff hasn't changed — this is what keeps zooming
+    // cheap: the expensive DataSet write happens only on cutoff transitions,
+    // not on every zoom tick.
+    if (cutoff === _lastLabelDegreeCutoff) return;
+    _lastLabelDegreeCutoff = cutoff;
+
+    // Each update carries ONLY id + font — never opacity, hidden, colour, or
+    // fixed — so this controller cannot clobber the neighbourhood highlight
+    // (opacity), filterGraph() visibility (hidden), or the pinned-node
+    // border (color/borderWidth/fixed). Font updates and opacity/hidden
+    // updates carry disjoint property sets so they never clobber each other.
+    const updates = visNodes.getIds().map(id => {
+        const degree = degreeMap[id] || 0;
+        const size = degree >= cutoff ? LABEL_VISIBLE_FONT_SIZE : LABEL_HIDDEN_FONT_SIZE;
+        return { id, font: { ...NODE_FONT_BASE, size } };
+    });
+    visNodes.update(updates);
+
+    // 260802-cu1: retuning aid. Read `window._labelDebug` in the devtools
+    // console to see which LABEL_ZOOM_STOPS band the current view resolved to
+    // and how many labels that produced — the fit-view scale depends on
+    // container size and layout extent, so it is measured, not assumed.
+    window._labelDebug = {
+        scale: Number(scale.toFixed(3)),
+        budget: budget,
+        cutoff: cutoff,
+        labelled: updates.filter(u => u.font.size > 0).length,
+        totalNodes: allNodes.length,
+    };
+}
+
 function buildGraph() {
     const container = document.getElementById('graph-container');
     if (!container || !window.vis) return;
@@ -148,6 +254,15 @@ function buildGraph() {
     // WR-03: destroy previous network instance before creating a new one to
     // prevent canvas context leaks and competing requestAnimationFrame loops.
     if (network) {
+        // 260802-cu1: clear pending label-controller state before destroying
+        // the network — otherwise a timer scheduled against the outgoing
+        // network fires after the rebuild and writes a stale cutoff into the
+        // freshly built DataSet.
+        if (_labelUpdateTimer) {
+            clearTimeout(_labelUpdateTimer);
+            _labelUpdateTimer = null;
+        }
+        _lastLabelDegreeCutoff = null;
         network.destroy();
         network = null;
     }
@@ -168,6 +283,14 @@ function buildGraph() {
     });
     maxDegree = Object.values(degreeMap).reduce((acc, v) => Math.max(acc, v), 1);
 
+    // 260802-cu1: descending degree list backing the label budget in
+    // applyLabelVisibility(). Built over allNodes, not degreeMap — degreeMap
+    // omits isolated (degree-0) nodes, so indexing a budget into it would
+    // silently overshoot on graphs with unconnected entities.
+    sortedDegrees = allNodes
+        .map(n => degreeMap[n.id] || 0)
+        .sort((a, b) => b - a);
+
     const nodes = allNodes.map(n => {
         // CR-01: Build tooltip as an HTMLElement so vis.js renders it via DOM
         // rather than innerHTML, preventing XSS from untrusted node data.
@@ -180,42 +303,61 @@ function buildGraph() {
             title: tooltipEl,
             shape: 'dot',
             size: 8 + Math.round(((degreeMap[n.id] || 0) / maxDegree) * 16),
-            font: {
-                size: 12,
-                color: '#1a1a1a',
-                background: 'rgba(255, 255, 255, 0.85)',
-            },
+            font: { ...NODE_FONT_BASE, size: LABEL_VISIBLE_FONT_SIZE },
             _data: n,
         };
     });
 
+    // No text label on edges (260802-cu1 declutter) — relation_type remains
+    // reachable via the vis hover tooltip default and the sidebar edge
+    // detail panel (sidebar.js showEdgeDetail()), so no information is lost.
     const edges = allEdges.map(e => ({
         from: e.source,
         to: e.target,
-        label: e.relation_type,
         arrows: 'to',
-        font: { size: 9, color: '#888' },
-        smooth: { type: 'continuous' },
         _data: e,
     }));
 
     visNodes = new vis.DataSet(nodes);
     visEdges = new vis.DataSet(edges);
 
+    // 260802-cu1: curved edges are configured once globally (below) instead
+    // of per-edge, gated on edge count — above EDGE_SMOOTH_MAX_EDGES the
+    // curve computation is both visual mud and a real per-frame render cost,
+    // so straight edges read better at scale. Per-edge settings override the
+    // global, so the per-edge `smooth` property must stay removed above.
+    const edgeSmoothing = allEdges.length > EDGE_SMOOTH_MAX_EDGES ? false : { type: 'continuous' };
+
     const options = {
         physics: {
-            solver: 'barnesHut',
-            barnesHut: { gravitationalConstant: -3000, springLength: 150 },
-            stabilization: { iterations: 100 },
-        },
-        scaling: {
-            label: {
-                enabled: true,
-                min: 8,
-                max: 14,
-                maxVisible: 14,
-                drawThreshold: 6,
+            solver: 'forceAtlas2Based',
+            forceAtlas2Based: {
+                gravitationalConstant: FA2_GRAVITATIONAL_CONSTANT,
+                centralGravity: FA2_CENTRAL_GRAVITY,
+                springLength: FA2_SPRING_LENGTH,
+                springConstant: FA2_SPRING_CONSTANT,
+                damping: FA2_DAMPING,
+                avoidOverlap: FA2_AVOID_OVERLAP,
             },
+            // 260802-cu1: raising stabilization iterations lengthens the blank
+            // period between container.innerHTML = '' (above) and the first
+            // settled frame. Deliberately NOT re-appending a status element —
+            // .graph-placeholder is normal-flow and .graph-container is a flex
+            // child, so a <p> sibling of the vis canvas would trigger a canvas
+            // resize (the v1.2 architecture constraint this avoids), and it is
+            // also outside this task's one-file scope. updateInterval gives vis
+            // a progress cadence during settling; if the wait feels too long,
+            // lower PHYSICS_STABILIZATION_ITERATIONS — one line, at the top.
+            stabilization: {
+                enabled: true,
+                iterations: PHYSICS_STABILIZATION_ITERATIONS,
+                updateInterval: PHYSICS_STABILIZATION_UPDATE_INTERVAL,
+                fit: true,
+            },
+            minVelocity: 0.75, // reach the stabilized event promptly once motion drops below this threshold
+        },
+        edges: {
+            smooth: edgeSmoothing,
         },
         interaction: {
             hover: true,
@@ -229,10 +371,47 @@ function buildGraph() {
     network = new vis.Network(container, { nodes: visNodes, edges: visEdges }, options);
     initSidebar();
 
-    // Disable physics after stabilization (research pitfall 4)
-    network.once('stabilized', () => {
+    // 260802-cu1: throttled label-visibility refresh. vis fires `zoom`
+    // continuously during a scroll gesture, so trailing-debounce it at
+    // LABEL_UPDATE_THROTTLE_MS. Also bind `animationFinished` — Fit View and
+    // the double-click recenter (below) animate the scale without reliably
+    // emitting `zoom`, so labels would otherwise go stale after those.
+    // WR-02 note: both listeners bind to `network`, not a DOM node, and
+    // network.destroy() (WR-03 above) tears them down along with the
+    // network, so no module-level listener-attached guard is needed here —
+    // unlike the button, slider, and window-resize listeners below that
+    // bind to persistent DOM.
+    const scheduleLabelUpdate = () => {
+        if (_labelUpdateTimer) clearTimeout(_labelUpdateTimer);
+        _labelUpdateTimer = setTimeout(applyLabelVisibility, LABEL_UPDATE_THROTTLE_MS);
+    };
+    network.on('zoom', scheduleLabelUpdate);
+    network.on('animationFinished', scheduleLabelUpdate);
+
+    // Disable physics after stabilization (research pitfall 4) and prime the
+    // initial label-visibility state.
+    //
+    // 260802-cu1: keyed on `stabilizationIterationsDone`, NOT `stabilized`.
+    // vis emits `stabilizationIterationsDone` when the configured iteration
+    // budget is exhausted, then keeps free-running the simulation and emits
+    // `stabilized` only once velocity falls below minVelocity. On a large
+    // graph that second event may never arrive: measured on the 1738-node FDA
+    // corpus, iterations finished at 7.0s but `stabilized` had still not fired
+    // after 10 minutes, so physics ran forever and this callback never
+    // executed — meaning label gating silently did nothing on exactly the
+    // graphs it exists for. (Pre-existing for the physics-off half; both
+    // solvers behave this way.) Iteration-budget completion is deterministic
+    // and bounded, so key off it and keep `stabilized` as a safety net for
+    // the case where the simulation settles before the budget is spent.
+    let _settled = false;
+    const settle = () => {
+        if (_settled) return;
+        _settled = true;
         network.setOptions({ physics: false });
-    });
+        applyLabelVisibility();
+    };
+    network.once('stabilizationIterationsDone', settle);
+    network.once('stabilized', settle);
 
     // Click node -> highlight neighbourhood + sidebar; click edge -> sidebar only;
     // canvas background -> clear highlight + close sidebar. (D-01..D-04)
