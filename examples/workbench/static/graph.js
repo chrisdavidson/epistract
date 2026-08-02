@@ -28,6 +28,15 @@ const NODE_FONT_BASE = {              // non-size font properties — single sou
     color: '#1a1a1a',
     background: 'rgba(255, 255, 255, 0.85)',
 };
+const EDGE_SMOOTH_MAX_EDGES = 400;              // above this edge count, render straight edges — curved edges are visual mud and a per-frame render cost at scale
+const PHYSICS_STABILIZATION_ITERATIONS = 400;   // raise for a better-separated layout at the cost of a longer time-to-stabilize
+const PHYSICS_STABILIZATION_UPDATE_INTERVAL = 50; // how often vis reports stabilization progress and redraws while settling
+const FA2_GRAVITATIONAL_CONSTANT = -120;        // node-node repulsion; more negative pushes clusters further apart
+const FA2_CENTRAL_GRAVITY = 0.005;              // pull toward the centre; lower lets clusters spread
+const FA2_SPRING_LENGTH = 160;                  // rest length of an edge
+const FA2_SPRING_CONSTANT = 0.05;               // edge stiffness
+const FA2_DAMPING = 0.5;                        // higher settles faster with less oscillation
+const FA2_AVOID_OVERLAP = 0.6;                  // 0 to 1; adds a node-radius-aware repulsion term that stops dots from stacking
 
 let ENTITY_COLORS = {};
 let network = null;
@@ -270,18 +279,49 @@ function buildGraph() {
         from: e.source,
         to: e.target,
         arrows: 'to',
-        smooth: { type: 'continuous' },
         _data: e,
     }));
 
     visNodes = new vis.DataSet(nodes);
     visEdges = new vis.DataSet(edges);
 
+    // 260802-cu1: curved edges are configured once globally (below) instead
+    // of per-edge, gated on edge count — above EDGE_SMOOTH_MAX_EDGES the
+    // curve computation is both visual mud and a real per-frame render cost,
+    // so straight edges read better at scale. Per-edge settings override the
+    // global, so the per-edge `smooth` property must stay removed above.
+    const edgeSmoothing = allEdges.length > EDGE_SMOOTH_MAX_EDGES ? false : { type: 'continuous' };
+
     const options = {
         physics: {
-            solver: 'barnesHut',
-            barnesHut: { gravitationalConstant: -3000, springLength: 150 },
-            stabilization: { iterations: 100 },
+            solver: 'forceAtlas2Based',
+            forceAtlas2Based: {
+                gravitationalConstant: FA2_GRAVITATIONAL_CONSTANT,
+                centralGravity: FA2_CENTRAL_GRAVITY,
+                springLength: FA2_SPRING_LENGTH,
+                springConstant: FA2_SPRING_CONSTANT,
+                damping: FA2_DAMPING,
+                avoidOverlap: FA2_AVOID_OVERLAP,
+            },
+            // 260802-cu1: raising stabilization iterations lengthens the blank
+            // period between container.innerHTML = '' (above) and the first
+            // settled frame. Deliberately NOT re-appending a status element —
+            // .graph-placeholder is normal-flow and .graph-container is a flex
+            // child, so a <p> sibling of the vis canvas would trigger a canvas
+            // resize (the v1.2 architecture constraint this avoids), and it is
+            // also outside this task's one-file scope. updateInterval gives vis
+            // a progress cadence during settling; if the wait feels too long,
+            // lower PHYSICS_STABILIZATION_ITERATIONS — one line, at the top.
+            stabilization: {
+                enabled: true,
+                iterations: PHYSICS_STABILIZATION_ITERATIONS,
+                updateInterval: PHYSICS_STABILIZATION_UPDATE_INTERVAL,
+                fit: true,
+            },
+            minVelocity: 0.75, // reach the stabilized event promptly once motion drops below this threshold
+        },
+        edges: {
+            smooth: edgeSmoothing,
         },
         interaction: {
             hover: true,
