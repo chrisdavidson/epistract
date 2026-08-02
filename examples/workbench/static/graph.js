@@ -388,13 +388,30 @@ function buildGraph() {
     network.on('zoom', scheduleLabelUpdate);
     network.on('animationFinished', scheduleLabelUpdate);
 
-    // Disable physics after stabilization (research pitfall 4)
-    network.once('stabilized', () => {
+    // Disable physics after stabilization (research pitfall 4) and prime the
+    // initial label-visibility state.
+    //
+    // 260802-cu1: keyed on `stabilizationIterationsDone`, NOT `stabilized`.
+    // vis emits `stabilizationIterationsDone` when the configured iteration
+    // budget is exhausted, then keeps free-running the simulation and emits
+    // `stabilized` only once velocity falls below minVelocity. On a large
+    // graph that second event may never arrive: measured on the 1738-node FDA
+    // corpus, iterations finished at 7.0s but `stabilized` had still not fired
+    // after 10 minutes, so physics ran forever and this callback never
+    // executed — meaning label gating silently did nothing on exactly the
+    // graphs it exists for. (Pre-existing for the physics-off half; both
+    // solvers behave this way.) Iteration-budget completion is deterministic
+    // and bounded, so key off it and keep `stabilized` as a safety net for
+    // the case where the simulation settles before the budget is spent.
+    let _settled = false;
+    const settle = () => {
+        if (_settled) return;
+        _settled = true;
         network.setOptions({ physics: false });
-        // 260802-cu1: this is the first moment the layout and the scale are
-        // final — prime the initial label-visibility state here.
         applyLabelVisibility();
-    });
+    };
+    network.once('stabilizationIterationsDone', settle);
+    network.once('stabilized', settle);
 
     // Click node -> highlight neighbourhood + sidebar; click edge -> sidebar only;
     // canvas background -> clear highlight + close sidebar. (D-01..D-04)
