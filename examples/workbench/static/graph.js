@@ -11,15 +11,22 @@ const PALETTE = ['#6366f1','#f59e0b','#ef4444','#10b981','#8b5cf6','#06b6d4','#6
 const LABEL_MIN_NODE_COUNT = 80;      // graphs smaller than this: every node stays labelled at every zoom level (no gating)
 const LABEL_ZOOM_STOPS = [
     // Ordered most-zoomed-in -> most-zoomed-out. Walk top-down and take the
-    // FIRST stop whose `scale` is <= network.getScale(); multiply the
-    // winning stop's degreeFraction by maxDegree and round up to get the
-    // degree cutoff. A node is labelled when its degree >= that cutoff, so
-    // a fraction of 0.00 labels everything. The final stop MUST have
-    // scale: 0 so the lookup always terminates.
-    { scale: 1.20, degreeFraction: 0.00 },
-    { scale: 0.80, degreeFraction: 0.10 },
-    { scale: 0.50, degreeFraction: 0.25 },
-    { scale: 0.00, degreeFraction: 0.50 },
+    // FIRST stop whose `scale` is <= network.getScale(); `maxLabels` is then
+    // the budget of labels to draw, and the degree cutoff is derived as the
+    // degree of the maxLabels-th highest-degree node. The final stop MUST
+    // have scale: 0 so the lookup always terminates.
+    //
+    // maxLabels (a count) rather than a fraction of maxDegree, because
+    // maxDegree is set by a single outlier hub and the mapping from fraction
+    // to on-screen label count is wildly non-linear. On the 278-node GLP-1
+    // graph (maxDegree 79) fractions 0.03/0.05/0.20 yielded 152/109/24
+    // labels — unpredictable. A count is the thing we actually want to
+    // control, so tune these numbers directly against what looks right.
+    { scale: 2.00, maxLabels: Infinity }, // deep zoom: label everything
+    { scale: 1.20, maxLabels: 120 },
+    { scale: 0.80, maxLabels: 60 },
+    { scale: 0.50, maxLabels: 30 },
+    { scale: 0.00, maxLabels: 15 },       // fit view / zoomed out: hubs only
 ];
 const LABEL_HIDDEN_FONT_SIZE = 0;     // vis-network skips drawing a label at font size 0 without dropping the label string (tooltips/search still work)
 const LABEL_VISIBLE_FONT_SIZE = 12;   // matches the previous unconditional label size
@@ -55,6 +62,7 @@ let confidenceThreshold = 0;             // populated by initConfidenceSlider() 
 let activeRelationTypes = new Set();      // populated by buildRelationTypeDropdown() (Phase 11)
 let minDegreeThreshold = 0;               // populated by initMinDegreeSlider() (Phase 11)
 let maxDegree = 0;                        // hoisted from buildGraph() local; read by initMinDegreeSlider() (Phase 11 D-10)
+let sortedDegrees = [];                   // node degrees, descending; rebuilt with degreeMap in buildGraph() (260802-cu1)
 let _labelUpdateTimer = null;             // pending throttled applyLabelVisibility() call (260802-cu1)
 let _lastLabelDegreeCutoff = null;        // last-applied degree cutoff; skip DataSet write when unchanged (260802-cu1)
 
@@ -198,7 +206,15 @@ function applyLabelVisibility() {
 
     const scale = network.getScale();
     const stop = LABEL_ZOOM_STOPS.find(s => scale >= s.scale) || LABEL_ZOOM_STOPS[LABEL_ZOOM_STOPS.length - 1];
-    const cutoff = Math.ceil(stop.degreeFraction * maxDegree);
+
+    // Translate the label budget into a degree cutoff: the degree of the
+    // maxLabels-th highest-degree node. sortedDegrees is descending and built
+    // once per buildGraph(). Ties at the cutoff degree let a few extra labels
+    // through — acceptable, and preferable to arbitrarily dropping one of two
+    // equally-connected nodes. A budget at or past the end of the array (or
+    // Infinity) yields cutoff 0, which labels everything.
+    const budget = stop.maxLabels;
+    const cutoff = (budget >= sortedDegrees.length) ? 0 : (sortedDegrees[budget - 1] || 0);
 
     // Bail out when the cutoff hasn't changed — this is what keeps zooming
     // cheap: the expensive DataSet write happens only on cutoff transitions,
@@ -217,6 +233,18 @@ function applyLabelVisibility() {
         return { id, font: { ...NODE_FONT_BASE, size } };
     });
     visNodes.update(updates);
+
+    // 260802-cu1: retuning aid. Read `window._labelDebug` in the devtools
+    // console to see which LABEL_ZOOM_STOPS band the current view resolved to
+    // and how many labels that produced — the fit-view scale depends on
+    // container size and layout extent, so it is measured, not assumed.
+    window._labelDebug = {
+        scale: Number(scale.toFixed(3)),
+        budget: budget,
+        cutoff: cutoff,
+        labelled: updates.filter(u => u.font.size > 0).length,
+        totalNodes: allNodes.length,
+    };
 }
 
 function buildGraph() {
@@ -254,6 +282,14 @@ function buildGraph() {
         degreeMap[e.target] = (degreeMap[e.target] || 0) + 1;
     });
     maxDegree = Object.values(degreeMap).reduce((acc, v) => Math.max(acc, v), 1);
+
+    // 260802-cu1: descending degree list backing the label budget in
+    // applyLabelVisibility(). Built over allNodes, not degreeMap — degreeMap
+    // omits isolated (degree-0) nodes, so indexing a budget into it would
+    // silently overshoot on graphs with unconnected entities.
+    sortedDegrees = allNodes
+        .map(n => degreeMap[n.id] || 0)
+        .sort((a, b) => b - a);
 
     const nodes = allNodes.map(n => {
         // CR-01: Build tooltip as an HTMLElement so vis.js renders it via DOM
