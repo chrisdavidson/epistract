@@ -109,7 +109,15 @@ async function openDocument(docId, highlightSection) {
 
         const pre = document.createElement('pre');
         pre.className = 'source-viewer';
-        pre.replaceChildren(...buildHighlightedNodes(data.text, highlightSection));
+        // Append via a fragment loop, never `replaceChildren(...nodes)` — the node
+        // count is unbounded (2N+1 for N matches) and spreading a large array into
+        // a call throws RangeError past V8's argument limit. Corpus documents here
+        // run 12-31 MB, so a common highlight term reaches that ceiling.
+        const frag = document.createDocumentFragment();
+        for (const node of buildHighlightedNodes(data.text, highlightSection)) {
+            frag.appendChild(node);
+        }
+        pre.replaceChildren(frag);
         viewer.replaceChildren(pre);
 
         // Show PDF link

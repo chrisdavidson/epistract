@@ -8,7 +8,12 @@ drive each test to GREEN.
 
 from __future__ import annotations
 
+import json
+import os
 import re
+import shutil
+import subprocess
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -219,4 +224,112 @@ def test_sidebar_xss_dom_api():
         "sidebar.js uses innerHTML with dynamic graph data -- use textContent "
         "or createElement instead (SIDEBAR-04):\n"
         + "\n".join(f"  line {ln}: {src}" for ln, src in offenders)
+    )
+
+
+# -- Issue #24 PR A ---------------------------------------------------------
+# buildHighlightedNodes() is the one behavioral change in the XSS fix: source
+# text that used to be escaped and spliced into innerHTML is now segmented into
+# real DOM nodes. Exercise it under Node with a minimal document stub, since a
+# static-source check cannot see segmentation bugs.
+
+_HIGHLIGHT_HARNESS = r"""
+const fs = require('fs');
+const src = fs.readFileSync(process.argv[2], 'utf8');
+const body = src.slice(
+    src.indexOf('function buildHighlightedNodes'),
+    src.indexOf('function formatSize'),
+);
+
+// Minimal document stub: text nodes and <mark> elements are all this needs.
+global.document = {
+    createTextNode: (t) => ({ mark: false, text: t }),
+    createElement: (tag) => ({ mark: tag === 'mark', className: '', text: '',
+                              set textContent(v) { this.text = v; },
+                              get textContent() { return this.text; } }),
+};
+function escapeRegex(str) { return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+eval(body);
+
+// Round-trip: concatenated node text must equal the input exactly, and the
+// marked segments must be exactly the matched terms.
+const cases = JSON.parse(process.argv[3]);
+const out = cases.map(([text, section]) => {
+    const nodes = buildHighlightedNodes(text, section);
+    return {
+        roundtrip: nodes.map(n => n.text).join(''),
+        marked: nodes.filter(n => n.mark).map(n => n.text),
+        count: nodes.length,
+    };
+});
+console.log(JSON.stringify(out));
+"""
+
+
+@pytest.mark.unit
+def test_source_highlight_segmentation():
+    """buildHighlightedNodes() must preserve text exactly and mark only matches."""
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node not available")
+
+    sources_js = WORKBENCH_STATIC / "sources.js"
+    assert sources_js.exists()
+
+    cases = [
+        ["alpha beta gamma", None],              # no highlight section
+        ["alpha beta gamma", "xx yy"],           # terms all <=3 chars -> no matches
+        ["alpha beta gamma", "beta"],            # single match, mid-string
+        ["beta alpha", "beta"],                  # match at index 0
+        ["alpha beta", "beta"],                  # match at end of string
+        ["betas beta", "beta"],                  # overlapping prefix, two matches
+        ["alpha BETA gamma", "beta"],            # case-insensitive
+        ["", "beta"],                            # empty document
+        ["a.b*c alpha", "a.b*c"],                # regex metacharacters in term
+    ]
+
+    with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False) as fh:
+        fh.write(_HIGHLIGHT_HARNESS)
+        harness = fh.name
+    try:
+        proc = subprocess.run(
+            [node, harness, str(sources_js), json.dumps(cases)],
+            capture_output=True, text=True, timeout=30,
+        )
+    finally:
+        os.unlink(harness)
+
+    assert proc.returncode == 0, f"harness failed:\n{proc.stderr}"
+    results = json.loads(proc.stdout)
+
+    for (text, section), result in zip(cases, results):
+        assert result["roundtrip"] == text, (
+            f"text not preserved for {text!r} / {section!r}: "
+            f"got {result['roundtrip']!r}"
+        )
+        for marked in result["marked"]:
+            assert marked.lower() in (section or "").lower(), (
+                f"marked segment {marked!r} is not a search term from {section!r}"
+            )
+
+    # No section, or no term longer than 3 chars -> exactly one text node.
+    assert results[0]["count"] == 1
+    assert results[1]["count"] == 1
+    # 'betas beta' against 'beta' -> two marks.
+    assert len(results[5]["marked"]) == 2
+
+
+@pytest.mark.unit
+def test_source_highlight_no_unbounded_spread():
+    """Highlight nodes must not be spread into a call — the count is unbounded.
+
+    buildHighlightedNodes() returns 2N+1 nodes for N matches, and corpus
+    documents run 12-31 MB (see CLAUDE.md). Spreading that into
+    replaceChildren(...) throws RangeError past V8's argument limit, so the
+    call site must append via a loop instead.
+    """
+    text = (WORKBENCH_STATIC / "sources.js").read_text(encoding="utf-8")
+    assert "replaceChildren(...buildHighlightedNodes" not in text, (
+        "spreading buildHighlightedNodes() into replaceChildren() throws "
+        "RangeError on large documents -- append via a fragment loop"
     )
