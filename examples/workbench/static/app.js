@@ -149,7 +149,13 @@ async function populateEntityLegend(template) {
             const color = (template.entity_colors || {})[type] || PALETTE[idx % PALETTE.length];
             const item = document.createElement('div');
             item.className = 'legend-item';
-            item.innerHTML = '<span class="legend-dot" style="background:' + color + '"></span><span class="legend-label">' + type.charAt(0) + type.slice(1).toLowerCase().replace(/_/g, ' ') + '</span>';
+            const dot = document.createElement('span');
+            dot.className = 'legend-dot';
+            dot.style.background = color;
+            const label = document.createElement('span');
+            label.className = 'legend-label';
+            label.textContent = type.charAt(0) + type.slice(1).toLowerCase().replace(/_/g, ' ');
+            item.replaceChildren(dot, label);
             legendContainer.appendChild(item);
             idx++;
         }
