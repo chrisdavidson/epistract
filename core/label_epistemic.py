@@ -399,14 +399,14 @@ def _builtin_biomedical_epistemic(output_dir: Path, graph_data: dict) -> dict:
         },
         "base_domain": {
             "asserted_relations": [
-                l for l in links if l.get("epistemic_status") == "asserted"
+                link for link in links if link.get("epistemic_status") == "asserted"
             ],
         },
         "super_domain": {
             "contradictions": contradictions,
             "hypotheses": hypotheses,
             "contested_claims": [
-                l for l in links if l.get("epistemic_status") in ("hypothesized", "speculative")
+                link for link in links if link.get("epistemic_status") in ("hypothesized", "speculative")
             ],
         },
     }
@@ -467,7 +467,7 @@ def _summarize_graph_for_narrator(graph_data: dict, claims_layer: dict) -> str:
     custom = super_domain.get("custom_findings", {}) or {}
 
     prophetic = [
-        l for l in links if l.get("epistemic_status") == "prophetic"
+        link for link in links if link.get("epistemic_status") == "prophetic"
     ]
 
     parts: list[str] = []
@@ -596,10 +596,13 @@ def narrate_claims_layer(
 
     context = _summarize_graph_for_narrator(graph_data, claims_layer)
     system_prompt = f"{persona}\n\n---\n\n{context}"
+    # max_tokens was 4096. On current Anthropic models thinking is on by default
+    # and draws from the same budget, so a narrative that used to fit can now be
+    # truncated mid-sentence. 8192 restores the headroom.
     narrative = call_llm(
         system=system_prompt,
         user=_NARRATOR_USER_PROMPT,
-        max_tokens=4096,
+        max_tokens=8192,
         temperature=0.3,
     )
     return narrative

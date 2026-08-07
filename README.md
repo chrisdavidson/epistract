@@ -106,16 +106,13 @@ Full briefing, graph, extractions, validation: **[docs/SHOWCASE-FDA.md](docs/SHO
 
 ## Pre-built domains
 
-Four domains ship with the framework:
+Five domains ship with the framework:
 
 - **drug-discovery** — biomedical literature & patents · 6 scenarios validated (PICALM/Alzheimer's through GLP-1 CI)
 - **clinicaltrials** — CT.gov protocols · 1 scenario validated · `--enrich` from CT.gov v2 + PubChem
 - **fda-product-labels** — FDA SPL labels · 1 scenario validated · four-level FDA evidence-tier classifier
+- **pharmacovigilance** — adverse-event reports (FAERS / VAERS / MedWatch) · 12 entity / 12 relation types · Bradford-Hill causality, MedDRA PT + WHO ATC · ships a FAERS corpus fetcher
 - **contracts** — event/vendor contract analysis · schema scaffold (bring your own corpus)
-
-Community fork (not yet merged upstream):
-
-- **pharmacovigilance** — adverse-event reports (FAERS / VAERS / MedWatch) · 10 entity / 11 relation types · Bradford-Hill causality, MedDRA PT + WHO ATC · ships a FAERS corpus fetcher · [chrisdavidson/epistract `feat/pharmacovigilance-domain`](https://github.com/chrisdavidson/epistract/tree/feat/pharmacovigilance-domain/domains/pharmacovigilance) ([PR #5](https://github.com/chrisdavidson/epistract/pull/5))
 
 Full per-domain schemas, scenario coverage tables, validation history, and showcase artifacts (screenshots, briefings, interactive graphs): **[docs/DOMAINS.md](docs/DOMAINS.md)**.
 

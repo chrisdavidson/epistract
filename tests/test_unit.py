@@ -141,7 +141,6 @@ def test_ut008_validate_smiles_no_rdkit():
     """With RDKit not importable, validate_smiles returns valid=None."""
     # We need to reload validate_smiles with rdkit unavailable
     # Import the module fresh with mocked rdkit
-    import importlib
     import validate_smiles as vs_mod
 
     # Save original state
@@ -1015,7 +1014,8 @@ def test_build_extraction_threads_model_flag(tmp_path):
 @pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
 def test_build_extraction_reads_model_env(tmp_path):
     """UT-027: EPISTRACT_MODEL env var is used when --model is absent."""
-    import subprocess, os as _os
+    import subprocess
+    import os as _os
 
     script = PROJECT_ROOT / "core" / "build_extraction.py"
     payload = json.dumps(
@@ -1082,7 +1082,8 @@ def test_build_extraction_no_hardcoded_model(tmp_path):
     default (``""``) instead of ``null``. The meaningful assertion is the absence
     of any fabricated provenance string (e.g., ``claude-opus-4-6``).
     """
-    import subprocess, os as _os
+    import subprocess
+    import os as _os
 
     script = PROJECT_ROOT / "core" / "build_extraction.py"
     payload = json.dumps(
@@ -1235,7 +1236,7 @@ def test_normalize_dedupes_keeps_richer(tmp_path):
     _write_extraction_file(ext / "dupe_a.json", doc_id="dupe", n_entities=2)
     _write_extraction_file(ext / "dupe_b.json", doc_id="dupe", n_entities=8)
 
-    result = normalize_extractions(tmp_path)
+    normalize_extractions(tmp_path)  # asserted via the on-disk survivor below
 
     # Survivor is the canonical <doc_id>.json with 8 entities
     survivor = ext / "dupe.json"
@@ -1292,7 +1293,7 @@ def test_normalize_writes_report(tmp_path):
     ext = tmp_path / "extractions"
     _write_extraction_file(ext / "good.json", doc_id="good")
 
-    result = normalize_extractions(tmp_path)
+    normalize_extractions(tmp_path)  # asserted via the on-disk report below
 
     report_path = ext / "_normalization_report.json"
     assert report_path.exists()
@@ -3044,7 +3045,18 @@ def test_chat_request_model_field(monkeypatch):
 @pytest.mark.unit
 def test_resolve_api_config_model_override(monkeypatch):
     """WB-MODEL-01: _resolve_api_config(model_override=...) substitutes for Anthropic/OpenRouter; ignored by Foundry."""
-    from examples.workbench.api_chat import _resolve_api_config
+    from examples.workbench.api_chat import (
+        DEFAULT_ANTHROPIC_MODEL,
+        DEFAULT_FOUNDRY_DEPLOYMENT,
+        PROVIDER_MODELS,
+        _resolve_api_config,
+    )
+
+    # Assert against the declared constant rather than a hardcoded model id.
+    # The behaviour under test is "override substitution and empty-value
+    # coercion", not "the default happens to be model X" — pinning a literal
+    # here just means this test needs editing on every model bump, which is how
+    # it came to assert a deprecated id.
 
     # --- Case A: ANTHROPIC_API_KEY only ---
     _clear_llm_env(monkeypatch)
@@ -3053,19 +3065,19 @@ def test_resolve_api_config_model_override(monkeypatch):
     # No override → default model
     _, _, default_model, provider = _resolve_api_config()
     assert provider == "anthropic"
-    assert default_model == "claude-sonnet-4-20250514"
+    assert default_model == DEFAULT_ANTHROPIC_MODEL
 
     # Override non-empty → substituted
-    _, _, overridden, _ = _resolve_api_config(model_override="claude-opus-4-20250514")
-    assert overridden == "claude-opus-4-20250514"
+    _, _, overridden, _ = _resolve_api_config(model_override="claude-opus-5")
+    assert overridden == "claude-opus-5"
 
     # Empty string → coerced to default
     _, _, empty_override, _ = _resolve_api_config(model_override="")
-    assert empty_override == "claude-sonnet-4-20250514"
+    assert empty_override == DEFAULT_ANTHROPIC_MODEL
 
     # Whitespace-only → coerced to default
     _, _, ws_override, _ = _resolve_api_config(model_override="   ")
-    assert ws_override == "claude-sonnet-4-20250514"
+    assert ws_override == DEFAULT_ANTHROPIC_MODEL
 
     # --- Case B: OPENROUTER_API_KEY only ---
     _clear_llm_env(monkeypatch)
@@ -3073,12 +3085,13 @@ def test_resolve_api_config_model_override(monkeypatch):
 
     _, _, or_default, or_provider = _resolve_api_config()
     assert or_provider == "openrouter"
-    assert or_default == "anthropic/claude-sonnet-4"
+    assert or_default == PROVIDER_MODELS["openrouter"][0]["id"]
 
+    # Arbitrary pass-through value — this asserts substitution, not validity.
     _, _, or_override, _ = _resolve_api_config(
-        model_override="anthropic/claude-haiku-4"
+        model_override="anthropic/some-model-id"
     )
-    assert or_override == "anthropic/claude-haiku-4"
+    assert or_override == "anthropic/some-model-id"
 
     # --- Case C: Foundry (AZURE_FOUNDRY_API_KEY + AZURE_FOUNDRY_RESOURCE) ---
     # Override must be IGNORED — deployment name comes from env/default.
@@ -3088,13 +3101,13 @@ def test_resolve_api_config_model_override(monkeypatch):
 
     _, _, foundry_default, foundry_provider = _resolve_api_config()
     assert foundry_provider == "anthropic"  # Foundry uses native format
-    assert foundry_default == "claude-sonnet-4-6"  # the compiled default
+    assert foundry_default == DEFAULT_FOUNDRY_DEPLOYMENT  # the compiled default
 
     # Override is silently ignored — still returns the env deployment
     _, _, foundry_ignored, _ = _resolve_api_config(
         model_override="anthropic/claude-haiku-4"
     )
-    assert foundry_ignored == "claude-sonnet-4-6", (
+    assert foundry_ignored == DEFAULT_FOUNDRY_DEPLOYMENT, (
         "Foundry must IGNORE model_override — deployment is determined by "
         "AZURE_FOUNDRY_DEPLOYMENT, not the request body"
     )
@@ -3140,11 +3153,22 @@ def test_get_models_anthropic(tmp_path, monkeypatch):
     app = create_app(tmp_path, domain="contracts")
     client = TestClient(app)
 
+    from examples.workbench.api_chat import DEFAULT_ANTHROPIC_MODEL, PROVIDER_MODELS
+
     resp = client.get("/api/models")
     assert resp.status_code == 200
     data = resp.json()
     assert data["provider"] == "anthropic"
-    assert data["default_model"] == "claude-sonnet-4-20250514"
+    assert data["default_model"] == DEFAULT_ANTHROPIC_MODEL
+
+    # get_models() returns `default_model = PROVIDER_MODELS["anthropic"][0]["id"]`,
+    # so the catalog head and the declared default must agree — otherwise the
+    # selector's default silently differs from what a request with no `model`
+    # field resolves to. Pin that invariant.
+    assert PROVIDER_MODELS["anthropic"][0]["id"] == DEFAULT_ANTHROPIC_MODEL, (
+        "PROVIDER_MODELS['anthropic'][0] is the UI default and must match "
+        "DEFAULT_ANTHROPIC_MODEL used by _resolve_api_config()"
+    )
     assert isinstance(data["models"], list)
     assert len(data["models"]) >= 3, (
         f"Expected >=3 Anthropic models, got {len(data['models'])}"
@@ -3822,8 +3846,7 @@ def test_get_models_openrouter_health_filtered(tmp_path, monkeypatch):
 # Wave 1 stub tests — RED until Plan 12-02 (manage_domains.py) lands.
 # ========================================================================
 
-import importlib
-import subprocess as _subprocess
+import subprocess as _subprocess  # noqa: E402 — section-local import, kept beside its tests
 
 
 def _make_synthetic_domain(parent: Path, name: str) -> Path:
@@ -3866,7 +3889,9 @@ def test_manage_domains_list_active(tmp_path):
 @pytest.mark.unit
 def test_manage_domains_row_fields(tmp_path):
     """LIST-02: Each row from cmd_list() contains all required fields."""
-    import sys, json as _json, os as _os
+    import sys
+    import json as _json
+    import os as _os
     domains_dir = tmp_path / "domains"
     _make_synthetic_domain(domains_dir, "test-domain")
 
@@ -3892,7 +3917,9 @@ def test_manage_domains_row_fields(tmp_path):
 @pytest.mark.unit
 def test_manage_domains_info_missing(tmp_path):
     """DEL-01: cmd_info for a nonexistent domain returns error JSON and exit code 1."""
-    import sys, json as _json, os as _os
+    import sys
+    import json as _json
+    import os as _os
     domains_dir = tmp_path / "domains"
     domains_dir.mkdir()
 
@@ -3916,7 +3943,9 @@ def test_manage_domains_info_missing(tmp_path):
 @pytest.mark.unit
 def test_manage_domains_info_fields(tmp_path):
     """DEL-03: cmd_info returns JSON with 'name' and 'file_count' keys."""
-    import sys, json as _json, os as _os
+    import sys
+    import json as _json
+    import os as _os
     domains_dir = tmp_path / "domains"
     _make_synthetic_domain(domains_dir, "test-domain")
 
@@ -3940,7 +3969,9 @@ def test_manage_domains_info_fields(tmp_path):
 @pytest.mark.unit
 def test_manage_domains_archive_moves(tmp_path):
     """DEL-02, DEL-04b: cmd_archive moves domain to _archived/<name>/ and returns success JSON."""
-    import sys, json as _json, os as _os
+    import sys
+    import json as _json
+    import os as _os
     domains_dir = tmp_path / "domains"
     _make_synthetic_domain(domains_dir, "test-domain")
 
@@ -3968,7 +3999,9 @@ def test_manage_domains_archive_moves(tmp_path):
 @pytest.mark.unit
 def test_manage_domains_remove_active(tmp_path):
     """DEL-02: cmd_remove on an active domain permanently deletes it."""
-    import sys, json as _json, os as _os
+    import sys
+    import json as _json
+    import os as _os
     domains_dir = tmp_path / "domains"
     _make_synthetic_domain(domains_dir, "test-domain")
 
@@ -4010,7 +4043,9 @@ def test_list_domains_excludes_archived(tmp_path, monkeypatch):
 @pytest.mark.unit
 def test_manage_domains_list_archived(tmp_path):
     """DEL-04b: cmd_list() includes rows with status='archived' from domains/_archived/."""
-    import sys, json as _json, os as _os
+    import sys
+    import json as _json
+    import os as _os
     domains_dir = tmp_path / "domains"
     _make_synthetic_domain(domains_dir, "active-domain")
     # Manually place an archived domain
@@ -4043,7 +4078,9 @@ def test_manage_domains_list_archived(tmp_path):
 @pytest.mark.unit
 def test_schema_validate_dangling_endpoint(tmp_path):
     """UPDT-02: validate subcommand detects a relation referencing a nonexistent entity type."""
-    import sys, json as _json, os as _os
+    import sys
+    import json as _json
+    import os as _os
 
     domains_dir = tmp_path / "domains"
     _make_synthetic_domain(domains_dir, "test-domain")
@@ -4097,7 +4134,9 @@ def test_schema_validate_no_duplicate_false_positive():
 @pytest.mark.unit
 def test_schema_validate_clean(tmp_path):
     """UPDT-02: validate subcommand returns valid=true and empty errors for a clean schema."""
-    import sys, json as _json, os as _os
+    import sys
+    import json as _json
+    import os as _os
 
     domains_dir = tmp_path / "domains"
     _make_synthetic_domain(domains_dir, "test-domain")
@@ -4128,7 +4167,9 @@ def test_schema_validate_clean(tmp_path):
 @pytest.mark.unit
 def test_schema_validate_no_endpoints(tmp_path):
     """UPDT-02: validate subcommand returns valid=true for contracts-style schema with no endpoint fields."""
-    import sys, json as _json, os as _os
+    import sys
+    import json as _json
+    import os as _os
 
     domains_dir = tmp_path / "domains"
     _make_synthetic_domain(domains_dir, "test-domain")
@@ -4358,3 +4399,140 @@ def test_preprocess_extractions_skips_underscore_infra_files(tmp_path):
     # The report must be left byte-identical — never rewritten.
     report = json.loads((ext / "_normalization_report.json").read_text())
     assert report == {"total": 1, "passed": 1, "pass_rate": 1.0}
+
+
+# ---------------------------------------------------------------------------
+# core/llm_client payload construction (GH #27)
+#
+# core/llm_client.py had no test coverage at all, which is how it kept sending
+# `temperature` on the Anthropic-native path. Opus 5 / Sonnet 5 / Opus 4.8 /
+# Opus 4.7 removed temperature/top_p/top_k and reject them with HTTP 400, so
+# that payload would have failed on every current model the moment the default
+# model id was updated.
+#
+# These tests pin the request SHAPE without touching the network.
+# ---------------------------------------------------------------------------
+
+
+class _FakeAnthropicResponse:
+    """Minimal stand-in for an httpx Response carrying an Anthropic message."""
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return {"content": [{"type": "text", "text": "ok"}]}
+
+
+def _capture_anthropic_payload(monkeypatch, **call_kwargs):
+    """Run call_llm against a stubbed httpx.Client and return the sent payload."""
+    import httpx
+
+    from core.llm_client import LLMConfig, call_llm
+
+    captured: dict = {}
+
+    class _FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def post(self, url, headers=None, json=None):
+            captured["url"] = url
+            captured["payload"] = json
+            return _FakeAnthropicResponse()
+
+    monkeypatch.setattr(httpx, "Client", _FakeClient)
+
+    config = LLMConfig(
+        api_key="sk-test",
+        base_url="https://example.invalid/v1/messages",
+        model="claude-sonnet-5",
+        provider="anthropic",
+    )
+    result = call_llm("system prompt", "user prompt", config=config, **call_kwargs)
+    return captured["payload"], result
+
+
+def test_llm_client_anthropic_payload_omits_temperature(monkeypatch):
+    """GH27: the Anthropic-native payload must never carry temperature.
+
+    Current models return HTTP 400 for a non-default temperature/top_p/top_k.
+    The caller may still pass temperature (the OpenRouter path uses it), but it
+    must not reach the Anthropic wire format.
+    """
+    payload, result = _capture_anthropic_payload(monkeypatch, temperature=0.7)
+
+    assert "temperature" not in payload, (
+        "temperature must not be sent on the Anthropic path — current models "
+        f"reject it with HTTP 400. Payload keys: {sorted(payload)}"
+    )
+    assert "top_p" not in payload
+    assert "top_k" not in payload
+    assert payload["model"] == "claude-sonnet-5"
+    assert result == "ok"
+
+
+def test_llm_client_anthropic_payload_effort_optional(monkeypatch):
+    """GH27: effort maps to output_config.effort, and is omitted when unset."""
+    without_effort, _ = _capture_anthropic_payload(monkeypatch)
+    assert "output_config" not in without_effort, (
+        "output_config must be absent when no effort is requested, so the "
+        "server default applies"
+    )
+
+    with_effort, _ = _capture_anthropic_payload(monkeypatch, effort="low")
+    assert with_effort["output_config"] == {"effort": "low"}
+
+
+def test_llm_client_openrouter_still_sends_temperature(monkeypatch):
+    """GH27: the OpenRouter path is OpenAI-compatible and keeps temperature.
+
+    OpenRouter routes to many non-Anthropic models where temperature remains a
+    meaningful parameter, so the removal is scoped to the Anthropic path only.
+    """
+    import openai
+
+    from core.llm_client import LLMConfig, call_llm
+
+    captured: dict = {}
+
+    class _FakeCompletions:
+        def create(self, **kwargs):
+            captured.update(kwargs)
+
+            class _Msg:
+                content = "ok"
+
+            class _Choice:
+                message = _Msg()
+
+            class _Resp:
+                choices = [_Choice()]
+
+            return _Resp()
+
+    class _FakeChat:
+        completions = _FakeCompletions()
+
+    class _FakeOpenAI:
+        def __init__(self, *args, **kwargs):
+            self.chat = _FakeChat()
+
+    monkeypatch.setattr(openai, "OpenAI", _FakeOpenAI)
+
+    config = LLMConfig(
+        api_key="sk-test",
+        base_url="https://openrouter.invalid/api/v1",
+        model="anthropic/claude-sonnet-4.6",
+        provider="openrouter",
+    )
+    result = call_llm("system", "user", config=config, temperature=0.0)
+
+    assert captured["temperature"] == 0.0
+    assert result == "ok"
