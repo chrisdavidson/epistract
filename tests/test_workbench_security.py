@@ -31,7 +31,32 @@ INDEX_HTML = WORKBENCH_STATIC / "index.html"
 
 @pytest.mark.unit
 def test_xss_sanitization():
-    """Every innerHTML assignment fed by untrusted data must be sanitized."""
+    """Every innerHTML assignment fed by untrusted data must be sanitized.
+
+    Statement-aware rule (Issue #24 PR A, T-260807-03). The previous
+    substring-in-line rule only flagged an innerHTML assignment whose RHS
+    contained `${` or one of four named function calls, so it missed both
+    string concatenation and bare identifiers. This rule instead extracts
+    the WHOLE right-hand side of every `.innerHTML =` / `.innerHTML +=`
+    assignment (joined across lines up to the terminating `;`) and accepts
+    it only when it is one whole static string literal with no `${`
+    interpolation, or when an allowlisted sanitizer call
+    (`DOMPurify.sanitize(...)` or `escapeHtml(...)`) appears anywhere in
+    the RHS. Everything else — concatenation, bare identifiers,
+    unsanitized template literals — is an offender.
+
+    `//`-to-EOL comments are stripped from the WHOLE file text FIRST,
+    before any other step, for two reasons: it removes the false positive
+    at graph.js:343 (a prose comment that quotes a cleared-container
+    assignment), and it stops a trailing comment from "laundering" a real
+    sink past the sanitizer allowlist (a comment merely mentioning
+    escapeHtml must not make an unsanitized assignment look safe).
+
+    Reads such as `return div.innerHTML;` (the escapeHtml helpers at
+    app.js:13 and sources.js:146) are never matched — the assignment
+    regex requires a `=` (or `+=`, excluding `==`/`===`) immediately after
+    `.innerHTML`, and a bare return has none.
+    """
     # SEC-07: glob every *.js under examples/workbench/static/ so any newly
     # added JS file is automatically scanned. Exclude minified third-party
     # bundles (*.min.js) to avoid false positives on vis-network etc.
@@ -40,32 +65,31 @@ def test_xss_sanitization():
         f for f in WORKBENCH_STATIC.glob("*.js")
         if not f.name.endswith(".min.js")
     )
-    # Acceptable patterns:
-    #   - DOMPurify.sanitize(...)            (Pattern A from RESEARCH)
-    #   - .textContent =                      (Pattern B — DOM API)
-    #   - escapeHtml(...)                     (Pattern C from RESEARCH)
-    sanitize_re = re.compile(r"DOMPurify\.sanitize|escapeHtml\s*\(")
-    # Lines containing innerHTML assignment that is NOT a static literal.
-    # We look for `innerHTML = ` followed by something containing `${` (template
-    # literal interpolation) OR a function call like marked.parse / renderMarkdown.
-    danger_re = re.compile(
-        r"innerHTML\s*=\s*.*(\$\{|marked\.parse|renderMarkdown|linkifyCitations|dashData\.html)"
+    COMMENT_RE = re.compile(r"//.*$", re.MULTILINE)
+    ASSIGN_RE = re.compile(
+        r"\.innerHTML\s*\+?=(?!=)(?P<rhs>.*?);\s*$", re.DOTALL | re.MULTILINE
     )
+    STATIC_LITERAL_RE = re.compile(r"""^\s*(?:'[^']*'|"[^"]*"|`[^`]*`)\s*$""")
+    SANITIZE_RE = re.compile(r"DOMPurify\.sanitize\s*\(|escapeHtml\s*\(")
+
     offenders: list[tuple[Path, int, str]] = []
     for f in files_to_check:
         if not f.exists():
             continue  # file not yet created (e.g. sidebar.js before Wave 2)
-        text = f.read_text(encoding="utf-8")
-        for lineno, line in enumerate(text.splitlines(), start=1):
-            if not danger_re.search(line):
+        raw_text = f.read_text(encoding="utf-8")
+        stripped_text = COMMENT_RE.sub("", raw_text)
+        for match in ASSIGN_RE.finditer(stripped_text):
+            rhs = match.group("rhs")
+            if STATIC_LITERAL_RE.match(rhs) and "${" not in rhs:
                 continue
-            if sanitize_re.search(line):
+            if SANITIZE_RE.search(rhs):
                 continue
-            offenders.append((f, lineno, line.strip()))
+            lineno = stripped_text[: match.start()].count("\n") + 1
+            offenders.append((f, lineno, rhs.strip()))
     assert not offenders, (
-        "Unsanitized innerHTML assignments found. Each line below must be wrapped "
-        "in DOMPurify.sanitize(...) or escapeHtml(...) per RESEARCH section "
-        "'Architecture Patterns':\n"
+        "Unsanitized innerHTML assignments found. Each RHS below must be a "
+        "static string literal (no ${ interpolation) or wrapped in "
+        "DOMPurify.sanitize(...) / escapeHtml(...):\n"
         + "\n".join(f"  {f.name}:{ln}: {src}" for f, ln, src in offenders)
     )
 

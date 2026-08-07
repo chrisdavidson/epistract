@@ -131,7 +131,9 @@ async function populateDashboard(template) {
             autoHtml += '</tbody></table></div>';
             autoHtml += '<p>Total entities: ' + escapeHtml(String(dashData.total_nodes || 0))
                 + ' | Total relationships: ' + escapeHtml(String(dashData.total_edges || 0)) + '</p>';
-            dashContent.innerHTML = autoHtml;
+            dashContent.innerHTML = (typeof DOMPurify !== 'undefined')
+                ? DOMPurify.sanitize(autoHtml, { ADD_ATTR: ['id'] })
+                : autoHtml;
         }
     } catch (e) {
         dashContent.innerHTML = '<p>Failed to load dashboard content.</p>';
