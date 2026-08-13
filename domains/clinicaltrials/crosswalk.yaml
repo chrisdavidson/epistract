@@ -11,3 +11,13 @@ axes:
     sources:
       - from: name
       - from: any_attribute
+
+  drug:
+    entity_types: [Compound]
+    sources:
+      - from: attribute
+        key: inn
+      - from: name
+
+  # No adverse_event axis here -- this graph has zero AE-type entities, so
+  # the safety axis never reaches clinicaltrials.

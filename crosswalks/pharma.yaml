@@ -14,3 +14,56 @@ axes:
       - op: regex_extract
         pattern: "NCT\\d{8}"
       - op: uppercase
+
+  drug:
+    # Collapse brand names, salt forms, and hydrate forms onto the parent
+    # moiety name. The token list below is derived from the salt/hydrate
+    # suffixes actually observed across the three source corpora (e.g.
+    # "... acetate", "... phosphate monohydrate", "... propanediol") --
+    # it is not an attempt at an exhaustive pharmacopeia list.
+    normalize:
+      - op: lowercase
+      - op: collapse_whitespace
+      - op: strip_trailing_tokens
+        tokens:
+          - acetate
+          - besylate
+          - bromide
+          - calcium
+          - chloride
+          - citrate
+          - dihydrate
+          - fumarate
+          - hydrobromide
+          - hydrochloride
+          - hydrate
+          - magnesium
+          - maleate
+          - mesylate
+          - monohydrate
+          - oxalate
+          - phosphate
+          - potassium
+          - propanediol
+          - sodium
+          - succinate
+          - sulfate
+          - tartrate
+          - trihydrate
+
+  adverse_event:
+    # British-to-US orthographic normalisation. Only the three pairs the
+    # planning assessment measured a real join gain from are included here
+    # (an unmeasured guess adds no verified value and risks a false
+    # substitution). Two of the three ('haem'->'hem', 'oedema'->'edema')
+    # are deliberately substring rules -- they also fire inside compound
+    # words like "haemorrhage" and "peripheral oedema", not just as whole
+    # terms.
+    normalize:
+      - op: lowercase
+      - op: collapse_whitespace
+      - op: replace_map
+        map:
+          diarrhoea: diarrhea
+          haem: hem
+          oedema: edema

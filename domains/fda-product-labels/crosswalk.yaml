@@ -13,3 +13,24 @@ axes:
     sources:
       - from: any_attribute
       - from: name
+
+  drug:
+    entity_types: [DRUG_PRODUCT, ACTIVE_INGREDIENT]
+    sources:
+      - from: attribute
+        key: generic_name
+      - from: attribute
+        key: substance_name
+      - from: name
+    identifiers:
+      unii:
+        from: attribute
+        key: unii
+
+  adverse_event:
+    # ADVERSE_REACTION only -- deliberately NOT the warnings section. The
+    # warnings vocabulary overlap with the pharmacovigilance AE set is
+    # roughly one term against forty; admitting it collapses the axis.
+    entity_types: [ADVERSE_REACTION]
+    sources:
+      - from: name
