@@ -1,0 +1,15 @@
+# Per-domain crosswalk extraction spec for fda-product-labels.
+#
+# Declares, per axis: which entity types participate, and which value
+# sources to try (in order -- the first source producing a non-empty
+# canonical key wins for a given node). Canonicalisation itself (the
+# normalizer chain) lives once in ../../crosswalks/pharma.yaml, not here.
+axes:
+  trial:
+    entity_types: [CLINICAL_STUDY]
+    # The registry ID sits under three different attribute keys across the
+    # corpus and, for some nodes, only in the descriptive name -- so this
+    # scans every attribute value plus the name rather than naming one key.
+    sources:
+      - from: any_attribute
+      - from: name

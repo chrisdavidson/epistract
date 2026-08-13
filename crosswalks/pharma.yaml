@@ -1,0 +1,16 @@
+# Repo-level axis spec -- the single canonicalisation authority.
+#
+# Every graph runs the SAME normalizer chain per axis, defined once here.
+# Per-domain crosswalk.yaml files declare WHICH entity types and attribute
+# sources feed an axis; this file declares HOW a raw value becomes a
+# canonical key. If each domain declared its own chain instead, a
+# salt-stripped key from one graph would never meet an unstripped key from
+# another and the spine would silently join almost nothing while every
+# per-domain unit test still passed in isolation.
+axes:
+  trial:
+    # Registry-ID axis: extract the identifier pattern, then normalize case.
+    normalize:
+      - op: regex_extract
+        pattern: "NCT\\d{8}"
+      - op: uppercase

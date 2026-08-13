@@ -1,0 +1,13 @@
+# Per-domain crosswalk extraction spec for clinicaltrials.
+#
+# Declares, per axis: which entity types participate, and which value
+# sources to try (in order). Canonicalisation itself (the normalizer chain)
+# lives once in ../../crosswalks/pharma.yaml, not here.
+axes:
+  trial:
+    entity_types: [Trial]
+    # Trial nodes are named with the bare registry ID; fall back to
+    # attributes for the rare node where the name alone doesn't carry it.
+    sources:
+      - from: name
+      - from: any_attribute
