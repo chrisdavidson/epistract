@@ -34,3 +34,8 @@ axes:
     entity_types: [ADVERSE_REACTION]
     sources:
       - from: name
+
+edges:
+  - subject: drug
+    object: adverse_event
+    relations: [CAUSES_ADVERSE_REACTION]

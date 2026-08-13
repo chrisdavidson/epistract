@@ -1,0 +1,134 @@
+{
+  "metadata": {
+    "domain": "fda-product-labels",
+    "entity_count": 10
+  },
+  "nodes": [
+    {
+      "id": "drug_product:sampledrug",
+      "entity_type": "DRUG_PRODUCT",
+      "name": "SAMPLEDRUG",
+      "confidence": 0.9,
+      "attributes": {
+        "generic_name": "sampletide"
+      }
+    },
+    {
+      "id": "active_ingredient:sampletide",
+      "entity_type": "ACTIVE_INGREDIENT",
+      "name": "sampletide",
+      "confidence": 0.9,
+      "attributes": {
+        "unii": "SAMPLE12345"
+      }
+    },
+    {
+      "id": "drug_product:otherdrug",
+      "entity_type": "DRUG_PRODUCT",
+      "name": "OTHERDRUG",
+      "confidence": 0.9,
+      "attributes": {
+        "generic_name": "otherinn"
+      }
+    },
+    {
+      "id": "active_ingredient:otherinn",
+      "entity_type": "ACTIVE_INGREDIENT",
+      "name": "otherinn",
+      "confidence": 0.9,
+      "attributes": {
+        "unii": "OTHER99999"
+      }
+    },
+    {
+      "id": "drug_product:fullycovered",
+      "entity_type": "DRUG_PRODUCT",
+      "name": "FULLYCOVERED",
+      "confidence": 0.9,
+      "attributes": {
+        "generic_name": "fullycovinn"
+      }
+    },
+    {
+      "id": "active_ingredient:fullycovinn",
+      "entity_type": "ACTIVE_INGREDIENT",
+      "name": "fullycovinn",
+      "confidence": 0.9,
+      "attributes": {
+        "unii": "COVER00001"
+      }
+    },
+    {
+      "id": "adverse_reaction:nausea",
+      "entity_type": "ADVERSE_REACTION",
+      "name": "Nausea",
+      "confidence": 0.9,
+      "attributes": {}
+    },
+    {
+      "id": "adverse_reaction:headache",
+      "entity_type": "ADVERSE_REACTION",
+      "name": "Headache",
+      "confidence": 0.9,
+      "attributes": {}
+    },
+    {
+      "id": "adverse_reaction:abdominal_pain",
+      "entity_type": "ADVERSE_REACTION",
+      "name": "Abdominal Pain",
+      "confidence": 0.9,
+      "attributes": {}
+    },
+    {
+      "id": "adverse_reaction:rash",
+      "entity_type": "ADVERSE_REACTION",
+      "name": "Rash",
+      "confidence": 0.9,
+      "attributes": {}
+    },
+    {
+      "id": "adverse_reaction:dizziness",
+      "entity_type": "ADVERSE_REACTION",
+      "name": "Dizziness",
+      "confidence": 0.9,
+      "attributes": {}
+    }
+  ],
+  "links": [
+    {
+      "source": "drug_product:sampledrug",
+      "target": "adverse_reaction:nausea",
+      "relation_type": "CAUSES_ADVERSE_REACTION",
+      "confidence": 0.9,
+      "evidence": "Sampledrug label reports nausea."
+    },
+    {
+      "source": "drug_product:sampledrug",
+      "target": "adverse_reaction:headache",
+      "relation_type": "CAUSES_ADVERSE_REACTION",
+      "confidence": 0.9,
+      "evidence": "Sampledrug label reports headache."
+    },
+    {
+      "source": "drug_product:sampledrug",
+      "target": "adverse_reaction:abdominal_pain",
+      "relation_type": "CAUSES_ADVERSE_REACTION",
+      "confidence": 0.9,
+      "evidence": "Sampledrug label reports abdominal pain."
+    },
+    {
+      "source": "drug_product:otherdrug",
+      "target": "adverse_reaction:rash",
+      "relation_type": "CAUSES_ADVERSE_REACTION",
+      "confidence": 0.9,
+      "evidence": "Otherdrug label reports rash."
+    },
+    {
+      "source": "drug_product:fullycovered",
+      "target": "adverse_reaction:dizziness",
+      "relation_type": "CAUSES_ADVERSE_REACTION",
+      "confidence": 0.9,
+      "evidence": "Fullycovered label reports dizziness."
+    }
+  ]
+}

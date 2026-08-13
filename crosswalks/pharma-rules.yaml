@@ -1,0 +1,33 @@
+# Repo-level cross-domain rules spec.
+#
+# Each rule is a set difference between two graphs joined on a canonical
+# spine key. core/cross_domain.py knows how to compute a set difference; it
+# knows nothing about drugs, adverse events, trials, or labels. Every
+# domain-bearing decision -- which graph probes, which graph is the
+# reference, which axis pair a rule spans, how a miss is worded, how it is
+# graded, and which words are noise for the token comparison -- lives here.
+#
+# `probe` and `reference` name graphs by the key the spine records for them,
+# which is metadata.domain unless the spine was built with a NAME= override.
+rules:
+  - name: unlabeled_adverse_event
+    type: safety_signal
+    subject_axis: drug
+    object_axis: adverse_event
+    probe: pharmacovigilance
+    reference: fda-product-labels
+    compare: spine_keys
+    # The class-effect subtype grades highest on purpose: the reference
+    # corpus already knows the term, it simply never attaches it to this
+    # molecule, which is the more interesting clinical question. The
+    # granularity subtype grades lowest -- it is a vocabulary artifact, not
+    # a signal, and closing it properly needs a licensed term hierarchy the
+    # project does not ship.
+    severity:
+      attributed_elsewhere: high
+      absent: medium
+      granularity_variant: low
+    descriptions:
+      absent: "{object_key} is reported against {subject_key} in {probe} and does not appear anywhere in {reference}"
+      attributed_elsewhere: "{object_key} appears in {reference} but never against {subject_key}, which reports it in {probe}"
+      granularity_variant: "{object_key} reported against {subject_key} in {probe} is a granularity variant of {reference_variants} already recorded against it in {reference}"

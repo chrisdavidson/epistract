@@ -34,3 +34,12 @@ axes:
       - from: attribute
         key: meddra_pt
       - from: name
+
+edges:
+  # The patient-experience relation runs patient -> event and never touches
+  # a drug node; it is deliberately absent here. Measured typed signatures
+  # on the real graph: 642 temporal-ordering edges plus 87 direct causal
+  # edges carry the whole drug/event connection.
+  - subject: drug
+    object: adverse_event
+    relations: [OCCURRED_AFTER, CAUSES]

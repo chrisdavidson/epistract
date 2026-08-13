@@ -1,0 +1,115 @@
+{
+  "metadata": {
+    "domain": "pharmacovigilance",
+    "entity_count": 8
+  },
+  "nodes": [
+    {
+      "id": "drug:sampletide",
+      "entity_type": "Drug",
+      "name": "SAMPLETIDE",
+      "confidence": 0.9,
+      "attributes": {
+        "inn": "sampletide"
+      }
+    },
+    {
+      "id": "drug:fullycovinn",
+      "entity_type": "Drug",
+      "name": "FULLYCOVINN",
+      "confidence": 0.9,
+      "attributes": {
+        "inn": "fullycovinn"
+      }
+    },
+    {
+      "id": "adverseevent:nausea",
+      "entity_type": "AdverseEvent",
+      "name": "Nausea",
+      "confidence": 0.9,
+      "attributes": {
+        "meddra_pt": "Nausea"
+      }
+    },
+    {
+      "id": "adverseevent:dizziness",
+      "entity_type": "AdverseEvent",
+      "name": "Dizziness",
+      "confidence": 0.9,
+      "attributes": {
+        "meddra_pt": "Dizziness"
+      }
+    },
+    {
+      "id": "adverseevent:pancreatitis",
+      "entity_type": "AdverseEvent",
+      "name": "Pancreatitis",
+      "confidence": 0.9,
+      "attributes": {
+        "meddra_pt": "Pancreatitis"
+      }
+    },
+    {
+      "id": "adverseevent:rash",
+      "entity_type": "AdverseEvent",
+      "name": "Rash",
+      "confidence": 0.9,
+      "attributes": {
+        "meddra_pt": "Rash"
+      }
+    },
+    {
+      "id": "adverseevent:abdominal_pain_upper",
+      "entity_type": "AdverseEvent",
+      "name": "Abdominal Pain Upper",
+      "confidence": 0.9,
+      "attributes": {
+        "meddra_pt": "Abdominal Pain Upper"
+      }
+    }
+  ],
+  "links": [
+    {
+      "source": "drug:sampletide",
+      "target": "adverseevent:nausea",
+      "relation_type": "CAUSES",
+      "confidence": 0.8,
+      "evidence": "FAERS report: sampletide, nausea (covered by the label)."
+    },
+    {
+      "source": "adverseevent:pancreatitis",
+      "target": "drug:sampletide",
+      "relation_type": "OCCURRED_AFTER",
+      "confidence": 0.8,
+      "evidence": "FAERS report: pancreatitis occurred after sampletide (absent from label)."
+    },
+    {
+      "source": "drug:sampletide",
+      "target": "adverseevent:rash",
+      "relation_type": "CAUSES",
+      "confidence": 0.8,
+      "evidence": "FAERS report: sampletide, rash (label attributes rash to a different drug)."
+    },
+    {
+      "source": "adverseevent:abdominal_pain_upper",
+      "target": "drug:sampletide",
+      "relation_type": "OCCURRED_AFTER",
+      "confidence": 0.8,
+      "evidence": "FAERS report: abdominal pain upper occurred after sampletide (granularity variant of the label's abdominal pain)."
+    },
+    {
+      "source": "drug:fullycovinn",
+      "target": "adverseevent:dizziness",
+      "relation_type": "CAUSES",
+      "confidence": 0.8,
+      "evidence": "FAERS report: fullycovinn, dizziness (fully covered by the label -- no finding expected)."
+    },
+    {
+      "source": "drug:sampletide",
+      "target": "adverseevent:dizziness",
+      "relation_type": "EXPERIENCED",
+      "confidence": 0.5,
+      "evidence": "A patient-experience edge that must never be projected: it is not in the configured relation list for the drug/adverse_event axis pair."
+    }
+  ]
+}
