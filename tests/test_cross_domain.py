@@ -18,6 +18,9 @@ from core.cross_domain_compare import (
     SUBTYPE_ATTRIBUTED_ELSEWHERE,
     SUBTYPE_GRANULARITY_VARIANT,
     classify_miss,
+    coverage_ratio,
+    resolve_band,
+    tokenize,
 )
 from core.crosswalk_normalize import CrosswalkConfigError
 
@@ -406,3 +409,177 @@ def test_edges_section_is_inert_for_spine_builder(fixtures_dir):
     without_edges = build_spine(stripped, axis_spec)
 
     assert with_edges["axes"] == without_edges["axes"]
+
+
+# ---------------------------------------------------------------------------
+# Token coverage primitives
+# ---------------------------------------------------------------------------
+
+_STOPWORDS = {"was", "not", "in", "this", "the", "a", "of"}
+
+
+@pytest.mark.unit
+def test_tokenize_honours_pattern_min_length_and_stopwords():
+    tokens = tokenize(
+        "Fasting glucose change was measured in this study.",
+        pattern="[a-z]+",
+        min_token_length=3,
+        stopwords=_STOPWORDS,
+    )
+    assert tokens == {"fasting", "glucose", "change", "measured", "study"}
+
+
+@pytest.mark.unit
+def test_tokenize_all_stopwords_yields_empty_set():
+    tokens = tokenize("was not in this", pattern="[a-z]+", min_token_length=1, stopwords=_STOPWORDS)
+    assert tokens == set()
+
+
+@pytest.mark.unit
+def test_coverage_ratio_all_present_scores_one():
+    assert coverage_ratio({"fasting", "glucose"}, {"fasting", "glucose", "change"}) == 1.0
+
+
+@pytest.mark.unit
+def test_coverage_ratio_no_overlap_scores_zero():
+    assert coverage_ratio({"quality", "life"}, {"fasting", "glucose"}) == 0.0
+
+
+@pytest.mark.unit
+def test_resolve_band_boundary_is_exclusive_on_the_upper_edge():
+    bands = [
+        {"below": 0.34, "severity": "high"},
+        {"below": 0.67, "severity": "medium"},
+        {"below": 1.0, "severity": "low"},
+    ]
+    # Exactly on the boundary -- must land in the NEXT band, not this one.
+    assert resolve_band(0.34, bands) == "medium"
+    assert resolve_band(0.33, bands) == "high"
+    assert resolve_band(0.5, bands) == "medium"
+    assert resolve_band(0.9, bands) == "low"
+
+
+# ---------------------------------------------------------------------------
+# text_tokens compare mode -- full engine dispatch (coverage rule)
+# ---------------------------------------------------------------------------
+
+_COVERAGE_RULE_CFG = {
+    "name": "coverage_gap",
+    "type": "evidence_gap",
+    "subject_axis": "trial",
+    "object_axis": "outcome",
+    "probe": "clinicaltrials",
+    "reference": "fda-product-labels",
+    "compare": "text_tokens",
+    "text_tokens": {
+        "token_pattern": "[a-z]+",
+        "min_token_length": 3,
+        "report_below": 0.9,
+        "severity_bands": [
+            {"below": 0.34, "severity": "high"},
+            {"below": 0.67, "severity": "medium"},
+            {"below": 1.0, "severity": "low"},
+        ],
+        "stopwords": ["was", "not", "in", "this"],
+    },
+    "descriptions": {
+        "gap": "{object_key} is measured in {subject_key} per {probe}, but {reference} asserts only {coverage_ratio} of its terms for that trial"
+    },
+}
+
+
+def _build_labels_ct_spine(fixtures_dir):
+    from core.crosswalk import build_spine, load_axis_spec, load_graphs, resolve_domain_configs
+
+    labels_dir = _cross_domain_fixture(fixtures_dir, "labels")
+    ct_dir = _cross_domain_fixture(fixtures_dir, "ct")
+    graphs = load_graphs([str(labels_dir), str(ct_dir)])
+    axis_spec = load_axis_spec("crosswalks/pharma.yaml")
+    graphs = resolve_domain_configs(graphs, axis_spec)
+    spine_result = build_spine(graphs, axis_spec)
+    spine = {
+        "spine_version": "1.0",
+        "generated_at": "2026-08-13T00:00:00+00:00",
+        "graphs": {key: str(g["dir"]) for key, g in graphs.items()},
+        "axes": spine_result["axes"],
+        "stats": spine_result["stats"],
+    }
+    return spine, graphs
+
+
+@pytest.mark.unit
+def test_text_tokens_mode_grades_split_and_counts_covered(fixtures_dir):
+    from core.cross_domain import run_rules
+
+    spine, graphs = _build_labels_ct_spine(fixtures_dir)
+    result = run_rules({"rules": [_COVERAGE_RULE_CFG]}, spine, graphs, include_advisory=False)
+
+    findings = result["custom_findings"]["coverage_gap"]
+    by_object = {f["evidence"]["object_key"]: f for f in findings}
+
+    # fully covered (ratio 1.0, >= report_below) -> no finding at all.
+    assert "fasting glucose change" not in by_object
+    # partially covered (ratio 0.5) -> medium band.
+    assert by_object["body weight kidney function"]["severity"] == "medium"
+    assert by_object["body weight kidney function"]["evidence"]["coverage_ratio"] == 0.5
+    # zero overlap (ratio 0.0) -> top (high) band.
+    assert by_object["quality of life score"]["severity"] == "high"
+    assert by_object["quality of life score"]["evidence"]["coverage_ratio"] == 0.0
+
+    # The CT-only trial (no counterpart in the labels fixture) must not be
+    # compared at all -- its outcome never appears in the findings.
+    assert "ct only outcome" not in by_object
+
+    stats = result["stats"]["coverage_gap"]
+    assert stats["objects_compared"] == 3
+    assert stats["objects_covered"] == 1
+    assert stats["findings"] == 2
+
+
+# ---------------------------------------------------------------------------
+# Advisory gate
+# ---------------------------------------------------------------------------
+
+
+def _advisory_rule_cfg():
+    return {
+        "name": "off_label_exposure",
+        "type": "exposure_signal",
+        "subject_axis": "drug",
+        "object_axis": "adverse_event",
+        "probe": "pharmacovigilance",
+        "reference": "fda-product-labels",
+        "compare": "spine_keys",
+        "advisory": True,
+        "caveat": "Advisory only. Treat as a review queue, never as a count.",
+        "descriptions": {
+            "absent": "{object_key} vs {subject_key}",
+            "attributed_elsewhere": "{object_key} vs {subject_key}",
+            "granularity_variant": "{object_key} vs {subject_key}",
+        },
+    }
+
+
+@pytest.mark.unit
+def test_advisory_rule_skipped_without_opt_in(fixtures_dir):
+    from core.cross_domain import run_rules
+
+    spine, graphs = _build_labels_pv_spine(fixtures_dir)
+    result = run_rules({"rules": [_advisory_rule_cfg()]}, spine, graphs, include_advisory=False)
+
+    assert "off_label_exposure" not in result["custom_findings"]
+    assert result["stats"]["off_label_exposure"] == {"status": "skipped-advisory"}
+
+
+@pytest.mark.unit
+def test_advisory_rule_forced_advisory_with_opt_in_and_caveat(fixtures_dir):
+    from core.cross_domain import run_rules
+
+    spine, graphs = _build_labels_pv_spine(fixtures_dir)
+    result = run_rules({"rules": [_advisory_rule_cfg()]}, spine, graphs, include_advisory=True)
+
+    findings = result["custom_findings"]["off_label_exposure"]
+    assert findings, "expected the advisory rule to produce findings when opted in"
+    for finding in findings:
+        assert finding["severity"] == "advisory"
+        assert finding["evidence"]["caveat"] == "Advisory only. Treat as a review queue, never as a count."

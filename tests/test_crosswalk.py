@@ -114,6 +114,30 @@ def test_entity_type_not_in_axis_produces_no_keys():
     assert extract_axis_keys(node, axis_cfg, chain) == set()
 
 
+@pytest.mark.unit
+def test_context_source_returns_narrative_text_when_present():
+    from core.crosswalk import source_candidates
+
+    node = {"name": "Trial One", "context": "Fasting glucose change was measured."}
+    assert source_candidates(node, {"from": "context"}) == ["Fasting glucose change was measured."]
+
+
+@pytest.mark.unit
+def test_context_source_returns_empty_list_when_absent():
+    from core.crosswalk import source_candidates
+
+    node = {"name": "Trial One"}
+    assert source_candidates(node, {"from": "context"}) == []
+
+
+@pytest.mark.unit
+def test_context_source_returns_empty_list_when_empty_string():
+    from core.crosswalk import source_candidates
+
+    node = {"name": "Trial One", "context": ""}
+    assert source_candidates(node, {"from": "context"}) == []
+
+
 # ---------------------------------------------------------------------------
 # Spine assembly over the two synthetic fixtures
 # ---------------------------------------------------------------------------

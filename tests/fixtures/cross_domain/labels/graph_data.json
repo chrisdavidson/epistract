@@ -92,6 +92,16 @@
       "name": "Dizziness",
       "confidence": 0.9,
       "attributes": {}
+    },
+    {
+      "id": "clinical_study:trial_one",
+      "entity_type": "CLINICAL_STUDY",
+      "name": "Trial One",
+      "confidence": 0.9,
+      "context": "Fasting glucose change was measured. Body weight was not assessed in this study.",
+      "attributes": {
+        "nct_id": "NCT00000001"
+      }
     }
   ],
   "links": [
