@@ -271,3 +271,222 @@ def test_cli_missing_axes_exits_nonzero(fixtures_dir, tmp_path):
     with pytest.raises(SystemExit) as exc_info:
         main(["build", "--graph", str(labels_dir), "--out", str(out_path)])
     assert exc_info.value.code != 0
+
+
+# ---------------------------------------------------------------------------
+# Salt-form collapse (strip_trailing_tokens)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_strip_trailing_tokens_reduces_two_token_salt_form():
+    result = run_chain(
+        "sampletide acetate",
+        [{"op": "strip_trailing_tokens", "tokens": ["acetate"]}],
+    )
+    assert result == "sampletide"
+
+
+@pytest.mark.unit
+def test_strip_trailing_tokens_reduces_three_token_hydrate_form():
+    result = run_chain(
+        "sampletide phosphate monohydrate",
+        [{"op": "strip_trailing_tokens", "tokens": ["phosphate", "monohydrate"]}],
+    )
+    assert result == "sampletide"
+
+
+@pytest.mark.unit
+def test_strip_trailing_tokens_never_empties_single_token_value():
+    result = run_chain(
+        "sodium",
+        [{"op": "strip_trailing_tokens", "tokens": ["sodium"]}],
+    )
+    assert result == "sodium"
+
+
+@pytest.mark.unit
+def test_strip_trailing_tokens_combination_product_survives_own_key():
+    result = run_chain(
+        "sampletide and othermed",
+        [{"op": "strip_trailing_tokens", "tokens": ["acetate", "phosphate"]}],
+    )
+    assert result == "sampletide and othermed"
+
+
+# ---------------------------------------------------------------------------
+# Orthographic normalisation (replace_map)
+# ---------------------------------------------------------------------------
+
+_BRITISH_TO_US_MAP = {"diarrhoea": "diarrhea", "haem": "hem", "oedema": "edema"}
+
+
+@pytest.mark.unit
+def test_replace_map_converts_whole_word_spelling():
+    result = run_chain(
+        "diarrhoea",
+        [{"op": "replace_map", "map": _BRITISH_TO_US_MAP}],
+    )
+    assert result == "diarrhea"
+
+
+@pytest.mark.unit
+def test_replace_map_converts_substring_spellings():
+    # 'haem' and 'oedema' also match as substrings within larger words --
+    # unlike 'diarrhoea', which only ever appears as a whole word.
+    assert run_chain(
+        "haemorrhage", [{"op": "replace_map", "map": _BRITISH_TO_US_MAP}]
+    ) == "hemorrhage"
+    assert run_chain(
+        "peripheral oedema", [{"op": "replace_map", "map": _BRITISH_TO_US_MAP}]
+    ) == "peripheral edema"
+
+
+@pytest.mark.unit
+def test_replace_map_is_idempotent():
+    chain = [{"op": "replace_map", "map": _BRITISH_TO_US_MAP}]
+    once = run_chain("Diarrhoea and haemorrhage with oedema", chain)
+    twice = run_chain(once, chain)
+    assert once == twice
+
+
+@pytest.mark.unit
+def test_replace_map_applies_in_declaration_order():
+    # Later substitutions see the output of earlier ones -- order-dependent.
+    result = run_chain("ab", [{"op": "replace_map", "map": {"ab": "x", "x": "y"}}])
+    assert result == "y"
+
+
+# ---------------------------------------------------------------------------
+# Drug axis: concomitant-type gating (assert both directions)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_concomitant_type_included_participates_in_drug_axis():
+    from core.crosswalk import extract_axis_keys
+    from core.crosswalk_normalize import build_chain
+
+    chain = build_chain([{"op": "lowercase"}])
+    node = {
+        "name": "OTHERINN",
+        "entity_type": "Concomitant",
+        "attributes": {"inn": "otherinn"},
+    }
+    axis_cfg = {
+        "entity_types": ["Drug", "Concomitant"],
+        "sources": [{"from": "attribute", "key": "inn"}],
+    }
+    assert extract_axis_keys(node, axis_cfg, chain) == {"otherinn"}
+
+
+@pytest.mark.unit
+def test_concomitant_type_excluded_does_not_participate():
+    from core.crosswalk import extract_axis_keys
+    from core.crosswalk_normalize import build_chain
+
+    chain = build_chain([{"op": "lowercase"}])
+    node = {
+        "name": "OTHERINN",
+        "entity_type": "Concomitant",
+        "attributes": {"inn": "otherinn"},
+    }
+    axis_cfg = {
+        "entity_types": ["Drug"],  # Concomitant removed
+        "sources": [{"from": "attribute", "key": "inn"}],
+    }
+    assert extract_axis_keys(node, axis_cfg, chain) == set()
+
+
+# ---------------------------------------------------------------------------
+# Full three-graph spine: drug + adverse_event axes
+# ---------------------------------------------------------------------------
+
+
+def _build_full_spine(fixtures_dir):
+    from core.crosswalk import build_spine, load_axis_spec, load_graphs, resolve_domain_configs
+
+    labels_dir = _crosswalk_fixture(fixtures_dir, "labels")
+    ct_dir = _crosswalk_fixture(fixtures_dir, "ct")
+    pv_dir = _crosswalk_fixture(fixtures_dir, "pv")
+    graphs = load_graphs([str(labels_dir), str(ct_dir), str(pv_dir)])
+    axis_spec = load_axis_spec("crosswalks/pharma.yaml")
+    graphs = resolve_domain_configs(graphs, axis_spec)
+    return build_spine(graphs, axis_spec)
+
+
+@pytest.mark.unit
+def test_drug_axis_three_way_join_with_merged_identifiers(fixtures_dir):
+    spine = _build_full_spine(fixtures_dir)
+    entry = spine["axes"]["drug"]["sampletide"]
+
+    assert set(entry["graphs"]) == {"fda-product-labels", "pharmacovigilance", "clinicaltrials"}
+    # Identifiers merged across graphs, verbatim (not run through the chain).
+    assert entry["identifiers"]["unii"] == ["SAMPLE12345"]
+    assert entry["identifiers"]["atc"] == ["A10XX01"]
+    assert entry["identifiers"]["rxcui"] == ["999001"]
+
+
+@pytest.mark.unit
+def test_drug_axis_salt_form_collapses_onto_parent_moiety(fixtures_dir):
+    spine = _build_full_spine(fixtures_dir)
+    drug_axis = spine["axes"]["drug"]
+
+    assert "saltide" in drug_axis
+    entry = drug_axis["saltide"]
+    assert set(entry["graphs"]) == {"fda-product-labels", "clinicaltrials"}
+    assert "active_ingredient:saltide_acetate" in entry["graphs"]["fda-product-labels"]
+    assert "compound:saltide" in entry["graphs"]["clinicaltrials"]
+    # No separate key was created for the unstripped salt-form value.
+    assert "saltide acetate" not in drug_axis
+
+
+@pytest.mark.unit
+def test_drug_axis_identifiers_do_not_raise_when_a_graph_declares_none(fixtures_dir):
+    # clinicaltrials declares no identifiers for the drug axis at all --
+    # merging across graphs must not raise for the 'sampletide' key.
+    spine = _build_full_spine(fixtures_dir)
+    entry = spine["axes"]["drug"]["sampletide"]
+    assert "clinicaltrials" in entry["graphs"]
+
+
+@pytest.mark.unit
+def test_adverse_event_axis_joins_british_and_us_spelling(fixtures_dir):
+    spine = _build_full_spine(fixtures_dir)
+    entry = spine["axes"]["adverse_event"]["diarrhea"]
+
+    assert entry["graphs"]["fda-product-labels"] == ["adverse_reaction:diarrhea"]
+    assert entry["graphs"]["pharmacovigilance"] == ["adverseevent:diarrhoea"]
+
+
+@pytest.mark.unit
+def test_adverse_event_axis_falls_through_to_name_without_meddra(fixtures_dir):
+    spine = _build_full_spine(fixtures_dir)
+    found = any(
+        "adverseevent:noattr" in entry["graphs"].get("pharmacovigilance", [])
+        for entry in spine["axes"]["adverse_event"].values()
+    )
+    assert found, "AE node lacking meddra_pt should fall through to its name"
+
+
+@pytest.mark.unit
+def test_adverse_event_axis_excludes_warning_nodes(fixtures_dir):
+    spine = _build_full_spine(fixtures_dir)
+    for entry in spine["axes"]["adverse_event"].values():
+        label_ids = entry["graphs"].get("fda-product-labels", [])
+        assert "warning:sample_warning" not in label_ids
+        assert "warning:diarrhea_section" not in label_ids
+
+
+@pytest.mark.unit
+def test_adverse_event_axis_stats_scoped_to_two_declaring_graphs(fixtures_dir):
+    spine = _build_full_spine(fixtures_dir)
+    stats = spine["stats"]["adverse_event"]
+
+    # Three graphs were loaded, but clinicaltrials declares no adverse_event
+    # axis at all -- declared_by and shared_by_all_graphs must reflect only
+    # the two that do.
+    assert sorted(stats["declared_by"]) == ["fda-product-labels", "pharmacovigilance"]
+    pair_key = "fda-product-labels|pharmacovigilance"
+    assert stats["pairwise"][pair_key] == stats["shared_by_all_graphs"]
+    assert stats["shared_by_all_graphs"] >= 1

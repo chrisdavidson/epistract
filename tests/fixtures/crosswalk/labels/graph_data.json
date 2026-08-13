@@ -1,7 +1,7 @@
 {
   "metadata": {
     "domain": "fda-product-labels",
-    "entity_count": 7
+    "entity_count": 10
   },
   "nodes": [
     {
@@ -61,8 +61,25 @@
       "name": "sampletide",
       "confidence": 0.9,
       "attributes": {
-        "modality": "peptide"
+        "modality": "peptide",
+        "unii": "SAMPLE12345"
       }
+    },
+    {
+      "id": "active_ingredient:saltide_acetate",
+      "entity_type": "ACTIVE_INGREDIENT",
+      "name": "saltide acetate",
+      "confidence": 0.85,
+      "attributes": {
+        "modality": "small molecule salt"
+      }
+    },
+    {
+      "id": "adverse_reaction:diarrhea",
+      "entity_type": "ADVERSE_REACTION",
+      "name": "Diarrhea",
+      "confidence": 0.9,
+      "attributes": {}
     },
     {
       "id": "warning:sample_warning",
@@ -71,6 +88,15 @@
       "confidence": 0.85,
       "attributes": {
         "note": "not an adverse event term"
+      }
+    },
+    {
+      "id": "warning:diarrhea_section",
+      "entity_type": "WARNING",
+      "name": "Diarrhea",
+      "confidence": 0.85,
+      "attributes": {
+        "note": "warnings-section text that collides with an AE term on purpose"
       }
     }
   ],

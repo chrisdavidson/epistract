@@ -1,0 +1,54 @@
+{
+  "metadata": {
+    "domain": "pharmacovigilance",
+    "entity_count": 4
+  },
+  "nodes": [
+    {
+      "id": "drug:samplebrand",
+      "entity_type": "Drug",
+      "name": "SAMPLEBRAND",
+      "confidence": 0.9,
+      "attributes": {
+        "brand_name": "SAMPLEBRAND",
+        "substance_name": "SAMPLETIDE",
+        "inn": "sampletide",
+        "aliases": ["SampleBrand", "sampletide"],
+        "atc_code": "A10XX01",
+        "rxcui": "999001",
+        "role": "Suspect"
+      }
+    },
+    {
+      "id": "concomitant:otherinn",
+      "entity_type": "Concomitant",
+      "name": "OTHERINN",
+      "confidence": 0.8,
+      "attributes": {
+        "inn": "otherinn",
+        "brand_name": "OtherBrand",
+        "atc_code": "A10XX02"
+      }
+    },
+    {
+      "id": "adverseevent:diarrhoea",
+      "entity_type": "AdverseEvent",
+      "name": "Diarrhoea",
+      "confidence": 0.9,
+      "attributes": {
+        "meddra_pt": "Diarrhoea",
+        "serious": false
+      }
+    },
+    {
+      "id": "adverseevent:noattr",
+      "entity_type": "AdverseEvent",
+      "name": "Sample Event Without MedDRA",
+      "confidence": 0.6,
+      "attributes": {
+        "serious": false
+      }
+    }
+  ],
+  "links": []
+}

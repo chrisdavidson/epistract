@@ -1,7 +1,7 @@
 {
   "metadata": {
     "domain": "clinicaltrials",
-    "entity_count": 6
+    "entity_count": 7
   },
   "nodes": [
     {
@@ -51,6 +51,16 @@
       "attributes": {
         "inn": "sampletide",
         "drug_class": "GLP-1 receptor agonist"
+      }
+    },
+    {
+      "id": "compound:saltide",
+      "entity_type": "Compound",
+      "name": "saltide",
+      "confidence": 0.9,
+      "attributes": {
+        "inn": "saltide",
+        "drug_class": "small molecule"
       }
     },
     {
