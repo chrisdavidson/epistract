@@ -19,5 +19,15 @@ axes:
         key: inn
       - from: name
 
+  outcome:
+    entity_types: [Outcome]
+    sources:
+      - from: name
+
+edges:
+  - subject: trial
+    object: outcome
+    relations: [has_outcome]
+
   # No adverse_event axis here -- this graph has zero AE-type entities, so
   # the safety axis never reaches clinicaltrials.

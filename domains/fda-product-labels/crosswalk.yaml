@@ -35,7 +35,29 @@ axes:
     sources:
       - from: name
 
+  indication:
+    entity_types: [INDICATION]
+    sources:
+      - from: name
+
 edges:
+  # The warnings section type is excluded here for the same reason it is
+  # excluded from the adverse_event axis: it is a document section, not a
+  # clinical term.
   - subject: drug
     object: adverse_event
     relations: [CAUSES_ADVERSE_REACTION]
+  - subject: drug
+    object: indication
+    relations: [INDICATED_FOR]
+  # No relations for the trial/outcome pair: this graph holds no
+  # outcome-typed entities. It participates as the reference side of a
+  # text comparison, so it declares text_sources instead. Ordered
+  # name-then-narrative-then-attributes: the study node's assertions are
+  # spread across all three.
+  - subject: trial
+    object: outcome
+    text_sources:
+      - from: name
+      - from: context
+      - from: any_attribute

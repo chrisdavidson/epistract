@@ -206,11 +206,20 @@ def _flatten_value(value) -> list[str]:
 def source_candidates(node: dict, source: dict) -> list[str]:
     """Resolve one value-source config to a list of raw string candidates
     for a node. Source kinds: {"from": "name"}, {"from": "any_attribute"},
-    {"from": "attribute", "key": K}."""
+    {"from": "attribute", "key": K}, {"from": "context"}."""
     kind = source.get("from")
     if kind == "name":
         name = node.get("name")
         return [name] if name else []
+    if kind == "context":
+        # A top-level node field (the narrative sentence extraction writes
+        # on extracted nodes), not an attribute -- routed the same way as
+        # the name branch above rather than through _flatten_value/the
+        # attribute lookup, which would turn an absent or empty-string
+        # context into a one-element [""] list and pollute any assembled
+        # reference text built by concatenating source candidates.
+        context = node.get("context")
+        return [context] if context else []
     if kind == "any_attribute":
         out: list[str] = []
         for value in (node.get("attributes") or {}).values():

@@ -31,3 +31,91 @@ rules:
       absent: "{object_key} is reported against {subject_key} in {probe} and does not appear anywhere in {reference}"
       attributed_elsewhere: "{object_key} appears in {reference} but never against {subject_key}, which reports it in {probe}"
       granularity_variant: "{object_key} reported against {subject_key} in {probe} is a granularity variant of {reference_variants} already recorded against it in {reference}"
+
+  - name: coverage_gap
+    type: evidence_gap
+    subject_axis: trial
+    object_axis: outcome
+    probe: clinicaltrials
+    reference: fda-product-labels
+    # Not a key set difference: the reference graph holds no outcome-typed
+    # entities at all, so there is no key set to difference against. The
+    # reference side is the study node's own text, and the comparison is
+    # what fraction of the probe outcome's terms appear in it.
+    compare: text_tokens
+    text_tokens:
+      token_pattern: "[a-z]+"
+      min_token_length: 3
+      report_below: 0.6
+      severity_bands:
+        - below: 0.2
+          severity: high
+        - below: 0.4
+          severity: medium
+        - below: 0.6
+          severity: low
+      # Trial-report scaffolding words. They appear in every outcome title
+      # and in every label study paragraph, so leaving them in inflates
+      # every coverage ratio toward the middle and destroys the grading.
+      stopwords:
+        - the
+        - a
+        - an
+        - of
+        - to
+        - from
+        - and
+        - or
+        - in
+        - on
+        - at
+        - for
+        - by
+        - with
+        - change
+        - baseline
+        - week
+        - weeks
+        - day
+        - days
+        - number
+        - subjects
+        - patients
+        - percent
+        - mean
+        - median
+        - time
+        - frame
+        - study
+        - end
+        - value
+        - values
+        - target
+        - achieving
+        - each
+        - first
+        - individual
+        - component
+        - components
+    descriptions:
+      gap: "{object_key} is measured in {subject_key} per {probe}, but {reference} asserts only {coverage_ratio} of its terms for that trial"
+
+  - name: off_label_exposure
+    type: exposure_signal
+    subject_axis: drug
+    object_axis: indication
+    probe: pharmacovigilance
+    reference: fda-product-labels
+    compare: spine_keys
+    # Advisory: skipped unless explicitly opted into, and every finding is
+    # graded advisory regardless of subtype. Measured noise floor is 31 of
+    # 32 probe pairs -- the two indication vocabularies share exactly one
+    # term, so nearly everything differences out for naming reasons rather
+    # than clinical ones. Presenting this beside the other two rules at
+    # equal confidence would be misleading.
+    advisory: true
+    caveat: "Advisory only. The two indication vocabularies overlap on a single term, so most findings here reflect naming mismatch rather than genuine unlabelled use. Treat as a review queue, never as a count."
+    descriptions:
+      absent: "{object_key} is recorded against {subject_key} in {probe} and does not appear anywhere in {reference}"
+      attributed_elsewhere: "{object_key} appears in {reference} but never against {subject_key}, which records it in {probe}"
+      granularity_variant: "{object_key} recorded against {subject_key} in {probe} is a granularity variant of {reference_variants} already recorded against it in {reference}"

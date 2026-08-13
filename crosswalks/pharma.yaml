@@ -67,3 +67,25 @@ axes:
           diarrhoea: diarrhea
           haem: hem
           oedema: edema
+
+  indication:
+    # Probe-side indication nodes are frequently suffixed with a
+    # parenthetical role marker; stripping it is the only transform that
+    # gains any join at all here. The two vocabularies still overlap on a
+    # single term after normalisation -- which is exactly why the rule that
+    # spans this axis ships advisory.
+    normalize:
+      - op: lowercase
+      - op: collapse_whitespace
+      - op: replace_map
+        map:
+          "(indication)": ""
+      - op: collapse_whitespace
+
+  outcome:
+    # Declared by one graph only. The other side of the coverage rule holds
+    # no outcome-typed entities, so this axis exists to give the probe side
+    # stable canonical keys, not to join two graphs.
+    normalize:
+      - op: lowercase
+      - op: collapse_whitespace

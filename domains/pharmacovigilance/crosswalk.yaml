@@ -35,6 +35,11 @@ axes:
         key: meddra_pt
       - from: name
 
+  indication:
+    entity_types: [Indication]
+    sources:
+      - from: name
+
 edges:
   # The patient-experience relation runs patient -> event and never touches
   # a drug node; it is deliberately absent here. Measured typed signatures
@@ -43,3 +48,6 @@ edges:
   - subject: drug
     object: adverse_event
     relations: [OCCURRED_AFTER, CAUSES]
+  - subject: drug
+    object: indication
+    relations: [INDICATED_FOR]
