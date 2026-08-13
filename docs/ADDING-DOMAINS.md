@@ -509,6 +509,7 @@ producing zero joins.
 | `from` | Behaviour |
 |--------|-----------|
 | `name` | The node's `name` field |
+| `context` | The node's `context` field (the narrative sentence extraction writes on extracted nodes) -- a top-level field, not an attribute, so an absent or empty-string `context` contributes nothing rather than a one-element list of `""` |
 | `any_attribute` | Every attribute value on the node, list-valued attributes flattened and numeric attributes coerced to text |
 | `attribute` (+ `key`) | One named attribute |
 
@@ -561,26 +562,163 @@ would only add stats noise. Per-axis stats (`declared_by`,
 `shared_by_all_graphs`, and the pairwise counts) are always scoped to the
 graphs that actually declare an axis, never to every graph loaded.
 
+---
+
+## Cross-Domain Epistemic Rules (Optional)
+
+`spine.json` alone is a join table. `core/cross_domain.py` turns it into an
+analysis product: it reads a spine plus the graphs it was built from and
+emits findings that are impossible inside any single graph, in the
+established `{rule_name, type, severity, description, evidence}` shape,
+nested under `super_domain.custom_findings` by rule name -- the same
+channel `core/label_epistemic.py`'s single-graph `CUSTOM_RULES` hook
+writes to, but as its own artifact (`cross_domain_findings.json`) rather
+than a modification to that dispatcher. `core/label_epistemic.py` is never
+imported or changed by this module; the two are independent by
+construction.
+
+```bash
+python3 -m core.cross_domain analyze \
+    --spine spine.json --rules crosswalks/pharma-rules.yaml \
+    --out cross_domain_findings.json --json
+```
+
+Graphs default to the directories `spine.json` itself recorded; `--graph
+NAME=DIR` (repeatable) overrides one. **The rule spec's `probe` and
+`reference` fields must name graphs by the key the spine recorded for
+them** -- `metadata.domain` unless the spine was built with a `NAME=`
+override -- and `subject_axis`/`object_axis` must name an axis the spine
+actually carries. A mismatch is caught eagerly at load time, naming both
+the offending value and the valid alternatives; it is never allowed to
+degrade into a silent zero-finding run.
+
+### Two more config layers, same split as the crosswalk
+
+Cross-domain rules add two files on top of the crosswalk's two-layer
+split, following the same domain-agnostic discipline:
+
+1. **The repo-level rules spec** (`crosswalks/pharma-rules.yaml`) --
+   which graph probes, which graph is the reference, which axis pair a
+   rule spans, how a miss is worded, how it is graded, and (for the
+   token-coverage mode) the tokenizer parameters and stopword list.
+2. **Each domain's `edges:` section** (`<domain_dir>/crosswalk.yaml`,
+   alongside its `axes:` section) -- which relation types connect one
+   axis to another for that graph, or, for a graph that participates only
+   as a text-comparison reference, which value sources to assemble text
+   from instead.
+
+`core/cross_domain.py` and `core/cross_domain_compare.py` ship no domain
+vocabulary of their own -- no entity type names, no relation type names,
+no attribute key names, no clinical or molecule terms. All of it lives in
+the two files above.
+
+### Two comparison modes
+
+| Mode | When it applies | What it computes |
+|------|-----------------|-------------------|
+| `spine_keys` | Both sides of the axis pair have comparably-typed entities in both graphs | Canonical-key set difference: for each subject shared by the probe and reference graphs, which of the probe's object keys the reference graph does not attach to that same subject |
+| `text_tokens` | The reference side holds no comparably-typed entities to key-difference against (e.g. no `Outcome`-typed nodes at all) | Configurable token-coverage ratio: what fraction of the probe's canonical object key's tokens appear in text assembled from the reference-graph node(s) mapped to the shared subject |
+
+A graph may declare an `edges:` entry for an axis pair whose object axis it
+does not itself declare in its own `axes:` section -- that is exactly the
+`text_tokens` reference-side shape (the label graph declares `text_sources`
+for the trial/outcome pair without ever declaring an `outcome` axis of its
+own), and eager validation accepts it.
+
+### The three `spine_keys` subtypes, and why their test order matters
+
+A `spine_keys` miss (a probe object key the reference graph does not
+attach to the same subject) is classified into exactly one of three
+subtypes, tested in this order:
+
+1. **`granularity_variant`** -- the probe key is a substring or superstring
+   of a key the reference graph already attaches to the SAME subject (e.g.
+   `abdominal pain upper` vs. the reference's `abdominal pain`). Tested
+   first, and graded lowest: it's a vocabulary artifact, not a signal, and
+   closing it properly needs a licensed term hierarchy the project does
+   not ship.
+2. **`attributed_elsewhere`** -- the probe key exists somewhere in the
+   reference graph, just never against this subject. Tested second, and
+   graded highest: the reference corpus already knows the term, it simply
+   never attaches it to this subject, which is the more clinically
+   interesting question (a class-effect candidate).
+3. **`absent`** -- the probe key does not appear in the reference graph at
+   all.
+
+The order is load-bearing, not incidental: a key satisfying both the
+granularity test and the attributed-elsewhere test must come back as the
+granularity variant. Reordering these two checks reclassifies real misses
+-- a class-effect signal would be swallowed by a same-subject vocabulary
+artifact, or vice versa.
+
+### Grade vocabulary
+
+Cross-domain findings use lowercase `high` / `medium` / `low` / `advisory`.
+This differs from the single, uppercase grade level the older
+single-graph example in this guide shows -- these rules need a graded
+band (multiple severities that separate signal from noise within one
+rule), which a single-level vocabulary cannot express. Existing consumers
+already treat the grade field as free-form (the workbench slugifies it
+into a tag; the contracts domain uses capitalised words), so this is not a
+breaking change to any existing reader.
+
+### The advisory contract
+
+A rule flagged `advisory: true` in the rules spec is **skipped entirely**
+unless the CLI's `--include-advisory` flag is passed -- its stats slot
+records `{"status": "skipped-advisory"}` and it gets no key at all under
+`custom_findings`, so a run without the flag can never be mistaken for a
+zero-signal one. When it does run, every finding is force-graded
+`advisory` regardless of subtype, and every finding's evidence carries the
+rules spec's `caveat` string. `off_label_exposure` ships this way: its
+measured noise floor (roughly 31 of 32 probe drug/indication pairs) sits
+above its signal, because the two indication vocabularies overlap on
+exactly one term after normalisation -- so presenting it beside the other
+two rules at equal confidence would be misleading.
+
+### A correction: which relations connect a drug to an adverse event
+
+The pharmacovigilance graph does **not** connect a drug to an adverse
+event through the patient-experience relation -- that relation runs
+patient -> event and never touches a drug node. The actual drug/event
+connection is the temporal-ordering relation (`OCCURRED_AFTER`) plus the
+direct causal relation (`CAUSES`), verified by counting typed relation
+signatures on the real graph. If you're adding a new domain whose graph
+plays the probe side of a similar safety-signal rule, count your graph's
+actual typed relation signatures before writing the `edges:` config --
+don't assume the semantically-obvious relation name is the one that
+actually reaches both endpoints.
+
 ### Not yet built
 
-- **Cross-domain epistemic rules module** that consumes `spine.json` and
-  emits findings (`unlabeled_adverse_event` / `off_label_exposure` /
-  `coverage_gap`) into the super-domain custom-findings channel.
 - **Feeding spine-canonicalised endpoints into the existing temporal
   contradiction engine** (`core/epistemic_temporal.relations_contradict()`),
   which already gates purely on node-pair identity -- rewriting endpoints to
   canonical spine IDs would make it directly reusable with no engine
   changes.
+- **Merging the cross-domain findings artifact into an existing claims
+  layer.** The output is already shaped for it (nested under
+  `super_domain.custom_findings` by rule name, matching the single-graph
+  dispatcher's own shape) -- nothing consumes it yet.
 - **Link-evidence text as an additional value source** -- worth roughly one
   or two more trial matches over the current node-attribute-plus-name
   sourcing.
 - **A merged `graph_data.json`** -- the project registry's one-domain-per-
   project-directory assumption has no answer yet for what domain a merged
   graph would validate against.
-- **A condition/indication axis** -- blocked on an ontology mapping
-  (MONDO/MeSH) the project does not yet ship.
+- **An ontology mapping for the condition/indication axis.** The axis
+  itself now exists (`indication`, joined in `crosswalks/pharma.yaml` and
+  declared per-domain) -- what remains blocked is the MONDO/MeSH mapping
+  that would make the rule spanning it trustworthy rather than
+  vocabulary-noisy, which is exactly why `off_label_exposure` ships
+  advisory-only. Corroborating an off-label finding via the
+  pharmacovigilance graph's own off-label annotation attribute was
+  evaluated and rejected: that attribute is present on exactly one node in
+  the real graph, far too sparse to gate on.
 - **MedDRA hierarchy expansion** (LLT -> PT -> HLT -> SOC) -- needs a
-  licensed external resource the project does not ship.
+  licensed external resource the project does not ship. Would resolve the
+  `granularity_variant` subtype properly rather than merely grading it
+  down.
 
 ---
 
