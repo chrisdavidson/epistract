@@ -451,6 +451,139 @@ And add a parallel invocation block pointing at `${CLAUDE_PLUGIN_ROOT}/domains/y
 
 ---
 
+## crosswalk.yaml Reference (Optional)
+
+For domains that share entities with other, independently-built epistract
+project graphs -- the same drug appearing in an FDA label graph and a
+pharmacovigilance graph, for instance -- add a `crosswalk.yaml` to your
+domain package. It follows the same optional-file convention as `enrich.py`
+and `workbench/template.yaml`: probe, use if present, skip silently if
+absent. `core/crosswalk.py` builds a `spine.json` mapping a canonical key
+per axis to the node IDs holding that key in each graph it is pointed at:
+
+```bash
+python3 -m core.crosswalk build \
+    --graph ./project-a --graph ./project-b \
+    --axes crosswalks/pharma.yaml --out spine.json
+```
+
+### Why two files, not one
+
+Canonicalisation (how a raw value becomes a canonical key) is centralised in
+a single repo-level axis spec, not declared per domain. If each domain
+declared its own normalizer chain, a salt-stripped key from one graph and an
+unstripped key from another would never meet, and the spine would silently
+join almost nothing while every domain's own tests still passed in
+isolation. So the contract splits in two:
+
+1. **Extraction** (domain knowledge) -- `<domain_dir>/crosswalk.yaml`.
+   Declares, per axis, which entity types participate and which value
+   sources to try, in order.
+2. **Canonicalisation** (axis knowledge) -- a repo-level axis spec (e.g.
+   `crosswalks/pharma.yaml`) holding exactly one normalizer chain per axis,
+   applied identically to every graph regardless of domain.
+
+`core/crosswalk.py` and `core/crosswalk_normalize.py` ship only named,
+generic primitives and a chain runner -- they never contain a domain's
+vocabulary (no molecule names, no spelling maps, no entity type names, no
+attribute key names). All of that lives in the two config files.
+
+### Available primitives (axis spec)
+
+| Op | Parameters | Behaviour |
+|----|-----------|-----------|
+| `lowercase` | -- | Lowercases the value |
+| `uppercase` | -- | Uppercases the value |
+| `collapse_whitespace` | -- | Strips and collapses internal whitespace runs |
+| `regex_extract` | `pattern` | First regex match, or no key if nothing matches |
+| `replace_map` | `map` | Ordered substring substitutions |
+| `strip_trailing_tokens` | `tokens` | Repeatedly pops the final token while it's in the set, always leaving at least one token |
+
+Regex patterns and token sets are compiled once when the axis spec loads,
+not per value. An op name not in this table is a hard error naming the
+offending op -- a config typo fails at startup rather than silently
+producing zero joins.
+
+### Available source kinds (domain crosswalk.yaml)
+
+| `from` | Behaviour |
+|--------|-----------|
+| `name` | The node's `name` field |
+| `any_attribute` | Every attribute value on the node, list-valued attributes flattened and numeric attributes coerced to text |
+| `attribute` (+ `key`) | One named attribute |
+
+Sources are tried **in declared order**, and the first source that produces
+at least one non-empty canonical key wins for that node -- later sources are
+not consulted. This is deliberate: union-of-all-sources would emit a brand
+key alongside a generic key and split one real-world entity across two
+spine keys.
+
+### Worked example
+
+From `domains/pharmacovigilance/crosswalk.yaml` -- a drug axis that must
+cover two entity types (dropping the second silently loses molecules from
+the cross-graph intersection) and deliberately excludes the brand-name
+attribute as a source:
+
+```yaml
+axes:
+  drug:
+    entity_types: [Drug, Concomitant]
+    sources:
+      - from: attribute
+        key: inn
+      - from: attribute
+        key: substance_name
+      - from: name
+    identifiers:
+      atc:
+        from: attribute
+        key: atc_code
+      rxcui:
+        from: attribute
+        key: rxcui
+```
+
+`identifiers` is optional per axis: stable external codes (registry IDs,
+ATC codes, RxCUI, UNII, ...) are collected onto the canonical key verbatim
+-- never run through the normalizer chain, since they're already exact --
+as sorted, de-duplicated lists merged across every graph that declares
+them. A graph that declares no identifiers for an axis never causes a
+merge to fail.
+
+### Declare an axis only where it genuinely applies
+
+A domain should declare an axis only where it truly carries that
+identifier. `domains/clinicaltrials/crosswalk.yaml` declares a `trial` axis
+and a `drug` axis, but no `adverse_event` axis -- that graph holds zero
+adverse-event-type entities, so the axis would never join anything and
+would only add stats noise. Per-axis stats (`declared_by`,
+`shared_by_all_graphs`, and the pairwise counts) are always scoped to the
+graphs that actually declare an axis, never to every graph loaded.
+
+### Not yet built
+
+- **Cross-domain epistemic rules module** that consumes `spine.json` and
+  emits findings (`unlabeled_adverse_event` / `off_label_exposure` /
+  `coverage_gap`) into the super-domain custom-findings channel.
+- **Feeding spine-canonicalised endpoints into the existing temporal
+  contradiction engine** (`core/epistemic_temporal.relations_contradict()`),
+  which already gates purely on node-pair identity -- rewriting endpoints to
+  canonical spine IDs would make it directly reusable with no engine
+  changes.
+- **Link-evidence text as an additional value source** -- worth roughly one
+  or two more trial matches over the current node-attribute-plus-name
+  sourcing.
+- **A merged `graph_data.json`** -- the project registry's one-domain-per-
+  project-directory assumption has no answer yet for what domain a merged
+  graph would validate against.
+- **A condition/indication axis** -- blocked on an ontology mapping
+  (MONDO/MeSH) the project does not yet ship.
+- **MedDRA hierarchy expansion** (LLT -> PT -> HLT -> SOC) -- needs a
+  licensed external resource the project does not ship.
+
+---
+
 ## Testing Your Domain
 
 ```bash
