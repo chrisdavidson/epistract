@@ -43,6 +43,7 @@ __all__ = [
     "build_spine",
     "collect_identifiers",
     "compute_stats",
+    "domain_crosswalk_path",
     "extract_axis_keys",
     "load_axis_spec",
     "load_domain_config",
@@ -72,7 +73,7 @@ def load_graph(spec: str) -> dict:
     dir_str = spec
     if "=" in spec:
         explicit_name, dir_str = spec.split("=", 1)
-    graph_dir = Path(dir_str)
+    graph_dir = Path(dir_str).resolve()
     graph_file = graph_dir / "graph_data.json"
     if not graph_file.is_file():
         raise CrosswalkConfigError(
@@ -120,7 +121,7 @@ def load_axis_spec(path: str | Path) -> dict:
     time) so a config typo fails at startup rather than silently producing
     zero joins.
     """
-    spec_path = Path(path)
+    spec_path = Path(path).resolve()
     spec = yaml.safe_load(spec_path.read_text()) or {}
     axes = spec.get("axes") or {}
     compiled: dict[str, list] = {}
@@ -135,11 +136,12 @@ def load_axis_spec(path: str | Path) -> dict:
     return {"raw": axes, "compiled": compiled, "path": spec_path}
 
 
-def load_domain_config(graph_payload: dict) -> dict | None:
-    """Load a graph's domain-level crosswalk.yaml, if the domain ships one.
+def domain_crosswalk_path(graph_payload: dict) -> Path | None:
+    """Resolve the crosswalk.yaml path for a graph's domain, if it ships one.
 
     Mirrors get_validation_dir: probe, return None when absent, stay
-    silent. Returns None if the graph has no resolvable metadata.domain.
+    silent. Returns None if the graph has no resolvable metadata.domain or
+    the resolved domain ships no crosswalk.yaml.
     """
     domain_name = (graph_payload.get("metadata") or {}).get("domain")
     if not domain_name:
@@ -149,7 +151,13 @@ def load_domain_config(graph_payload: dict) -> dict | None:
     except FileNotFoundError:
         return None
     crosswalk_path = Path(resolved["dir"]) / "crosswalk.yaml"
-    if not crosswalk_path.is_file():
+    return crosswalk_path if crosswalk_path.is_file() else None
+
+
+def load_domain_config(graph_payload: dict) -> dict | None:
+    """Load a graph's domain-level crosswalk.yaml, if the domain ships one."""
+    crosswalk_path = domain_crosswalk_path(graph_payload)
+    if crosswalk_path is None:
         return None
     return yaml.safe_load(crosswalk_path.read_text()) or {}
 
@@ -167,10 +175,11 @@ def resolve_domain_configs(graphs: dict[str, dict], axis_spec: dict) -> dict[str
         if domain_cfg:
             for axis_name in domain_cfg.get("axes") or {}:
                 if axis_name not in axis_spec["raw"]:
+                    crosswalk_path = domain_crosswalk_path(graph["payload"])
                     raise CrosswalkConfigError(
-                        f"Graph {key!r} ({graph['dir']}) declares axis "
-                        f"{axis_name!r} in its crosswalk.yaml, but "
-                        f"{axis_spec['path']} does not declare that axis"
+                        f"Graph {key!r} declares axis {axis_name!r} in "
+                        f"{crosswalk_path}, but {axis_spec['path']} does "
+                        "not declare that axis"
                     )
         out[key] = {**graph, "domain_config": domain_cfg}
     return out
@@ -385,7 +394,7 @@ def _cmd_build(args: argparse.Namespace) -> int:
         "axes": result["axes"],
         "stats": result["stats"],
     }
-    Path(args.out).write_text(json.dumps(payload, indent=2) + "\n")
+    Path(args.out).resolve().write_text(json.dumps(payload, indent=2) + "\n")
 
     if args.json:
         print(json.dumps(result["stats"], indent=2))

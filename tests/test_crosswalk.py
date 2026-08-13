@@ -237,6 +237,30 @@ def test_duplicate_graph_key_raises_unless_disambiguated(fixtures_dir):
     assert set(graphs) == {"first", "second"}
 
 
+@pytest.mark.unit
+def test_axis_not_in_spec_error_names_both_files(fixtures_dir, tmp_path):
+    """A domain crosswalk.yaml declaring an axis the axis spec doesn't must
+    raise naming BOTH the domain's crosswalk.yaml and the axis spec path --
+    not the graph's project directory (which holds no crosswalk.yaml at
+    all; that file lives under the domain package)."""
+    from core.crosswalk import load_axis_spec, load_graphs, resolve_domain_configs
+
+    pv_dir = _crosswalk_fixture(fixtures_dir, "pv")  # ships drug + adverse_event
+    narrow_axes_path = tmp_path / "trial_only.yaml"
+    narrow_axes_path.write_text(
+        "axes:\n  trial:\n    normalize:\n      - op: uppercase\n"
+    )
+
+    graphs = load_graphs([str(pv_dir)])
+    axis_spec = load_axis_spec(str(narrow_axes_path))
+    with pytest.raises(CrosswalkConfigError) as exc_info:
+        resolve_domain_configs(graphs, axis_spec)
+    message = str(exc_info.value)
+    assert "domains/pharmacovigilance/crosswalk.yaml" in message.replace("\\", "/")
+    assert str(narrow_axes_path) in message
+    assert str(pv_dir) not in message
+
+
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
