@@ -87,7 +87,9 @@ def classify_miss(
 # ---------------------------------------------------------------------------
 
 
-def tokenize(text: str | None, pattern: str, min_token_length: int, stopwords: set[str]) -> set[str]:
+def tokenize(
+    text: str | None, pattern: str, min_token_length: int, stopwords: set[str]
+) -> set[str]:
     """Tokenize ``text`` per the rule's own config: a regex pattern, a
     minimum token length, and a stopword list. Every parameter is supplied
     by the caller -- this function holds no vocabulary of its own. Matching

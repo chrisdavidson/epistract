@@ -116,7 +116,9 @@ def resolve_graph_specs(spine: dict, overrides: list[str]) -> list[str]:
             f"--graph override names {unknown_overrides} not recorded in the "
             f"spine; the spine recorded: {sorted(recorded)}"
         )
-    return [f"{key}={override_map.get(key, recorded_dir)}" for key, recorded_dir in recorded.items()]
+    return [
+        f"{key}={override_map.get(key, recorded_dir)}" for key, recorded_dir in recorded.items()
+    ]
 
 
 def attach_domain_configs(graphs: dict) -> dict:
@@ -127,7 +129,10 @@ def attach_domain_configs(graphs: dict) -> dict:
     resolve_domain_configs it validates nothing against an axis spec --
     axis names here are validated against the spine instead (see
     load_rules_spec)."""
-    return {key: {**graph, "domain_config": load_domain_config(graph["payload"])} for key, graph in graphs.items()}
+    return {
+        key: {**graph, "domain_config": load_domain_config(graph["payload"])}
+        for key, graph in graphs.items()
+    }
 
 
 def load_rules_spec(path: str | Path, spine: dict) -> dict:
@@ -322,7 +327,9 @@ def _spine_node_ids(spine: dict, axis: str, canonical_key: str, graph_key: str) 
     return list((entry.get("graphs") or {}).get(graph_key, []))
 
 
-def _run_spine_keys_rule(rule_cfg: dict, spine: dict, graphs: dict, node_index: dict) -> tuple[list[dict], dict]:
+def _run_spine_keys_rule(
+    rule_cfg: dict, spine: dict, graphs: dict, node_index: dict
+) -> tuple[list[dict], dict]:
     name = rule_cfg["name"]
     subject_axis, object_axis = rule_cfg["subject_axis"], rule_cfg["object_axis"]
     probe_key, reference_key = rule_cfg["probe"], rule_cfg["reference"]
@@ -345,7 +352,12 @@ def _run_spine_keys_rule(rule_cfg: dict, spine: dict, graphs: dict, node_index: 
         probe_graph, probe_key, subject_axis, object_axis, node_index, probe_edge["relations"]
     )
     reference_map = project_edges(
-        reference_graph, reference_key, subject_axis, object_axis, node_index, reference_edge["relations"]
+        reference_graph,
+        reference_key,
+        subject_axis,
+        object_axis,
+        node_index,
+        reference_edge["relations"],
     )
     all_reference_keys: set[str] = set()
     for keys in reference_map.values():
@@ -431,7 +443,9 @@ def _run_spine_keys_rule(rule_cfg: dict, spine: dict, graphs: dict, node_index: 
     return findings, stats
 
 
-def _run_text_tokens_rule(rule_cfg: dict, spine: dict, graphs: dict, node_index: dict) -> tuple[list[dict], dict]:
+def _run_text_tokens_rule(
+    rule_cfg: dict, spine: dict, graphs: dict, node_index: dict
+) -> tuple[list[dict], dict]:
     name = rule_cfg["name"]
     subject_axis, object_axis = rule_cfg["subject_axis"], rule_cfg["object_axis"]
     probe_key, reference_key = rule_cfg["probe"], rule_cfg["reference"]
@@ -474,7 +488,8 @@ def _run_text_tokens_rule(rule_cfg: dict, spine: dict, graphs: dict, node_index:
     caveat = rule_cfg.get("caveat")
     description_template = _description_for(rule_cfg, "gap")
 
-    reference_nodes_by_id = {n["id"]: n for n in reference_graph.get("payload", {}).get("nodes") or []}
+    reference_nodes = reference_graph.get("payload", {}).get("nodes") or []
+    reference_nodes_by_id = {n["id"]: n for n in reference_nodes}
 
     findings: list[dict] = []
     by_severity: dict[str, int] = {}
@@ -552,7 +567,9 @@ def _run_text_tokens_rule(rule_cfg: dict, spine: dict, graphs: dict, node_index:
     return findings, stats
 
 
-def run_rule(rule_cfg: dict, spine: dict, graphs: dict, node_index: dict) -> tuple[list[dict], dict]:
+def run_rule(
+    rule_cfg: dict, spine: dict, graphs: dict, node_index: dict
+) -> tuple[list[dict], dict]:
     """Run one rule (already eagerly validated by load_rules_spec) and
     return ``(findings, stats)``. Raises on any runtime failure -- callers
     that want per-rule isolation must catch around this (see run_rules)."""
@@ -579,7 +596,10 @@ def run_rules(rules_spec: dict, spine: dict, graphs: dict, include_advisory: boo
     custom_findings: dict[str, list[dict]] = {}
     stats: dict[str, dict] = {}
 
-    rules = rules_spec["rules"] if isinstance(rules_spec, dict) and "rules" in rules_spec else rules_spec
+    if isinstance(rules_spec, dict) and "rules" in rules_spec:
+        rules = rules_spec["rules"]
+    else:
+        rules = rules_spec
     for rule_cfg in rules:
         name = rule_cfg["name"]
         if rule_cfg.get("advisory") and not include_advisory:
