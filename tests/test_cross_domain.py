@@ -12,6 +12,7 @@ must not move underneath this work.
 from __future__ import annotations
 
 import pytest
+import yaml
 
 from core.cross_domain_compare import (
     SUBTYPE_ABSENT,
@@ -688,3 +689,226 @@ def test_advisory_rule_forced_advisory_with_opt_in_and_caveat(fixtures_dir):
     for finding in findings:
         assert finding["severity"] == "advisory"
         assert finding["evidence"]["caveat"] == "Advisory only. Treat as a review queue, never as a count."
+
+
+# ---------------------------------------------------------------------------
+# YAML 1.1 coercion guard -- full rules-spec surface (Task 3)
+# ---------------------------------------------------------------------------
+
+
+def _base_rule(**overrides):
+    rule = {
+        "name": "r1",
+        "type": "safety_signal",
+        "subject_axis": "drug",
+        "object_axis": "adverse_event",
+        "probe": "pharmacovigilance",
+        "reference": "fda-product-labels",
+        "compare": "spine_keys",
+        "caveat": "some caveat text",
+        "severity": {
+            "absent": "medium",
+            "attributed_elsewhere": "high",
+            "granularity_variant": "low",
+        },
+        "descriptions": {
+            "absent": "{object_key} {subject_key} {probe} {reference}",
+            "attributed_elsewhere": "{object_key} {subject_key} {probe} {reference}",
+            "granularity_variant": "{object_key} {subject_key} {probe} {reference}",
+        },
+    }
+    rule.update(overrides)
+    return rule
+
+
+def _write_rule(tmp_path, rule):
+    return _write_rules_yaml(tmp_path, yaml.safe_dump({"rules": [rule]}))
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "field",
+    ["name", "type", "probe", "reference", "subject_axis", "object_axis", "compare", "caveat"],
+)
+def test_coerced_top_level_string_field_raises_naming_index_field_value_type(tmp_path, field):
+    from core.cross_domain import load_rules_spec
+
+    rule = _base_rule(**{field: True})
+    path = _write_rule(tmp_path, rule)
+    with pytest.raises(CrosswalkConfigError) as exc_info:
+        load_rules_spec(path, _synthetic_full_spine())
+    message = str(exc_info.value)
+    assert f"rules[0].{field}" in message
+    assert repr(True) in message
+    assert "bool" in message
+
+
+@pytest.mark.unit
+def test_coerced_severity_table_value_raises_naming_table_key_value_type(tmp_path):
+    from core.cross_domain import load_rules_spec
+
+    rule = _base_rule(
+        severity={"absent": True, "attributed_elsewhere": "high", "granularity_variant": "low"}
+    )
+    path = _write_rule(tmp_path, rule)
+    with pytest.raises(CrosswalkConfigError) as exc_info:
+        load_rules_spec(path, _synthetic_full_spine())
+    message = str(exc_info.value)
+    assert "rules[0].severity" in message
+    assert "absent" in message
+    assert repr(True) in message
+    assert "bool" in message
+
+
+@pytest.mark.unit
+def test_coerced_severity_table_key_raises(tmp_path):
+    """This is the case that would otherwise be swallowed by per-rule
+    isolation into an error status rather than failing the load."""
+    from core.cross_domain import load_rules_spec
+
+    rule = _base_rule(
+        severity={True: "medium", "attributed_elsewhere": "high", "granularity_variant": "low"}
+    )
+    path = _write_rule(tmp_path, rule)
+    with pytest.raises(CrosswalkConfigError) as exc_info:
+        load_rules_spec(path, _synthetic_full_spine())
+    message = str(exc_info.value)
+    assert "rules[0].severity" in message
+    assert repr(True) in message
+    assert "bool" in message
+
+
+@pytest.mark.unit
+def test_coerced_description_table_key_and_value_both_raise(tmp_path):
+    from core.cross_domain import load_rules_spec
+
+    key_dir = tmp_path / "key_case"
+    key_dir.mkdir()
+    key_rule = _base_rule(
+        descriptions={True: "{object_key}", "attributed_elsewhere": "x", "granularity_variant": "y"}
+    )
+    key_path = _write_rule(key_dir, key_rule)
+    with pytest.raises(CrosswalkConfigError) as exc_info:
+        load_rules_spec(key_path, _synthetic_full_spine())
+    assert "rules[0].descriptions" in str(exc_info.value)
+    assert "bool" in str(exc_info.value)
+
+    value_dir = tmp_path / "value_case"
+    value_dir.mkdir()
+    value_rule = _base_rule(
+        descriptions={"absent": True, "attributed_elsewhere": "x", "granularity_variant": "y"}
+    )
+    value_path = _write_rule(value_dir, value_rule)
+    with pytest.raises(CrosswalkConfigError) as exc_info:
+        load_rules_spec(value_path, _synthetic_full_spine())
+    message = str(exc_info.value)
+    assert "rules[0].descriptions" in message
+    assert "absent" in message
+    assert "bool" in message
+
+
+@pytest.mark.unit
+def test_coerced_tokenizer_pattern_raises(tmp_path):
+    from core.cross_domain import load_rules_spec
+
+    rule = _base_rule(
+        subject_axis="trial",
+        object_axis="outcome",
+        probe="clinicaltrials",
+        reference="fda-product-labels",
+        compare="text_tokens",
+        text_tokens={
+            "token_pattern": True,
+            "min_token_length": 3,
+            "report_below": 0.6,
+            "severity_bands": [{"below": 1.0, "severity": "low"}],
+            "stopwords": ["a"],
+        },
+        descriptions={"gap": "{object_key} {subject_key} {probe} {reference}"},
+    )
+    path = _write_rule(tmp_path, rule)
+    with pytest.raises(CrosswalkConfigError) as exc_info:
+        load_rules_spec(path, _synthetic_full_spine())
+    message = str(exc_info.value)
+    assert "rules[0].text_tokens.token_pattern" in message
+    assert repr(True) in message
+    assert "bool" in message
+
+
+@pytest.mark.unit
+def test_coerced_grade_band_grade_word_raises(tmp_path):
+    from core.cross_domain import load_rules_spec
+
+    rule = _base_rule(
+        subject_axis="trial",
+        object_axis="outcome",
+        probe="clinicaltrials",
+        reference="fda-product-labels",
+        compare="text_tokens",
+        text_tokens={
+            "token_pattern": "[a-z]+",
+            "min_token_length": 3,
+            "report_below": 0.6,
+            "severity_bands": [{"below": 1.0, "severity": True}],
+            "stopwords": ["a"],
+        },
+        descriptions={"gap": "{object_key} {subject_key} {probe} {reference}"},
+    )
+    path = _write_rule(tmp_path, rule)
+    with pytest.raises(CrosswalkConfigError) as exc_info:
+        load_rules_spec(path, _synthetic_full_spine())
+    message = str(exc_info.value)
+    assert "rules[0].text_tokens.severity_bands[0].severity" in message
+    assert repr(True) in message
+    assert "bool" in message
+
+
+@pytest.mark.unit
+def test_legitimate_non_string_tokenizer_and_band_fields_load_unchanged(tmp_path):
+    """Negative control for Task 3's additions: a legitimate float grade-
+    band bound plus a legitimate int minimum length and float threshold
+    load without raising, with their original types preserved."""
+    from core.cross_domain import load_rules_spec
+
+    rule = _base_rule(
+        subject_axis="trial",
+        object_axis="outcome",
+        probe="clinicaltrials",
+        reference="fda-product-labels",
+        compare="text_tokens",
+        text_tokens={
+            "token_pattern": "[a-z]+",
+            "min_token_length": 4,
+            "report_below": 0.75,
+            "severity_bands": [{"below": 0.42, "severity": "low"}],
+            "stopwords": ["a"],
+        },
+        descriptions={"gap": "{object_key} {subject_key} {probe} {reference}"},
+    )
+    path = _write_rule(tmp_path, rule)
+    spec = load_rules_spec(path, _synthetic_full_spine())
+    token_cfg = spec["rules"][0]["text_tokens"]
+    assert token_cfg["min_token_length"] == 4
+    assert isinstance(token_cfg["min_token_length"], int)
+    assert not isinstance(token_cfg["min_token_length"], bool)
+    assert token_cfg["report_below"] == 0.75
+    assert isinstance(token_cfg["report_below"], float)
+    assert token_cfg["severity_bands"][0]["below"] == 0.42
+    assert isinstance(token_cfg["severity_bands"][0]["below"], float)
+
+
+@pytest.mark.unit
+def test_type_errors_reported_before_membership_errors_for_coerced_probe(tmp_path):
+    """A coerced probe field must be reported as a type error, not shadowed
+    by the existing membership-check message naming a graph the spine does
+    not record."""
+    from core.cross_domain import load_rules_spec
+
+    rule = _base_rule(probe=True)
+    path = _write_rule(tmp_path, rule)
+    with pytest.raises(CrosswalkConfigError) as exc_info:
+        load_rules_spec(path, _synthetic_full_spine())
+    message = str(exc_info.value)
+    assert "which the spine does not record" not in message
+    assert "bool" in message
+    assert repr(True) in message
