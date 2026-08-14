@@ -135,9 +135,7 @@ def load_axis_spec(path: str | Path) -> dict:
         try:
             compiled[axis_name] = build_chain(normalize_chain)
         except CrosswalkConfigError as e:
-            raise CrosswalkConfigError(
-                f"{spec_path}: axis {axis_name!r}: {e}"
-            ) from e
+            raise CrosswalkConfigError(f"{spec_path}: axis {axis_name!r}: {e}") from e
     return {"raw": axes, "compiled": compiled, "path": spec_path}
 
 
@@ -344,8 +342,7 @@ def compute_stats(axis_data: dict, declaring_graphs: list[str]) -> dict:
     declared_sorted = sorted(declaring_graphs)
     keys_per_graph: dict[str, int] = {g: 0 for g in declared_sorted}
     pairwise = {
-        f"{g1}{_PAIR_SEPARATOR}{g2}": 0
-        for g1, g2 in itertools.combinations(declared_sorted, 2)
+        f"{g1}{_PAIR_SEPARATOR}{g2}": 0 for g1, g2 in itertools.combinations(declared_sorted, 2)
     }
     shared_by_2_or_more = 0
     shared_by_all_graphs = 0
@@ -378,9 +375,7 @@ def compute_stats(axis_data: dict, declaring_graphs: list[str]) -> dict:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="crosswalk", description="Build a cross-graph spine.json"
-    )
+    parser = argparse.ArgumentParser(prog="crosswalk", description="Build a cross-graph spine.json")
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_build = sub.add_parser("build", help="Build spine.json from two or more graphs")

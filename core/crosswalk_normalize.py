@@ -93,9 +93,7 @@ def _op_replace_map(step: dict) -> Primitive:
 
 
 def _op_strip_trailing_tokens(step: dict) -> Primitive:
-    raw_tokens = assert_str_list(
-        step.get("tokens") or [], key_path="strip_trailing_tokens.tokens"
-    )
+    raw_tokens = assert_str_list(step.get("tokens") or [], key_path="strip_trailing_tokens.tokens")
     tokens = frozenset(t.lower() for t in raw_tokens)
 
     def _apply(value: str) -> str | None:

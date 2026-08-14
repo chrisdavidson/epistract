@@ -85,8 +85,7 @@ def assert_str_list(value: object, *, source: str | None = None, key_path: str) 
     """
     if not isinstance(value, list):
         raise CrosswalkConfigError(
-            f"{_located(source, key_path)}: expected a list, got "
-            f"{value!r} ({type(value).__name__})"
+            f"{_located(source, key_path)}: expected a list, got {value!r} ({type(value).__name__})"
         )
     offenders = [
         f"{_located(source, f'{key_path}[{i}]')}={item!r} "
@@ -139,24 +138,67 @@ def assert_str_mapping(value: object, *, source: str | None = None, key_path: st
 # Schema walkers
 # ---------------------------------------------------------------------------
 
+# The eight top-level string fields of a rule. Driven from this tuple
+# rather than eight repeated call sites -- see validate_rule_types.
+_RULE_STRING_FIELDS = (
+    "name",
+    "type",
+    "probe",
+    "reference",
+    "subject_axis",
+    "object_axis",
+    "compare",
+    "caveat",
+)
+
+
+def _validate_tokenizer_block(token_cfg: dict, *, source: str | None, index: int) -> None:
+    """Assert only the string-typed tokenizer fields that are present: the
+    token pattern, the stopword list, and each grade band's grade word.
+
+    Assert nothing else here. The advisory flag, the minimum token length,
+    the reporting threshold, and every grade band bound are legitimately
+    non-string and must never be touched -- this is the invariant the
+    negative control from Task 1 defends.
+    """
+    prefix = f"rules[{index}].text_tokens"
+    if "token_pattern" in token_cfg:
+        assert_str(token_cfg["token_pattern"], source=source, key_path=f"{prefix}.token_pattern")
+    if "stopwords" in token_cfg:
+        assert_str_list(token_cfg["stopwords"], source=source, key_path=f"{prefix}.stopwords")
+    for i, band in enumerate(token_cfg.get("severity_bands") or []):
+        if isinstance(band, dict) and "severity" in band:
+            assert_str(
+                band["severity"],
+                source=source,
+                key_path=f"{prefix}.severity_bands[{i}].severity",
+            )
+
 
 def validate_rule_types(raw_rule: dict, *, source: str | None, index: int) -> None:
     """Assert the string-typed fields of one rules-spec rule that are
-    PRESENT. Never adds a required-key check -- presence of a required key
-    remains the sole job of load_rules_spec's existing required-key gate.
+    PRESENT: the eight top-level string fields, the grade table (keys and
+    values), the description table (keys and values), and -- inside the
+    tokenizer block, when present -- the token pattern, the stopword
+    list, and each grade band's grade word.
 
-    Only the tokenizer's stopword list is wired here. The remaining rule
-    fields (the top-level string fields, the grade and description
-    tables, the tokenizer pattern, and each grade band's grade word) are
-    wired in a later pass -- see the plan's Task 3.
+    Never adds a required-key check -- presence of a required key remains
+    the sole job of load_rules_spec's existing required-key gate.
     """
-    token_cfg = raw_rule.get("text_tokens")
-    if isinstance(token_cfg, dict) and "stopwords" in token_cfg:
-        assert_str_list(
-            token_cfg["stopwords"],
-            source=source,
-            key_path=f"rules[{index}].text_tokens.stopwords",
+    for field in _RULE_STRING_FIELDS:
+        if field in raw_rule:
+            assert_str(raw_rule[field], source=source, key_path=f"rules[{index}].{field}")
+
+    if "severity" in raw_rule:
+        assert_str_mapping(raw_rule["severity"], source=source, key_path=f"rules[{index}].severity")
+    if "descriptions" in raw_rule:
+        assert_str_mapping(
+            raw_rule["descriptions"], source=source, key_path=f"rules[{index}].descriptions"
         )
+
+    token_cfg = raw_rule.get("text_tokens")
+    if isinstance(token_cfg, dict):
+        _validate_tokenizer_block(token_cfg, source=source, index=index)
 
 
 def _validate_value_source(source_cfg: object, *, source: str | None, key_path: str) -> None:
@@ -210,6 +252,4 @@ def validate_domain_crosswalk_types(config: dict, source: str | None) -> None:
         if "relations" in edge:
             assert_str_list(edge["relations"], source=source, key_path=f"{edge_path}.relations")
         for j, src in enumerate(edge.get("text_sources") or []):
-            _validate_value_source(
-                src, source=source, key_path=f"{edge_path}.text_sources[{j}]"
-            )
+            _validate_value_source(src, source=source, key_path=f"{edge_path}.text_sources[{j}]")
