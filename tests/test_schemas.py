@@ -208,3 +208,85 @@ def test_domain_yaml_relation_types_have_required_fields():
                 assert "description" in entry, (
                     f"Relation type {entry.get('name', '?')} in {yaml_path.name} missing 'description'"
                 )
+
+
+@pytest.mark.unit
+def test_domain_yaml_discovery_is_not_vacuous():
+    """Discovery over domains/*/domain.yaml finds a plausible, non-empty set of tracked domains.
+
+    _discover_domain_yamls() raises internally if either anchor domain is missing (D-02) --
+    the anchor assertions below document that contract, they are not the enforcement path.
+    A reader should not need to hunt for where the missing-anchor assertion actually fires;
+    the >= 3 floor below is the only check in this test body that can actually trip.
+    """
+    paths = _discover_domain_yamls()
+
+    assert paths, "Domain discovery returned no domain.yaml files"
+    for path in paths:
+        assert path.exists(), f"Discovered path does not exist: {path}"
+
+    assert DRUG_DISCOVERY_YAML in paths, "drug-discovery domain.yaml missing from discovery"
+    assert CONTRACTS_YAML in paths, "contracts domain.yaml missing from discovery"
+
+    assert len(paths) >= 3, (
+        f"Expected >= 3 tracked domain.yaml files (implausibly few found), got {len(paths)}. "
+        "Lower this floor only when a domain is intentionally archived."
+    )
+
+
+@pytest.mark.unit
+def test_yaml_boolean_coercion_caught_by_key_guard():
+    """A YAML 1.1 boolean coercion of a domain type key is caught by the shared key-type guard.
+
+    Covers both container shapes and both the positive (coerced) and negative (quoted) forms,
+    so this proves the guard discriminates rather than always raising (D-04). `NO` here is
+    nitric oxide -- a realistic biomedical entity-type key, not a contrived example.
+    """
+    # POSITIVE (coerced, dict shape): bare `on` / `NO` keys coerce to bool.
+    coerced_dict_yaml = """
+    entity_types:
+      on:
+        description: turned on
+      NO:
+        description: nitric oxide
+    """
+    coerced_dict_types = yaml.safe_load(coerced_dict_yaml)["entity_types"]
+    assert True in coerced_dict_types and False in coerced_dict_types, (
+        f"Expected PyYAML to coerce bare on/NO to bool keys, got {coerced_dict_types!r}"
+    )
+    with pytest.raises(AssertionError) as excinfo:
+        _assert_type_keys_are_strings(coerced_dict_types, "Entity", "synthetic-dict.yaml")
+    assert "bool" in str(excinfo.value), (
+        f"Expected the guard's message to name the offending type, got: {excinfo.value}"
+    )
+
+    # POSITIVE (coerced, list shape): bare `NO` value under `name:` coerces to bool.
+    coerced_list_yaml = """
+    entity_types:
+      - name: NO
+        description: nitric oxide
+    """
+    coerced_list_types = yaml.safe_load(coerced_list_yaml)["entity_types"]
+    assert coerced_list_types[0]["name"] is False, (
+        f"Expected PyYAML to coerce bare NO to False, got {coerced_list_types[0]['name']!r}"
+    )
+    with pytest.raises(AssertionError) as excinfo:
+        _assert_type_keys_are_strings(coerced_list_types, "Entity", "synthetic-list.yaml")
+    assert "bool" in str(excinfo.value), (
+        f"Expected the guard's message to name the offending type, got: {excinfo.value}"
+    )
+
+    # NEGATIVE CONTROL (quoted, dict shape): quoting keeps the keys as str -- the guard
+    # must NOT raise here, or it would be satisfied by an unconditional raise (D-04).
+    quoted_dict_yaml = """
+    entity_types:
+      'NO':
+        description: nitric oxide
+      "on":
+        description: turned on
+    """
+    quoted_dict_types = yaml.safe_load(quoted_dict_yaml)["entity_types"]
+    assert all(isinstance(key, str) for key in quoted_dict_types), (
+        f"Expected quoted keys to stay str, got {list(quoted_dict_types.keys())!r}"
+    )
+    _assert_type_keys_are_strings(quoted_dict_types, "Entity", "synthetic-quoted.yaml")
