@@ -50,6 +50,7 @@ from pathlib import Path
 
 import yaml
 
+from .config_types import validate_rule_types
 from .cross_domain_compare import classify_miss, coverage_ratio, resolve_band, tokenize
 from .crosswalk import load_domain_config, load_graphs, source_candidates
 from .crosswalk_normalize import CrosswalkConfigError
@@ -155,13 +156,17 @@ def load_rules_spec(path: str | Path, spine: dict) -> dict:
     axis_keys = sorted((spine.get("axes") or {}).keys())
 
     rules: list[dict] = []
-    for raw_rule in spec.get("rules") or []:
+    for index, raw_rule in enumerate(spec.get("rules") or []):
         name = raw_rule.get("name", "<unnamed>")
         missing = [k for k in _REQUIRED_RULE_KEYS if k not in raw_rule]
         if missing:
             raise CrosswalkConfigError(
                 f"{spec_path}: rule {name!r} is missing required key(s): {missing}"
             )
+        # Type-asserted BEFORE the membership checks below, so a coerced
+        # value is reported as a type error naming the source line rather
+        # than a membership error naming a parsed boolean.
+        validate_rule_types(raw_rule, source=str(spec_path), index=index)
         for role, graph_key in (("probe", raw_rule["probe"]), ("reference", raw_rule["reference"])):
             if graph_key not in graph_keys:
                 raise CrosswalkConfigError(

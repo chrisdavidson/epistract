@@ -29,14 +29,17 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 
+from .config_types import CrosswalkConfigError
+
+__all__ = [
+    "CrosswalkConfigError",
+    "Primitive",
+    "build_chain",
+    "run_chain",
+    "run_compiled_chain",
+]
+
 Primitive = Callable[[str], "str | None"]
-
-
-class CrosswalkConfigError(Exception):
-    """Raised when a crosswalk config (axis spec or domain crosswalk.yaml)
-    is malformed -- an unknown normalizer op, a missing required field, or
-    a config that references something another file does not declare.
-    """
 
 
 def _op_lowercase(step: dict) -> Primitive:
