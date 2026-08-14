@@ -538,3 +538,187 @@ def test_adverse_event_axis_stats_scoped_to_two_declaring_graphs(fixtures_dir):
     pair_key = "fda-product-labels|pharmacovigilance"
     assert stats["pairwise"][pair_key] == stats["shared_by_all_graphs"]
     assert stats["shared_by_all_graphs"] >= 1
+
+
+# ---------------------------------------------------------------------------
+# YAML 1.1 coercion guard -- issue #45 recommendations 1 and 2, crosswalk layer
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_strip_trailing_tokens_coerced_token_raises_naming_step_index_value_type():
+    with pytest.raises(CrosswalkConfigError) as exc_info:
+        run_chain("x", [{"op": "strip_trailing_tokens", "tokens": ["acetate", True]}])
+    message = str(exc_info.value)
+    assert "strip_trailing_tokens" in message
+    assert "[1]" in message
+    assert repr(True) in message
+    assert "bool" in message
+    assert "quote" in message.lower()
+
+
+@pytest.mark.unit
+def test_replace_map_coerced_key_raises_naming_step_key_value_type():
+    with pytest.raises(CrosswalkConfigError) as exc_info:
+        run_chain("x", [{"op": "replace_map", "map": {True: "x"}}])
+    message = str(exc_info.value)
+    assert "replace_map" in message
+    assert repr(True) in message
+    assert "bool" in message
+    assert "quote" in message.lower()
+
+
+@pytest.mark.unit
+def test_regex_extract_non_string_pattern_raises_naming_step():
+    with pytest.raises(CrosswalkConfigError) as exc_info:
+        run_chain("x", [{"op": "regex_extract", "pattern": True}])
+    message = str(exc_info.value)
+    assert "regex_extract" in message
+    assert repr(True) in message
+    assert "bool" in message
+
+
+@pytest.mark.unit
+def test_axis_spec_coerced_normalizer_token_names_spec_path_and_axis(tmp_path):
+    from core.crosswalk import load_axis_spec
+
+    spec_path = tmp_path / "axes.yaml"
+    spec_path.write_text(
+        "axes:\n"
+        "  drug:\n"
+        "    normalize:\n"
+        "      - op: strip_trailing_tokens\n"
+        "        tokens: [acetate, true]\n"
+    )
+    with pytest.raises(CrosswalkConfigError) as exc_info:
+        load_axis_spec(str(spec_path))
+    message = str(exc_info.value)
+    assert str(spec_path) in message
+    assert "drug" in message
+    assert "strip_trailing_tokens" in message
+
+
+@pytest.mark.unit
+def test_axis_spec_coerced_axis_name_names_spec_path_and_value(tmp_path):
+    from core.crosswalk import load_axis_spec
+
+    spec_path = tmp_path / "axes.yaml"
+    spec_path.write_text("axes:\n  on:\n    normalize:\n      - op: uppercase\n")
+    with pytest.raises(CrosswalkConfigError) as exc_info:
+        load_axis_spec(str(spec_path))
+    message = str(exc_info.value)
+    assert str(spec_path) in message
+    assert repr(True) in message
+
+
+@pytest.mark.unit
+def test_domain_walker_coerced_entity_type_entry_raises_naming_axis_index_value_type():
+    from core.config_types import validate_domain_crosswalk_types
+
+    config = {"axes": {"drug": {"entity_types": ["Drug", True], "sources": [{"from": "name"}]}}}
+    with pytest.raises(CrosswalkConfigError) as exc_info:
+        validate_domain_crosswalk_types(config, "some/crosswalk.yaml")
+    message = str(exc_info.value)
+    assert "drug" in message
+    assert "entity_types[1]" in message
+    assert repr(True) in message
+    assert "bool" in message
+
+
+@pytest.mark.unit
+def test_domain_walker_coerced_edge_relation_entry_raises_naming_edge_index_and_value():
+    from core.config_types import validate_domain_crosswalk_types
+
+    config = {
+        "edges": [
+            {"subject": "drug", "object": "adverse_event", "relations": ["CAUSES", True]}
+        ]
+    }
+    with pytest.raises(CrosswalkConfigError) as exc_info:
+        validate_domain_crosswalk_types(config, "some/crosswalk.yaml")
+    message = str(exc_info.value)
+    assert "edges[0]" in message
+    assert "relations[1]" in message
+    assert repr(True) in message
+    assert "bool" in message
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "config",
+    [
+        pytest.param(
+            {"axes": {"drug": {"sources": [{"from": True}]}}}, id="value_source_kind"
+        ),
+        pytest.param(
+            {"axes": {"drug": {"sources": [{"from": "attribute", "key": True}]}}},
+            id="value_source_attribute_key",
+        ),
+        pytest.param(
+            {"axes": {"drug": {"identifiers": {True: {"from": "name"}}}}},
+            id="identifier_label",
+        ),
+        pytest.param(
+            {"edges": [{"subject": True, "object": "adverse_event"}]},
+            id="edge_subject",
+        ),
+        pytest.param(
+            {"edges": [{"subject": "drug", "object": True}]},
+            id="edge_object",
+        ),
+        pytest.param(
+            {
+                "edges": [
+                    {
+                        "subject": "trial",
+                        "object": "outcome",
+                        "text_sources": [{"from": True}],
+                    }
+                ]
+            },
+            id="text_source_kind",
+        ),
+    ],
+)
+def test_domain_walker_raises_on_each_previously_silent_or_unhelpful_field(config):
+    from core.config_types import validate_domain_crosswalk_types
+
+    with pytest.raises(CrosswalkConfigError) as exc_info:
+        validate_domain_crosswalk_types(config, "some/crosswalk.yaml")
+    message = str(exc_info.value)
+    assert repr(True) in message
+    assert "bool" in message
+
+
+@pytest.mark.unit
+def test_domain_walker_wiring_is_live_through_load_domain_config(tmp_path, monkeypatch):
+    from core import crosswalk
+
+    bad_path = tmp_path / "crosswalk.yaml"
+    bad_path.write_text(
+        "axes:\n"
+        "  drug:\n"
+        "    entity_types: [Drug, true]\n"
+        "    sources:\n"
+        "      - from: name\n"
+    )
+    monkeypatch.setattr(crosswalk, "domain_crosswalk_path", lambda payload: bad_path)
+    with pytest.raises(CrosswalkConfigError):
+        crosswalk.load_domain_config({"metadata": {"domain": "whatever"}})
+
+
+@pytest.mark.unit
+def test_domain_walker_accepts_fully_optional_absent_fields():
+    from core.config_types import validate_domain_crosswalk_types
+
+    config = {
+        "axes": {
+            "drug": {
+                "entity_types": ["Drug"],
+                "sources": [{"from": "name"}],
+            }
+        }
+    }
+    # Must not raise: no edges section, no identifiers, and the one value
+    # source carries no attribute key.
+    validate_domain_crosswalk_types(config, "some/crosswalk.yaml")
