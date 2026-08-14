@@ -28,6 +28,7 @@ __all__ = [
     "assert_str",
     "assert_str_list",
     "assert_str_mapping",
+    "validate_domain_crosswalk_types",
     "validate_rule_types",
 ]
 
@@ -156,3 +157,59 @@ def validate_rule_types(raw_rule: dict, *, source: str | None, index: int) -> No
             source=source,
             key_path=f"rules[{index}].text_tokens.stopwords",
         )
+
+
+def _validate_value_source(source_cfg: object, *, source: str | None, key_path: str) -> None:
+    """Assert one value-source mapping's kind ('from') and optional
+    attribute key ('key') are strings, when present. Shared by axis
+    sources, axis identifier sources, and edge text_sources -- three call
+    sites, which is why this is factored out rather than inlined."""
+    if not isinstance(source_cfg, dict):
+        return
+    if "from" in source_cfg:
+        assert_str(source_cfg["from"], source=source, key_path=f"{key_path}.from")
+    if "key" in source_cfg:
+        assert_str(source_cfg["key"], source=source, key_path=f"{key_path}.key")
+
+
+def validate_domain_crosswalk_types(config: dict, source: str | None) -> None:
+    """Assert the string-typed fields of one per-domain crosswalk config
+    that are PRESENT: each key of the axes mapping, each axis's
+    participating-type list, each value source's kind and optional
+    attribute key, each identifier label and its source, and each edge's
+    subject, object, relation list, and text sources.
+
+    Assert type only, never truthiness -- an absent optional field is not
+    an error, an empty list is not an error, and an empty string value is
+    not an error (the shipped axis spec maps a marker to "").
+    """
+    for axis_name, axis_cfg in (config.get("axes") or {}).items():
+        assert_str(axis_name, source=source, key_path="axes key")
+        axis_cfg = axis_cfg or {}
+        axis_path = f"axes.{axis_name}"
+
+        if "entity_types" in axis_cfg:
+            assert_str_list(
+                axis_cfg["entity_types"], source=source, key_path=f"{axis_path}.entity_types"
+            )
+        for i, src in enumerate(axis_cfg.get("sources") or []):
+            _validate_value_source(src, source=source, key_path=f"{axis_path}.sources[{i}]")
+        for label, id_source in (axis_cfg.get("identifiers") or {}).items():
+            assert_str(label, source=source, key_path=f"{axis_path}.identifiers key")
+            _validate_value_source(
+                id_source, source=source, key_path=f"{axis_path}.identifiers.{label}"
+            )
+
+    for i, edge in enumerate(config.get("edges") or []):
+        edge = edge or {}
+        edge_path = f"edges[{i}]"
+        if "subject" in edge:
+            assert_str(edge["subject"], source=source, key_path=f"{edge_path}.subject")
+        if "object" in edge:
+            assert_str(edge["object"], source=source, key_path=f"{edge_path}.object")
+        if "relations" in edge:
+            assert_str_list(edge["relations"], source=source, key_path=f"{edge_path}.relations")
+        for j, src in enumerate(edge.get("text_sources") or []):
+            _validate_value_source(
+                src, source=source, key_path=f"{edge_path}.text_sources[{j}]"
+            )

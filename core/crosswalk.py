@@ -35,6 +35,7 @@ from pathlib import Path
 import yaml
 
 from . import domain_resolver
+from .config_types import assert_str, validate_domain_crosswalk_types
 from .crosswalk_normalize import CrosswalkConfigError, build_chain, run_compiled_chain
 
 __all__ = [
@@ -126,6 +127,10 @@ def load_axis_spec(path: str | Path) -> dict:
     axes = spec.get("axes") or {}
     compiled: dict[str, list] = {}
     for axis_name, axis_cfg in axes.items():
+        # Asserted before the chain is compiled for this axis, so a
+        # coerced axis name is reported as a name error rather than
+        # surfacing through the per-axis wrapper below.
+        assert_str(axis_name, source=str(spec_path), key_path="axes key")
         normalize_chain = (axis_cfg or {}).get("normalize") or []
         try:
             compiled[axis_name] = build_chain(normalize_chain)
@@ -159,7 +164,15 @@ def load_domain_config(graph_payload: dict) -> dict | None:
     crosswalk_path = domain_crosswalk_path(graph_payload)
     if crosswalk_path is None:
         return None
-    return yaml.safe_load(crosswalk_path.read_text()) or {}
+    config = yaml.safe_load(crosswalk_path.read_text()) or {}
+    # This is the single chokepoint both the spine builder and the
+    # cross-domain rules engine share. Validated here rather than at the
+    # rules engine's consumer (the edges section is read inside that
+    # engine's per-rule isolation, which would degrade a config error into
+    # an error status instead of a hard abort) -- see
+    # core/cross_domain.py::run_rules.
+    validate_domain_crosswalk_types(config, str(crosswalk_path))
+    return config
 
 
 def resolve_domain_configs(graphs: dict[str, dict], axis_spec: dict) -> dict[str, dict]:
