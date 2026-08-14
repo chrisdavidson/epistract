@@ -1,0 +1,104 @@
+{
+  "metadata": {
+    "domain": "fda-product-labels",
+    "entity_count": 10
+  },
+  "nodes": [
+    {
+      "id": "clinical_study:declare",
+      "entity_type": "CLINICAL_STUDY",
+      "name": "DECLARE",
+      "confidence": 0.95,
+      "attributes": {
+        "full_name": "Effect on Cardiovascular Events",
+        "nct": "NCT01730534",
+        "design": "randomized, double-blind, placebo-controlled"
+      }
+    },
+    {
+      "id": "clinical_study:surpass_1",
+      "entity_type": "CLINICAL_STUDY",
+      "name": "SURPASS-1",
+      "confidence": 0.9,
+      "attributes": {
+        "nct_id": "NCT12345678",
+        "n": 500,
+        "arms": ["monotherapy", "placebo"]
+      }
+    },
+    {
+      "id": "clinical_study:nct99999999",
+      "entity_type": "CLINICAL_STUDY",
+      "name": "NCT99999999",
+      "confidence": 0.8,
+      "attributes": {
+        "design": "open-label extension"
+      }
+    },
+    {
+      "id": "clinical_study:no_id_study",
+      "entity_type": "CLINICAL_STUDY",
+      "name": "A Study With No Registered ID",
+      "confidence": 0.7,
+      "attributes": {
+        "design": "retrospective chart review"
+      }
+    },
+    {
+      "id": "drug_product:sampledrug",
+      "entity_type": "DRUG_PRODUCT",
+      "name": "SAMPLEDRUG",
+      "confidence": 0.9,
+      "attributes": {
+        "generic_name": "sampletide",
+        "dosage_form": "injection, solution",
+        "route": "subcutaneous"
+      }
+    },
+    {
+      "id": "active_ingredient:sampletide",
+      "entity_type": "ACTIVE_INGREDIENT",
+      "name": "sampletide",
+      "confidence": 0.9,
+      "attributes": {
+        "modality": "peptide",
+        "unii": "SAMPLE12345"
+      }
+    },
+    {
+      "id": "active_ingredient:saltide_acetate",
+      "entity_type": "ACTIVE_INGREDIENT",
+      "name": "saltide acetate",
+      "confidence": 0.85,
+      "attributes": {
+        "modality": "small molecule salt"
+      }
+    },
+    {
+      "id": "adverse_reaction:diarrhea",
+      "entity_type": "ADVERSE_REACTION",
+      "name": "Diarrhea",
+      "confidence": 0.9,
+      "attributes": {}
+    },
+    {
+      "id": "warning:sample_warning",
+      "entity_type": "WARNING",
+      "name": "Sample Warning Section",
+      "confidence": 0.85,
+      "attributes": {
+        "note": "not an adverse event term"
+      }
+    },
+    {
+      "id": "warning:diarrhea_section",
+      "entity_type": "WARNING",
+      "name": "Diarrhea",
+      "confidence": 0.85,
+      "attributes": {
+        "note": "warnings-section text that collides with an AE term on purpose"
+      }
+    }
+  ],
+  "links": []
+}

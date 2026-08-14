@@ -1,0 +1,53 @@
+# Per-domain crosswalk extraction spec for pharmacovigilance.
+#
+# Declares, per axis: which entity types participate, and which value
+# sources to try (in order). Canonicalisation itself (the normalizer chain)
+# lives once in ../../crosswalks/pharma.yaml, not here.
+axes:
+  drug:
+    # BOTH the suspect-drug type AND the concomitant-medication type.
+    # Restricting this to the suspect-drug type alone drops one molecule
+    # (tirzepatide, in the real corpus) from the three-way intersection --
+    # the concomitant type is the larger of the two node sets and carries
+    # most of the distinct INNs. Do not "tidy" this down to one type.
+    entity_types: [Drug, Concomitant]
+    # Brand name is deliberately NOT a source: these nodes are named for
+    # the brand, and the entire point of this axis is collapsing onto the
+    # generic moiety, not re-emitting the brand as a second key.
+    sources:
+      - from: attribute
+        key: inn
+      - from: attribute
+        key: substance_name
+      - from: name
+    identifiers:
+      atc:
+        from: attribute
+        key: atc_code
+      rxcui:
+        from: attribute
+        key: rxcui
+
+  adverse_event:
+    entity_types: [AdverseEvent]
+    sources:
+      - from: attribute
+        key: meddra_pt
+      - from: name
+
+  indication:
+    entity_types: [Indication]
+    sources:
+      - from: name
+
+edges:
+  # The patient-experience relation runs patient -> event and never touches
+  # a drug node; it is deliberately absent here. Measured typed signatures
+  # on the real graph: 642 temporal-ordering edges plus 87 direct causal
+  # edges carry the whole drug/event connection.
+  - subject: drug
+    object: adverse_event
+    relations: [OCCURRED_AFTER, CAUSES]
+  - subject: drug
+    object: indication
+    relations: [INDICATED_FOR]

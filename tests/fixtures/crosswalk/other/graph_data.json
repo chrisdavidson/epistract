@@ -1,0 +1,16 @@
+{
+  "metadata": {
+    "domain": "drug-discovery",
+    "entity_count": 1
+  },
+  "nodes": [
+    {
+      "id": "compound:unrelated",
+      "entity_type": "COMPOUND",
+      "name": "Unrelated Compound",
+      "confidence": 0.5,
+      "attributes": {}
+    }
+  ],
+  "links": []
+}

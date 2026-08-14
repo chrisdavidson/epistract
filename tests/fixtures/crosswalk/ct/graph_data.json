@@ -1,0 +1,77 @@
+{
+  "metadata": {
+    "domain": "clinicaltrials",
+    "entity_count": 7
+  },
+  "nodes": [
+    {
+      "id": "trial:nct01730534",
+      "entity_type": "Trial",
+      "name": "NCT01730534",
+      "confidence": 0.95,
+      "attributes": {
+        "descriptive_title": "Effect on Cardiovascular Events",
+        "status": "completed"
+      }
+    },
+    {
+      "id": "trial:nct12345678",
+      "entity_type": "Trial",
+      "name": "NCT12345678",
+      "confidence": 0.9,
+      "attributes": {
+        "descriptive_title": "Monotherapy Study",
+        "status": "completed"
+      }
+    },
+    {
+      "id": "trial:nct99999999",
+      "entity_type": "Trial",
+      "name": "NCT99999999",
+      "confidence": 0.8,
+      "attributes": {
+        "descriptive_title": "Open-Label Extension"
+      }
+    },
+    {
+      "id": "trial:nct00000001",
+      "entity_type": "Trial",
+      "name": "NCT00000001",
+      "confidence": 0.8,
+      "attributes": {
+        "descriptive_title": "Unrelated CT-only Trial",
+        "status": "recruiting"
+      }
+    },
+    {
+      "id": "compound:sampletide",
+      "entity_type": "Compound",
+      "name": "sampletide",
+      "confidence": 0.9,
+      "attributes": {
+        "inn": "sampletide",
+        "drug_class": "GLP-1 receptor agonist"
+      }
+    },
+    {
+      "id": "compound:saltide",
+      "entity_type": "Compound",
+      "name": "saltide",
+      "confidence": 0.9,
+      "attributes": {
+        "inn": "saltide",
+        "drug_class": "small molecule"
+      }
+    },
+    {
+      "id": "outcome:sample_outcome",
+      "entity_type": "Outcome",
+      "name": "Sample Outcome",
+      "confidence": 0.7,
+      "attributes": {
+        "measure": "HbA1c change"
+      }
+    }
+  ],
+  "links": []
+}

@@ -1,0 +1,80 @@
+{
+  "metadata": {
+    "domain": "clinicaltrials",
+    "entity_count": 5
+  },
+  "nodes": [
+    {
+      "id": "trial:nct00000001",
+      "entity_type": "Trial",
+      "name": "NCT00000001",
+      "confidence": 0.9,
+      "attributes": {}
+    },
+    {
+      "id": "outcome:fully_covered",
+      "entity_type": "Outcome",
+      "name": "fasting glucose change",
+      "confidence": 0.8,
+      "attributes": {}
+    },
+    {
+      "id": "outcome:partially_covered",
+      "entity_type": "Outcome",
+      "name": "body weight kidney function",
+      "confidence": 0.8,
+      "attributes": {}
+    },
+    {
+      "id": "outcome:uncovered",
+      "entity_type": "Outcome",
+      "name": "quality of life score",
+      "confidence": 0.8,
+      "attributes": {}
+    },
+    {
+      "id": "trial:nct99999999",
+      "entity_type": "Trial",
+      "name": "NCT99999999",
+      "confidence": 0.8,
+      "attributes": {}
+    },
+    {
+      "id": "outcome:ct_only",
+      "entity_type": "Outcome",
+      "name": "ct only outcome",
+      "confidence": 0.8,
+      "attributes": {}
+    }
+  ],
+  "links": [
+    {
+      "source": "trial:nct00000001",
+      "target": "outcome:fully_covered",
+      "relation_type": "has_outcome",
+      "confidence": 0.8,
+      "evidence": "Trial NCT00000001 measured fasting glucose change."
+    },
+    {
+      "source": "trial:nct00000001",
+      "target": "outcome:partially_covered",
+      "relation_type": "has_outcome",
+      "confidence": 0.8,
+      "evidence": "Trial NCT00000001 measured body weight kidney function."
+    },
+    {
+      "source": "trial:nct00000001",
+      "target": "outcome:uncovered",
+      "relation_type": "has_outcome",
+      "confidence": 0.8,
+      "evidence": "Trial NCT00000001 measured quality of life score."
+    },
+    {
+      "source": "trial:nct99999999",
+      "target": "outcome:ct_only",
+      "relation_type": "has_outcome",
+      "confidence": 0.8,
+      "evidence": "A CT-only trial with no counterpart in the labels fixture -- must not be compared at all."
+    }
+  ]
+}

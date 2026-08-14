@@ -1,0 +1,91 @@
+# Repo-level axis spec -- the single canonicalisation authority.
+#
+# Every graph runs the SAME normalizer chain per axis, defined once here.
+# Per-domain crosswalk.yaml files declare WHICH entity types and attribute
+# sources feed an axis; this file declares HOW a raw value becomes a
+# canonical key. If each domain declared its own chain instead, a
+# salt-stripped key from one graph would never meet an unstripped key from
+# another and the spine would silently join almost nothing while every
+# per-domain unit test still passed in isolation.
+axes:
+  trial:
+    # Registry-ID axis: extract the identifier pattern, then normalize case.
+    normalize:
+      - op: regex_extract
+        pattern: "NCT\\d{8}"
+      - op: uppercase
+
+  drug:
+    # Collapse brand names, salt forms, and hydrate forms onto the parent
+    # moiety name. The token list below is derived from the salt/hydrate
+    # suffixes actually observed across the three source corpora (e.g.
+    # "... acetate", "... phosphate monohydrate", "... propanediol") --
+    # it is not an attempt at an exhaustive pharmacopeia list.
+    normalize:
+      - op: lowercase
+      - op: collapse_whitespace
+      - op: strip_trailing_tokens
+        tokens:
+          - acetate
+          - besylate
+          - bromide
+          - calcium
+          - chloride
+          - citrate
+          - dihydrate
+          - fumarate
+          - hydrobromide
+          - hydrochloride
+          - hydrate
+          - magnesium
+          - maleate
+          - mesylate
+          - monohydrate
+          - oxalate
+          - phosphate
+          - potassium
+          - propanediol
+          - sodium
+          - succinate
+          - sulfate
+          - tartrate
+          - trihydrate
+
+  adverse_event:
+    # British-to-US orthographic normalisation. Only the three pairs the
+    # planning assessment measured a real join gain from are included here
+    # (an unmeasured guess adds no verified value and risks a false
+    # substitution). Two of the three ('haem'->'hem', 'oedema'->'edema')
+    # are deliberately substring rules -- they also fire inside compound
+    # words like "haemorrhage" and "peripheral oedema", not just as whole
+    # terms.
+    normalize:
+      - op: lowercase
+      - op: collapse_whitespace
+      - op: replace_map
+        map:
+          diarrhoea: diarrhea
+          haem: hem
+          oedema: edema
+
+  indication:
+    # Probe-side indication nodes are frequently suffixed with a
+    # parenthetical role marker; stripping it is the only transform that
+    # gains any join at all here. The two vocabularies still overlap on a
+    # single term after normalisation -- which is exactly why the rule that
+    # spans this axis ships advisory.
+    normalize:
+      - op: lowercase
+      - op: collapse_whitespace
+      - op: replace_map
+        map:
+          "(indication)": ""
+      - op: collapse_whitespace
+
+  outcome:
+    # Declared by one graph only. The other side of the coverage rule holds
+    # no outcome-typed entities, so this axis exists to give the probe side
+    # stable canonical keys, not to join two graphs.
+    normalize:
+      - op: lowercase
+      - op: collapse_whitespace

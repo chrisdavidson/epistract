@@ -1,0 +1,63 @@
+# Per-domain crosswalk extraction spec for fda-product-labels.
+#
+# Declares, per axis: which entity types participate, and which value
+# sources to try (in order -- the first source producing a non-empty
+# canonical key wins for a given node). Canonicalisation itself (the
+# normalizer chain) lives once in ../../crosswalks/pharma.yaml, not here.
+axes:
+  trial:
+    entity_types: [CLINICAL_STUDY]
+    # The registry ID sits under three different attribute keys across the
+    # corpus and, for some nodes, only in the descriptive name -- so this
+    # scans every attribute value plus the name rather than naming one key.
+    sources:
+      - from: any_attribute
+      - from: name
+
+  drug:
+    entity_types: [DRUG_PRODUCT, ACTIVE_INGREDIENT]
+    sources:
+      - from: attribute
+        key: generic_name
+      - from: attribute
+        key: substance_name
+      - from: name
+    identifiers:
+      unii:
+        from: attribute
+        key: unii
+
+  adverse_event:
+    # ADVERSE_REACTION only -- deliberately NOT the warnings section. The
+    # warnings vocabulary overlap with the pharmacovigilance AE set is
+    # roughly one term against forty; admitting it collapses the axis.
+    entity_types: [ADVERSE_REACTION]
+    sources:
+      - from: name
+
+  indication:
+    entity_types: [INDICATION]
+    sources:
+      - from: name
+
+edges:
+  # The warnings section type is excluded here for the same reason it is
+  # excluded from the adverse_event axis: it is a document section, not a
+  # clinical term.
+  - subject: drug
+    object: adverse_event
+    relations: [CAUSES_ADVERSE_REACTION]
+  - subject: drug
+    object: indication
+    relations: [INDICATED_FOR]
+  # No relations for the trial/outcome pair: this graph holds no
+  # outcome-typed entities. It participates as the reference side of a
+  # text comparison, so it declares text_sources instead. Ordered
+  # name-then-narrative-then-attributes: the study node's assertions are
+  # spread across all three.
+  - subject: trial
+    object: outcome
+    text_sources:
+      - from: name
+      - from: context
+      - from: any_attribute
