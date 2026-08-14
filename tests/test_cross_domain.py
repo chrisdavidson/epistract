@@ -188,6 +188,111 @@ rules:
 
 
 # ---------------------------------------------------------------------------
+# YAML 1.1 coercion guard -- issue #45 recommendations 1 and 2
+# ---------------------------------------------------------------------------
+
+
+def _synthetic_full_spine():
+    """Matches the graphs and axes the shipped rules spec actually
+    references, so load_rules_spec's membership checks pass and only the
+    type-assertion behaviour under test is exercised."""
+    return {
+        "graphs": {
+            "pharmacovigilance": "/x",
+            "fda-product-labels": "/y",
+            "clinicaltrials": "/z",
+        },
+        "axes": {
+            "drug": {},
+            "adverse_event": {},
+            "trial": {},
+            "outcome": {},
+            "indication": {},
+        },
+    }
+
+
+@pytest.mark.unit
+def test_shipped_rules_spec_stopword_list_holds_only_strings():
+    """RED 1: fails today (index 9 is True) because the shipped rules spec
+    still contains one bare `on` keyword until it is quoted."""
+    from core.cross_domain import load_rules_spec
+
+    spec = load_rules_spec("crosswalks/pharma-rules.yaml", _synthetic_full_spine())
+    stopwords = spec["rules"][1]["text_tokens"]["stopwords"]
+    offenders = [w for w in stopwords if not isinstance(w, str)]
+    assert not offenders, f"stopword list holds non-string entries: {offenders!r}"
+
+
+@pytest.mark.unit
+def test_coerced_stopword_raises_naming_path_index_value_type_and_quote(tmp_path):
+    """RED 2: fails today because nothing raises for a coerced stopword."""
+    from core.cross_domain import load_rules_spec
+
+    path = _write_rules_yaml(
+        tmp_path,
+        """
+rules:
+  - name: r1
+    type: evidence_gap
+    subject_axis: trial
+    object_axis: outcome
+    probe: clinicaltrials
+    reference: fda-product-labels
+    compare: text_tokens
+    text_tokens:
+      token_pattern: "[a-z]+"
+      min_token_length: 3
+      report_below: 0.6
+      severity_bands:
+        - {below: 1.0, severity: low}
+      stopwords:
+        - a
+        - on
+    descriptions:
+      gap: "{object_key} {subject_key} {probe} {reference}"
+""",
+    )
+    with pytest.raises(CrosswalkConfigError) as exc_info:
+        load_rules_spec(path, _synthetic_full_spine())
+    message = str(exc_info.value)
+    assert str(path) in message
+    assert "text_tokens.stopwords[1]" in message
+    assert repr(True) in message
+    assert "bool" in message
+    assert "quote" in message.lower()
+
+
+@pytest.mark.unit
+def test_shipped_rules_spec_preserves_legitimate_non_string_values():
+    """Negative control: proves validation is targeted per field, never
+    blanket. Reads the real shipped surface, not a synthetic one. Must
+    pass before AND after the fix -- no floor here ever moves."""
+    from core.cross_domain import load_rules_spec
+
+    spec = load_rules_spec("crosswalks/pharma-rules.yaml", _synthetic_full_spine())
+    rules = spec["rules"]
+
+    advisory_rule = rules[2]
+    assert advisory_rule["advisory"] is True
+    assert isinstance(advisory_rule["advisory"], bool)
+
+    token_cfg = rules[1]["text_tokens"]
+    assert token_cfg["min_token_length"] == 3
+    assert isinstance(token_cfg["min_token_length"], int)
+    # A bool is an int subclass -- keep this assertion committed, not only
+    # in the task's verify command, so a future "must be an int" helper
+    # that would silently accept a coerced keyword is still caught here.
+    assert not isinstance(token_cfg["min_token_length"], bool)
+
+    assert token_cfg["report_below"] == 0.6
+    assert isinstance(token_cfg["report_below"], float)
+
+    assert token_cfg["severity_bands"][0]["below"] == 0.2
+    assert isinstance(token_cfg["severity_bands"][0]["below"], float)
+
+
+# ---------------------------------------------------------------------------
 # Description rendering
 # ---------------------------------------------------------------------------
 
