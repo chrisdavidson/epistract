@@ -50,6 +50,7 @@ from pathlib import Path
 
 import yaml
 
+from .config_types import validate_rule_types
 from .cross_domain_compare import classify_miss, coverage_ratio, resolve_band, tokenize
 from .crosswalk import load_domain_config, load_graphs, source_candidates
 from .crosswalk_normalize import CrosswalkConfigError
@@ -148,6 +149,19 @@ def load_rules_spec(path: str | Path, spine: dict) -> dict:
     are all ones the engine actually supplies) is NOT validated here -- it
     is checked at render time, once the fields a produced finding carries
     are known. See ``render_description``.
+
+    Every string-typed field of a rule -- the top-level string fields, the
+    grade and description tables, and the tokenizer's pattern, stopword
+    list, and grade-band words -- is also type-asserted here (issue #45),
+    positioned before the membership checks below so a YAML 1.1 bare-
+    keyword coercion (on/off/yes/no/null parsed as bool/None) is reported
+    as a type error naming the offending value rather than shadowed by a
+    membership error naming a parsed boolean. The per-domain edge
+    configuration a rule references is deliberately NOT validated here --
+    it is validated in core/crosswalk.py::load_domain_config instead,
+    because this engine's run_rules wraps every rule in a bare except for
+    per-rule isolation, which would degrade a config error raised from
+    inside a rule into an error status rather than a hard load-time abort.
     """
     spec_path = Path(path).resolve()
     spec = yaml.safe_load(spec_path.read_text()) or {}
@@ -155,13 +169,17 @@ def load_rules_spec(path: str | Path, spine: dict) -> dict:
     axis_keys = sorted((spine.get("axes") or {}).keys())
 
     rules: list[dict] = []
-    for raw_rule in spec.get("rules") or []:
+    for index, raw_rule in enumerate(spec.get("rules") or []):
         name = raw_rule.get("name", "<unnamed>")
         missing = [k for k in _REQUIRED_RULE_KEYS if k not in raw_rule]
         if missing:
             raise CrosswalkConfigError(
                 f"{spec_path}: rule {name!r} is missing required key(s): {missing}"
             )
+        # Type-asserted BEFORE the membership checks below, so a coerced
+        # value is reported as a type error naming the source line rather
+        # than a membership error naming a parsed boolean.
+        validate_rule_types(raw_rule, source=str(spec_path), index=index)
         for role, graph_key in (("probe", raw_rule["probe"]), ("reference", raw_rule["reference"])):
             if graph_key not in graph_keys:
                 raise CrosswalkConfigError(
@@ -279,8 +297,7 @@ def _edge_config(graph: dict, subject_axis: str, object_axis: str) -> dict | Non
 class _StrictFormatDict(dict):
     def __missing__(self, key):
         raise CrosswalkConfigError(
-            f"Description template references unknown field {key!r}. Known "
-            f"fields: {sorted(self)}"
+            f"Description template references unknown field {key!r}. Known fields: {sorted(self)}"
         )
 
 
@@ -611,9 +628,7 @@ def run_rules(rules_spec: dict, spine: dict, graphs: dict, include_advisory: boo
             stats[name] = rule_stats
         except Exception as e:  # noqa: BLE001 — rule isolation is the whole point
             error_message = str(e)
-            custom_findings[name] = [
-                {"rule_name": name, "status": "error", "error": error_message}
-            ]
+            custom_findings[name] = [{"rule_name": name, "status": "error", "error": error_message}]
             stats[name] = {"status": "error", "error": error_message}
 
     return {"custom_findings": custom_findings, "stats": stats}

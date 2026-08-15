@@ -67,7 +67,7 @@ rules:
         - and
         - or
         - in
-        - on
+        - "on"
         - at
         - for
         - by

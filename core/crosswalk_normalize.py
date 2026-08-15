@@ -29,14 +29,17 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 
+from .config_types import CrosswalkConfigError, assert_str, assert_str_list, assert_str_mapping
+
+__all__ = [
+    "CrosswalkConfigError",
+    "Primitive",
+    "build_chain",
+    "run_chain",
+    "run_compiled_chain",
+]
+
 Primitive = Callable[[str], "str | None"]
-
-
-class CrosswalkConfigError(Exception):
-    """Raised when a crosswalk config (axis spec or domain crosswalk.yaml)
-    is malformed -- an unknown normalizer op, a missing required field, or
-    a config that references something another file does not declare.
-    """
 
 
 def _op_lowercase(step: dict) -> Primitive:
@@ -66,6 +69,7 @@ def _op_regex_extract(step: dict) -> Primitive:
     pattern = step.get("pattern")
     if pattern is None:
         raise CrosswalkConfigError("regex_extract step is missing required 'pattern'")
+    pattern = assert_str(pattern, key_path="regex_extract.pattern")
     compiled = re.compile(pattern)
 
     def _apply(value: str) -> str | None:
@@ -76,7 +80,7 @@ def _op_regex_extract(step: dict) -> Primitive:
 
 
 def _op_replace_map(step: dict) -> Primitive:
-    mapping = step.get("map") or {}
+    mapping = assert_str_mapping(step.get("map") or {}, key_path="replace_map.map")
     # Freeze the ordered substitution list once, at build time.
     substitutions = list(mapping.items())
 
@@ -89,7 +93,8 @@ def _op_replace_map(step: dict) -> Primitive:
 
 
 def _op_strip_trailing_tokens(step: dict) -> Primitive:
-    tokens = frozenset(t.lower() for t in (step.get("tokens") or []))
+    raw_tokens = assert_str_list(step.get("tokens") or [], key_path="strip_trailing_tokens.tokens")
+    tokens = frozenset(t.lower() for t in raw_tokens)
 
     def _apply(value: str) -> str | None:
         parts = value.split()
