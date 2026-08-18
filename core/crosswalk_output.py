@@ -48,6 +48,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 __all__ = [
+    "GENERATOR",
     "CrosswalkOutputError",
     "axis_entity_type",
     "load_findings",
@@ -64,6 +65,10 @@ __all__ = [
 ]
 
 DOMAIN_NAME = "crosswalk"
+# Stamped into the claims_layer.json this module writes so
+# core/label_epistemic.py can tell it did not author it and refuse to
+# overwrite it. See build_claims_layer.
+GENERATOR = "crosswalk_output"
 GRAPH_ENTITY_TYPE = "Graph"
 MEMBERSHIP_RELATION = "PRESENT_IN"
 
@@ -459,6 +464,13 @@ def build_claims_layer(spine: dict, findings: dict | None = None) -> dict:
 
     return {
         "domain": DOMAIN_NAME,
+        # Authorship stamp. `claims_layer.json` is a fixed filename, and
+        # core/label_epistemic.py rewrites it unconditionally — without this
+        # stamp a routine `/epistract:epistemic` run on a crosswalk output
+        # directory silently replaced every join and finding below with a
+        # biomedical-fallback summary. That module refuses to overwrite a
+        # layer stamped by a different generator.
+        "generator": GENERATOR,
         "generated_at": datetime.now(UTC).isoformat(),
         "super_domain": {
             "custom_findings": custom_findings,

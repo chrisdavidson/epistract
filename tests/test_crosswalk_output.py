@@ -517,6 +517,108 @@ def test_cli_warns_when_findings_could_not_be_attached(tmp_path, spine, findings
 
 
 # ---------------------------------------------------------------------------
+# Claims-layer authorship — the epistemic clobber guard
+#
+# core/label_epistemic.py rewrites claims_layer.json unconditionally, and a
+# crosswalk output directory looks enough like a pipeline output directory
+# that /epistract:epistemic accepts it. Before the generator stamp, a routine
+# run replaced every join and finding with a biomedical-fallback summary.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def crosswalk_dir(tmp_path, spine, findings) -> "object":
+    """A rendered crosswalk output directory."""
+    out = tmp_path / "cw"
+    write_crosswalk_output(out, spine, findings)
+    return out
+
+
+def test_the_crosswalk_claims_layer_is_stamped_with_its_generator(spine):
+    from core.crosswalk_output import GENERATOR
+
+    assert build_claims_layer(spine)["generator"] == GENERATOR
+
+
+def test_claims_layer_generator_reads_the_stamp(crosswalk_dir):
+    from core.crosswalk_output import GENERATOR
+    from core.label_epistemic import claims_layer_generator
+
+    assert claims_layer_generator(crosswalk_dir) == GENERATOR
+
+
+@pytest.mark.parametrize(
+    ("contents", "why"),
+    [
+        (None, "no claims layer on disk"),
+        ('{"summary": {}}', "written before stamping existed"),
+        ("{not json", "unreadable"),
+        ("[1, 2, 3]", "not an object"),
+    ],
+)
+def test_an_unstamped_claims_layer_reads_as_unowned(tmp_path, contents, why):
+    """None means 'this module may overwrite it'. Every claims layer written
+    before stamping existed came from label_epistemic, so refusing to
+    overwrite those would break re-running analysis on existing projects."""
+    from core.label_epistemic import claims_layer_generator
+
+    if contents is not None:
+        (tmp_path / "claims_layer.json").write_text(contents)
+    assert claims_layer_generator(tmp_path) is None, why
+
+
+def test_epistemic_refuses_to_clobber_a_crosswalk_claims_layer(crosswalk_dir, capsys):
+    from core.label_epistemic import analyze_epistemic
+
+    before_claims = (crosswalk_dir / "claims_layer.json").read_text()
+    before_graph = (crosswalk_dir / "graph_data.json").read_text()
+
+    with pytest.raises(SystemExit) as exc:
+        analyze_epistemic(crosswalk_dir, narrate=False)
+    assert exc.value.code == 1
+
+    err = capsys.readouterr().err
+    assert "crosswalk_output" in err
+    assert "--force" in err
+
+    # Both files untouched: the guard runs before any write, because the
+    # write path replaces graph_data.json too.
+    assert (crosswalk_dir / "claims_layer.json").read_text() == before_claims
+    assert (crosswalk_dir / "graph_data.json").read_text() == before_graph
+
+
+def test_epistemic_overwrites_a_crosswalk_claims_layer_when_forced(crosswalk_dir):
+    from core.label_epistemic import GENERATOR, analyze_epistemic
+
+    analyze_epistemic(crosswalk_dir, narrate=False, force=True)
+    written = json.loads((crosswalk_dir / "claims_layer.json").read_text())
+    assert written["generator"] == GENERATOR
+
+
+def test_epistemic_still_overwrites_its_own_and_legacy_output(tmp_path):
+    """Backward compatibility: the guard must not break the ordinary
+    re-run-analysis-on-an-existing-project path."""
+    from core.label_epistemic import GENERATOR, analyze_epistemic
+
+    out = tmp_path / "proj"
+    out.mkdir()
+    (out / "graph_data.json").write_text(
+        json.dumps({"nodes": [], "links": [], "metadata": {"domain": "drug-discovery"}})
+    )
+    # A legacy, unstamped claims layer.
+    (out / "claims_layer.json").write_text(json.dumps({"summary": {"note": "legacy"}}))
+
+    analyze_epistemic(out, narrate=False)
+    first = json.loads((out / "claims_layer.json").read_text())
+    assert "legacy" not in json.dumps(first)
+    assert first["generator"] == GENERATOR
+
+    # And again, now over its own stamped output.
+    analyze_epistemic(out, narrate=False)
+    assert json.loads((out / "claims_layer.json").read_text())["generator"] == GENERATOR
+
+
+# ---------------------------------------------------------------------------
 # Domain package
 # ---------------------------------------------------------------------------
 
