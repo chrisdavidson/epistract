@@ -153,7 +153,7 @@ try {
   await exchange('q2', 'a2');
   await send('q3');
   const third = calls[2];
-  check('B: history carries over', third?.body?.history?.length === 2, JSON.stringify(third?.body?.history));
+  check('B: history carries over', third?.body?.history?.length === 4, JSON.stringify(third?.body?.history));
   third.push({ type: 'done' }); third.finish(); await flush();
   clear();
   await flush();

@@ -400,6 +400,28 @@ body {
   background: rgba(255, 255, 255, 0.18);
 }
 
+.chat-clear-btn {
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 8px;
+  border: none;
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+  font-size: var(--size-label);
+  font-family: var(--font-body);
+  cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.chat-clear-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.chat-clear-btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
 /* Loading dots animation */
 .loading-dots::after {
   content: "";

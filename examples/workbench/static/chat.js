@@ -3,6 +3,8 @@
 let chatHistory = [];  // D-08: session-only
 let callbacks = {};
 let template = {};
+let chatGeneration = 0;  // bumped by clearChat; stale responses compare against it
+const activeControllers = new Set();
 
 export function initChat(opts) {
     callbacks = opts || {};
@@ -34,6 +36,8 @@ export function initChat(opts) {
         }
     });
 
+    document.getElementById('chat-clear-btn')?.addEventListener('click', clearChat);
+
     // Starter prompts (D-10)
     document.querySelectorAll('.starter-card').forEach(card => {
         card.addEventListener('click', () => {
@@ -50,7 +54,26 @@ export function initChat(opts) {
     });
 }
 
+export function clearChat() {
+    chatGeneration += 1;
+    for (const controller of activeControllers) controller.abort();
+    activeControllers.clear();
+    chatHistory = [];
+
+    const messages = document.getElementById('messages');
+    const welcome = document.getElementById('welcome');
+    if (messages) {
+        for (const child of Array.from(messages.children)) {
+            if (child !== welcome) child.remove();
+        }
+        messages.scrollTop = 0;
+    }
+    if (welcome) welcome.style.display = '';
+    document.getElementById('chat-input')?.focus();
+}
+
 async function sendMessage(question) {
+    const gen = chatGeneration;
     const messages = document.getElementById('messages');
     const welcome = document.getElementById('welcome');
 
@@ -82,9 +105,12 @@ async function sendMessage(question) {
     const selectedModel = document.getElementById('model-select')?.value || null;
     let fullResponse = '';
     let errorShown = false;
+    const controller = new AbortController();
+    activeControllers.add(controller);
     try {
         const response = await fetch('/api/chat', {
             method: 'POST',
+            signal: controller.signal,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 question,
@@ -93,12 +119,18 @@ async function sendMessage(question) {
             }),
         });
 
+        if (gen !== chatGeneration) return;
+
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
 
         while (true) {
             const { done, value } = await reader.read();
+            if (gen !== chatGeneration) {
+                try { await reader.cancel(); } catch (_e) { /* already closed */ }
+                return;
+            }
             if (done) break;
             buffer += decoder.decode(value, { stream: true });
 
@@ -148,11 +180,14 @@ async function sendMessage(question) {
             }
         }
     } catch (error) {
+        if (gen !== chatGeneration || error?.name === 'AbortError') return;
         assistantDiv.innerHTML = '<div class="error-msg">Could not reach the analysis engine. Check that the server is running and ANTHROPIC_API_KEY is set.</div>';
+    } finally {
+        activeControllers.delete(controller);
     }
 
     // Add response to history (D-08)
-    if (fullResponse) {
+    if (fullResponse && gen === chatGeneration) {
         chatHistory.push({ role: 'assistant', content: fullResponse });
     }
 }
