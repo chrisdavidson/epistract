@@ -319,6 +319,37 @@ body {
   font-size: var(--size-body);
 }
 
+.error-msg .error-title {
+  display: block;
+  margin-bottom: var(--space-xs);
+}
+
+.error-msg p {
+  margin: var(--space-xs) 0;
+}
+
+.error-hint {
+  opacity: 0.9;
+}
+
+.error-detail {
+  margin-top: var(--space-sm);
+  font-size: 0.85em;
+}
+
+.error-detail summary {
+  cursor: pointer;
+}
+
+.error-detail code {
+  display: block;
+  margin-top: var(--space-xs);
+  font-family: monospace;
+  font-size: 0.85em;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* Chat input */
 .chat-input {
   display: flex;

@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+import shutil
+import subprocess
+from pathlib import Path
 
 import httpx
 import pytest
@@ -325,3 +328,22 @@ def test_error_stream_structured():
     assert events[0]["title"] == "No API key configured"
     assert events[0]["message"] == "No API key found. Set one."
     assert events[0]["hint"] == "Set one of the env vars above and restart the workbench."
+
+
+# ---------------------------------------------------------------------------
+# Client rendering (node harness)
+# ---------------------------------------------------------------------------
+
+ERRORS_HARNESS = Path(__file__).resolve().parent / "js" / "chat_errors_harness.mjs"
+
+
+@pytest.mark.unit
+def test_chat_error_rendering():
+    if shutil.which("node") is None:
+        pytest.skip("node not available")
+    result = subprocess.run(
+        ["node", str(ERRORS_HARNESS)], timeout=30, capture_output=True, text=True
+    )
+    assert result.returncode == 0, (
+        f"harness failed\nstdout: {result.stdout}\nstderr: {result.stderr}"
+    )

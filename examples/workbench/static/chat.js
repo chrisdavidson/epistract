@@ -72,6 +72,46 @@ export function clearChat() {
     document.getElementById('chat-input')?.focus();
 }
 
+function renderError(container, err) {
+    // Build the error block with createElement + textContent ONLY: title,
+    // message, hint and detail come from an upstream provider (untrusted).
+    const box = document.createElement('div');
+    box.className = 'error-msg';
+
+    const hasStructured = Boolean(err.title || err.message);
+    if (err.title) {
+        const title = document.createElement('strong');
+        title.className = 'error-title';
+        title.textContent = err.title;
+        box.appendChild(title);
+    }
+    const bodyText = hasStructured ? err.message : err.content;
+    if (bodyText) {
+        const p = document.createElement('p');
+        p.textContent = bodyText;
+        box.appendChild(p);
+    }
+    if (err.hint) {
+        const hint = document.createElement('p');
+        hint.className = 'error-hint';
+        hint.textContent = err.hint;
+        box.appendChild(hint);
+    }
+    if (err.detail) {
+        const details = document.createElement('details');
+        details.className = 'error-detail';
+        const summary = document.createElement('summary');
+        summary.textContent = 'Technical details';
+        const code = document.createElement('code');
+        code.textContent = err.detail;
+        details.appendChild(summary);
+        details.appendChild(code);
+        box.appendChild(details);
+    }
+    container.appendChild(box);
+    return box;
+}
+
 async function sendMessage(question) {
     const gen = chatGeneration;
     const messages = document.getElementById('messages');
@@ -151,18 +191,29 @@ async function sendMessage(question) {
                                 : renderMarkdown(fullResponse);
                             messages.scrollTop = messages.scrollHeight;
                         } else if (data.type === 'error') {
-                            // SEC-01 / VUL-01: data.content is raw SSE text from the
-                            // upstream provider — could contain HTML. Build via DOM API
-                            // to guarantee no interpretation of markup.
-                            assistantDiv.innerHTML = '';
-                            const errDiv = document.createElement('div');
-                            errDiv.className = 'error-msg';
-                            errDiv.textContent = data.content;
-                            assistantDiv.appendChild(errDiv);
+                            // SEC-01 / VUL-01: every error field is raw provider text
+                            // and may contain HTML. renderError builds the block with
+                            // textContent only. Keep any partial answer streamed so far.
+                            if (fullResponse) {
+                                assistantDiv.innerHTML = (typeof DOMPurify !== 'undefined')
+                                    ? DOMPurify.sanitize(linkifyCitations(renderMarkdown(fullResponse)), { ADD_ATTR: ['id'] })
+                                    : linkifyCitations(renderMarkdown(fullResponse));
+                            } else {
+                                assistantDiv.replaceChildren();
+                            }
+                            renderError(assistantDiv, data);
                             errorShown = true;
+                            messages.scrollTop = messages.scrollHeight;
                         } else if (data.type === 'done') {
-                            if (!fullResponse && !errorShown) {
-                                assistantDiv.innerHTML = '<div class="error-msg">No response received. The model may be rate-limited, unavailable, or the request exceeded its context limit. Try a different model or a shorter question.</div>';
+                            if (errorShown) {
+                                // The error block is the final state; never re-render over it.
+                            } else if (!fullResponse) {
+                                assistantDiv.replaceChildren();
+                                renderError(assistantDiv, {
+                                    title: 'No response received',
+                                    message: 'The model may be rate-limited, unavailable, or the request exceeded its context limit.',
+                                    hint: 'Try a different model or a shorter question.',
+                                });
                             } else {
                                 // Final render with citation linking
                                 // Sanitize the linkified output too — linkifyCitations
@@ -181,7 +232,12 @@ async function sendMessage(question) {
         }
     } catch (error) {
         if (gen !== chatGeneration || error?.name === 'AbortError') return;
-        assistantDiv.innerHTML = '<div class="error-msg">Could not reach the analysis engine. Check that the server is running and ANTHROPIC_API_KEY is set.</div>';
+        assistantDiv.replaceChildren();
+        renderError(assistantDiv, {
+            title: "Couldn't reach the workbench server",
+            message: 'Your browser could not connect to the local workbench.',
+            hint: 'Check that the workbench is still running (the terminal that launched it), then try again.',
+        });
     } finally {
         activeControllers.delete(controller);
     }
