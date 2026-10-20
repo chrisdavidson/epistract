@@ -85,14 +85,14 @@ The `resolve_domain` helper returns a `(resolved_domain: str | None, source: str
 
 - **Workbench server (`examples/workbench/server.py::create_app`)** — calls `resolve_domain` then `load_template`; `GET /api/template` returns the resolved template.
 - **Launcher (`scripts/launch_workbench.py`)** — calls `resolve_domain` for the console banner (so users can see which source won); passes the raw `--domain` into `create_app` (which re-resolves — the helper is idempotent).
-- **Standalone graph viewer (`core/run_sift.py::cmd_view`)** — post-processes `graph.html` to replace the empty `<h1></h1>` with `<h1>{domain title}</h1>` and append a `<script>` block that overlays `template.yaml:entity_colors` onto vis.js nodes on DOMContentLoaded.
+- **Standalone graph viewer (`core/run_sift.py::cmd_view`)** — post-processes `graph.html` to replace the empty `<h1></h1>` with `<h1>{domain title}</h1>` and colors vis.js nodes from the shared resolver (`core/graph_display.py`): declared `display` colors from `domain.yaml`, then any legacy `template.yaml:entity_colors` override. Shapes and legend in `graph.html` arrive in Phase 5.
 - **Chat system prompt (`examples/workbench/system_prompt.py::build_system_prompt`)** — reads `template.analysis_patterns.cross_references_heading` (and `appears_in_phrase`) to customize the cross-references section for the domain. Contracts uses "CROSS-CONTRACT REFERENCES"; drug-discovery uses "CROSS-STUDY REFERENCES".
 
 ### Legacy-graph behavior (D-08)
 
 Graphs built before Phase 17 have no `metadata.domain` key. When such a graph is opened:
 - Workbench: falls back to the generic `Knowledge Graph Explorer` template with a one-shot stderr warning.
-- `graph.html`: gets `<h1>Knowledge Graph</h1>` (generic) and keeps sift-kg's default entity palette (no overlay).
+- `graph.html`: gets `<h1>Knowledge Graph</h1>` (generic) and gets distinct automatic colors from the shared resolver (`core/graph_display.py`) rather than sift-kg's default palette.
 - Chat system prompt: keeps the hardcoded "CROSS-CONTRACT REFERENCES" (the pre-Phase-17 behavior) with a one-shot stderr warning.
 
 No migration script is provided — users rebuild their graphs to get the new metadata. Rebuilds are fast enough (typically < 1 minute for a 60-doc corpus) that a migration script would cost more than it saves.
@@ -240,23 +240,13 @@ The `PDB_PATTERN`, `STRUCTURAL_CONTENT_RE`, `_detect_structural_content` helper,
 - `generate_slug("")` → `ValueError`
 - `generate_slug("中文")` → `ValueError` (pure non-Latin input yields empty after stripping)
 
-### Deterministic palette rotation for entity_colors
+### Entity type colors and shapes
 
-`core.domain_wizard.generate_workbench_template(domain_slug, entity_types)` emits `workbench/template.yaml` with one palette color per entity type. Assignment is deterministic:
+`core.domain_wizard.generate_domain_yaml` freezes a `display` block (family, shape, unique color) into every entity type of a generated `domain.yaml`, and `generate_workbench_template` emits `entity_colors: {}`. Colors are unique per domain regardless of type count (24-color palette, then generated hues) and stay stable when types are added. Wizard types have no family unless the schema supplies one, so they land in "Other" with a dot shape.
 
-1. Sort entity type names alphabetically.
-2. Assign `DEFAULT_ENTITY_COLORS[i % len(DEFAULT_ENTITY_COLORS)]` for `i = 0..N-1`.
+Colors alone cannot all be colorblind-distinguishable at 18+ types. Identity is therefore also carried by family shape, the label and the legend.
 
-The palette (12 vis.js-friendly colors):
-```python
-DEFAULT_ENTITY_COLORS = [
-    "#97c2fc", "#ffa07a", "#90ee90", "#f1c40f",
-    "#e74c3c", "#9b59b6", "#1abc9c", "#e67e22",
-    "#34495e", "#fd79a8", "#636e72", "#00b894",
-]
-```
-
-The emitted YAML is a complete override of the Phase 17 `WorkbenchTemplate` Pydantic model (every field populated), so downstream consumers never fall back to defaults.
+The emitted template YAML is a complete override of the Phase 17 `WorkbenchTemplate` Pydantic model (every field populated), so downstream consumers never fall back to defaults.
 
 ### --domain path shim
 
@@ -288,7 +278,7 @@ Mixed Latin + non-Latin (`"中文 Analysis"`) yields just the Latin portion (`"a
 - **Non-Latin transliteration** (CJK → pinyin, Cyrillic → Latin) — library dependency not justified for v3.0. Deferred.
 - **Interactive slug conflict resolver** (e.g., "slug 'foo' exists; use 'foo-2'?") — out of scope. Domain name collisions error out; user re-runs with a different name.
 - **`--schema` hybrid mode** (partial schema + LLM consolidation of missing pieces) — no clear use case. Bypass is all-or-nothing.
-- **Workbench theming beyond entity_colors + analysis_patterns** (fonts, logos, custom CSS) — Phase 20 or later.
+- **Workbench theming beyond display + analysis_patterns** (fonts, logos, custom CSS) — Phase 20 or later.
 - **CLI redesign** (replace ad-hoc `sys.argv` parsing with argparse/click) — existing parsing works; out of scope.
 
 ### Acceptance gate

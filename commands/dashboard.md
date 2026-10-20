@@ -77,7 +77,7 @@ Then open `http://127.0.0.1:8000` in your browser.
 Workbench appearance and behavior is domain-configurable via `domains/<name>/workbench/template.yaml`:
 
 - `title` — browser tab and header title
-- `entity_colors` — color map for node types
+- `entity_colors` — optional legacy color override per node type; colors and shapes normally come from `display` in the domain's `domain.yaml`
 - `persona_prompt` — system prompt for the chat assistant (domain expertise)
 - `dashboard_html` — optional static HTML for a landing page
 - `starter_questions` — suggested queries for new users

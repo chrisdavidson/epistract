@@ -134,6 +134,29 @@ aliases: ["alias1", "alias2"]
 fallback_relation: ASSOCIATED_WITH
 ```
 
+#### Display hints (optional)
+
+Entity types may declare how they look on every surface (graph canvas, filter chips, legend, sidebar); relation types may declare a category:
+
+```yaml
+entity_types:
+  COMPOUND:
+    description: "..."
+    display: { family: Interventions, shape: hexagon, color: "#5f66ed" }
+relation_types:
+  INHIBITS:
+    description: "..."
+    category: mechanism
+```
+
+- **Shapes:** `dot`, `square`, `diamond`, `triangle`, `triangleDown`, `star`, `hexagon`. `ellipse` and `box` are excluded because they ignore node size.
+- **Families and their shapes:** Interventions = hexagon, Molecular = triangle, Conditions = square, Evidence = star, Actors = diamond, Concepts = triangleDown, Sources = dot (grey). All members of a family share one shape; types with no family fall into "Other" with a dot.
+- **Relation categories:** `mechanism`, `therapeutic`, `causal`, `association`, `provenance`, `structural`, `organizational`, `regulatory`, `other` (absent means `other`).
+- **Color resolution order:** template `entity_colors` override, then the declared `display.color`, then the pipeline grey for DOCUMENT/PUBLICATION, then an automatic pick from the 24-color palette that never repeats a color.
+- Invalid values (bad hex, unknown shape or category) produce warnings, not errors, and fall back to the defaults.
+- Freezing explicit colors in `domain.yaml` keeps them stable when types are added later. The wizard does this for you: generated domains get a `display` block for every entity type.
+- Color alone is not colorblind-safe at 18+ types; shape, label and legend carry identity too.
+
 #### Drug Discovery Example (17 entity types, 30 relation types)
 
 From `domains/drug-discovery/domain.yaml` -- a complex biomedical schema:
@@ -358,19 +381,12 @@ loading_message: "Analyzing contracts"
 starter_questions:
   - "What are the top cross-contract conflicts and risks?"
   - "Walk me through every deadline between now and event day"
-entity_colors:
-  PARTY: "#6366f1"
-  OBLIGATION: "#f59e0b"
-  DEADLINE: "#ef4444"
-  COST: "#10b981"
-  SERVICE: "#8b5cf6"
-  VENUE: "#06b6d4"
 dashboard:
   title: "Contract Portfolio & Key Financial Commitments"
   subtitle: "Contract categories and document coverage summary"
 ```
 
-Fields: `title`, `subtitle`, `persona` (see below), `placeholder`, `loading_message`, `starter_questions`, `entity_colors` (hex per entity type), `dashboard` (title/subtitle for overview panel), `analysis_patterns` (cross-reference heading + "appears in" phrase for the domain).
+Fields: `title`, `subtitle`, `persona` (see below), `placeholder`, `loading_message`, `starter_questions`, `entity_colors` (optional legacy color override, see below), `dashboard` (title/subtitle for overview panel), `analysis_patterns` (cross-reference heading + "appears in" phrase for the domain).
 
 #### The `persona` field — single source of truth
 
