@@ -363,6 +363,7 @@ def test_sift_kg_accepts_display_keys(tmp_path):
 @pytest.mark.unit
 def test_api_entity_types_glp1(tmp_path):
     from core.graph_display import resolve_display
+    from examples.workbench.template_loader import load_template
 
     nodes = _glp1_nodes()
     counts: dict[str, int] = {}
@@ -374,11 +375,14 @@ def test_api_entity_types_glp1(tmp_path):
     assert len(body["entity_types"]) == 13
     assert {t["type"] for t in body["types"]} == set(counts)
     keys = {"type", "label", "count", "description", "family", "shape", "color"}
-    expected = resolve_display(_drug_schema(), set(counts), None)["types"]
+    overrides = load_template("drug-discovery").get("entity_colors")
+    expected = resolve_display(_drug_schema(), set(counts), overrides)["types"]
     for entry in body["types"]:
         assert keys <= set(entry)
         assert entry["count"] == counts[entry["type"]]
         assert entry["color"] == expected[entry["type"]]["color"]
+    api_colors = [t["color"] for t in body["types"]]
+    assert len(set(api_colors)) == 13
     assert isinstance(body["families"], list)
     assert all({"name", "shape"} <= set(f) for f in body["families"])
     assert isinstance(body["relations"], dict)
@@ -390,7 +394,9 @@ def test_api_entity_types_sample_fixture(tmp_path):
     from examples.workbench.server import create_app
     from starlette.testclient import TestClient
 
-    shutil.copy(ROOT / "tests" / "fixtures" / "sample_graph_data.json", tmp_path / "graph_data.json")
+    shutil.copy(
+        ROOT / "tests" / "fixtures" / "sample_graph_data.json", tmp_path / "graph_data.json"
+    )
     client = TestClient(create_app(tmp_path, domain="contracts"))
     body = client.get("/api/graph/entity-types").json()
     assert "PARTY" in body["entity_types"]

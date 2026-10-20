@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
+import yaml
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from core.domain_resolver import resolve_domain as resolve_domain_package
+from core.graph_display import resolve_display
 from examples.workbench.api_chat import router as chat_router
 from examples.workbench.api_graph import router as graph_router
 from examples.workbench.api_sources import router as sources_router
@@ -231,6 +235,22 @@ LOCALHOST_ORIGINS: list[str] = [
 ]
 
 
+def _load_domain_schema(resolved_domain: str | None) -> dict | None:
+    """Load a domain's schema through the domain resolver, or None if unavailable.
+
+    The domain name can originate from graph_data.json metadata, so it only
+    goes through core.domain_resolver (which rejects path separators and
+    traversal) and is never joined into a path here.
+    """
+    if not resolved_domain:
+        return None
+    try:
+        schema = resolve_domain_package(resolved_domain)["schema"]
+    except (FileNotFoundError, OSError, yaml.YAMLError):
+        return None
+    return schema if isinstance(schema, dict) else None
+
+
 def create_app(output_dir: Path, domain: str | None = None) -> FastAPI:
     """Create and configure the FastAPI application.
 
@@ -254,6 +274,16 @@ def create_app(output_dir: Path, domain: str | None = None) -> FastAPI:
     # Load data at startup
     app.state.data = WorkbenchData(output_dir)
     app.state.template = template
+
+    # Resolve entity-type colors/shapes once; every UI surface reads this.
+    observed_types = {n.get("entity_type", "UNKNOWN") for n in app.state.data.get_nodes()}
+    app.state.display = resolve_display(
+        _load_domain_schema(resolved_domain),
+        observed_types,
+        template.get("entity_colors"),
+    )
+    for warning in app.state.display["warnings"]:
+        print(f"Warning: display: {warning}", file=sys.stderr)
 
     # Store output_dir and domain name for later use
     app.state.output_dir = output_dir

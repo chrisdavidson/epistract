@@ -4,6 +4,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from core.graph_display import resolve_display
+
 router = APIRouter(prefix="/api/graph", tags=["graph"])
 
 
@@ -95,10 +97,21 @@ async def get_communities(request: Request):
 
 @router.get("/entity-types")
 async def get_entity_types(request: Request):
-    """Return list of entity types with counts."""
+    """Return entity type counts plus resolved display (types, families, relations)."""
     data = request.app.state.data
+    display = request.app.state.display
     type_counts: dict[str, int] = {}
     for node in data.get_nodes():
         t = node.get("entity_type", "UNKNOWN")
         type_counts[t] = type_counts.get(t, 0) + 1
-    return {"entity_types": type_counts}
+    types = []
+    for t, count in type_counts.items():
+        spec = display["types"].get(t) or resolve_display(None, [t])["types"][t]
+        entry = {k: v for k, v in spec.items() if k != "origin"}
+        types.append({**entry, "type": t, "count": count})
+    return {
+        "entity_types": type_counts,
+        "types": types,
+        "families": display["families"],
+        "relations": display["relations"],
+    }
