@@ -1680,6 +1680,52 @@ body {
   margin-left: var(--space-xs);
 }
 
+.graph-sources-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: 28px;
+  opacity: 1;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.graph-sources-btn:hover {
+  border-color: #9ca3af;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.graph-sources-btn[aria-pressed="true"] {
+  border-color: var(--color-secondary);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.graph-sources-btn:disabled {
+  border-style: dashed;
+  border-color: #e5e7eb;
+  background: #ffffff;
+  color: #666666;
+  cursor: default;
+}
+
+.graph-sources-btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.graph-toolbar__count {
+  font-family: var(--font-data);
+  font-size: var(--size-data);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toggle-btn,
+  .legend-chip {
+    transition: none;
+  }
+}
+
 .type-swatch {
   flex: none;
   display: inline-block;

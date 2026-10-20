@@ -76,6 +76,8 @@ let sortedDegrees = [];                   // linkDegrees of non-source nodes, de
 let linkDegreeMap = {};                   // id -> count of non-source edges; drives size, label budget and the min-degree slider
 let sourceNodeIds = new Set();            // ids of Sources-family nodes in the loaded graph
 let sourcesShown = false;                 // Show sources toggle; sources are hidden on load
+let sourcesPlaced = false;                // sources already moved next to their neighbours for this build
+let sourceNeighbours = new Map();         // source id -> ids of its non-source neighbours
 let _labelUpdateTimer = null;             // pending throttled applyLabelVisibility() call (260802-cu1)
 let _lastLabelDegreeCutoff = null;        // last-applied degree cutoff; skip DataSet write when unchanged (260802-cu1)
 
@@ -128,6 +130,7 @@ export async function initGraph(opts) {
                         if (pressed) activeTypes.add(type);
                         else activeTypes.delete(type);
                         sourcesShown = sourceTypes().some(t => activeTypes.has(t));
+                        if (sourcesShown) placeSources();
                         syncSourcesButton();
                         filterGraph();
                     });
@@ -287,6 +290,9 @@ function buildGraph() {
             _labelUpdateTimer = null;
         }
         _lastLabelDegreeCutoff = null;
+        sourcesShown = false;
+        sourcesPlaced = false;
+        for (const type of sourceTypes()) activeTypes.delete(type);
         network.destroy();
         network = null;
     }
@@ -313,6 +319,16 @@ function buildGraph() {
             ? isSourceType(n.entity_type)
             : FALLBACK_SOURCE_TYPES.has(n.entity_type)))
         .map(n => n.id));
+
+    sourceNeighbours = new Map();
+    for (const e of allEdges) {
+        const sourceEnd = sourceNodeIds.has(e.source);
+        const otherEnd = sourceNodeIds.has(e.target);
+        if (sourceEnd === otherEnd) continue;
+        const [src, nb] = sourceEnd ? [e.source, e.target] : [e.target, e.source];
+        if (!sourceNeighbours.has(src)) sourceNeighbours.set(src, new Set());
+        sourceNeighbours.get(src).add(nb);
+    }
 
     // linkDegree: edges without a Sources endpoint. Size, label budget and the
     // min-degree slider use it; the sidebar Degree row keeps the total.
@@ -718,6 +734,10 @@ function syncSourcesButton() {
     }
     btn.removeAttribute('disabled');
     const on = sourcesActive();
+    document.querySelectorAll('.legend-chip[data-type]').forEach(chip => {
+        const type = chip.getAttribute('data-type');
+        if (isSourceType(type)) setChipPressed(chip, activeTypes.has(type));
+    });
     btn.setAttribute('aria-pressed', String(on));
     btn.setAttribute('title', on
         ? 'Hide source documents and publications'
@@ -729,8 +749,36 @@ function syncSourcesButton() {
     btn.replaceChildren(text, count);
 }
 
+// First reveal: place each source node at the centroid of its non-source
+// neighbours (plus deterministic jitter) so it appears next to what it cites.
+function placeSources() {
+    if (sourcesPlaced || !network) return;
+    sourcesPlaced = true;
+    const ids = [...sourceNodeIds].sort();
+    ids.forEach((id, index) => {
+        const neighbourIds = [...(sourceNeighbours.get(id) || [])];
+        if (neighbourIds.length === 0) return;
+        const positions = network.getPositions(neighbourIds);
+        let sx = 0;
+        let sy = 0;
+        let n = 0;
+        for (const nbId of neighbourIds) {
+            const p = positions[nbId];
+            if (!p) continue;
+            sx += p.x;
+            sy += p.y;
+            n += 1;
+        }
+        if (n === 0) return;
+        const jitterX = ((index % 7) - 3) * 12;
+        const jitterY = ((Math.floor(index / 7) % 7) - 3) * 12;
+        network.moveNode(id, sx / n + jitterX, sy / n + jitterY);
+    });
+}
+
 function setSourcesShown(on) {
     sourcesShown = on;
+    if (on) placeSources();
     for (const type of sourceTypes()) {
         if (on) activeTypes.add(type);
         else activeTypes.delete(type);
@@ -740,6 +788,12 @@ function setSourcesShown(on) {
     });
     syncSourcesButton();
     filterGraph();
+    const status = document.getElementById('graph-sources-status');
+    if (status) {
+        status.textContent = on
+            ? `Sources shown: ${sourceNodeIds.size.toLocaleString()} nodes.`
+            : 'Sources hidden.';
+    }
 }
 
 function clearHighlight() {
