@@ -216,7 +216,7 @@ if (mode === 'fit') {
   for (const fn of [...(handlers.get('stabilizationIterationsDone') || [])]) fn();
   const firstFit = calls.find((c) => c.kind === 'fit' && c.opts && c.opts.animation === false);
   const fontWrites = calls.filter((c) => c.kind === 'update' && c.u.font && c.u.font.size > 0);
-  const nodeDs = [...datasets].reverse().find((d) => [...d.items.values()].some((i) => 'label' in i));
+  const nodeDs = [...datasets].reverse().find((d) => [...d.items.values()].some((i) => 'label' in i && !('from' in i)));
   const edgeDs = [...datasets].reverse().find((d) => [...d.items.values()].some((i) => 'from' in i));
   const nodes = [...nodeDs.items.values()];
   const edges = [...edgeDs.items.values()];
@@ -279,7 +279,7 @@ if (isEdges) {
 }
 
 if (mode === 'sources' || mode === 'nosources') {
-  const nodeSet = () => [...datasets].reverse().find((d) => [...d.items.values()].some((i) => 'label' in i));
+  const nodeSet = () => [...datasets].reverse().find((d) => [...d.items.values()].some((i) => 'label' in i && !('from' in i)));
   const edgeSet = () => [...datasets].reverse().find((d) => [...d.items.values()].some((i) => 'from' in i));
   const hiddenNodes = () => [...nodeSet().items.values()].filter((i) => i.hidden).map((i) => i.id);
   const hiddenEdges = () => [...edgeSet().items.values()].filter((i) => i.hidden).length;

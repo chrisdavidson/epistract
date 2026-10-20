@@ -4,7 +4,8 @@
 //          edgeWidth, truncateLabel, labelCutoff, stableEdgeIds and the screen-size
 //          constants (NODE_MIN_PX ... TRUNCATE_LABEL_CHARS), edgeDashes, edgeColorObject,
 //          EDGE_BASE_OPACITY, EDGE_DIM_OPACITY, EDGE_DASH_ON_PX, EDGE_DASH_OFF_PX,
-//          HOVER_TOP_RELATIONS, CARD_OFFSET_PX, CARD_MARGIN_PX, hoverCardModel, cardPosition
+//          HOVER_TOP_RELATIONS, CARD_OFFSET_PX, CARD_MARGIN_PX, hoverCardModel, cardPosition,
+//          FOCUS_MAX_LABELS, EDGE_LABEL_SCALE, focusIds, focusDelta, edgeLabelFont
 
 // Screen-constant sizing. vis draws in world units, so at a fit scale of ~0.14
 // a world-unit size is a fraction of a pixel. These constants are pixel targets;
@@ -255,5 +256,41 @@ export function cardPosition(pointer, size, viewport) {
     return {
         left: Math.min(Math.max(left, CARD_MARGIN_PX), maxLeft),
         top: Math.min(Math.max(top, CARD_MARGIN_PX), maxTop),
+    };
+}
+
+// ---------------------------------------------------------------------------
+// Neighborhood labels: the focus set is the hovered/selected node plus its
+// highest-degree neighbors, capped so a hub cannot label the whole canvas.
+// ---------------------------------------------------------------------------
+export const FOCUS_MAX_LABELS = 25;
+export const EDGE_LABEL_SCALE = 0.85;
+
+// Center first, then neighbors by linkDegree desc then id asc, up to cap total.
+export function focusIds(centerId, neighborIds, linkDegree, cap = FOCUS_MAX_LABELS) {
+    const degree = (id) => (linkDegree && linkDegree[id]) || 0;
+    const rest = [...new Set(neighborIds)]
+        .filter((id) => id !== centerId)
+        .sort((a, b) => (degree(b) - degree(a)) || (a < b ? -1 : a > b ? 1 : 0));
+    return new Set([centerId, ...rest].slice(0, Math.max(cap, 1)));
+}
+
+// Ids that entered and left the focus between two sets; the lists never overlap.
+export function focusDelta(prev, next) {
+    const added = [];
+    const removed = [];
+    for (const id of next) if (!prev.has(id)) added.push(id);
+    for (const id of prev) if (!next.has(id)) removed.push(id);
+    return { added, removed };
+}
+
+// Complete vis edge font object; size 0 keeps the label string but skips drawing.
+export function edgeLabelFont(scale, visible = true) {
+    return {
+        size: visible ? labelFontSize(scale) * EDGE_LABEL_SCALE : 0,
+        color: '#1a1a1a',
+        strokeWidth: 3,
+        strokeColor: '#ffffff',
+        align: 'middle',
     };
 }

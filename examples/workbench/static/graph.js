@@ -8,6 +8,7 @@ import {
     isSourceEdge, linkDegrees, scaleBucket, labelFontSize, nodeSize, edgeWidth,
     truncateLabel, labelCutoff, stableEdgeIds, LABEL_BASE_WORLD,
     edgeDashes, edgeColorObject, EDGE_BASE_OPACITY, EDGE_DIM_OPACITY, hoverCardModel,
+    humanizeRelation, focusIds, focusDelta, edgeLabelFont,
 } from './graph_style.js';
 import { initHoverCard, showHoverCard, hideHoverCard } from './hovercard.js';
 
@@ -100,6 +101,16 @@ let adjacency = new Map();                // id -> incident edges; built once so
 let _hoverTimer = null;                   // pending hover-card show
 let pinnedCardNodeId = null;              // node whose card stays pinned while selected
 let _hoverListenersAttached = false;
+let hoverFocus = new Set();               // hovered node + capped neighbours
+let selectFocus = new Set();              // selected node + capped neighbours
+let hoverCenterId = null;
+let selectCenterId = null;
+let focusNodeIds = new Set();             // union currently applied to the node DataSet
+let focusEdgeIds = new Set();             // edges currently showing their relation name
+let hoveredEdgeId = null;
+let _focusRaf = null;                     // pending applyFocus() handle
+let _focusCancel = null;                  // matching cancel function
+let _lastCutoff = 0;                      // degree cutoff last applied by applyScaleStyle()
 
 // vis-network color object: type fill with a neutral border.
 function nodeColor(type) {
@@ -239,6 +250,14 @@ let _degreeSliderListenerAttached = false;   // WR-02: guard min-degree slider d
 // zoomed out. Edge labels are removed entirely (see edge mapping above);
 // relation type stays reachable via sidebar edge detail.
 // ---------------------------------------------------------------------------
+// Font for one node: labelled when it is in the hover/selection focus set or
+// is a non-source hub at or above the degree cutoff. Always a complete object.
+function nodeLabelFont(id, scale, cutoff) {
+    const visible = focusNodeIds.has(id)
+        || (!sourceNodeIds.has(id) && (linkDegreeMap[id] || 0) >= cutoff);
+    return { ...NODE_FONT_BASE, size: visible ? labelFontSize(scale) : LABEL_HIDDEN_FONT_SIZE };
+}
+
 function applyScaleStyle() {
     if (!network || !visNodes) return;
 
@@ -256,6 +275,7 @@ function applyScaleStyle() {
         budget = stop.maxLabels;
     }
     const cutoff = labelCutoff(sortedDegrees, budget);
+    _lastCutoff = cutoff;
 
     // The expensive DataSet writes happen only when the cutoff or the scale
     // bucket changes, not on every zoom tick.
@@ -272,22 +292,26 @@ function applyScaleStyle() {
     const nodeUpdates = visNodes.getIds().map(id => {
         const degree = linkDegreeMap[id] || 0;
         const isSource = sourceNodeIds.has(id);
-        const visible = !isSource && degree >= cutoff;
-        if (visible) labelled++;
+        const font = nodeLabelFont(id, scale, cutoff);
+        if (font.size > 0) labelled++;
         return {
             id,
-            font: { ...NODE_FONT_BASE, size: visible ? fontWorld : LABEL_HIDDEN_FONT_SIZE },
+            font,
             size: nodeSize(degree, maxDegree, scale, isSource),
         };
     });
     visNodes.update(nodeUpdates);
 
     if (visEdges) {
-        const edgeUpdates = allEdges.map((e, i) => ({
-            id: edgeIdByIndex[i],
-            width: edgeWidth(e.support_count, scale),
-            dashes: edgeDashes(e.epistemic_status, scale),
-        }));
+        const edgeUpdates = allEdges.map((e, i) => {
+            const update = {
+                id: edgeIdByIndex[i],
+                width: edgeWidth(e.support_count, scale),
+                dashes: edgeDashes(e.epistemic_status, scale),
+            };
+            if (focusEdgeIds.has(update.id)) update.font = edgeLabelFont(scale, true);
+            return update;
+        });
         visEdges.update(edgeUpdates);
     }
 
@@ -320,6 +344,15 @@ function buildGraph() {
             _labelUpdateTimer = null;
         }
         _lastStyleKey = null;
+        _lastCutoff = 0;
+        cancelFocus();
+        hoverFocus = new Set();
+        selectFocus = new Set();
+        hoverCenterId = null;
+        selectCenterId = null;
+        focusNodeIds = new Set();
+        focusEdgeIds = new Set();
+        hoveredEdgeId = null;
         cancelHover();
         pinnedCardNodeId = null;
         hideCard();
@@ -406,9 +439,9 @@ function buildGraph() {
         };
     });
 
-    // No text label on edges (260802-cu1 declutter) — relation_type remains
-    // reachable via the sidebar edge
-    // detail panel (sidebar.js showEdgeDetail()), so no information is lost.
+    // Edges carry their relation name as the label string but rest at font
+    // size 0 (nothing drawn); applyFocus() raises the size for edges of the
+    // hovered/selected node or a hovered edge.
     edgeIdByIndex = stableEdgeIds(allEdges);
     edgeColorById = new Map(allEdges.map((e, i) => [
         edgeIdByIndex[i], relationDisplay(e.relation_type).color,
@@ -418,6 +451,8 @@ function buildGraph() {
         width: edgeWidth(e.support_count, 1),
         color: edgeColorObject(edgeColorById.get(edgeIdByIndex[i]), EDGE_BASE_OPACITY),
         dashes: edgeDashes(e.epistemic_status, 1),
+        label: humanizeRelation(e.relation_type),
+        font: edgeLabelFont(1, false),
         from: e.source,
         to: e.target,
         arrows: 'to',
@@ -527,6 +562,9 @@ function buildGraph() {
     network.on('hoverNode', (params) => {
         cancelHover();
         const nodeId = params.node;
+        hoverCenterId = nodeId;
+        hoverFocus = focusIds(nodeId, neighborsOf(nodeId), linkDegreeMap);
+        scheduleFocus();
         const point = params.pointer && params.pointer.DOM;
         if (!point) return;
         _hoverTimer = setTimeout(() => {
@@ -535,10 +573,15 @@ function buildGraph() {
         }, HOVER_CARD_DELAY_MS);
     });
     network.on('blurNode', () => {
+        hoverCenterId = null;
+        hoverFocus = new Set();
+        scheduleFocus();
         cancelHover();
         if (pinnedCardNodeId !== null) showPinnedCard();
         else hideCard();
     });
+    network.on('hoverEdge', (params) => { hoveredEdgeId = params.edge; scheduleFocus(); });
+    network.on('blurEdge', () => { hoveredEdgeId = null; scheduleFocus(); });
     network.on('dragStart', () => { cancelHover(); hideCard(); });
     network.on('zoom', () => { cancelHover(); hideCard(); });
 
@@ -561,6 +604,9 @@ function buildGraph() {
             // D-01: highlight this node's 1-hop neighbourhood; dim everything else
             clearHighlight();
             highlightedNodeId = nodeId;
+            selectCenterId = nodeId;
+            selectFocus = focusIds(nodeId, neighborsOf(nodeId), linkDegreeMap);
+            scheduleFocus();
 
             const neighbourIds = new Set(network.getConnectedNodes(nodeId));
             neighbourIds.add(nodeId);
@@ -695,6 +741,74 @@ function buildGraph() {
         });
         _hoverListenersAttached = true;
     }
+}
+
+// ---------------------------------------------------------------------------
+// Neighborhood labels. The focus set (hover union selection) is written to the
+// DataSets as deltas carrying only id + font, so it cannot clobber the
+// highlight (opacity/color), filters (hidden) or pins.
+// ---------------------------------------------------------------------------
+function neighborsOf(id) {
+    if (!network || !visNodes) return [];
+    return (network.getConnectedNodes(id) || []).filter(nid => {
+        const rec = visNodes.get(nid);
+        return rec && rec.hidden !== true;
+    });
+}
+
+function scheduleFocus() {
+    if (_focusRaf !== null) return;
+    if (typeof requestAnimationFrame === 'function') {
+        _focusRaf = requestAnimationFrame(applyFocus);
+        _focusCancel = cancelAnimationFrame;
+    } else {
+        _focusRaf = setTimeout(applyFocus, 16);
+        _focusCancel = clearTimeout;
+    }
+}
+
+function cancelFocus() {
+    if (_focusRaf !== null && _focusCancel) _focusCancel(_focusRaf);
+    _focusRaf = null;
+    _focusCancel = null;
+}
+
+function applyFocus() {
+    _focusRaf = null;
+    _focusCancel = null;
+    if (!network || !visNodes || !visEdges) return;
+    const scale = network.getScale();
+
+    const nextNodes = new Set([...hoverFocus, ...selectFocus]);
+    const nodeDelta = focusDelta(focusNodeIds, nextNodes);
+    focusNodeIds = nextNodes;
+    const nodeChanged = [...nodeDelta.added, ...nodeDelta.removed];
+    if (nodeChanged.length) {
+        visNodes.update(nodeChanged.map(id => ({ id, font: nodeLabelFont(id, scale, _lastCutoff) })));
+    }
+
+    const nextEdges = new Set();
+    for (const center of [hoverCenterId, selectCenterId]) {
+        if (center === null) continue;
+        for (const edgeId of (network.getConnectedEdges(center) || [])) {
+            const rec = visEdges.get(edgeId);
+            if (rec && rec.hidden !== true) nextEdges.add(edgeId);
+        }
+    }
+    if (hoveredEdgeId !== null) nextEdges.add(hoveredEdgeId);
+    const edgeDelta = focusDelta(focusEdgeIds, nextEdges);
+    focusEdgeIds = nextEdges;
+    const edgeUpdates = [
+        ...edgeDelta.added.map(id => ({ id, font: edgeLabelFont(scale, true) })),
+        ...edgeDelta.removed.map(id => ({ id, font: edgeLabelFont(scale, false) })),
+    ];
+    if (edgeUpdates.length) visEdges.update(edgeUpdates);
+
+    window._labelDebug = {
+        ...(window._labelDebug || {}),
+        focusNodes: focusNodeIds.size,
+        focusEdges: focusEdgeIds.size,
+    };
 }
 
 // ---------------------------------------------------------------------------
@@ -995,6 +1109,9 @@ function clearHighlight() {
     visNodes.update(nodeRestores);
     visEdges.update(edgeRestores);
     highlightedNodeId = null;
+    selectCenterId = null;
+    selectFocus = new Set();
+    scheduleFocus();
 }
 
 
