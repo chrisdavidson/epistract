@@ -162,6 +162,10 @@ body {
   color: rgba(255, 255, 255, 0.7);
 }
 
+.legend-item .type-swatch {
+  flex-shrink: 0;
+}
+
 .legend-dot {
   width: 10px;
   height: 10px;
@@ -1297,6 +1301,10 @@ body {
 }
 
 .graph-detail-sidebar__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: #1a1a1a;
   font-size: var(--size-label);
   font-weight: 600;
   white-space: nowrap;

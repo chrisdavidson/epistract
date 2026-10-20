@@ -68,10 +68,6 @@ let sortedDegrees = [];                   // node degrees, descending; rebuilt w
 let _labelUpdateTimer = null;             // pending throttled applyLabelVisibility() call (260802-cu1)
 let _lastLabelDegreeCutoff = null;        // last-applied degree cutoff; skip DataSet write when unchanged (260802-cu1)
 
-function getEntityColor(type) {
-    return entityColor(type);
-}
-
 // vis-network color object: type fill with a neutral border.
 function nodeColor(type) {
     const fill = entityColor(type);
@@ -435,7 +431,7 @@ function buildGraph() {
             // D-02: second click on already-highlighted node clears dim; sidebar stays open
             if (highlightedNodeId === nodeId) {
                 clearHighlight();
-                showNodeDetail(nodeId, allNodes, allEdges, degreeMap, getEntityColor);
+                showNodeDetail(nodeId, allNodes, allEdges, degreeMap);
                 return;
             }
 
@@ -461,7 +457,7 @@ function buildGraph() {
             if (edgeDims.length) visEdges.update(edgeDims);
 
             // Open sidebar (Phase 09 unchanged)
-            showNodeDetail(nodeId, allNodes, allEdges, degreeMap, getEntityColor);
+            showNodeDetail(nodeId, allNodes, allEdges, degreeMap);
 
         } else if (params.edges && params.edges.length > 0) {
             // D-04: edge click — sidebar only, no neighbourhood dim

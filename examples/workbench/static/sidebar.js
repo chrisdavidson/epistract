@@ -2,6 +2,8 @@
 // Exports: initSidebar, showNodeDetail, showEdgeDetail, hideSidebar
 // SEC-01 / SIDEBAR-04: all graph data rendered via textContent — never via innerHTML.
 
+import { makeSwatch, typeDisplay } from './display.js';
+
 // ---------------------------------------------------------------------------
 // Module-level state
 // ---------------------------------------------------------------------------
@@ -26,7 +28,7 @@ export function initSidebar() {
 }
 
 
-export function showNodeDetail(nodeId, allNodes, allEdges, degreeMap, getEntityColor) {
+export function showNodeDetail(nodeId, allNodes, allEdges, degreeMap) {
     const node = allNodes.find(n => n.id === nodeId);
     if (!node) {
         _showErrorState('Unable to load details — node not found in graph. Try reloading the graph.');
@@ -36,11 +38,7 @@ export function showNodeDetail(nodeId, allNodes, allEdges, degreeMap, getEntityC
     const displayName = node.name || node.id;
 
     // Build header (replaces existing header children)
-    _buildHeader(
-        displayName,                          // title text
-        node.entity_type || '',               // badge text
-        getEntityColor(node.entity_type)      // badge color
-    );
+    _buildHeader(displayName, node.entity_type || '');
 
     // Build body content container
     const bodyFrag = document.createDocumentFragment();
@@ -261,7 +259,7 @@ function _replaceBodyContent(newContent) {
 }
 
 
-function _buildHeader(titleText, badgeText, badgeColor) {
+function _buildHeader(titleText, entityType) {
     const headerEl = sidebarEl?.querySelector('.graph-detail-sidebar__header');
     if (!headerEl) return;
     while (headerEl.firstChild) headerEl.removeChild(headerEl.firstChild);
@@ -271,9 +269,12 @@ function _buildHeader(titleText, badgeText, badgeColor) {
     titleEl.textContent = titleText;
 
     const badge = document.createElement('span');
-    badge.className = 'graph-detail-sidebar__badge entity-badge';
-    badge.textContent = badgeText;
-    badge.style.color = badgeColor;
+    badge.className = 'graph-detail-sidebar__badge';
+    const badgeLabel = document.createElement('span');
+    badgeLabel.className = 'graph-detail-sidebar__badge-label';
+    badgeLabel.textContent = typeDisplay(entityType).label;
+    badge.appendChild(makeSwatch(entityType, 16));
+    badge.appendChild(badgeLabel);
 
     headerEl.appendChild(titleEl);
     headerEl.appendChild(badge);

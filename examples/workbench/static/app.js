@@ -1,7 +1,7 @@
 // app.js - Main application coordinator
 import { initChat, loadModelSelector } from './chat.js';
 import { initGraph } from './graph.js';
-import { loadDisplay, legendEntries } from './display.js';
+import { loadDisplay, legendEntries, makeSwatch } from './display.js';
 // sources.js removed -- source docs now accessed via dashboard links
 
 // SEC-01 / VUL-03: local escapeHtml helper. We intentionally do NOT import the
@@ -167,13 +167,11 @@ async function populateEntityLegend() {
         for (const entry of legendEntries()) {
             const item = document.createElement('div');
             item.className = 'legend-item';
-            const dot = document.createElement('span');
-            dot.className = 'legend-dot';
-            dot.style.background = entry.color;
+            const swatch = makeSwatch(entry.type, 12);
             const label = document.createElement('span');
             label.className = 'legend-label';
             label.textContent = entry.label;
-            item.replaceChildren(dot, label);
+            item.replaceChildren(swatch, label);
             legendContainer.appendChild(item);
         }
     } catch (e) {
