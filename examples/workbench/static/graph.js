@@ -1,5 +1,7 @@
 import { initSidebar, showNodeDetail, showEdgeDetail, hideSidebar } from './sidebar.js';
-import { loadDisplay, typeDisplay, entityColor, legendEntries } from './display.js';
+import {
+    loadDisplay, typeDisplay, entityColor, legendEntries, buildLegendChip, renderLegendMessage,
+} from './display.js';
 
 // graph.js - Graph panel: vis.js network, search, entity type toggles
 
@@ -34,6 +36,8 @@ const NODE_FONT_BASE = {              // non-size font properties — single sou
     color: '#1a1a1a',
     background: 'rgba(255, 255, 255, 0.85)',
 };
+const NODE_BORDER = 'rgba(0,0,0,0.25)';       // neutral node outline; the type is carried by fill + shape
+const NODE_SELECTED_BORDER = '#1a1a2e';
 const EDGE_SMOOTH_MAX_EDGES = 400;              // above this edge count, render straight edges — curved edges are visual mud and a per-frame render cost at scale
 const PHYSICS_STABILIZATION_ITERATIONS = 400;   // raise for a better-separated layout at the cost of a longer time-to-stabilize
 const PHYSICS_STABILIZATION_UPDATE_INTERVAL = 50; // how often vis reports stabilization progress and redraws while settling
@@ -68,47 +72,58 @@ function getEntityColor(type) {
     return entityColor(type);
 }
 
+// vis-network color object: type fill with a neutral border.
+function nodeColor(type) {
+    const fill = entityColor(type);
+    const selected = { background: fill, border: NODE_SELECTED_BORDER };
+    return {
+        background: fill,
+        border: NODE_BORDER,
+        highlight: { ...selected },
+        hover: { ...selected },
+    };
+}
+
 export async function initGraph(opts) {
     callbacks = opts || {};
 
-    // Resolve type colors/shapes once, before chips or nodes are built, so
+    // Resolve type colors/shapes once, before the legend or nodes are built, so
     // every surface reads the same values regardless of build order.
+    let displayLoaded = true;
     try {
         await loadDisplay();
     } catch (e) {
+        displayLoaded = false;
         console.warn('Could not load entity display data:', e);
     }
 
-    // Build toggle buttons from the resolved display (family order)
+    // Build the entity-type legend (swatch, label, count, description, filter toggle)
     const toggleContainer = document.getElementById('entity-toggles');
     if (toggleContainer) {
         try {
-            toggleContainer.innerHTML = '';
             // WR-04: clear stale entity types before re-populating so that
             // repeated initGraph calls (e.g. domain switch) do not leave
             // ghost types active in the filter Set.
             activeTypes.clear();
-            for (const { type } of legendEntries()) {
-                activeTypes.add(type);
-                const btn = document.createElement('button');
-                btn.className = 'toggle-btn active';
-                btn.dataset.type = type;
-                btn.style.color = entityColor(type);
-                btn.textContent = typeDisplay(type).label;
-                btn.addEventListener('click', () => {
-                    if (activeTypes.has(type)) {
-                        activeTypes.delete(type);
-                        btn.classList.remove('active');
-                    } else {
-                        activeTypes.add(type);
-                        btn.classList.add('active');
-                    }
-                    filterGraph();
-                });
-                toggleContainer.appendChild(btn);
+            const entries = displayLoaded ? legendEntries() : [];
+            if (!displayLoaded) {
+                renderLegendMessage(toggleContainer, 'error');
+            } else if (entries.length === 0) {
+                renderLegendMessage(toggleContainer, 'empty');
+            } else {
+                toggleContainer.replaceChildren();
+                for (const entry of entries) {
+                    activeTypes.add(entry.type);
+                    toggleContainer.appendChild(buildLegendChip(entry, (type, pressed) => {
+                        if (pressed) activeTypes.add(type);
+                        else activeTypes.delete(type);
+                        filterGraph();
+                    }));
+                }
             }
         } catch (e) {
-            console.warn('Could not load entity types for toggles:', e);
+            console.warn('Could not build entity type legend:', e);
+            renderLegendMessage(toggleContainer, 'error');
         }
     }
 
@@ -295,7 +310,9 @@ function buildGraph() {
         return {
             id: n.id,
             label: n.name || n.id,
-            color: d.color,
+            color: nodeColor(n.entity_type),
+            borderWidth: 1,
+            borderWidthSelected: 3,
             title: tooltipEl,
             shape: d.shape,
             size: d.family === 'Sources' ? Math.round(baseSize * 0.6) : baseSize,
@@ -500,12 +517,11 @@ function buildGraph() {
                 if (pinnedNodes.size === 0) return;
                 const unfixUpdates = [...pinnedNodes].map(nodeId => {
                     const node = allNodes.find(n => n.id === nodeId);
-                    const borderColor = entityColor(node?.entity_type || '');
                     return {
                         id: nodeId,
                         fixed: false,
                         borderWidth: 1,
-                        color: { border: borderColor, highlight: { border: borderColor } },
+                        color: nodeColor(node?.entity_type || ''),
                     };
                 });
                 visNodes.update(unfixUpdates);

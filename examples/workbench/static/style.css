@@ -1616,3 +1616,85 @@ body {
   outline: none;
   box-shadow: 0 0 0 2px rgba(74, 108, 247, 0.15);
 }
+
+
+/* Phase 2: entity type legend */
+.legend-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  max-height: 128px;
+  overflow-y: auto;
+}
+
+.legend-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: 28px;
+  padding: var(--space-xs) var(--space-sm);
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  color: #1a1a1a;
+  font: var(--size-label)/1.5 var(--font-body);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.legend-chip:hover {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: #9ca3af;
+}
+
+.legend-chip[aria-pressed="true"] {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: var(--color-secondary);
+}
+
+.legend-chip[aria-pressed="false"] {
+  background: #ffffff;
+  border-style: dashed;
+  border-color: #e5e7eb;
+  color: #666666;
+}
+
+.legend-chip:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.legend-chip__count {
+  font-family: var(--font-data);
+  font-size: var(--size-data);
+  color: #666666;
+  font-variant-numeric: tabular-nums;
+  margin-left: var(--space-xs);
+}
+
+.type-swatch {
+  flex: none;
+  display: inline-block;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.legend-message {
+  font-size: var(--size-body);
+  color: #999999;
+  margin: 0;
+}
+
+.legend-message--error {
+  color: #666666;
+}

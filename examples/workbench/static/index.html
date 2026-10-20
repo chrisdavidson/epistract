@@ -95,8 +95,9 @@
       <div class="graph-controls">
         <input type="text" id="graph-search" class="graph-search" placeholder="Search nodes...">
 
-        <div class="entity-toggles" id="entity-toggles">
-          <!-- Populated dynamically from /api/graph/entity-types + template colors -->
+        <p class="filter-section-label" id="entity-legend-label">Entity types</p>
+        <div class="entity-toggles legend-chips" id="entity-toggles" role="group" aria-label="Filter by entity type">
+          <!-- Populated by graph.js from display.js legendEntries() -->
         </div>
 
         <div id="epistemic-filter">
