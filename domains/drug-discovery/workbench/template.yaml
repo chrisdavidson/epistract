@@ -69,17 +69,6 @@ starter_questions:
   - "Which genes appear in multiple drug interaction contexts?"
   - "Which patents make prophetic claims and how do they compare to the asserted clinical evidence?"
   - "What coverage gaps exist in the safety data across the compound landscape?"
-entity_colors:
-  COMPOUND: "#6366f1"
-  GENE: "#f59e0b"
-  DISEASE: "#ef4444"
-  PATHWAY: "#10b981"
-  MECHANISM: "#8b5cf6"
-  CLINICAL_TRIAL: "#06b6d4"
-  BIOMARKER: "#64748b"
-  SIDE_EFFECT: "#ec4899"
-  PROTEIN: "#f97316"
-  CELL_LINE: "#14b8a6"
 analysis_patterns:
   cross_references_heading: "CROSS-STUDY REFERENCES"
   appears_in_phrase: "appears in"

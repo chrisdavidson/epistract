@@ -58,13 +58,6 @@ starter_questions:
   - Which axis produced the most joins, and which produced the fewest?
   - What cross-domain findings were raised, and how are they graded?
   - Which drugs appear in one corpus but not the others?
-entity_colors:
-  Graph: '#34495e'
-  Trial: '#6366f1'
-  Drug: '#e74c3c'
-  AdverseEvent: '#97c2fc'
-  Indication: '#9b59b6'
-  Outcome: '#1abc9c'
 dashboard:
   title: Crosswalk Summary
   subtitle: canonical keys, joins, and cross-domain findings

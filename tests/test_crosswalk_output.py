@@ -637,8 +637,9 @@ def test_the_crosswalk_domain_package_resolves_like_any_other_domain():
 
 
 def test_every_pharma_axis_has_a_matching_entity_type_and_legend_colour():
-    """An axis with no entity type falls back to the workbench's rotating
-    default palette instead of a stable colour."""
+    """An axis with no entity type falls back to a generated palette colour
+    instead of a stable one. Colours now live in domain.yaml `display`, not in
+    the workbench template."""
     from pathlib import Path
 
     import yaml
@@ -646,11 +647,9 @@ def test_every_pharma_axis_has_a_matching_entity_type_and_legend_colour():
     root = Path(__file__).resolve().parent.parent
     axes = yaml.safe_load((root / "crosswalks" / "pharma.yaml").read_text())["axes"]
     schema = yaml.safe_load((root / "domains" / DOMAIN_NAME / "domain.yaml").read_text())
-    template = yaml.safe_load(
-        (root / "domains" / DOMAIN_NAME / "workbench" / "template.yaml").read_text()
-    )
 
     for axis in axes:
         entity_type = axis_entity_type(axis)
         assert entity_type in schema["entity_types"], f"axis {axis!r} has no entity type"
-        assert entity_type in template["entity_colors"], f"axis {axis!r} has no colour"
+        display = schema["entity_types"][entity_type].get("display") or {}
+        assert display.get("color"), f"axis {axis!r} has no colour"

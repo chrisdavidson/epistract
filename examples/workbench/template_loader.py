@@ -4,6 +4,8 @@ Loads domain-specific workbench templates from domains/*/workbench/template.yaml
 Falls back to generic defaults when no domain template exists.
 
 Self-contained: imports only PyYAML, pathlib, os (no imports from core/).
+The workbench server imports core.graph_display (the one layering exception);
+this module stays core-free.
 """
 from __future__ import annotations
 
@@ -34,6 +36,28 @@ DOMAINS_DIR = Path(
 GENERIC_TEMPLATE: dict = WorkbenchTemplate().model_dump()
 
 
+def _safe_domain_name(domain_name: str | None) -> bool:
+    """Return True when domain_name is a plain directory name under DOMAINS_DIR."""
+    if not domain_name or domain_name.startswith("_"):
+        return False
+    if domain_name in (".", "..") or ".." in domain_name:
+        return False
+    return "/" not in domain_name and "\\" not in domain_name
+
+
+def _schema_entity_types(domain_name: str) -> set[str] | None:
+    """Return the entity type names declared by a domain, or None if unknown."""
+    if not _safe_domain_name(domain_name):
+        return None
+    try:
+        schema = yaml.safe_load((DOMAINS_DIR / domain_name / "domain.yaml").read_text())
+    except (OSError, yaml.YAMLError):
+        return None
+    if not isinstance(schema, dict) or not isinstance(schema.get("entity_types"), dict):
+        return None
+    return {str(name) for name in schema["entity_types"]}
+
+
 def load_template(domain_name: str | None = None) -> dict:
     """Load a domain-specific workbench template.
 
@@ -44,7 +68,7 @@ def load_template(domain_name: str | None = None) -> dict:
     Returns:
         Plain dict with all template fields, merged with defaults.
     """
-    if not domain_name:
+    if not domain_name or not _safe_domain_name(domain_name):
         return dict(GENERIC_TEMPLATE)
 
     template_path = DOMAINS_DIR / domain_name / "workbench" / "template.yaml"
@@ -57,9 +81,26 @@ def load_template(domain_name: str | None = None) -> dict:
             return dict(GENERIC_TEMPLATE)
         # Validate and merge with defaults via Pydantic
         model = WorkbenchTemplate(**raw)
-        return model.model_dump()
+        template = model.model_dump()
+        _warn_unknown_entity_colors(domain_name, template.get("entity_colors") or {})
+        return template
     except Exception:
         return dict(GENERIC_TEMPLATE)
+
+
+def _warn_unknown_entity_colors(domain_name: str, entity_colors: dict) -> None:
+    """Warn on stderr for entity_colors keys that are not schema entity types."""
+    known = _schema_entity_types(domain_name)
+    if known is None:
+        return
+    for key in entity_colors:
+        if key not in known:
+            print(
+                f"Warning: template.yaml entity_colors key '{key}' is not an entity "
+                f"type in {domain_name}/domain.yaml; it only applies if that type "
+                "appears in the graph",
+                file=sys.stderr,
+            )
 
 
 def resolve_domain(

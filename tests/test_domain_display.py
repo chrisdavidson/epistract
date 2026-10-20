@@ -229,3 +229,78 @@ def test_glp1_shapes_vary():
     assert len({t["shape"] for t in types.values()}) >= 6
     assert len({t["color"] for t in types.values()}) == len(observed) == 13
     assert all(t["origin"] in ("declared", "pipeline") for t in types.values())
+
+
+# ---------------------------------------------------------------------------
+# Templates and loader
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("domain", DOMAIN_NAMES)
+def test_shipped_templates_have_no_entity_colors(domain):
+    raw = yaml.safe_load((DOMAINS / domain / "workbench" / "template.yaml").read_text())
+    assert raw.get("entity_colors") in (None, {})
+
+
+def _toy_domains(tmp_path: Path, colors: dict) -> Path:
+    root = tmp_path / "domains"
+    (root / "toy" / "workbench").mkdir(parents=True, exist_ok=True)
+    (root / "toy" / "domain.yaml").write_text(
+        yaml.safe_dump({"entity_types": {"A": {"description": "a"}, "B": {"description": "b"}}})
+    )
+    (root / "toy" / "workbench" / "template.yaml").write_text(
+        yaml.safe_dump({"entity_colors": colors})
+    )
+    return root
+
+
+def test_load_template_warns_unknown_key(tmp_path, monkeypatch, capsys):
+    from examples.workbench import template_loader
+
+    monkeypatch.setattr(
+        template_loader, "DOMAINS_DIR", _toy_domains(tmp_path, {"A": "#112233", "ZZZ": "#445566"})
+    )
+    template = template_loader.load_template("toy")
+    assert template["entity_colors"]["A"] == "#112233"
+    err = capsys.readouterr().err
+    assert "ZZZ" in err and "entity_colors key" in err
+
+    monkeypatch.setattr(template_loader, "DOMAINS_DIR", _toy_domains(tmp_path, {"A": "#112233"}))
+    template_loader.load_template("toy")
+    assert "entity_colors key" not in capsys.readouterr().err
+
+
+def test_load_template_warning_rejects_traversal(capsys):
+    from examples.workbench import template_loader
+
+    template = template_loader.load_template("../etc")
+    assert template == template_loader.GENERIC_TEMPLATE
+    captured = capsys.readouterr()
+    assert "Traceback" not in captured.err and "Traceback" not in captured.out
+    assert template_loader._schema_entity_types("../etc") is None
+    assert template_loader._schema_entity_types("a/b") is None
+    assert template_loader._schema_entity_types("_x") is None
+    assert template_loader._schema_entity_types("..") is None
+
+
+def test_resolved_entity_colors_glp1(tmp_path):
+    from core import run_sift
+
+    shutil.copy(GLP1 / "graph_data.json", tmp_path / "graph_data.json")
+    colors = run_sift._resolved_entity_colors(tmp_path, "drug-discovery", {"entity_colors": {}})
+    observed = {n["entity_type"] for n in json.loads((tmp_path / "graph_data.json").read_text())["nodes"]}
+    assert observed <= set(colors)
+    assert len({colors[t] for t in observed}) == 13
+    expected = resolve_display(_schema("drug-discovery"), observed, None)["types"]
+    for t in observed:
+        assert colors[t] == expected[t]["color"]
+
+
+def test_resolved_entity_colors_override(tmp_path):
+    from core import run_sift
+
+    shutil.copy(GLP1 / "graph_data.json", tmp_path / "graph_data.json")
+    colors = run_sift._resolved_entity_colors(
+        tmp_path, "drug-discovery", {"entity_colors": {"COMPOUND": "#123456"}}
+    )
+    assert colors["COMPOUND"] == "#123456"

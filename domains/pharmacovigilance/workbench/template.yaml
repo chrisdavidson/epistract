@@ -67,19 +67,6 @@ persona: 'You are a senior drug-safety reviewer at a top-50 pharma pharmacovigil
 placeholder: Ask a question about the knowledge graph...
 loading_message: Analyzing
 starter_questions: []
-entity_colors:
-  AdverseEvent: '#97c2fc'
-  CausalitySignal: '#ffa07a'
-  Concomitant: '#90ee90'
-  DechallengeRechallenge: '#f1c40f'
-  Drug: '#e74c3c'
-  Indication: '#9b59b6'
-  Outcome: '#1abc9c'
-  Patient: '#e67e22'
-  RegulatoryAction: '#34495e'
-  ReportType: '#fd79a8'
-  Reporter: '#636e72'
-  TemporalRelationship: '#00b894'
 dashboard:
   title: Pharmacovigilance Knowledge Graph Summary
   subtitle: ''

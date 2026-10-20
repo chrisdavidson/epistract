@@ -228,6 +228,38 @@ def cmd_build(output_dir: str, domain_name: str | None = None):
     }))
 
 
+def _resolved_entity_colors(
+    output_dir: Path, resolved_domain: str | None, template: dict
+) -> dict[str, str]:
+    """Return ``{entity_type: "#rrggbb"}`` for every type in the graph.
+
+    Colors come from ``core.graph_display.resolve_display``: the domain schema's
+    declared colors, with any template ``entity_colors`` applied as overrides, and
+    palette colors for observed types the schema does not declare.
+    """
+    from core.graph_display import resolve_display
+
+    observed: set[str] = set()
+    try:
+        graph = json.loads((Path(output_dir) / "graph_data.json").read_text(encoding="utf-8"))
+        for node in graph.get("nodes", []):
+            entity_type = node.get("entity_type")
+            if entity_type:
+                observed.add(str(entity_type))
+    except (OSError, ValueError, AttributeError):
+        observed = set()
+
+    schema = None
+    if resolved_domain:
+        try:
+            schema = resolve_domain(resolved_domain)["schema"]
+        except (FileNotFoundError, OSError, ValueError):
+            schema = None
+
+    display = resolve_display(schema, observed, template.get("entity_colors") or None)
+    return {name: info["color"] for name, info in display["types"].items()}
+
+
 def cmd_view(output_dir: str, **kwargs):
     """Generate graph.html; post-process it to inject domain-aware title + entity colors (FIDL-06)."""
     (run_view,) = _import_sift(["run_view"])
@@ -264,7 +296,7 @@ def cmd_view(output_dir: str, **kwargs):
     resolved_domain, _source = resolve_domain(Path(output_dir), None)
     template = load_template(resolved_domain)
     title_text = template.get("title") or "Knowledge Graph"
-    entity_colors: dict[str, str] = template.get("entity_colors") or {}
+    entity_colors = _resolved_entity_colors(Path(output_dir), resolved_domain, template)
 
     try:
         html = graph_html.read_text(encoding="utf-8")
