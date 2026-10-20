@@ -3,7 +3,10 @@ import {
     loadDisplay, typeDisplay, typeKey, entityColor, legendEntries, buildLegendChip,
     renderLegendMessage, isSourceType, isSourceRelation, sourceTypes, setChipPressed,
 } from './display.js';
-import { isSourceEdge, linkDegrees } from './graph_style.js';
+import {
+    isSourceEdge, linkDegrees, scaleBucket, labelFontSize, nodeSize, edgeWidth,
+    truncateLabel, labelCutoff, stableEdgeIds, LABEL_BASE_WORLD,
+} from './graph_style.js';
 
 // graph.js - Graph panel: vis.js network, search, entity type toggles
 
@@ -32,7 +35,6 @@ const LABEL_ZOOM_STOPS = [
     { scale: 0.00, maxLabels: 15 },       // fit view / zoomed out: hubs only
 ];
 const LABEL_HIDDEN_FONT_SIZE = 0;     // vis-network skips drawing a label at font size 0 without dropping the label string (tooltips/search still work)
-const LABEL_VISIBLE_FONT_SIZE = 12;   // matches the previous unconditional label size
 const LABEL_UPDATE_THROTTLE_MS = 120; // trailing-debounce window; vis fires `zoom` continuously during a scroll gesture
 const NODE_FONT_BASE = {              // non-size font properties — single source of truth for node mapping + label controller
     color: '#1a1a1a',
@@ -51,6 +53,12 @@ const FA2_DAMPING = 0.5;                        // higher settles faster with le
 const FA2_AVOID_OVERLAP = 0.6;                  // 0 to 1; adds a node-radius-aware repulsion term that stops dots from stacking
 
 const FALLBACK_SOURCE_TYPES = new Set(['DOCUMENT', 'PUBLICATION']); // used only when display data failed to load
+
+// Reduced-motion users get an instant fit; everyone else an eased one.
+function fitAnimation(duration) {
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+    return reduce ? false : { duration };
+}
 
 let network = null;
 let allNodes = [];
@@ -78,8 +86,9 @@ let sourceNodeIds = new Set();            // ids of Sources-family nodes in the 
 let sourcesShown = false;                 // Show sources toggle; sources are hidden on load
 let sourcesPlaced = false;                // sources already moved next to their neighbours for this build
 let sourceNeighbours = new Map();         // source id -> ids of its non-source neighbours
-let _labelUpdateTimer = null;             // pending throttled applyLabelVisibility() call (260802-cu1)
-let _lastLabelDegreeCutoff = null;        // last-applied degree cutoff; skip DataSet write when unchanged (260802-cu1)
+let _labelUpdateTimer = null;             // pending throttled applyScaleStyle() call (260802-cu1)
+let _lastStyleKey = null;                 // last-applied `${cutoff}|${bucket}`; skip DataSet writes when unchanged
+let edgeIdByIndex = [];                   // stable vis edge id for each entry of allEdges
 
 // vis-network color object: type fill with a neutral border.
 function nodeColor(type) {
@@ -218,58 +227,66 @@ let _degreeSliderListenerAttached = false;   // WR-02: guard min-degree slider d
 // zoomed out. Edge labels are removed entirely (see edge mapping above);
 // relation type stays reachable via hover tooltip + sidebar edge detail.
 // ---------------------------------------------------------------------------
-function applyLabelVisibility() {
+function applyScaleStyle() {
     if (!network || !visNodes) return;
 
-    if (allNodes.length < LABEL_MIN_NODE_COUNT) {
-        // Small graphs: never gate — every node stays labelled at every zoom.
-        const updates = visNodes.getIds().map(id => ({
-            id,
-            font: { ...NODE_FONT_BASE, size: LABEL_VISIBLE_FONT_SIZE },
-        }));
-        if (updates.length) visNodes.update(updates);
-        return;
-    }
-
     const scale = network.getScale();
-    const stop = LABEL_ZOOM_STOPS.find(s => scale >= s.scale) || LABEL_ZOOM_STOPS[LABEL_ZOOM_STOPS.length - 1];
+    const bucket = scaleBucket(scale);
+    const gated = allNodes.length >= LABEL_MIN_NODE_COUNT;
 
     // Translate the label budget into a degree cutoff: the degree of the
-    // maxLabels-th highest-degree node. sortedDegrees is descending and built
-    // once per buildGraph(). Ties at the cutoff degree let a few extra labels
-    // through — acceptable, and preferable to arbitrarily dropping one of two
-    // equally-connected nodes. A budget at or past the end of the array (or
-    // Infinity) yields cutoff 0, which labels everything.
-    const budget = stop.maxLabels;
-    const cutoff = (budget >= sortedDegrees.length) ? 0 : (sortedDegrees[budget - 1] || 0);
+    // maxLabels-th highest-degree node. Ties at the cutoff degree let a few
+    // extra labels through, which beats dropping one of two equally-connected
+    // nodes. Small graphs are never gated: every non-source node is labelled.
+    let budget = Infinity;
+    if (gated) {
+        const stop = LABEL_ZOOM_STOPS.find(s => scale >= s.scale) || LABEL_ZOOM_STOPS[LABEL_ZOOM_STOPS.length - 1];
+        budget = stop.maxLabels;
+    }
+    const cutoff = labelCutoff(sortedDegrees, budget);
 
-    // Bail out when the cutoff hasn't changed — this is what keeps zooming
-    // cheap: the expensive DataSet write happens only on cutoff transitions,
-    // not on every zoom tick.
-    if (cutoff === _lastLabelDegreeCutoff) return;
-    _lastLabelDegreeCutoff = cutoff;
+    // The expensive DataSet writes happen only when the cutoff or the scale
+    // bucket changes, not on every zoom tick.
+    const key = `${cutoff}|${bucket}`;
+    if (key === _lastStyleKey) return;
+    _lastStyleKey = key;
 
-    // Each update carries ONLY id + font — never opacity, hidden, colour, or
-    // fixed — so this controller cannot clobber the neighbourhood highlight
-    // (opacity), filterGraph() visibility (hidden), or the pinned-node
-    // border (color/borderWidth/fixed). Font updates and opacity/hidden
-    // updates carry disjoint property sets so they never clobber each other.
-    const updates = visNodes.getIds().map(id => {
+    // Node updates carry ONLY id + font + size and edge updates ONLY id +
+    // width - never opacity, hidden, colour, or fixed - so this controller
+    // cannot clobber the neighbourhood highlight (opacity), filterGraph()
+    // visibility (hidden), or the pinned-node border (color/borderWidth/fixed).
+    const fontWorld = labelFontSize(scale);
+    let labelled = 0;
+    const nodeUpdates = visNodes.getIds().map(id => {
         const degree = linkDegreeMap[id] || 0;
-        const size = degree >= cutoff ? LABEL_VISIBLE_FONT_SIZE : LABEL_HIDDEN_FONT_SIZE;
-        return { id, font: { ...NODE_FONT_BASE, size } };
+        const isSource = sourceNodeIds.has(id);
+        const visible = !isSource && degree >= cutoff;
+        if (visible) labelled++;
+        return {
+            id,
+            font: { ...NODE_FONT_BASE, size: visible ? fontWorld : LABEL_HIDDEN_FONT_SIZE },
+            size: nodeSize(degree, maxDegree, scale, isSource),
+        };
     });
-    visNodes.update(updates);
+    visNodes.update(nodeUpdates);
 
-    // 260802-cu1: retuning aid. Read `window._labelDebug` in the devtools
-    // console to see which LABEL_ZOOM_STOPS band the current view resolved to
-    // and how many labels that produced — the fit-view scale depends on
-    // container size and layout extent, so it is measured, not assumed.
+    if (visEdges) {
+        const edgeUpdates = allEdges.map((e, i) => ({
+            id: edgeIdByIndex[i],
+            width: edgeWidth(e.support_count, scale),
+        }));
+        visEdges.update(edgeUpdates);
+    }
+
+    // Retuning aid: read `window._labelDebug` in the devtools console to see
+    // which band the current view resolved to and how many labels it drew.
     window._labelDebug = {
         scale: Number(scale.toFixed(3)),
+        bucket: bucket,
         budget: budget,
         cutoff: cutoff,
-        labelled: updates.filter(u => u.font.size > 0).length,
+        fontWorld: Number(fontWorld.toFixed(1)),
+        labelled: labelled,
         totalNodes: allNodes.length,
     };
 }
@@ -289,7 +306,7 @@ function buildGraph() {
             clearTimeout(_labelUpdateTimer);
             _labelUpdateTimer = null;
         }
-        _lastLabelDegreeCutoff = null;
+        _lastStyleKey = null;
         sourcesShown = false;
         sourcesPlaced = false;
         for (const type of sourceTypes()) activeTypes.delete(type);
@@ -339,7 +356,7 @@ function buildGraph() {
     maxDegree = Object.values(linkDegreeMap).reduce((acc, v) => Math.max(acc, v), 1);
 
     // 260802-cu1: descending degree list backing the label budget in
-    // applyLabelVisibility(). Built over allNodes, not degreeMap — degreeMap
+    // applyScaleStyle(). Built over allNodes, not degreeMap — degreeMap
     // omits isolated (degree-0) nodes, so indexing a budget into it would
     // silently overshoot on graphs with unconnected entities.
     sortedDegrees = allNodes
@@ -353,18 +370,18 @@ function buildGraph() {
         const tooltipEl = document.createElement('div');
         tooltipEl.textContent = `${n.entity_type}: ${n.name}`;
         const d = typeDisplay(n.entity_type);
-        const baseSize = 8 + Math.round(((linkDegreeMap[n.id] || 0) / maxDegree) * 16);
+        const isSource = sourceNodeIds.has(n.id);
         return {
             id: n.id,
-            label: n.name || n.id,
+            label: truncateLabel(n.name || n.id),
             color: nodeColor(n.entity_type),
             borderWidth: 1,
             borderWidthSelected: 3,
             title: tooltipEl,
             shape: d.shape,
             hidden: isNodeHiddenAtBuild(n),
-            size: d.family === 'Sources' ? Math.round(baseSize * 0.6) : baseSize,
-            font: { ...NODE_FONT_BASE, size: LABEL_VISIBLE_FONT_SIZE },
+            size: nodeSize(linkDegreeMap[n.id] || 0, maxDegree, 1, isSource),
+            font: { ...NODE_FONT_BASE, size: isSource ? LABEL_HIDDEN_FONT_SIZE : LABEL_BASE_WORLD },
             _data: n,
         };
     });
@@ -372,7 +389,10 @@ function buildGraph() {
     // No text label on edges (260802-cu1 declutter) — relation_type remains
     // reachable via the vis hover tooltip default and the sidebar edge
     // detail panel (sidebar.js showEdgeDetail()), so no information is lost.
-    const edges = allEdges.map(e => ({
+    edgeIdByIndex = stableEdgeIds(allEdges);
+    const edges = allEdges.map((e, i) => ({
+        id: edgeIdByIndex[i],
+        width: edgeWidth(e.support_count, 1),
         from: e.source,
         to: e.target,
         arrows: 'to',
@@ -445,7 +465,7 @@ function buildGraph() {
     // bind to persistent DOM.
     const scheduleLabelUpdate = () => {
         if (_labelUpdateTimer) clearTimeout(_labelUpdateTimer);
-        _labelUpdateTimer = setTimeout(applyLabelVisibility, LABEL_UPDATE_THROTTLE_MS);
+        _labelUpdateTimer = setTimeout(applyScaleStyle, LABEL_UPDATE_THROTTLE_MS);
     };
     network.on('zoom', scheduleLabelUpdate);
     network.on('animationFinished', scheduleLabelUpdate);
@@ -470,7 +490,10 @@ function buildGraph() {
         if (_settled) return;
         _settled = true;
         network.setOptions({ physics: false });
-        applyLabelVisibility();
+        // Fit first so the controller reads the real fit scale, not the
+        // pre-fit one (stabilization fit is animated and lags the event).
+        network.fit({ animation: false });
+        applyScaleStyle();
     };
     network.once('stabilizationIterationsDone', settle);
     network.once('stabilized', settle);
@@ -527,7 +550,7 @@ function buildGraph() {
         if (params.nodes.length > 0) {
             const nodeId = params.nodes[0];
             const connectedNodes = network.getConnectedNodes(nodeId);
-            network.fit({ nodes: [nodeId, ...connectedNodes], animation: { duration: 500 } });
+            network.fit({ nodes: [nodeId, ...connectedNodes], animation: fitAnimation(500) });
         }
     });
 
@@ -556,7 +579,7 @@ function buildGraph() {
         const fitBtn = document.getElementById('graph-fit-btn');
         if (fitBtn) {
             fitBtn.addEventListener('click', () => {
-                network.fit({ animation: { duration: 400 } });
+                network.fit({ animation: fitAnimation(400) });
             });
         }
 
