@@ -597,13 +597,16 @@ function buildGraph() {
         cancelHover();
         if (params.nodes.length > 0) {
             const nodeId = params.nodes[0];
-            pinnedCardNodeId = nodeId;
-            showPinnedCard();
+            // The sidebar is the detail view for a selected node, so no card
+            // stays pinned over it; assistive tech is pointed at the sidebar.
+            pinnedCardNodeId = null;
+            hideCard();
 
             // D-02: second click on already-highlighted node clears dim; sidebar stays open
             if (highlightedNodeId === nodeId) {
                 clearHighlight();
                 showNodeDetail(nodeId, allNodes, allEdges, linkDegreeMap);
+                describeBySidebar();
                 return;
             }
 
@@ -633,6 +636,7 @@ function buildGraph() {
 
             // Open sidebar (Phase 09 unchanged)
             showNodeDetail(nodeId, allNodes, allEdges, linkDegreeMap);
+            describeBySidebar();
 
         } else if (params.edges && params.edges.length > 0) {
             // D-04: edge click — sidebar only, no neighbourhood dim
@@ -854,6 +858,11 @@ function showCardFor(nodeId, clientPoint) {
     showHoverCard(model, node.entity_type, clientPoint);
     const container = document.getElementById('graph-container');
     if (container) container.setAttribute('aria-describedby', 'graph-hover-card');
+}
+
+function describeBySidebar() {
+    const container = document.getElementById('graph-container');
+    if (container) container.setAttribute('aria-describedby', 'graph-detail-sidebar');
 }
 
 function showPinnedCard() {

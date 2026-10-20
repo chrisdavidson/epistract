@@ -526,25 +526,26 @@ try {
     fire('click', { nodes: [], edges: [] });
     check('blank click hides', !visible());
 
+    // node click opens the sidebar, so the card is hidden and the container
+    // is described by the sidebar instead
+    fire('hoverNode', hoverParams);
+    advance(160);
+    check('card visible before click', visible());
     fire('click', { nodes: [target], edges: [] });
-    check('click pins card', visible());
+    check('click hides card (sidebar is the detail view)', !visible());
+    check('click: aria-describedby points at sidebar', container.getAttribute('aria-describedby') === 'graph-detail-sidebar', container.getAttribute('aria-describedby'));
     fire('hoverNode', { node: 'compound:semaglutide', pointer: { DOM: { x: 10, y: 10 } } });
     advance(160);
     fire('blurNode', { node: target });
-    check('pinned card survives blur', visible());
-
+    check('card does not pin after blur', !visible());
     for (const fn of docListeners.keydown || []) fn({ key: 'Escape' });
-    check('Escape hides', !visible());
-    fire('blurNode', { node: target });
-    check('Escape clears pin', !visible());
-
-    fire('click', { nodes: [target], edges: [] });
-    check('re-pin', visible());
+    check('Escape keeps card hidden', !visible());
     for (const ev of ['resize', 'scroll']) {
-      fire('click', { nodes: [target], edges: [] });
-      if (!visible()) fire('click', { nodes: [target], edges: [] });
+      fire('hoverNode', hoverParams);
+      advance(160);
+      const wasVisible = visible();
       for (const fn of winListeners[ev] || []) fn({});
-      check(`window ${ev} hides`, !visible(), (winListeners[ev] || []).length);
+      check(`window ${ev} hides`, wasVisible && !visible(), (winListeners[ev] || []).length);
     }
     check('no innerHTML on card', violations.filter((v) => v.includes('graph-hover-card')).length === 0, violations);
   }
