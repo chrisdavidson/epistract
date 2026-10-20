@@ -103,6 +103,11 @@ def test_js_sources_toggle(mode):
         assert out["label"] == "Hide sources", out
         assert out["afterHide"] == ["d1"], out
         assert out["disabled"] is False, out
+        # WR-02: hidden sources and their edges stay out of the force layout.
+        hidden_physics = {"nodes": ["d1"], "edges": ["MENTIONED_IN"]}
+        assert out["initialNoPhysics"] == hidden_physics, out
+        assert out["afterShowNoPhysics"] == {"nodes": [], "edges": []}, out
+        assert out["afterHideNoPhysics"] == hidden_physics, out
         # WR-01: min degree 1 hides the isolated entity "c" but never a shown source.
         assert out["afterShowMinDegree1"] == ["c"], out
         assert out["pressedMinDegree1"] == "true", out
@@ -110,3 +115,4 @@ def test_js_sources_toggle(mode):
         assert out["disabled"] is True, out
         assert out["initialHidden"] == [], out
         assert out["initialHiddenEdges"] == 0, out
+        assert out["initialNoPhysics"] == {"nodes": [], "edges": []}, out

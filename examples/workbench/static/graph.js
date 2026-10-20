@@ -60,6 +60,13 @@ const HOVER_CARD_DELAY_MS = 150;      // pause before the hover card appears
 
 const FALLBACK_SOURCE_TYPES = new Set(['DOCUMENT', 'PUBLICATION']); // used only when display data failed to load
 
+// The one "is this a source edge" rule for every surface (size, labels,
+// slider, sidebar, hover card, physics): an endpoint is a Sources-family node
+// or the relation is flagged source_edge by the resolver.
+function isSourceEdgeRecord(e) {
+    return isSourceEdge(e, id => sourceNodeIds.has(id), isSourceRelation);
+}
+
 // Reduced-motion users get an instant fit; everyone else an eased one.
 function fitAnimation(duration) {
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
@@ -92,6 +99,7 @@ let sourceNodeIds = new Set();            // ids of Sources-family nodes in the 
 let sourcesShown = false;                 // Show sources toggle; sources are hidden on load
 let sourcesPlaced = false;                // sources already moved next to their neighbours for this build
 let sourceNeighbours = new Map();         // source id -> ids of its non-source neighbours
+let sourcePhysicsOn = false;              // source nodes/edges currently take part in the force layout
 let _labelUpdateTimer = null;             // pending throttled applyScaleStyle() call (260802-cu1)
 let _lastStyleKey = null;                 // last-applied `${cutoff}|${bucket}`; skip DataSet writes when unchanged
 let edgeColorById = new Map();            // stable edge id -> validated category color; source for every edge color write
@@ -163,6 +171,7 @@ export async function initGraph(opts) {
                         else activeTypes.delete(type);
                         sourcesShown = sourceTypes().some(t => activeTypes.has(t));
                         if (sourcesShown) placeSources();
+                        syncSourcePhysics();
                         syncSourcesButton();
                         filterGraph();
                     });
@@ -413,10 +422,7 @@ function buildGraph() {
 
     // linkDegree: edges without a Sources endpoint. Size, label budget and the
     // min-degree slider use it; the sidebar Degree row keeps the total.
-    linkDegreeMap = linkDegrees(
-        allEdges,
-        e => isSourceEdge(e, id => sourceNodeIds.has(id), isSourceRelation),
-    );
+    linkDegreeMap = linkDegrees(allEdges, isSourceEdgeRecord);
     maxDegree = Object.values(linkDegreeMap).reduce((acc, v) => Math.max(acc, v), 1);
 
     // 260802-cu1: descending degree list backing the label budget in
@@ -439,6 +445,9 @@ function buildGraph() {
             borderWidthSelected: 3,
             shape: d.shape,
             hidden: isNodeHiddenAtBuild(n),
+            // Hidden sources stay out of the force layout; placeSources()
+            // positions them when they are first revealed.
+            physics: !isSource || sourcesShown,
             size: nodeSize(linkDegreeMap[n.id] || 0, maxDegree, 1, isSource),
             font: { ...NODE_FONT_BASE, size: isSource ? LABEL_HIDDEN_FONT_SIZE : LABEL_BASE_WORLD },
             _data: n,
@@ -463,8 +472,10 @@ function buildGraph() {
         to: e.target,
         arrows: 'to',
         hidden: !sourcesShown && isSourceRelation(e.relation_type),
+        physics: sourcesShown || !isSourceEdgeRecord(e),
         _data: e,
     }));
+    sourcePhysicsOn = sourcesShown;
 
     visNodes = new vis.DataSet(nodes);
     visEdges = new vis.DataSet(edges);
@@ -1098,6 +1109,22 @@ function placeSources() {
     });
 }
 
+// Sources join the force layout only while shown (vis-network simulates
+// hidden items, so hiding alone would let invisible document hubs shape the
+// layout). Writes only id + physics.
+function syncSourcePhysics() {
+    if (!visNodes || !visEdges) return;
+    const on = sourcesActive();
+    if (on === sourcePhysicsOn) return;
+    sourcePhysicsOn = on;
+    visNodes.update([...sourceNodeIds].map(id => ({ id, physics: on })));
+    const edgeUpdates = [];
+    allEdges.forEach((e, i) => {
+        if (isSourceEdgeRecord(e)) edgeUpdates.push({ id: edgeIdByIndex[i], physics: on });
+    });
+    if (edgeUpdates.length) visEdges.update(edgeUpdates);
+}
+
 function setSourcesShown(on) {
     sourcesShown = on;
     if (on) placeSources();
@@ -1108,6 +1135,7 @@ function setSourcesShown(on) {
     document.querySelectorAll('.legend-chip[data-type]').forEach(chip => {
         if (isSourceType(chip.getAttribute('data-type'))) setChipPressed(chip, on);
     });
+    syncSourcePhysics();
     syncSourcesButton();
     filterGraph();
     const status = document.getElementById('graph-sources-status');

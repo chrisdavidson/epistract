@@ -285,18 +285,26 @@ if (mode === 'sources' || mode === 'nosources') {
   const hiddenEdges = () => [...edgeSet().items.values()].filter((i) => i.hidden).length;
   const btn = document.getElementById('graph-show-sources-btn');
   const label = () => (btn.children[0] ? btn.children[0].textContent : btn.textContent);
+  // WR-02: ids of nodes / relation types of edges excluded from physics.
+  const noPhysics = () => ({
+    nodes: [...nodeSet().items.values()].filter((i) => i.physics === false).map((i) => i.id),
+    edges: [...edgeSet().items.values()].filter((i) => i.physics === false).map((i) => i._data.relation_type),
+  });
   const out = {
     initialHidden: hiddenNodes(),
     initialHiddenEdges: hiddenEdges(),
+    initialNoPhysics: noPhysics(),
     disabled: btn.hasAttribute('disabled'),
   };
   if (!out.disabled) {
     btn.dispatch('click');
     out.afterShow = hiddenNodes();
+    out.afterShowNoPhysics = noPhysics();
     out.pressed = btn.getAttribute('aria-pressed');
     out.label = label();
     btn.dispatch('click');
     out.afterHide = hiddenNodes();
+    out.afterHideNoPhysics = noPhysics();
     // WR-01: a min-degree threshold must not hide source nodes while shown.
     const slider = document.getElementById('min-degree-slider');
     slider.value = '1';
