@@ -367,6 +367,7 @@ function buildGraph() {
         _lastStyleKey = null;
         _lastCutoff = 0;
         cancelFocus();
+        highlightedNodeId = null;
         hoverFocus = new Set();
         selectFocus = new Set();
         hoverCenterId = null;
