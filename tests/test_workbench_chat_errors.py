@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 
 import httpx
 import pytest
 
+from examples.workbench import api_chat
 from examples.workbench.chat_errors import (
     describe_exception,
     describe_provider_error,
@@ -209,3 +211,117 @@ def test_provider_label():
         provider_label("anthropic", "https://res.services.ai.azure.com/anthropic/v1/messages")
         == "Azure AI Foundry"
     )
+
+
+# ---------------------------------------------------------------------------
+# Stream functions
+# ---------------------------------------------------------------------------
+
+
+def _collect(agen) -> list[dict]:
+    async def run():
+        return [json.loads(ev["data"]) async for ev in agen]
+
+    return asyncio.run(run())
+
+
+def _install_client(monkeypatch, *, status=200, body=b"", lines=(), enter_exc=None):
+    class MockResponse:
+        status_code = status
+
+        async def aiter_lines(self):
+            for line in lines:
+                yield line
+
+        async def aread(self):
+            return body
+
+        async def __aenter__(self):
+            if enter_exc is not None:
+                raise enter_exc
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+    class MockAsyncClient:
+        def __init__(self, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        def stream(self, method, url, **kwargs):
+            return MockResponse()
+
+    monkeypatch.setattr(httpx, "AsyncClient", MockAsyncClient)
+
+
+def _types(events: list[dict]) -> list[str]:
+    return [e["type"] for e in events]
+
+
+@pytest.mark.unit
+def test_openrouter_key_limit_403(monkeypatch):
+    _install_client(monkeypatch, status=403, body=OR_LIMIT_BODY.encode())
+    events = _collect(
+        api_chat._stream_openai_compat(
+            "k", "https://openrouter.ai/api/v1/chat/completions", MODEL, "sys", []
+        )
+    )
+    assert _types(events) == ["error", "done"]
+    assert events[0]["title"] == "Spending limit reached for this API key"
+
+
+@pytest.mark.unit
+def test_anthropic_mid_stream_overloaded(monkeypatch):
+    lines = [
+        'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"Partial "}}',
+        'data: {"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}',
+    ]
+    _install_client(monkeypatch, lines=lines)
+    events = _collect(
+        api_chat._stream_anthropic("k", "https://api.anthropic.com/v1/messages", MODEL, "sys", [])
+    )
+    assert _types(events) == ["text", "error", "done"]
+    assert events[0]["content"] == "Partial "
+    assert events[1]["title"] == "The model provider is having trouble"
+    assert events[1]["status"] is None
+
+
+@pytest.mark.unit
+def test_openrouter_in_stream_rate_limit(monkeypatch):
+    lines = ['data: {"error":{"message":"Rate limit exceeded","code":429}}']
+    _install_client(monkeypatch, lines=lines)
+    events = _collect(
+        api_chat._stream_openai_compat(
+            "k", "https://openrouter.ai/api/v1/chat/completions", MODEL, "sys", []
+        )
+    )
+    assert _types(events) == ["error", "done"]
+    assert events[0]["title"] == "Rate limited"
+
+
+@pytest.mark.unit
+def test_timeout_exception_with_empty_str(monkeypatch):
+    _install_client(monkeypatch, enter_exc=httpx.ConnectTimeout(""))
+    events = _collect(
+        api_chat._stream_openai_compat(
+            "k", "https://openrouter.ai/api/v1/chat/completions", MODEL, "sys", []
+        )
+    )
+    assert _types(events) == ["error", "done"]
+    assert events[0]["message"].strip()
+    assert events[0]["title"] == "The model took too long to respond"
+
+
+@pytest.mark.unit
+def test_error_stream_structured():
+    events = _collect(api_chat._error_stream("No API key found. Set one."))
+    assert _types(events) == ["error", "done"]
+    assert events[0]["title"] == "No API key configured"
+    assert events[0]["message"] == "No API key found. Set one."
+    assert events[0]["hint"] == "Set one of the env vars above and restart the workbench."

@@ -11,6 +11,12 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
+from examples.workbench.chat_errors import (
+    describe_exception,
+    describe_provider_error,
+    error_event,
+    provider_label,
+)
 from examples.workbench.system_prompt import (
     build_system_prompt,
     get_matched_source_chunks,
@@ -239,7 +245,7 @@ async def chat(request: Request, body: ChatRequest):
             model_override=body.model,
         )
     except RuntimeError as exc:
-        return EventSourceResponse(_error_stream(str(exc)))
+        return EventSourceResponse(_error_stream(str(exc), title="Model provider misconfigured"))
     if not api_key:
         return EventSourceResponse(
             _error_stream(
@@ -321,21 +327,20 @@ async def _stream_anthropic(
         "stream": True,
     }
 
+    label = provider_label("anthropic", base_url)
     try:
         async with httpx.AsyncClient(timeout=120.0, proxy=None) as client:
-            async with client.stream(
-                "POST", base_url, json=payload, headers=headers
-            ) as resp:
+            async with client.stream("POST", base_url, json=payload, headers=headers) as resp:
                 if resp.status_code != 200:
                     error_body = await resp.aread()
-                    yield {
-                        "data": json.dumps(
-                            {
-                                "type": "error",
-                                "content": f"API error {resp.status_code}: {error_body.decode()[:500]}",
-                            }
+                    yield error_event(
+                        describe_provider_error(
+                            resp.status_code,
+                            error_body.decode(errors="replace"),
+                            provider_label=label,
+                            model=model,
                         )
-                    }
+                    )
                     yield {"data": json.dumps({"type": "done"})}
                     return
 
@@ -347,19 +352,26 @@ async def _stream_anthropic(
                         break
                     try:
                         event = json.loads(data_str)
+                        if event.get("type") == "error":
+                            yield error_event(
+                                describe_provider_error(
+                                    None,
+                                    json.dumps(event),
+                                    provider_label=label,
+                                    model=model,
+                                )
+                            )
+                            yield {"data": json.dumps({"type": "done"})}
+                            return
                         if event.get("type") == "content_block_delta":
                             delta = event.get("delta", {})
                             text = delta.get("text", "")
                             if text:
-                                yield {
-                                    "data": json.dumps(
-                                        {"type": "text", "content": text}
-                                    )
-                                }
+                                yield {"data": json.dumps({"type": "text", "content": text})}
                     except json.JSONDecodeError:
                         continue
     except Exception as e:
-        yield {"data": json.dumps({"type": "error", "content": str(e)})}
+        yield error_event(describe_exception(e, provider_label=label, model=model))
 
     yield {"data": json.dumps({"type": "done"})}
 
@@ -383,21 +395,20 @@ async def _stream_openai_compat(
         "stream": True,
     }
 
+    label = provider_label("openrouter", base_url)
     try:
         async with httpx.AsyncClient(timeout=120.0, proxy=None) as client:
-            async with client.stream(
-                "POST", base_url, json=payload, headers=headers
-            ) as resp:
+            async with client.stream("POST", base_url, json=payload, headers=headers) as resp:
                 if resp.status_code != 200:
                     error_body = await resp.aread()
-                    yield {
-                        "data": json.dumps(
-                            {
-                                "type": "error",
-                                "content": f"API error {resp.status_code}: {error_body.decode()[:500]}",
-                            }
+                    yield error_event(
+                        describe_provider_error(
+                            resp.status_code,
+                            error_body.decode(errors="replace"),
+                            provider_label=label,
+                            model=model,
                         )
-                    }
+                    )
                     yield {"data": json.dumps({"type": "done"})}
                     return
 
@@ -413,12 +424,17 @@ async def _stream_openai_compat(
                         # (not just as HTTP error codes) — surface them explicitly.
                         error_obj = event.get("error")
                         if error_obj:
-                            msg = error_obj.get("message", str(error_obj))
-                            yield {
-                                "data": json.dumps(
-                                    {"type": "error", "content": f"Model error: {msg}"}
+                            if not isinstance(error_obj, dict):
+                                error_obj = {"message": str(error_obj)}
+                            code = error_obj.get("code")
+                            yield error_event(
+                                describe_provider_error(
+                                    code if isinstance(code, int) else None,
+                                    json.dumps({"error": error_obj}),
+                                    provider_label=label,
+                                    model=model,
                                 )
-                            }
+                            )
                             yield {"data": json.dumps({"type": "done"})}
                             return
                         choices = event.get("choices", [])
@@ -426,20 +442,26 @@ async def _stream_openai_compat(
                             delta = choices[0].get("delta", {})
                             text = delta.get("content", "")
                             if text:
-                                yield {
-                                    "data": json.dumps(
-                                        {"type": "text", "content": text}
-                                    )
-                                }
+                                yield {"data": json.dumps({"type": "text", "content": text})}
                     except json.JSONDecodeError:
                         continue
     except Exception as e:
-        yield {"data": json.dumps({"type": "error", "content": str(e)})}
+        yield error_event(describe_exception(e, provider_label=label, model=model))
 
     yield {"data": json.dumps({"type": "done"})}
 
 
-async def _error_stream(message: str) -> AsyncGenerator[dict, None]:
-    """Stream an error message."""
-    yield {"data": json.dumps({"type": "error", "content": message})}
+async def _error_stream(
+    message: str, title: str = "No API key configured"
+) -> AsyncGenerator[dict, None]:
+    """Stream a structured configuration error followed by done."""
+    yield error_event(
+        {
+            "title": title,
+            "message": message,
+            "hint": "Set one of the env vars above and restart the workbench.",
+            "detail": "",
+            "status": None,
+        }
+    )
     yield {"data": json.dumps({"type": "done"})}
