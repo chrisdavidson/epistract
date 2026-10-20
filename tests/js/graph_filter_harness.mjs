@@ -7,6 +7,8 @@
 // argv[2] = "sources" / "nosources" exercise the Show sources toolbar button:
 // the harness prints {initialHidden, initialHiddenEdges, afterShow, pressed,
 // label, afterHide, disabled} read straight from the captured DataSets.
+// argv[2] = "fit" fires the recorded stabilization handler at scale 0.1375 and
+// prints {fitBeforeFont, minLabelPx, minNodePx, minEdgePx, edgeIdsAreStrings}.
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -68,9 +70,18 @@ globalThis.document = {
 };
 
 const datasets = [];
+const FIT_SCALE = 0.1375;
+const handlers = new Map();
+const calls = [];
+let order = 0;
 class DataSet {
   constructor(items) { datasets.push(this); this.items = new Map(items.map((i) => [i.id ?? Math.random(), { ...i }])); }
-  update(us) { for (const u of [].concat(us)) this.items.set(u.id, { ...(this.items.get(u.id) || {}), ...u }); }
+  update(us) {
+    for (const u of [].concat(us)) {
+      calls.push({ kind: 'update', order: order++, u: JSON.parse(JSON.stringify(u)) });
+      this.items.set(u.id, { ...(this.items.get(u.id) || {}), ...u });
+    }
+  }
   get(id) { return id === undefined ? [...this.items.values()] : this.items.get(id); }
   getIds() { return [...this.items.keys()]; }
   forEach(fn) { this.items.forEach((v) => fn(v)); }
@@ -80,7 +91,13 @@ class Network {
   constructor() {
     return new Proxy(this, {
       get(target, prop) {
-        if (prop === 'getScale') return () => 1;
+        if (prop === 'getScale') return () => (mode === 'fit' ? FIT_SCALE : 1);
+        if (prop === 'on' || prop === 'once') {
+          return (event, fn) => { (handlers.get(event) || handlers.set(event, []).get(event)).push(fn); };
+        }
+        if (prop === 'fit') {
+          return (opts) => { calls.push({ kind: 'fit', order: order++, opts }); };
+        }
         if (prop === 'getPositions') return () => ({});
         if (prop === 'getSelectedNodes') return () => [];
         if (prop === 'body') return { data: { nodes: new DataSet([]) } };
@@ -101,13 +118,30 @@ globalThis.window = {
 };
 
 const withSources = mode === 'sources';
-const NODES = [
+const FIT_NODES = [{ id: 'hub', name: 'Hub compound', entity_type: 'COMPOUND' }];
+const FIT_EDGES = [];
+for (let i = 0; i < 90; i++) {
+  FIT_NODES.push({ id: `n${i}`, name: `Compound number ${i}`, entity_type: 'COMPOUND' });
+  if (i > 0) {
+    FIT_EDGES.push({
+      source: `n${i - 1}`, target: `n${i}`, relation_type: 'TREATS',
+      relation_id: `r${i}`, support_count: (i % 11) + 1,
+    });
+  }
+  if (i < 30) {
+    FIT_EDGES.push({
+      source: 'hub', target: `n${i}`, relation_type: 'TREATS',
+      relation_id: `h${i}`, support_count: (i % 11) + 1,
+    });
+  }
+}
+const NODES = mode === 'fit' ? FIT_NODES : [
   { id: 'a', name: 'Aspirin', entity_type: 'COMPOUND' },
   { id: 'b', name: 'Diabetes', entity_type: 'DISEASE' },
   { id: 'c', name: 'Mystery', entity_type: null },
   ...(withSources ? [{ id: 'd1', name: 'Doc one', entity_type: 'DOCUMENT' }] : []),
 ];
-const EDGES = withSources
+const EDGES = mode === 'fit' ? FIT_EDGES : withSources
   ? [
     { source: 'a', target: 'd1', relation_type: 'MENTIONED_IN' },
     { source: 'a', target: 'b', relation_type: 'TREATS' },
@@ -153,6 +187,29 @@ const graph = await import(pathToFileURL(graphJs).href);
 await graph.initGraph({});
 // Let loadGraphData's fetches and buildGraph settle.
 for (let i = 0; i < 20; i++) await new Promise((r) => setTimeout(r, 0));
+
+if (mode === 'fit') {
+  calls.length = 0;
+  for (const fn of [...(handlers.get('stabilizationIterationsDone') || [])]) fn();
+  const firstFit = calls.find((c) => c.kind === 'fit' && c.opts && c.opts.animation === false);
+  const fontWrites = calls.filter((c) => c.kind === 'update' && c.u.font && c.u.font.size > 0);
+  const nodeDs = [...datasets].reverse().find((d) => [...d.items.values()].some((i) => 'label' in i));
+  const edgeDs = [...datasets].reverse().find((d) => [...d.items.values()].some((i) => 'from' in i));
+  const nodes = [...nodeDs.items.values()];
+  const edges = [...edgeDs.items.values()];
+  const out = {
+    fitBeforeFont: Boolean(firstFit) && fontWrites.length > 0 && fontWrites.every((c) => c.order > firstFit.order),
+    minLabelPx: fontWrites.length
+      ? Math.min(...fontWrites.map((c) => c.u.font.size * FIT_SCALE))
+      : 0,
+    labelled: fontWrites.length,
+    minNodePx: Math.min(...nodes.map((n) => n.size * FIT_SCALE)),
+    minEdgePx: Math.min(...edges.map((e) => (typeof e.width === 'number' ? e.width * FIT_SCALE : 0))),
+    edgeIdsAreStrings: edges.every((e) => typeof e.id === 'string'),
+  };
+  process.stdout.write(JSON.stringify(out) + '\n');
+  process.exit(0);
+}
 
 if (mode === 'sources' || mode === 'nosources') {
   const nodeSet = () => [...datasets].reverse().find((d) => [...d.items.values()].some((i) => 'label' in i));
