@@ -7,7 +7,7 @@ import {
 import {
     isSourceEdge, linkDegrees, scaleBucket, labelFontSize, nodeSize, edgeWidth,
     truncateLabel, labelCutoff, stableEdgeIds, LABEL_BASE_WORLD,
-    edgeDashes, edgeColorObject, EDGE_BASE_OPACITY, EDGE_DIM_OPACITY, hoverCardModel,
+    edgeDashes, edgeColorObject, namedEdgeIds, EDGE_BASE_OPACITY, EDGE_DIM_OPACITY, hoverCardModel,
     humanizeRelation, focusIds, focusDelta, edgeLabelFont,
 } from './graph_style.js';
 import { initHoverCard, showHoverCard, hideHoverCard } from './hovercard.js';
@@ -603,7 +603,7 @@ function buildGraph() {
             // D-02: second click on already-highlighted node clears dim; sidebar stays open
             if (highlightedNodeId === nodeId) {
                 clearHighlight();
-                showNodeDetail(nodeId, allNodes, allEdges, degreeMap);
+                showNodeDetail(nodeId, allNodes, allEdges, linkDegreeMap);
                 return;
             }
 
@@ -632,7 +632,7 @@ function buildGraph() {
             if (edgeDims.length) visEdges.update(edgeDims);
 
             // Open sidebar (Phase 09 unchanged)
-            showNodeDetail(nodeId, allNodes, allEdges, degreeMap);
+            showNodeDetail(nodeId, allNodes, allEdges, linkDegreeMap);
 
         } else if (params.edges && params.edges.length > 0) {
             // D-04: edge click — sidebar only, no neighbourhood dim
@@ -793,15 +793,15 @@ function applyFocus() {
         visNodes.update(nodeChanged.map(id => ({ id, font: nodeLabelFont(id, scale, _lastCutoff) })));
     }
 
-    const nextEdges = new Set();
+    const centerEdgeLists = [];
     for (const center of [hoverCenterId, selectCenterId]) {
         if (center === null) continue;
-        for (const edgeId of (network.getConnectedEdges(center) || [])) {
+        centerEdgeLists.push((network.getConnectedEdges(center) || []).filter(edgeId => {
             const rec = visEdges.get(edgeId);
-            if (rec && rec.hidden !== true) nextEdges.add(edgeId);
-        }
+            return rec && rec.hidden !== true;
+        }));
     }
-    if (hoveredEdgeId !== null) nextEdges.add(hoveredEdgeId);
+    const nextEdges = namedEdgeIds(centerEdgeLists, hoveredEdgeId);
     const edgeDelta = focusDelta(focusEdgeIds, nextEdges);
     focusEdgeIds = nextEdges;
     const edgeUpdates = [

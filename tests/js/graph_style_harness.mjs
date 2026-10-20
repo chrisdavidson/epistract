@@ -63,5 +63,13 @@ check('stableEdgeIds unique', new Set(ids).size === ids.length);
 const clash = S.stableEdgeIds([{}, { relation_id: 'e0' }, { relation_id: 7 }]);
 check('stableEdgeIds clash unique', new Set(clash).size === 3 && clash.every((x) => typeof x === 'string'));
 
+const hubEdges = Array.from({ length: 60 }, (_, i) => `h${i}`);
+const smallEdges = ['s0', 's1', 's2'];
+check('edge names: hub > cap names none', S.namedEdgeIds([hubEdges], null).size === 0);
+check('edge names: hovered edge on hub names one', (() => { const n = S.namedEdgeIds([hubEdges], 'h5'); return n.size === 1 && n.has('h5'); })());
+check('edge names: small node names all', S.namedEdgeIds([smallEdges], null).size === 3);
+check('edge names: exactly cap names all', S.namedEdgeIds([hubEdges.slice(0, S.EDGE_NAME_MAX_EDGES)], null).size === S.EDGE_NAME_MAX_EDGES);
+check('edge names: cap constant', S.EDGE_NAME_MAX_EDGES === 12);
+
 process.stdout.write(JSON.stringify({ passed, failed }) + '\n');
 process.exit(failed.length ? 1 : 0);

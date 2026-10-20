@@ -45,14 +45,14 @@ export function showNodeDetail(nodeId, allNodes, allEdges, degreeMap) {
     // Build body content container
     const bodyFrag = document.createDocumentFragment();
 
-    // --- Attributes section (degree row first per SIDEBAR-01) ---
+    // --- Attributes section (links row first) ---
     const attrsSection = _makeSection('Attributes');
     const attrs = node.attributes || {};
     const attrEntries = Object.entries(attrs).filter(([, v]) => v != null && v !== '');
 
     const docs = node.source_documents || [];
-    const degree = degreeMap[nodeId] || 0;
-    attrsSection.appendChild(_makeAttrRow('Degree', String(degree)));
+    const links = degreeMap[nodeId] || 0;
+    attrsSection.appendChild(_makeAttrRow('Links', String(links)));
     attrsSection.appendChild(_makeAttrRow('Sources', String(docs.length)));
 
     if (attrEntries.length > 0) {

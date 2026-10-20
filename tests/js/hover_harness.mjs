@@ -285,7 +285,7 @@ try {
       }
       hoverRuns.sort((a, b) => a - b);
       timings.hover_update_median_ms = hoverRuns[10];
-      check('perf: hover wrote focus', w.updateLog.some((u) => u.kind === 'edges' && u.items.some((i) => i.font.size > 0)));
+      check('perf: hover wrote focus', w.updateLog.some((u) => u.kind === 'nodes' && u.items.some((i) => i.font.size > 0)));
       void other;
     }
   }
@@ -413,18 +413,13 @@ try {
     const nodeWrites = updateLog.filter((u) => u.kind === 'nodes');
     const edgeWrites = updateLog.filter((u) => u.kind === 'edges');
     check('hover: one nodes update', nodeWrites.length === 1, nodeWrites.length);
-    check('hover: one edges update', edgeWrites.length === 1, edgeWrites.length);
+    check('hover: hub (> 12 edges) writes no edge names', connectedEdgeIds.size > style.EDGE_NAME_MAX_EDGES && edgeWrites.length === 0, [connectedEdgeIds.size, edgeWrites.length]);
     const nKeys = new Set(nodeWrites.flatMap((u) => u.items.flatMap((i) => Object.keys(i))));
-    const eKeys = new Set(edgeWrites.flatMap((u) => u.items.flatMap((i) => Object.keys(i))));
     check('hover: node keys id+font only', [...nKeys].sort().join() === 'font,id', [...nKeys]);
-    check('hover: edge keys id+font only', [...eKeys].sort().join() === 'font,id', [...eKeys]);
     const labelled = nodeWrites.flatMap((u) => u.items).filter((i) => i.font.size > 0);
     check('hover: at most 25 gain labels', labelled.length <= 25 && labelled.length > 1, labelled.length);
     check('hover: hovered node labelled', labelled.some((i) => i.id === target));
     const eItems = edgeWrites.flatMap((u) => u.items);
-    check('hover: only connected edges written', eItems.length > 0 && eItems.every((i) => connectedEdgeIds.has(i.id)), eItems.length);
-    check('hover: edge names shown', eItems.every((i) => i.font.size > 0));
-    check('hover: complete edge font', eItems.every((i) => i.font.color === '#1a1a1a' && i.font.strokeColor === '#ffffff'));
     const focusedNodeIds = new Set(labelled.map((i) => i.id));
 
     // blur
@@ -434,7 +429,7 @@ try {
     const backN = updateLog.filter((u) => u.kind === 'nodes').flatMap((u) => u.items);
     const backE = updateLog.filter((u) => u.kind === 'edges').flatMap((u) => u.items);
     check('blur: only focused ids written back', backN.length > 0 && backN.every((i) => focusedNodeIds.has(i.id)), backN.length);
-    check('blur: edges hidden again', backE.length === eItems.length && backE.every((i) => i.font.size === 0), backE.length);
+    check('blur: no edge writes for hub', backE.length === 0, backE.length);
     check('blur: no opacity/hidden/color keys', updateLog.every((u) => u.items.every((i) => !('opacity' in i) && !('hidden' in i) && !('color' in i))));
     const restN = backN.filter((i) => i.font.size > 0).map((i) => i.id);
     check('blur: resting labels follow degree rule', restN.every((id) => id !== undefined), restN);
@@ -456,7 +451,7 @@ try {
     const afterSel = new Set([...nodeDs.items.values()].filter((n) => n.font && n.font.size > 0).map((n) => n.id));
     check('select: survives other hover+blur', [...selNodes].every((id) => afterSel.has(id)), [...selNodes].filter((id) => !afterSel.has(id)));
     const edgeShown = (id) => edgeDs.items.get(id).font.size > 0;
-    check('select: edges of selection named', [...connectedEdgeIds].every((id) => edgeDs.items.get(id).hidden === true || edgeShown(id)));
+    check('select: hub edges stay unnamed', [...connectedEdgeIds].every((id) => !edgeShown(id)));
     fire('click', { nodes: [], edges: [] });
     advance(20);
     check('clear: selection labels removed', [...connectedEdgeIds].every((id) => !edgeShown(id)));
@@ -472,6 +467,24 @@ try {
     fire('blurEdge', { edge: eid });
     advance(20);
     check('blurEdge: restored to 0', edgeDs.items.get(eid).font.size === 0);
+
+    // small node (<= cap visible edges): every connected edge is named, then restored
+    const small = [...nodeDs.items.keys()].find((id) => {
+      const es = edgesOf(id).filter((e) => e.hidden !== true);
+      return nodeDs.items.get(id).hidden !== true && es.length >= 2 && es.length <= style.EDGE_NAME_MAX_EDGES;
+    });
+    const smallEdgeIds = edgesOf(small).filter((e) => e.hidden !== true).map((e) => e.id);
+    updateLog.length = 0;
+    fire('hoverNode', { node: small, pointer: { DOM: { x: 5, y: 5 } } });
+    advance(20);
+    const sw = updateLog.filter((u) => u.kind === 'edges').flatMap((u) => u.items);
+    check('hover: small node edge keys id+font only', sw.every((i) => Object.keys(i).sort().join() === 'font,id'));
+    check('hover: small node names all its edges', sw.length === smallEdgeIds.length
+      && smallEdgeIds.every((id) => edgeDs.items.get(id).font.size > 0), [sw.length, smallEdgeIds.length]);
+    check('hover: small node complete edge font', sw.every((i) => i.font.color === '#1a1a1a' && i.font.strokeColor === '#ffffff'));
+    fire('blurNode', { node: small });
+    advance(20);
+    check('blur: small node edges hidden again', smallEdgeIds.every((id) => edgeDs.items.get(id).font.size === 0));
   }
 
   if (mode === 'wiring') {

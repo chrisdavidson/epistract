@@ -137,8 +137,10 @@ function check(name, cond, detail = '') {
 
 function degreesOf(nodes, edges) {
   const m = {};
+  const srcIds = new Set(nodes.filter((n) => ['DOCUMENT', 'PUBLICATION'].includes(n.entity_type)).map((n) => n.id));
   nodes.forEach((n) => { m[n.id] = 0; });
   edges.forEach((e) => {
+    if (e.relation_type === 'MENTIONED_IN' || srcIds.has(e.source) || srcIds.has(e.target)) return;
     m[e.source] = (m[e.source] || 0) + 1;
     m[e.target] = (m[e.target] || 0) + 1;
   });
@@ -209,6 +211,9 @@ try {
   const attrRows = findAll(body, (n) => n.className === 'graph-detail-sidebar__attr-row');
   const srcRow = attrRows.find((r) => textOf(r).startsWith('Sources:'));
   check('c: Sources row value 17', srcRow && srcRow.children[1].textContent === '17', srcRow && textOf(srcRow));
+  const linksRow = attrRows.find((r) => textOf(r).startsWith('Links:'));
+  check('c: Links row value 60', linksRow && linksRow.children[1].textContent === '60', linksRow && textOf(linksRow));
+  check('c: no Degree row', !attrRows.some((r) => textOf(r).startsWith('Degree')));
   const labels = findAll(body, (n) => n.className === 'graph-detail-sidebar__section-label').map(textOf);
   check('c: Source Documents (17) label', labels.includes('Source Documents (17)'), JSON.stringify(labels));
 

@@ -265,6 +265,20 @@ export function cardPosition(pointer, size, viewport) {
 // ---------------------------------------------------------------------------
 export const FOCUS_MAX_LABELS = 25;
 export const EDGE_LABEL_SCALE = 0.85;
+// A focused node names its edges only when it has at most this many visible
+// connected edges; a hub's names would pile into unreadable text.
+export const EDGE_NAME_MAX_EDGES = 12;
+
+// Edge ids that carry a relation name: every visible connected edge of each
+// focus center whose edge count is within the cap, plus a directly hovered edge.
+export function namedEdgeIds(centerEdgeIdLists, hoveredEdgeId, max = EDGE_NAME_MAX_EDGES) {
+    const named = new Set();
+    for (const edgeIds of centerEdgeIdLists) {
+        if (edgeIds.length <= max) for (const id of edgeIds) named.add(id);
+    }
+    if (hoveredEdgeId !== null && hoveredEdgeId !== undefined) named.add(hoveredEdgeId);
+    return named;
+}
 
 // Center first, then neighbors by linkDegree desc then id asc, up to cap total.
 export function focusIds(centerId, neighborIds, linkDegree, cap = FOCUS_MAX_LABELS) {
