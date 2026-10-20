@@ -244,8 +244,8 @@ if (isEdges) {
   };
   const complete = (e, color, opacity) => e.color && e.color.color === color
     && e.color.opacity === opacity && e.color.inherit === false
-    && e.color.highlight && e.color.highlight.color === color
-    && e.color.hover && e.color.hover.color === color;
+    && e.color.highlight === color
+    && e.color.hover === color;
   const colors = mode === 'edges'
     ? { r1: '#009e73', r2: '#0072b2', r3: '#8b8f99' }
     : { r1: '#8b8f99', r2: '#8b8f99', r3: '#8b8f99' };

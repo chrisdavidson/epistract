@@ -71,8 +71,8 @@ try {
   // Complete color object
   check('color object', same(style.edgeColorObject('#009e73', 0.8), {
     color: '#009e73',
-    highlight: { color: '#009e73', opacity: 1 },
-    hover: { color: '#009e73', opacity: 1 },
+    highlight: '#009e73',
+    hover: '#009e73',
     inherit: false,
     opacity: 0.8,
   }));

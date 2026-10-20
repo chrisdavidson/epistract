@@ -71,8 +71,8 @@ export function edgeDashes(status, scale) {
 export function edgeColorObject(color, opacity) {
     return {
         color,
-        highlight: { color, opacity: 1 },
-        hover: { color, opacity: 1 },
+        highlight: color,
+        hover: color,
         inherit: false,
         opacity,
     };
