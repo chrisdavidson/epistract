@@ -195,7 +195,13 @@ export async function initGraph(opts) {
     // Resize handler for when panel opens
     window.addEventListener('graph-panel-opened', () => {
         if (network) {
-            setTimeout(() => network.fit(), 100);
+            // A plain fit() emits neither `zoom` nor `animationFinished`, so
+            // the scale-aware label/size controller must be run explicitly or
+            // it keeps the styles computed while the panel was hidden.
+            setTimeout(() => {
+                network.fit({ animation: false });
+                applyScaleStyle();
+            }, 100);
         }
     });
 }
