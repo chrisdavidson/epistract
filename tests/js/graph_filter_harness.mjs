@@ -4,6 +4,9 @@
 // argv[2] = "fail" makes that endpoint return 500. After initGraph() and the
 // graph load, a search "input" event triggers filterGraph(); the harness prints
 // {"hidden": [...ids], "total": n} as one JSON line.
+// argv[2] = "sources" / "nosources" exercise the Show sources toolbar button:
+// the harness prints {initialHidden, initialHiddenEdges, afterShow, pressed,
+// label, afterHide, disabled} read straight from the captured DataSets.
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -11,6 +14,7 @@ const mode = process.argv[2] || 'ok';
 
 function makeEl(id = '') {
   const listeners = {};
+  const attrs = new Map();
   const el = {
     id,
     value: '',
@@ -28,9 +32,10 @@ function makeEl(id = '') {
     replaceChildren(...cs) { el.children = cs; },
     removeChild() {},
     remove() {},
-    setAttribute() {},
-    getAttribute: () => null,
-    removeAttribute() {},
+    setAttribute(k, v) { attrs.set(k, String(v)); },
+    getAttribute: (k) => (attrs.has(k) ? attrs.get(k) : null),
+    removeAttribute(k) { attrs.delete(k); },
+    hasAttribute: (k) => attrs.has(k),
     querySelector: () => null,
     querySelectorAll: () => [],
     contains: () => false,
@@ -62,8 +67,9 @@ globalThis.document = {
   body: makeEl('body'),
 };
 
+const datasets = [];
 class DataSet {
-  constructor(items) { this.items = new Map(items.map((i) => [i.id ?? Math.random(), { ...i }])); }
+  constructor(items) { datasets.push(this); this.items = new Map(items.map((i) => [i.id ?? Math.random(), { ...i }])); }
   update(us) { for (const u of [].concat(us)) this.items.set(u.id, { ...(this.items.get(u.id) || {}), ...u }); }
   get(id) { return id === undefined ? [...this.items.values()] : this.items.get(id); }
   getIds() { return [...this.items.keys()]; }
@@ -94,18 +100,37 @@ globalThis.window = {
   innerHeight: 800,
 };
 
+const withSources = mode === 'sources';
 const NODES = [
   { id: 'a', name: 'Aspirin', entity_type: 'COMPOUND' },
   { id: 'b', name: 'Diabetes', entity_type: 'DISEASE' },
   { id: 'c', name: 'Mystery', entity_type: null },
+  ...(withSources ? [{ id: 'd1', name: 'Doc one', entity_type: 'DOCUMENT' }] : []),
 ];
+const EDGES = withSources
+  ? [
+    { source: 'a', target: 'd1', relation_type: 'MENTIONED_IN' },
+    { source: 'a', target: 'b', relation_type: 'TREATS' },
+  ]
+  : mode === 'nosources'
+    ? [{ source: 'a', target: 'b', relation_type: 'TREATS' }]
+    : [];
 const DISPLAY = {
   types: [
     { type: 'COMPOUND', color: '#5f66ed', shape: 'hexagon', family: 'Interventions', count: 1 },
     { type: 'DISEASE', color: '#249e02', shape: 'square', family: 'Conditions', count: 1 },
     { type: 'UNKNOWN', color: '#ed4b43', shape: 'dot', family: 'Other', count: 1 },
+    ...(withSources
+      ? [{
+        type: 'DOCUMENT', color: '#6b7280', shape: 'dot', family: 'Sources',
+        is_source: true, count: 1,
+      }]
+      : []),
   ],
   families: [{ name: 'Interventions' }, { name: 'Conditions' }, { name: 'Other' }],
+  relations: withSources
+    ? { MENTIONED_IN: { category: 'provenance', source_edge: true, description: '' } }
+    : {},
 };
 
 function respond(status, body) {
@@ -115,7 +140,7 @@ globalThis.fetch = async (url) => {
   if (url === '/api/graph/entity-types') {
     return mode === 'fail' ? respond(500, {}) : respond(200, DISPLAY);
   }
-  if (url === '/api/graph') return respond(200, { nodes: NODES, edges: [] });
+  if (url === '/api/graph') return respond(200, { nodes: NODES, edges: EDGES });
   return respond(404, {});
 };
 console.warn = () => {};
@@ -128,6 +153,30 @@ const graph = await import(pathToFileURL(graphJs).href);
 await graph.initGraph({});
 // Let loadGraphData's fetches and buildGraph settle.
 for (let i = 0; i < 20; i++) await new Promise((r) => setTimeout(r, 0));
+
+if (mode === 'sources' || mode === 'nosources') {
+  const nodeSet = () => [...datasets].reverse().find((d) => [...d.items.values()].some((i) => 'label' in i));
+  const edgeSet = () => [...datasets].reverse().find((d) => [...d.items.values()].some((i) => 'from' in i));
+  const hiddenNodes = () => [...nodeSet().items.values()].filter((i) => i.hidden).map((i) => i.id);
+  const hiddenEdges = () => [...edgeSet().items.values()].filter((i) => i.hidden).length;
+  const btn = document.getElementById('graph-show-sources-btn');
+  const label = () => (btn.children[0] ? btn.children[0].textContent : btn.textContent);
+  const out = {
+    initialHidden: hiddenNodes(),
+    initialHiddenEdges: hiddenEdges(),
+    disabled: btn.hasAttribute('disabled'),
+  };
+  if (!out.disabled) {
+    btn.dispatch('click');
+    out.afterShow = hiddenNodes();
+    out.pressed = btn.getAttribute('aria-pressed');
+    out.label = label();
+    btn.dispatch('click');
+    out.afterHide = hiddenNodes();
+  }
+  process.stdout.write(JSON.stringify(out) + '\n');
+  process.exit(0);
+}
 
 // graph.js keeps its DataSet private, so spy on DataSet.update while a search
 // "input" event runs filterGraph(), and read the node visibility it applies.
