@@ -5,13 +5,12 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import yaml
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from core.domain_resolver import resolve_domain as resolve_domain_package
+from core.domain_resolver import load_domain_schema
 from core.graph_display import entity_type_key, resolve_display
 from examples.workbench.api_chat import router as chat_router
 from examples.workbench.api_graph import router as graph_router
@@ -242,13 +241,7 @@ def _load_domain_schema(resolved_domain: str | None) -> dict | None:
     goes through core.domain_resolver (which rejects path separators and
     traversal) and is never joined into a path here.
     """
-    if not resolved_domain:
-        return None
-    try:
-        schema = resolve_domain_package(resolved_domain)["schema"]
-    except (FileNotFoundError, OSError, yaml.YAMLError):
-        return None
-    return schema if isinstance(schema, dict) else None
+    return load_domain_schema(resolved_domain)
 
 
 def create_app(output_dir: Path, domain: str | None = None) -> FastAPI:

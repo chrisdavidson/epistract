@@ -160,6 +160,31 @@ def resolve_domain(name: str | None = None) -> dict:
     }
 
 
+def load_domain_schema(name: str | None) -> dict | None:
+    """Return a domain's parsed schema, or None when it cannot be loaded.
+
+    Never raises for a missing, unreadable or malformed domain: unknown names,
+    I/O errors, undecodable files, YAML syntax errors and non-mapping YAML all
+    return None. Consumers (the workbench server, ``run_sift view``) use this so
+    they tolerate the same set of failures. A falsy name returns None rather
+    than falling back to DEFAULT_DOMAIN.
+    """
+    if not name:
+        return None
+    errors: tuple[type[BaseException], ...] = (OSError, ValueError, TypeError, AttributeError)
+    try:
+        import yaml
+
+        errors = errors + (yaml.YAMLError,)
+    except ImportError:
+        pass
+    try:
+        schema = resolve_domain(name)["schema"]
+    except errors:
+        return None
+    return schema if isinstance(schema, dict) else None
+
+
 def list_domains() -> list[str]:
     """List all active (non-archived) domain names.
 

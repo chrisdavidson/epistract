@@ -27,7 +27,12 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from core.domain_resolver import resolve_domain, list_domains, DOMAINS_DIR  # noqa: E402
+from core.domain_resolver import (  # noqa: E402
+    DOMAINS_DIR,
+    list_domains,
+    load_domain_schema,
+    resolve_domain,
+)
 
 
 def resolve_domain_arg(value: str) -> str:
@@ -268,12 +273,7 @@ def _resolved_entity_display(
     except (OSError, ValueError, AttributeError):
         observed = set()
 
-    schema = None
-    if resolved_domain:
-        try:
-            schema = resolve_domain(resolved_domain)["schema"]
-        except (FileNotFoundError, OSError, ValueError):
-            schema = None
+    schema = load_domain_schema(resolved_domain)
 
     display = resolve_display(schema, observed, template.get("entity_colors") or None)
     return {

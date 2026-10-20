@@ -123,3 +123,33 @@ def test_cmd_view_overlay_applies_resolved_color_and_shape(monkeypatch, tmp_path
         assert node["color"]["border"] == "#333333", "community border must be kept"
         assert node["shape"] == spec["shape"], node
         assert swatch == spec["color"], "legend swatch must match the node color"
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        b"entity_types: [unclosed\n",  # yaml.YAMLError
+        b"- just\n- a list\n",  # valid YAML, not a mapping
+        b"\xff\xfe\x00bad utf-8",  # UnicodeDecodeError (ValueError)
+    ],
+)
+def test_malformed_domain_yaml_does_not_crash_consumers(monkeypatch, tmp_path, content):
+    """WR-04: both schema consumers tolerate the same malformed-schema failures."""
+    from core import domain_resolver
+    from examples.workbench import server
+
+    domains = tmp_path / "domains"
+    (domains / "broken").mkdir(parents=True)
+    (domains / "broken" / "domain.yaml").write_bytes(content)
+    monkeypatch.setattr(domain_resolver, "DOMAINS_DIR", domains)
+
+    assert domain_resolver.load_domain_schema("broken") is None
+    assert domain_resolver.load_domain_schema(None) is None
+    assert domain_resolver.load_domain_schema("missing") is None
+    assert server._load_domain_schema("broken") is None
+
+    out = tmp_path / "out"
+    out.mkdir()
+    _write_graph(out, ["COMPOUND"])
+    display = run_sift._resolved_entity_display(out, "broken", {})
+    assert set(display) == {"COMPOUND"}
