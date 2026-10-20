@@ -918,18 +918,20 @@ function showPinnedCard() {
     showCardFor(pinnedCardNodeId, domToClient(network.canvasToDOM(pos)));
 }
 
-// Edge key: one row per relation category present in the loaded graph plus a
-// dashed row for claims that are not asserted. Hidden when no display data.
+// Edge key: one row per relation category among the edges currently drawn
+// (rebuilt by filterGraph()) plus a dashed row for claims that are not
+// asserted. Hidden when no display data.
 function buildEdgeKey() {
     const toggle = document.getElementById('edge-key-toggle');
     const panel = document.getElementById('edge-key');
     if (!toggle || !panel) return;
     const entries = categoryEntries();
     const counts = new Map();
-    for (const e of allEdges) {
+    allEdges.forEach((e, i) => {
+        if (visEdges && visNodes && !edgeDrawn(edgeIdByIndex[i])) return;
         const category = relationDisplay(e.relation_type).category;
         counts.set(category, (counts.get(category) || 0) + 1);
-    }
+    });
     const rows = [];
     for (const entry of entries) {
         const count = counts.get(entry.name) || 0;
@@ -957,7 +959,7 @@ function buildEdgeKey() {
     dashedRow.className = 'edge-key__row';
     const dashedLabel = document.createElement('span');
     dashedLabel.className = 'edge-key__label';
-    dashedLabel.textContent = 'Dashed: not asserted (hypothesized, prophetic, speculative)';
+    dashedLabel.textContent = 'Dashed: not asserted (any other status, e.g. hypothesized, prophetic, speculative)';
     dashedRow.append(makeEdgeSample(other ? other.color : undefined, { dashed: true }), dashedLabel);
     rows.push(dashedRow);
     panel.replaceChildren(...rows);
@@ -1059,6 +1061,8 @@ function filterGraph() {
 
         visEdges.update(edgeUpdates);
     }
+
+    buildEdgeKey();
 
     // Show empty state if all hidden
     const visibleCount = updates.filter(u => !u.hidden).length;

@@ -270,6 +270,15 @@ if (isEdges) {
     check('edge key toggle visible', !toggle.hasAttribute('hidden'));
     toggle.dispatch('click');
     check('edge key opens', toggle.getAttribute('aria-expanded') === 'true' && !panel.hasAttribute('hidden'));
+    // IN-04: the key counts only drawn edges (unscored edges hide above 0.5).
+    const conf = document.getElementById('confidence-slider');
+    conf.value = '0.9';
+    conf.dispatch('input');
+    check('edge key drops hidden categories', panel.children.length === 1, panel.children.length);
+    check('edge key stays open after refilter', !panel.hasAttribute('hidden'));
+    conf.value = '0';
+    conf.dispatch('input');
+    check('edge key rows restored', panel.children.length === 4, panel.children.length);
   } else {
     check('edge key hidden on failure', toggle.hasAttribute('hidden') && panel.hasAttribute('hidden'));
   }
