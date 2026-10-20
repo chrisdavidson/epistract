@@ -1,8 +1,7 @@
 import { initSidebar, showNodeDetail, showEdgeDetail, hideSidebar } from './sidebar.js';
+import { loadDisplay, typeDisplay, entityColor, legendEntries } from './display.js';
 
 // graph.js - Graph panel: vis.js network, search, entity type toggles
-
-const PALETTE = ['#6366f1','#f59e0b','#ef4444','#10b981','#8b5cf6','#06b6d4','#64748b','#ec4899','#f97316','#14b8a6','#a855f7','#0ea5e9'];
 
 // ---------------------------------------------------------------------------
 // Tuning constants — these are the knobs a developer retunes by eye in the
@@ -45,7 +44,6 @@ const FA2_SPRING_CONSTANT = 0.05;               // edge stiffness
 const FA2_DAMPING = 0.5;                        // higher settles faster with less oscillation
 const FA2_AVOID_OVERLAP = 0.6;                  // 0 to 1; adds a node-radius-aware repulsion term that stops dots from stacking
 
-let ENTITY_COLORS = {};
 let network = null;
 let allNodes = [];
 let allEdges = [];
@@ -67,40 +65,36 @@ let _labelUpdateTimer = null;             // pending throttled applyLabelVisibil
 let _lastLabelDegreeCutoff = null;        // last-applied degree cutoff; skip DataSet write when unchanged (260802-cu1)
 
 function getEntityColor(type) {
-    if (ENTITY_COLORS[type]) return ENTITY_COLORS[type];
-    // Assign from palette by alphabetical index
-    const types = [...activeTypes].sort();
-    const idx = types.indexOf(type);
-    return PALETTE[idx >= 0 ? idx % PALETTE.length : 0];
+    return entityColor(type);
 }
 
 export async function initGraph(opts) {
     callbacks = opts || {};
-    const template = opts.template || {};
-    ENTITY_COLORS = template.entity_colors || {};
 
-    // Build toggle buttons dynamically from entity-types API
+    // Resolve type colors/shapes once, before chips or nodes are built, so
+    // every surface reads the same values regardless of build order.
+    try {
+        await loadDisplay();
+    } catch (e) {
+        console.warn('Could not load entity display data:', e);
+    }
+
+    // Build toggle buttons from the resolved display (family order)
     const toggleContainer = document.getElementById('entity-toggles');
     if (toggleContainer) {
         try {
-            const entityResp = await fetch('/api/graph/entity-types');
-            if (!entityResp.ok) {
-                throw new Error(`Entity-types API returned ${entityResp.status} ${entityResp.statusText}`);
-            }
-            const entityData = await entityResp.json();
             toggleContainer.innerHTML = '';
             // WR-04: clear stale entity types before re-populating so that
-            // repeated initGraph calls (e.g. domain switch) do not accumulate
-            // types from previous sessions, which would shift palette indices
-            // and leave ghost types active in the filter Set.
+            // repeated initGraph calls (e.g. domain switch) do not leave
+            // ghost types active in the filter Set.
             activeTypes.clear();
-            for (const type of Object.keys(entityData.entity_types || {})) {
+            for (const { type } of legendEntries()) {
                 activeTypes.add(type);
                 const btn = document.createElement('button');
                 btn.className = 'toggle-btn active';
                 btn.dataset.type = type;
-                btn.style.color = getEntityColor(type);
-                btn.textContent = type.charAt(0) + type.slice(1).toLowerCase().replace(/_/g, ' ');
+                btn.style.color = entityColor(type);
+                btn.textContent = typeDisplay(type).label;
                 btn.addEventListener('click', () => {
                     if (activeTypes.has(type)) {
                         activeTypes.delete(type);
@@ -296,13 +290,15 @@ function buildGraph() {
         // rather than innerHTML, preventing XSS from untrusted node data.
         const tooltipEl = document.createElement('div');
         tooltipEl.textContent = `${n.entity_type}: ${n.name}`;
+        const d = typeDisplay(n.entity_type);
+        const baseSize = 8 + Math.round(((degreeMap[n.id] || 0) / maxDegree) * 16);
         return {
             id: n.id,
             label: n.name || n.id,
-            color: getEntityColor(n.entity_type),
+            color: d.color,
             title: tooltipEl,
-            shape: 'dot',
-            size: 8 + Math.round(((degreeMap[n.id] || 0) / maxDegree) * 16),
+            shape: d.shape,
+            size: d.family === 'Sources' ? Math.round(baseSize * 0.6) : baseSize,
             font: { ...NODE_FONT_BASE, size: LABEL_VISIBLE_FONT_SIZE },
             _data: n,
         };
@@ -504,12 +500,12 @@ function buildGraph() {
                 if (pinnedNodes.size === 0) return;
                 const unfixUpdates = [...pinnedNodes].map(nodeId => {
                     const node = allNodes.find(n => n.id === nodeId);
-                    const entityColor = getEntityColor(node?.entity_type || '');
+                    const borderColor = entityColor(node?.entity_type || '');
                     return {
                         id: nodeId,
                         fixed: false,
                         borderWidth: 1,
-                        color: { border: entityColor, highlight: { border: entityColor } },
+                        color: { border: borderColor, highlight: { border: borderColor } },
                     };
                 });
                 visNodes.update(unfixUpdates);

@@ -1,6 +1,7 @@
 // app.js - Main application coordinator
 import { initChat, loadModelSelector } from './chat.js';
 import { initGraph } from './graph.js';
+import { loadDisplay, legendEntries } from './display.js';
 // sources.js removed -- source docs now accessed via dashboard links
 
 // SEC-01 / VUL-03: local escapeHtml helper. We intentionally do NOT import the
@@ -64,8 +65,6 @@ function updatePanelTabs(active) {
 // ---------------------------------------------------------------------------
 // Template-driven initialization helpers
 // ---------------------------------------------------------------------------
-
-const PALETTE = ['#6366f1','#f59e0b','#ef4444','#10b981','#8b5cf6','#06b6d4','#64748b','#ec4899','#f97316','#14b8a6','#a855f7','#0ea5e9'];
 
 function populatePageContent(template) {
     // Page title
@@ -160,26 +159,22 @@ async function populateDashboard(template) {
     }
 }
 
-async function populateEntityLegend(template) {
+async function populateEntityLegend() {
     const legendContainer = document.getElementById('entity-legend');
     if (!legendContainer) return;
     try {
-        const entityTypesResp = await fetch('/api/graph/entity-types');
-        const entityTypesData = await entityTypesResp.json();
-        let idx = 0;
-        for (const type of Object.keys(entityTypesData.entity_types || {})) {
-            const color = (template.entity_colors || {})[type] || PALETTE[idx % PALETTE.length];
+        await loadDisplay();
+        for (const entry of legendEntries()) {
             const item = document.createElement('div');
             item.className = 'legend-item';
             const dot = document.createElement('span');
             dot.className = 'legend-dot';
-            dot.style.background = color;
+            dot.style.background = entry.color;
             const label = document.createElement('span');
             label.className = 'legend-label';
-            label.textContent = type.charAt(0) + type.slice(1).toLowerCase().replace(/_/g, ' ');
+            label.textContent = entry.label;
             item.replaceChildren(dot, label);
             legendContainer.appendChild(item);
-            idx++;
         }
     } catch (e) {
         console.warn('Could not load entity types for legend:', e);
@@ -273,7 +268,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     populatePageContent(template);
     populateStarterCards(template);
     populateDashboard(template);
-    populateEntityLegend(template);
+    populateEntityLegend();
     configureSeverityVisibility();
 
     // Initialize panels with template
