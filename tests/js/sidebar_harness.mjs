@@ -50,6 +50,7 @@ function makeEl(id = '', tagName = '', namespaceURI = null) {
     },
     setAttribute(name, value) { attrs[name] = String(value); },
     getAttribute(name) { return name in attrs ? attrs[name] : null; },
+    removeAttribute(name) { delete attrs[name]; },
     addEventListener(type, fn) { (listeners[type] ||= []).push(fn); },
   };
   return el;

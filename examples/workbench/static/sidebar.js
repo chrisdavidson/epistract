@@ -2,7 +2,8 @@
 // Exports: initSidebar, showNodeDetail, showEdgeDetail, hideSidebar
 // SEC-01 / SIDEBAR-04: all graph data rendered via textContent — never via innerHTML.
 
-import { makeSwatch, typeDisplay } from './display.js';
+import { isSourceType, makeSwatch, typeDisplay } from './display.js';
+import { relationRowParts, relationSentence, statusSuffix } from './graph_style.js';
 
 // ---------------------------------------------------------------------------
 // Module-level state
@@ -29,7 +30,8 @@ export function initSidebar() {
 
 
 export function showNodeDetail(nodeId, allNodes, allEdges, degreeMap) {
-    const node = allNodes.find(n => n.id === nodeId);
+    const nodeById = new Map(allNodes.map(n => [n.id, n]));
+    const node = nodeById.get(nodeId);
     if (!node) {
         _showErrorState('Unable to load details — node not found in graph. Try reloading the graph.');
         return;
@@ -48,8 +50,10 @@ export function showNodeDetail(nodeId, allNodes, allEdges, degreeMap) {
     const attrs = node.attributes || {};
     const attrEntries = Object.entries(attrs).filter(([, v]) => v != null && v !== '');
 
+    const docs = node.source_documents || [];
     const degree = degreeMap[nodeId] || 0;
     attrsSection.appendChild(_makeAttrRow('Degree', String(degree)));
+    attrsSection.appendChild(_makeAttrRow('Sources', String(docs.length)));
 
     if (attrEntries.length > 0) {
         for (const [k, v] of attrEntries) {
@@ -65,7 +69,17 @@ export function showNodeDetail(nodeId, allNodes, allEdges, degreeMap) {
 
     // --- Connected relations section (D-01: flat list, D-02: no cap) ---
     const relSection = _makeSection('Connected Relations');
-    const connectedEdges = allEdges.filter(e => e.source === nodeId || e.target === nodeId);
+    const nodeIsSource = isSourceType(node.entity_type);
+    const nameOf = (id) => {
+        const other = nodeById.get(id);
+        return (other && other.name) || id || '';
+    };
+    const connectedEdges = allEdges.filter(e => {
+        if (e.source !== nodeId && e.target !== nodeId) return false;
+        if (nodeIsSource) return true;
+        const other = nodeById.get(e.source === nodeId ? e.target : e.source);
+        return !(other && isSourceType(other.entity_type));
+    });
     if (connectedEdges.length === 0) {
         const empty = document.createElement('div');
         empty.className = 'graph-detail-sidebar__attr-value';
@@ -75,21 +89,34 @@ export function showNodeDetail(nodeId, allNodes, allEdges, degreeMap) {
         const relList = document.createElement('ul');
         relList.className = 'graph-detail-sidebar__relations-list';
         for (const edge of connectedEdges) {
-            const isSource = edge.source === nodeId;
-            const otherId = isSource ? edge.target : edge.source;
-            const otherNode = allNodes.find(n => n.id === otherId);
+            const parts = relationRowParts(edge, nodeId, nameOf);
 
             const row = document.createElement('li');
             row.className = 'graph-detail-sidebar__relation-row';
+            row.title = relationSentence(parts) + statusSuffix(parts.status);
 
             const typeSpan = document.createElement('span');
             typeSpan.className = 'graph-detail-sidebar__relation-type';
-            typeSpan.textContent = edge.relation_type || '';
-            row.appendChild(typeSpan);
-            row.appendChild(document.createTextNode(' → '));
-            const targetSpan = document.createElement('span');
-            targetSpan.textContent = otherNode?.name || otherId || '';
-            row.appendChild(targetSpan);
+            typeSpan.textContent = parts.relation;
+            const otherSpan = document.createElement('span');
+            otherSpan.textContent = parts.other;
+
+            if (parts.direction === 'out') {
+                row.appendChild(typeSpan);
+                row.appendChild(document.createTextNode(' → '));
+                row.appendChild(otherSpan);
+            } else {
+                row.appendChild(otherSpan);
+                row.appendChild(document.createTextNode(' · '));
+                row.appendChild(typeSpan);
+                row.appendChild(document.createTextNode(' →'));
+            }
+            if (parts.status) {
+                const statusSpan = document.createElement('span');
+                statusSpan.className = 'graph-detail-sidebar__relation-status';
+                statusSpan.textContent = statusSuffix(parts.status);
+                row.appendChild(statusSpan);
+            }
             relList.appendChild(row);
         }
         relSection.appendChild(relList);
@@ -98,7 +125,10 @@ export function showNodeDetail(nodeId, allNodes, allEdges, degreeMap) {
 
     // --- Source documents section ---
     const docsSection = _makeSection('Source Documents');
-    const docs = node.source_documents || [];
+    const countEl = document.createElement('span');
+    countEl.className = 'graph-detail-sidebar__count';
+    countEl.textContent = ` (${docs.length})`;
+    docsSection.children[0].appendChild(countEl);
     if (docs.length === 0) {
         const empty = document.createElement('div');
         empty.className = 'graph-detail-sidebar__attr-value';
@@ -167,8 +197,13 @@ export function showEdgeDetail(edgeId, visEdges, allNodes) {
     const bodyFrag = document.createDocumentFragment();
 
     // Source/target pair
-    const sourceNode = allNodes.find(n => n.id === edge.source);
-    const targetNode = allNodes.find(n => n.id === edge.target);
+    let sourceNode = null;
+    let targetNode = null;
+    for (const n of allNodes) {
+        if (n.id === edge.source) sourceNode = n;
+        if (n.id === edge.target) targetNode = n;
+        if (sourceNode && targetNode) break;
+    }
     const pair = document.createElement('div');
     pair.className = 'graph-detail-sidebar__pair';
     const srcEl = document.createElement('strong');

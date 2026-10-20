@@ -1752,3 +1752,6 @@ body {
 .legend-message--error {
   color: #666666;
 }
+
+.graph-detail-sidebar__relation-status { color: #666666; }
+.graph-detail-sidebar__count { font-family: var(--font-data); }
