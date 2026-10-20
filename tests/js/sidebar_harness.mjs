@@ -135,16 +135,17 @@ function check(name, cond, detail = '') {
   if (cond) passed.push(name); else failed.push({ name, detail });
 }
 
-function degreesOf(nodes, edges) {
-  const m = {};
-  const srcIds = new Set(nodes.filter((n) => ['DOCUMENT', 'PUBLICATION'].includes(n.entity_type)).map((n) => n.id));
-  nodes.forEach((n) => { m[n.id] = 0; });
-  edges.forEach((e) => {
-    if (e.relation_type === 'MENTIONED_IN' || srcIds.has(e.source) || srcIds.has(e.target)) return;
-    m[e.source] = (m[e.source] || 0) + 1;
-    m[e.target] = (m[e.target] || 0) + 1;
-  });
-  return m;
+// The predicates graph.js passes: source nodes by id, source edges by the
+// shared isSourceEdge rule over those ids and the relation flag.
+function optsFor(nodes, isSourceRel) {
+  const srcIds = new Set(nodes.filter((n) => display.isSourceType(n.entity_type)).map((n) => n.id));
+  const isSourceNode = (id) => srcIds.has(id);
+  return { isSourceNode, isSourceEdge: (e) => style.isSourceEdge(e, isSourceNode, isSourceRel) };
+}
+
+function attrRow(prefix) {
+  return findAll(body, (n) => n.className === 'graph-detail-sidebar__attr-row')
+    .find((r) => textOf(r).startsWith(prefix));
 }
 
 function relationRows() {
@@ -199,7 +200,7 @@ try {
 
   // (c) semaglutide sidebar
   side.initSidebar();
-  side.showNodeDetail('compound:semaglutide', nodes, edges, degreesOf(nodes, edges));
+  side.showNodeDetail('compound:semaglutide', nodes, edges, optsFor(nodes, display.isSourceRelation));
   const rows = relationRows();
   check('c: 60 relation rows', rows.length === 60, String(rows.length));
   const texts = rows.map(textOf);
@@ -224,14 +225,48 @@ try {
     { id: 'b', name: 'B', entity_type: 'PROTEIN', source_documents: [] },
   ];
   const he = [{ source: 'b', target: 'a', relation_type: evil, epistemic_status: evil }];
-  side.showNodeDetail('a', hn, he, degreesOf(hn, he));
+  side.showNodeDetail('a', hn, he, optsFor(hn, display.isSourceRelation));
   const hrows = relationRows();
   check('d: one hostile row', hrows.length === 1, String(hrows.length));
   check('d: relation text literal', hrows.length === 1 && textOf(hrows[0]).includes('B · '), hrows[0] && textOf(hrows[0]));
   check('d: no innerHTML', violations.length === 0, violations.join('; '));
-  side.showNodeDetail('b', hn, he, degreesOf(hn, he));
+  side.showNodeDetail('b', hn, he, optsFor(hn, display.isSourceRelation));
   check('d: hostile name as text', relationRows().some((r) => textOf(r).includes(evil)));
   check('d: no innerHTML after second render', violations.length === 0, violations.join('; '));
+
+  // (e) WR-04: one rule for rows and counts
+  const wn = [
+    { id: 'x', name: 'X', entity_type: 'COMPOUND', source_documents: ['doc'] },
+    { id: 'y', name: 'Y', entity_type: 'PROTEIN', source_documents: [] },
+    { id: 'z', name: 'Z', entity_type: 'PROTEIN', source_documents: [] },
+    { id: 'doc', name: 'Doc', entity_type: 'DOCUMENT', source_documents: [] },
+  ];
+  const we = [
+    { source: 'x', target: 'y', relation_type: 'ACTIVATES' },
+    { source: 'x', target: 'z', relation_type: 'MENTIONED_IN' },
+    { source: 'x', target: 'doc', relation_type: 'MENTIONED_IN' },
+    { source: 'y', target: 'doc', relation_type: 'MENTIONED_IN' },
+  ];
+  const flagMentioned = (rel) => rel === 'MENTIONED_IN';
+  side.showNodeDetail('x', wn, we, optsFor(wn, flagMentioned));
+  check('e: flagged relation between knowledge nodes excluded from rows', relationRows().length === 1, String(relationRows().length));
+  check('e: Links equals rows', attrRow('Links:') && attrRow('Links:').children[1].textContent === '1', attrRow('Links:') && textOf(attrRow('Links:')));
+  side.showNodeDetail('doc', wn, we, optsFor(wn, flagMentioned));
+  check('e: source node lists its mentions', relationRows().length === 2, String(relationRows().length));
+  check('e: source node Mentions row', attrRow('Mentions:') && attrRow('Mentions:').children[1].textContent === '2', attrRow('Mentions:') && textOf(attrRow('Mentions:')));
+  check('e: source node has no Links: 0 row', !attrRow('Links:'));
+  // display-load failure: graph.js falls back to DOCUMENT/PUBLICATION ids and
+  // MENTIONED_IN, while isSourceType() knows nothing.
+  display.setDisplayData({ types: [], families: [] });
+  const fbIds = new Set(['doc']);
+  const fbNode = (id) => fbIds.has(id);
+  side.showNodeDetail('x', wn, we, {
+    isSourceNode: fbNode,
+    isSourceEdge: (e) => style.isSourceEdge(e, fbNode, display.isSourceRelation),
+  });
+  check('e: fallback rows exclude MENTIONED_IN', relationRows().map(textOf).every((t) => !/mentioned in/.test(t)), relationRows().map(textOf));
+  check('e: fallback Links equals rows', attrRow('Links:') && attrRow('Links:').children[1].textContent === String(relationRows().length));
+  check('e: self-loop counted once', JSON.stringify(style.linkDegrees([{ source: 'q', target: 'q' }], () => false)) === '{"q":1}');
 } catch (e) {
   failed.push({ name: 'harness error', detail: String((e && e.stack) || e) });
 }

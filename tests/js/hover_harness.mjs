@@ -179,6 +179,14 @@ try {
       isSourceNode: (id) => id === 'd', typeLabel: 'Compound', family: 'X', description: undefined,
     });
     check('sources only: linkCount 0', sm.linkCount === 0, sm.linkCount);
+    // WR-04: a source node counts its mentions; a flagged relation is not a link.
+    const dm = style.hoverCardModel(sn[1], se, smaps.nodeById, { isSourceNode: (id) => id === 'd' });
+    check('source node: counts mentions', dm.linkCount === 1 && dm.linkWord === 'mention' && dm.relations.length === 1, dm);
+    const fe = [{ source: 'a', target: 'b', relation_type: 'MENTIONED_IN' }];
+    const fm = style.hoverCardModel(sn[0], fe, smaps.nodeById, {
+      isSourceNode: () => false, isSourceEdge: (e) => e.relation_type === 'MENTIONED_IN',
+    });
+    check('flagged relation not a link', fm.linkCount === 0 && fm.relations.length === 0 && fm.linkWord === 'link', fm);
     check('sources only: no relations', sm.relations.length === 0);
     check('sources only: noLinks', sm.noLinks === true);
     check('no description -> empty string', sm.description === '', sm.description);

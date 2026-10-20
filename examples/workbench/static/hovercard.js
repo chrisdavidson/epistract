@@ -50,7 +50,7 @@ export function showHoverCard(model, entityType, clientPoint) {
     const header = div('graph-hover-card__header');
     header.append(makeSwatch(entityType, 16), div('graph-hover-card__type', model.typeLabel));
 
-    const parts = [plural(model.linkCount, 'link'), plural(model.sourceCount, 'source')];
+    const parts = [plural(model.linkCount, model.linkWord || 'link'), plural(model.sourceCount, 'source')];
     if (model.family) parts.push(model.family);
 
     const children = [header, div('graph-hover-card__name', model.name)];

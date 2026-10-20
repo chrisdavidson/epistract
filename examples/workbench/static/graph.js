@@ -67,6 +67,12 @@ function isSourceEdgeRecord(e) {
     return isSourceEdge(e, id => sourceNodeIds.has(id), isSourceRelation);
 }
 
+function isSourceNodeId(id) {
+    return sourceNodeIds.has(id);
+}
+
+const SIDEBAR_OPTS = { isSourceNode: isSourceNodeId, isSourceEdge: isSourceEdgeRecord };
+
 // Reduced-motion users get an instant fit; everyone else an eased one.
 function fitAnimation(duration) {
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
@@ -616,7 +622,7 @@ function buildGraph() {
             // D-02: second click on already-highlighted node clears dim; sidebar stays open
             if (highlightedNodeId === nodeId) {
                 clearHighlight();
-                showNodeDetail(nodeId, allNodes, allEdges, linkDegreeMap);
+                showNodeDetail(nodeId, allNodes, allEdges, SIDEBAR_OPTS);
                 describeBySidebar();
                 return;
             }
@@ -646,7 +652,7 @@ function buildGraph() {
             if (edgeDims.length) visEdges.update(edgeDims);
 
             // Open sidebar (Phase 09 unchanged)
-            showNodeDetail(nodeId, allNodes, allEdges, linkDegreeMap);
+            showNodeDetail(nodeId, allNodes, allEdges, SIDEBAR_OPTS);
             describeBySidebar();
 
         } else if (params.edges && params.edges.length > 0) {
@@ -881,7 +887,8 @@ function showCardFor(nodeId, clientPoint) {
     if (!node) return;
     const d = typeDisplay(node.entity_type);
     const model = hoverCardModel(node, adjacency.get(nodeId) || [], nodeById, {
-        isSourceNode: id => sourceNodeIds.has(id),
+        isSourceNode: isSourceNodeId,
+        isSourceEdge: isSourceEdgeRecord,
         typeLabel: d.label,
         family: d.family,
         description: d.description,

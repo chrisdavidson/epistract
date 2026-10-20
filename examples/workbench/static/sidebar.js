@@ -2,8 +2,10 @@
 // Exports: initSidebar, showNodeDetail, showEdgeDetail, hideSidebar
 // SEC-01 / SIDEBAR-04: all graph data rendered via textContent — never via innerHTML.
 
-import { isSourceType, makeSwatch, typeDisplay } from './display.js';
-import { relationRowParts, relationSentence, statusSuffix } from './graph_style.js';
+import { isSourceRelation, isSourceType, makeSwatch, typeDisplay } from './display.js';
+import {
+    isLinkEdge, isSourceEdge, relationRowParts, relationSentence, statusSuffix,
+} from './graph_style.js';
 
 // ---------------------------------------------------------------------------
 // Module-level state
@@ -29,13 +31,24 @@ export function initSidebar() {
 }
 
 
-export function showNodeDetail(nodeId, allNodes, allEdges, degreeMap) {
+// opts: {isSourceNode(id), isSourceEdge(edge)} — graph.js passes the same
+// predicates that drive sizing, labels and the hover card, so every surface
+// counts links the same way. The defaults classify from display data alone.
+export function showNodeDetail(nodeId, allNodes, allEdges, opts = {}) {
     const nodeById = new Map(allNodes.map(n => [n.id, n]));
     const node = nodeById.get(nodeId);
     if (!node) {
         _showErrorState('Unable to load details — node not found in graph. Try reloading the graph.');
         return;
     }
+    const isSourceNode = opts.isSourceNode || ((id) => {
+        const n = nodeById.get(id);
+        return Boolean(n) && isSourceType(n.entity_type);
+    });
+    const isSourceEdgeFn = opts.isSourceEdge || ((e) => isSourceEdge(e, isSourceNode, isSourceRelation));
+    const nodeIsSource = isSourceNode(nodeId);
+    const connectedEdges = allEdges.filter(e => (e.source === nodeId || e.target === nodeId)
+        && isLinkEdge(e, nodeIsSource, isSourceEdgeFn));
 
     const displayName = node.name || node.id;
 
@@ -51,8 +64,8 @@ export function showNodeDetail(nodeId, allNodes, allEdges, degreeMap) {
     const attrEntries = Object.entries(attrs).filter(([, v]) => v != null && v !== '');
 
     const docs = node.source_documents || [];
-    const links = degreeMap[nodeId] || 0;
-    attrsSection.appendChild(_makeAttrRow('Links', String(links)));
+    // A source node's edges are all provenance, so they read as mentions.
+    attrsSection.appendChild(_makeAttrRow(nodeIsSource ? 'Mentions' : 'Links', String(connectedEdges.length)));
     attrsSection.appendChild(_makeAttrRow('Sources', String(docs.length)));
 
     if (attrEntries.length > 0) {
@@ -69,17 +82,10 @@ export function showNodeDetail(nodeId, allNodes, allEdges, degreeMap) {
 
     // --- Connected relations section (D-01: flat list, D-02: no cap) ---
     const relSection = _makeSection('Connected Relations');
-    const nodeIsSource = isSourceType(node.entity_type);
     const nameOf = (id) => {
         const other = nodeById.get(id);
         return (other && other.name) || id || '';
     };
-    const connectedEdges = allEdges.filter(e => {
-        if (e.source !== nodeId && e.target !== nodeId) return false;
-        if (nodeIsSource) return true;
-        const other = nodeById.get(e.source === nodeId ? e.target : e.source);
-        return !(other && isSourceType(other.entity_type));
-    });
     if (connectedEdges.length === 0) {
         const empty = document.createElement('div');
         empty.className = 'graph-detail-sidebar__attr-value';

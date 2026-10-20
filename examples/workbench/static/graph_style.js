@@ -1,5 +1,5 @@
 // graph_style.js - Pure style/model helpers for the graph panel (no DOM, no vis).
-// Exports: isSourceEdge, linkDegrees, humanizeRelation, isNonAsserted, statusSuffix,
+// Exports: isSourceEdge, linkDegrees, isLinkEdge, humanizeRelation, isNonAsserted, statusSuffix,
 //          relationRowParts, relationSentence, scaleBucket, labelFontSize, nodeSize,
 //          edgeWidth, truncateLabel, labelCutoff, stableEdgeIds and the screen-size
 //          constants (NODE_MIN_PX ... TRUNCATE_LABEL_CHARS), edgeDashes, edgeColorObject,
@@ -116,14 +116,22 @@ export function isSourceEdge(edge, isSourceNodeId, isSourceRelation) {
 }
 
 // Returns a plain object id -> number of non-source edges touching the node.
+// A self-loop is one link, matching the relation lists in the card and sidebar.
 export function linkDegrees(edges, isSourceEdgeFn) {
     const degrees = {};
     for (const e of edges) {
         if (isSourceEdgeFn(e)) continue;
         degrees[e.source] = (degrees[e.source] || 0) + 1;
-        degrees[e.target] = (degrees[e.target] || 0) + 1;
+        if (e.target !== e.source) degrees[e.target] = (degrees[e.target] || 0) + 1;
     }
     return degrees;
+}
+
+// Whether an incident edge is one of a node's links. A knowledge node's links
+// are its non-source edges; every edge of a source node touches a source, so a
+// source node lists (and counts) all of them as mentions.
+export function isLinkEdge(edge, nodeIsSource, isSourceEdgeFn) {
+    return Boolean(nodeIsSource) || !isSourceEdgeFn(edge);
 }
 
 // Display text for a relation type: lowercase words. DEVELOPES is a known
@@ -177,11 +185,14 @@ function groupScoreCompare(a, b) {
 }
 
 // Card content for a node. incidentEdges is the node's adjacency list, so no
-// scan of the whole edge list is needed. opts: {isSourceNode(id), typeLabel,
-// family, description, top}.
+// scan of the whole edge list is needed. opts: {isSourceNode(id),
+// isSourceEdge(edge), typeLabel, family, description, top}. Without
+// isSourceEdge an edge is a source edge when either endpoint is a source node.
 export function hoverCardModel(node, incidentEdges, nodeById, opts = {}) {
     const top = opts.top === undefined ? HOVER_TOP_RELATIONS : opts.top;
     const isSourceNode = opts.isSourceNode || (() => false);
+    const isSourceEdgeFn = opts.isSourceEdge || ((e) => isSourceEdge(e, isSourceNode, () => false));
+    const nodeIsSource = isSourceNode(node.id);
     const nameOf = (id) => {
         const n = nodeById.get(id);
         return n && n.name ? n.name : String(id);
@@ -189,8 +200,8 @@ export function hoverCardModel(node, incidentEdges, nodeById, opts = {}) {
     const groups = new Map();
     let linkCount = 0;
     for (const edge of incidentEdges || []) {
+        if (!isLinkEdge(edge, nodeIsSource, isSourceEdgeFn)) continue;
         const parts = relationRowParts(edge, node.id, nameOf);
-        if (isSourceNode(parts.otherId)) continue;
         linkCount += 1;
         const key = `${parts.direction}|${edge.relation_type}|${parts.otherId}`;
         const support = Number(edge.support_count) || 0;
@@ -237,6 +248,7 @@ export function hoverCardModel(node, incidentEdges, nodeById, opts = {}) {
         family: opts.family || '',
         description: opts.description || '',
         linkCount,
+        linkWord: nodeIsSource ? 'mention' : 'link',
         sourceCount: (node.source_documents || []).length,
         relations,
         more: ranked.length - relations.length,
