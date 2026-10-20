@@ -780,6 +780,16 @@ function buildGraph() {
 // DataSets as deltas carrying only id + font, so it cannot clobber the
 // highlight (opacity/color), filters (hidden) or pins.
 // ---------------------------------------------------------------------------
+// vis skips an edge whose endpoint node is hidden even though the edge itself
+// keeps hidden: false, so an edge is drawn only when it and both ends are shown.
+function edgeDrawn(edgeId) {
+    const rec = visEdges.get(edgeId);
+    if (!rec || rec.hidden === true) return false;
+    const a = visNodes.get(rec.from);
+    const b = visNodes.get(rec.to);
+    return Boolean(a && b) && a.hidden !== true && b.hidden !== true;
+}
+
 function neighborsOf(id) {
     if (!network || !visNodes) return [];
     return (network.getConnectedNodes(id) || []).filter(nid => {
@@ -822,10 +832,7 @@ function applyFocus() {
     const centerEdgeLists = [];
     for (const center of [hoverCenterId, selectCenterId]) {
         if (center === null) continue;
-        centerEdgeLists.push((network.getConnectedEdges(center) || []).filter(edgeId => {
-            const rec = visEdges.get(edgeId);
-            return rec && rec.hidden !== true;
-        }));
+        centerEdgeLists.push((network.getConnectedEdges(center) || []).filter(edgeDrawn));
     }
     const nextEdges = namedEdgeIds(centerEdgeLists, hoveredEdgeId);
     const edgeDelta = focusDelta(focusEdgeIds, nextEdges);

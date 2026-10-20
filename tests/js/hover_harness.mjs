@@ -493,6 +493,23 @@ try {
     fire('blurNode', { node: small });
     advance(20);
     check('blur: small node edges hidden again', smallEdgeIds.every((id) => edgeDs.items.get(id).font.size === 0));
+
+    // WR-05: an edge to a hidden node (PUBLISHED_IN to a hidden source keeps
+    // hidden: false) is not drawn, so it is neither named nor counted.
+    const trial = 'clinical_trial:sustain';
+    const shownEnd = (e) => nodeDs.items.get(e.from).hidden !== true && nodeDs.items.get(e.to).hidden !== true;
+    const tEdges = edgesOf(trial).filter((e) => e.hidden !== true);
+    const undrawn = tEdges.filter((e) => !shownEnd(e));
+    const drawn = tEdges.filter(shownEnd);
+    check('WR-05 fixture: trial has an undrawn edge', undrawn.length >= 1 && drawn.length >= 1, [undrawn.length, drawn.length]);
+    updateLog.length = 0;
+    fire('hoverNode', { node: trial, pointer: { DOM: { x: 5, y: 5 } } });
+    advance(20);
+    const named = updateLog.filter((u) => u.kind === 'edges').flatMap((u) => u.items).map((i) => i.id);
+    check('hover: undrawn edges get no name', undrawn.every((e) => !named.includes(e.id)), named);
+    check('hover: drawn edges named', drawn.every((e) => named.includes(e.id)), named);
+    fire('blurNode', { node: trial });
+    advance(20);
   }
 
   if (mode === 'wiring') {
