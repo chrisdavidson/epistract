@@ -44,9 +44,12 @@ function switchPanel(panel) {
     updateNavLinks(panel);
     updatePanelTabs(panel);
 
-    // Notify graph panel when shown (vis.js needs resize)
+    // Notify graph panel when shown (vis.js needs resize) or hidden (the
+    // hover card is fixed on document.body and must not float over others).
     if (panel === 'graph') {
         window.dispatchEvent(new CustomEvent('graph-panel-opened'));
+    } else {
+        window.dispatchEvent(new CustomEvent('graph-panel-closed'));
     }
 }
 

@@ -272,6 +272,11 @@ export function showEdgeDetail(edgeId, visEdges, allNodes) {
 
 export function hideSidebar() {
     sidebarEl?.classList.add('graph-detail-sidebar--closed');
+    // The graph container is described by the sidebar while it is open.
+    const container = document.getElementById('graph-container');
+    if (container && container.getAttribute('aria-describedby') === 'graph-detail-sidebar') {
+        container.removeAttribute('aria-describedby');
+    }
 }
 
 

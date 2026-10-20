@@ -93,3 +93,13 @@ def test_hover_card_latency_on_synthetic_hub(tmp_path):
     assert timings["nodes"] == 1738 and timings["edges"] == 2500
     assert timings["median_ms"] < 16, timings
     assert timings["hover_update_median_ms"] < 50, timings
+
+
+@pytest.mark.unit
+def test_app_signals_graph_panel_closed():
+    """WR-03: leaving the graph panel must tell graph.js to drop the hover card."""
+    app_js = (ROOT / "examples" / "workbench" / "static" / "app.js").read_text()
+    graph_js = (ROOT / "examples" / "workbench" / "static" / "graph.js").read_text()
+    assert "new CustomEvent('graph-panel-closed')" in app_js
+    assert "addEventListener('graph-panel-closed'" in graph_js
+    assert "addEventListener('pointerleave'" in graph_js

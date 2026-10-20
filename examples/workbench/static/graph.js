@@ -755,6 +755,11 @@ function buildGraph() {
         const dismiss = () => { cancelHover(); hideCard(); };
         window.addEventListener('resize', dismiss);
         window.addEventListener('scroll', dismiss, true);
+        // vis decides hover inside its canvas mousemove handler and never
+        // emits blurNode when the pointer leaves the canvas, so leaving the
+        // container (or switching away from the graph panel) ends the hover.
+        container.addEventListener('pointerleave', endHover);
+        window.addEventListener('graph-panel-closed', endHover);
         document.addEventListener('keydown', (event) => {
             if (event.key !== 'Escape') return;
             pinnedCardNodeId = null;
@@ -842,10 +847,25 @@ function cancelHover() {
     }
 }
 
+// Only drops aria-describedby when it points at the card; a selection keeps
+// the container described by the open sidebar.
 function hideCard() {
     hideHoverCard();
     const container = document.getElementById('graph-container');
-    if (container) container.removeAttribute('aria-describedby');
+    if (container && container.getAttribute('aria-describedby') === 'graph-hover-card') {
+        container.removeAttribute('aria-describedby');
+    }
+}
+
+// Ends any hover: cancels a pending card, hides the card and clears the
+// hover focus labels and hovered-edge name. The selection focus is kept.
+function endHover() {
+    cancelHover();
+    hideCard();
+    hoverCenterId = null;
+    hoverFocus = new Set();
+    hoveredEdgeId = null;
+    scheduleFocus();
 }
 
 // vis reports DOM coordinates relative to the canvas; the card is positioned

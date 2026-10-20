@@ -548,6 +548,37 @@ try {
       check(`window ${ev} hides`, wasVisible && !visible(), (winListeners[ev] || []).length);
     }
     check('no innerHTML on card', violations.filter((v) => v.includes('graph-hover-card')).length === 0, violations);
+
+    // WR-03: leaving the canvas or the graph panel ends the hover.
+    fire('click', { nodes: [], edges: [] });
+    fire('hoverNode', hoverParams);
+    advance(160);
+    const shownBeforeLeave = visible();
+    container.dispatch('pointerleave');
+    check('pointerleave hides card', shownBeforeLeave && !visible());
+    fire('hoverNode', hoverParams);
+    advance(50);
+    container.dispatch('pointerleave');
+    advance(300);
+    check('pointerleave cancels pending show', !visible());
+    const focusCount = () => (window._labelDebug || {}).focusNodes;
+    advance(20);
+    fire('hoverNode', hoverParams);
+    advance(20);
+    const hoverFocus = focusCount();
+    container.dispatch('pointerleave');
+    advance(20);
+    check('pointerleave clears hover focus labels', hoverFocus > 0 && focusCount() === 0,
+      [hoverFocus, focusCount()]);
+    fire('hoverNode', hoverParams);
+    advance(160);
+    const shownBeforeClose = visible();
+    for (const fn of winListeners['graph-panel-closed'] || []) fn({});
+    check('graph-panel-closed hides card', shownBeforeClose && !visible(), (winListeners['graph-panel-closed'] || []).length);
+    fire('click', { nodes: [target], edges: [] });
+    container.dispatch('pointerleave');
+    check('pointerleave keeps sidebar description', container.getAttribute('aria-describedby') === 'graph-detail-sidebar',
+      container.getAttribute('aria-describedby'));
   }
 } catch (e) {
   failed.push({ name: 'harness error', detail: String((e && e.stack) || e) });
