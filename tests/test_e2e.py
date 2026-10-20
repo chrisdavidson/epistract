@@ -601,5 +601,8 @@ def test_ft020_wizard_schema_end_to_end(tmp_path, monkeypatch):
     parsed = _yaml.safe_load(template_yaml)
     WorkbenchTemplate.model_validate(parsed)  # raises if shape is wrong
 
-    # Spot-check entity_colors cardinality matches the fixture's 3 entity types
-    assert set(parsed["entity_colors"].keys()) == {"PARTY", "OBLIGATION", "TERM"}
+    # Phase 2 GVIS-03: wizard colors moved to domain.yaml display (intentional test change)
+    assert parsed["entity_colors"] == {}
+    domain_parsed = _yaml.safe_load((domain_dir / "domain.yaml").read_text())
+    shown = [domain_parsed["entity_types"][t]["display"]["color"] for t in ("PARTY", "OBLIGATION", "TERM")]
+    assert len(set(shown)) == 3

@@ -2338,8 +2338,8 @@ def test_generate_slug_rejects_empty(raw):
 def test_generate_workbench_template_shape():
     """UT-052: generate_workbench_template emits WorkbenchTemplate-valid YAML.
 
-    Validates the Phase 17 Pydantic contract (D-16), deterministic palette
-    rotation (alphabetical sort → modulo cycle), and required analysis_patterns
+    Validates the Phase 17 Pydantic contract (D-16), an empty legacy
+    entity_colors override, and required analysis_patterns
     + dashboard keys. Determinism gate: two calls with same inputs produce
     byte-identical output.
     """
@@ -2361,14 +2361,9 @@ def test_generate_workbench_template_shape():
     # (1) Phase 17 Pydantic contract — shape gate
     WorkbenchTemplate.model_validate(parsed)  # raises ValidationError on mismatch
 
-    # (2) entity_colors cardinality
-    assert set(parsed["entity_colors"].keys()) == {"Foo", "Bar", "Baz"}
-
-    # (3) Deterministic palette rotation — alphabetical sort: Bar, Baz, Foo
-    # First three DEFAULT_ENTITY_COLORS entries:
-    assert parsed["entity_colors"]["Bar"] == "#97c2fc"
-    assert parsed["entity_colors"]["Baz"] == "#ffa07a"
-    assert parsed["entity_colors"]["Foo"] == "#90ee90"
+    # Phase 2 GVIS-03: wizard colors moved to domain.yaml display (intentional test change)
+    # (2) entity_colors is an empty legacy override; colors live in domain.yaml
+    assert parsed["entity_colors"] == {}
 
     # (4) analysis_patterns required keys
     assert "cross_references_heading" in parsed["analysis_patterns"]
@@ -2382,6 +2377,52 @@ def test_generate_workbench_template_shape():
     # (6) Determinism — second call byte-identical
     emitted_again = generate_workbench_template("test-domain", entity_types)
     assert emitted == emitted_again, "generate_workbench_template is not deterministic"
+
+
+# Phase 2 GVIS-03: wizard colors moved to domain.yaml display (intentional test change)
+def _wizard_types(n):
+    return {f"Type{i:02d}": {"description": f"type {i}"} for i in range(n)}
+
+
+def test_wizard_domain_yaml_has_display():
+    import copy
+    import re as _re
+    from core.domain_wizard import generate_domain_yaml
+    from core.graph_display import ALLOWED_SHAPES
+
+    types = _wizard_types(30)
+    before = copy.deepcopy(types)
+    out = generate_domain_yaml("D", "desc", "ctx", types, {})
+    assert types == before, "generate_domain_yaml mutated its input"
+    parsed = yaml.safe_load(out)
+    colors = []
+    for name, spec in parsed["entity_types"].items():
+        d = spec["display"]
+        assert d["family"]
+        assert d["shape"] in ALLOWED_SHAPES
+        assert _re.fullmatch(r"#[0-9a-f]{6}", d["color"]), d
+        colors.append(d["color"])
+    assert len(colors) == 30 and len(set(colors)) == 30
+    assert out == generate_domain_yaml("D", "desc", "ctx", types, {})
+
+
+def test_wizard_domain_yaml_keeps_llm_display():
+    from core.domain_wizard import generate_domain_yaml
+
+    types = {"A": {"description": "a", "display": {"family": "Actors"}}}
+    parsed = yaml.safe_load(generate_domain_yaml("D", "d", "c", types, {}))
+    d = parsed["entity_types"]["A"]["display"]
+    assert d["family"] == "Actors"
+    assert d["shape"] == "diamond"
+
+
+def test_wizard_domain_yaml_str_form():
+    from core.domain_wizard import generate_domain_yaml
+    from core.graph_display import resolve_display
+
+    parsed = yaml.safe_load(generate_domain_yaml("D", "d", "c", {"T": "desc", "U": "d2"}, {}))
+    assert parsed["entity_types"]["T"]["description"] == "desc"
+    assert resolve_display(parsed)["warnings"] == []
 
 
 def test_resolve_domain_arg_path_shim(tmp_path, capsys):

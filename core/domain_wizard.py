@@ -18,6 +18,7 @@ Usage:
 from __future__ import annotations
 
 import ast
+import copy
 import importlib.util
 import json
 import re
@@ -38,6 +39,7 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from core.domain_resolver import DOMAINS_DIR, DOMAIN_ALIASES, list_domains  # noqa: E402
+from core.graph_display import fill_display_defaults  # noqa: E402
 
 # Optional sift-kg reader — used to extract text from binary formats (PDF, DOCX, etc.).
 # Matches the guard pattern at core/ingest_documents.py:20-25.
@@ -442,12 +444,25 @@ def generate_domain_yaml(
     Returns:
         YAML string ready to write to domain.yaml.
     """
+    # Freeze a unique color, family and shape per entity type into the schema.
+    # Work on a copy: callers reuse entity_types for the other generators.
+    typed: dict = {}
+    for type_name, spec in copy.deepcopy(entity_types).items():
+        if isinstance(spec, str):
+            spec = {"description": spec}
+        elif not isinstance(spec, dict):
+            spec = {}
+        typed[type_name] = spec
+    display = fill_display_defaults(typed)
+    for type_name, spec in typed.items():
+        spec["display"] = display[str(type_name)]
+
     schema = {
         "name": domain_name,
         "version": "1.0.0",
         "description": description,
         "system_context": system_context,
-        "entity_types": entity_types,
+        "entity_types": typed,
         "relation_types": relation_types,
     }
     if community_label_anchors is not None:
@@ -806,26 +821,6 @@ def validate_generated_epistemic(code: str, domain_slug: str) -> dict:
 # FIDL-08 — Slug + workbench template helpers (Phase 19 Plan 19-01)
 # ---------------------------------------------------------------------------
 
-# 12-color vis.js-friendly palette cycled by entity_type alphabetical order
-# when emitting workbench/template.yaml (D-04). Locked order — UT-052 asserts
-# indices 0, 1, 2 explicitly; any reorder is a breaking change requiring a
-# test update.
-DEFAULT_ENTITY_COLORS = [
-    "#97c2fc",
-    "#ffa07a",
-    "#90ee90",
-    "#f1c40f",
-    "#e74c3c",
-    "#9b59b6",
-    "#1abc9c",
-    "#e67e22",
-    "#34495e",
-    "#fd79a8",
-    "#636e72",
-    "#00b894",
-]
-
-
 def generate_slug(name: str) -> str:
     """Produce a safe directory name from a human-readable domain name.
 
@@ -890,16 +885,14 @@ def generate_workbench_template(
 
     Produces a complete override (not a partial) — every field of
     ``examples.workbench.template_schema.WorkbenchTemplate`` is populated so
-    downstream consumers never fall back to defaults. Colors assigned
-    deterministically by sorting entity_types keys alphabetically and cycling
-    through ``DEFAULT_ENTITY_COLORS`` via modulo (D-04 + D-16).
+    downstream consumers never fall back to defaults. ``entity_colors`` is
+    emitted empty: entity type colors and shapes live in domain.yaml ``display``.
 
     Args:
         domain_slug: The normalized slug (from generate_slug) — used to seed
             stub title/subtitle/persona text.
         entity_types: Mapping of entity-type name -> {description: ...}.
-            Insertion order is NOT honored — keys are sorted alphabetically
-            before palette assignment to guarantee determinism (UT-052 gate).
+            Kept for signature stability; colors are not derived from it.
         persona_override: Optional full persona paragraph(s). When provided,
             used verbatim. When None, falls back to the default analyst
             template below.
@@ -910,11 +903,6 @@ def generate_workbench_template(
     """
     pretty_name = domain_slug.replace("-", " ").replace("_", " ").title()
     pretty_lower = pretty_name.lower()
-    sorted_entity_types = sorted(entity_types.keys())
-    entity_colors = {
-        entity_type: DEFAULT_ENTITY_COLORS[i % len(DEFAULT_ENTITY_COLORS)]
-        for i, entity_type in enumerate(sorted_entity_types)
-    }
 
     default_persona = textwrap.dedent(f"""\
         You are a senior {pretty_lower} analyst. You have reviewed the corpus
@@ -960,7 +948,7 @@ def generate_workbench_template(
         "placeholder": "Ask a question about the knowledge graph...",
         "loading_message": "Analyzing",
         "starter_questions": [],
-        "entity_colors": entity_colors,
+        "entity_colors": {},
         "dashboard": {
             "title": f"{pretty_name} Knowledge Graph Summary",
             "subtitle": "",
