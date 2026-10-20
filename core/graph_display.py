@@ -61,6 +61,11 @@ FAMILY_SHAPES: dict[str, str] = {
     "sources": "dot",
 }
 
+# Other and Sources intentionally share ``dot``: both are neutral catch-all
+# families (Sources nodes are also grey and drawn smaller), so the pair is not
+# reported as a shape collision. Any other shared shape produces a warning.
+SHARED_DOT_FAMILIES: frozenset[str] = frozenset({"other", "sources"})
+
 # Order in which shapes are handed to families that have no default shape.
 CUSTOM_SHAPE_ORDER: tuple[str, ...] = (
     "dot",
@@ -321,11 +326,28 @@ def _resolve(
             family_shape[key] = known
         elif key == OTHER_FAMILY.lower():
             family_shape[key] = "dot"
+    out_of_shapes: list[str] = []
     for key in first_member:
         if key in family_shape:
             continue
         used = set(family_shape.values())
-        family_shape[key] = next((s for s in CUSTOM_SHAPE_ORDER if s not in used), "dot")
+        shape = next((s for s in CUSTOM_SHAPE_ORDER if s not in used), None)
+        if shape is None:
+            out_of_shapes.append(families[first_member[key]])
+            shape = "dot"
+        family_shape[key] = shape
+    if out_of_shapes:
+        warnings.append(
+            f"no unused shape left for families {', '.join(out_of_shapes)}; using 'dot'"
+        )
+    by_shape: dict[str, list[str]] = {}
+    for key in first_member:
+        by_shape.setdefault(family_shape[key], []).append(key)
+    for shape, keys in by_shape.items():
+        if len(keys) < 2 or set(keys) <= SHARED_DOT_FAMILIES:
+            continue
+        names = [families[first_member[k]] for k in keys]
+        warnings.append(f"families {', '.join(names)} share shape {shape!r}")
     for name in order:
         shape = declared_shapes.get(name)
         key = families[name].lower()

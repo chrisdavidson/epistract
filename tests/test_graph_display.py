@@ -540,3 +540,35 @@ def test_family_spelling_is_canonical_per_family():
     assert family_names == ["molecular", "Other", "Sources"]
     for t in types.values():
         assert t["family"] in family_names
+
+
+@pytest.mark.unit
+def test_family_shape_collisions_are_reported():
+    """WR-05: families sharing a shape, or running out of shapes, produce warnings."""
+    from core.graph_display import resolve_display
+
+    collide = {
+        "entity_types": {
+            "X": {"display": {"family": "Custom", "shape": "hexagon"}},
+            "Y": {"display": {"family": "Interventions"}},
+        }
+    }
+    warnings = resolve_display(collide)["warnings"]
+    assert any("Custom" in w and "Interventions" in w and "hexagon" in w for w in warnings)
+
+    many = {"entity_types": {f"T{i}": {"display": {"family": f"F{i}"}} for i in range(9)}}
+    warnings = resolve_display(many)["warnings"]
+    assert any("no unused shape left" in w for w in warnings), warnings
+    assert any("share shape 'dot'" in w for w in warnings), warnings
+
+
+@pytest.mark.unit
+def test_other_and_sources_sharing_dot_is_not_reported():
+    """WR-05: the intentional Other/Sources dot pair is not a collision."""
+    from core.graph_display import resolve_display
+
+    schema = {"entity_types": {"A": {"display": {"family": "Molecular"}}, "B": "plain"}}
+    display = resolve_display(schema, ["DOCUMENT"])
+    shapes = {f["name"]: f["shape"] for f in display["families"]}
+    assert shapes["Other"] == shapes["Sources"] == "dot"
+    assert display["warnings"] == []
