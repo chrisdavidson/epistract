@@ -14,39 +14,57 @@ system_context: |
 entity_types:
   PARTY:
     description: "Organization or individual that is a signatory or referenced entity in a contract"
+    display: { family: Actors, shape: diamond, color: "#5f66ed" }
   CONTRACT:
     description: "A formal agreement between parties"
+    display: { family: Agreements, shape: star, color: "#249e02" }
   OBLIGATION:
     description: "A required action, delivery, or compliance requirement"
+    display: { family: Terms, shape: triangleDown, color: "#ed4b43" }
   DEADLINE:
     description: "A date or time constraint for an obligation or deliverable"
+    display: { family: Terms, shape: triangleDown, color: "#059eb1" }
   COST:
     description: "A monetary amount, fee, or payment term"
+    display: { family: Financials, shape: square, color: "#cc54c5" }
   VENUE:
     description: "A physical location referenced in a contract"
+    display: { family: Actors, shape: diamond, color: "#926a0c" }
   SERVICE:
     description: "A service being provided under contract"
+    display: { family: Services, shape: hexagon, color: "#a35472" }
   INSURANCE:
     description: "Insurance requirement or coverage specification"
+    display: { family: Terms, shape: triangleDown, color: "#158561" }
   PENALTY:
     description: "A consequence for breach or non-compliance"
+    display: { family: Terms, shape: triangleDown, color: "#937dc7" }
 
 relation_types:
   OBLIGATED_TO:
     description: "Party is obligated to fulfill an obligation"
+    category: organizational
   HAS_DEADLINE:
     description: "Obligation or deliverable has a deadline"
+    category: structural
   COSTS:
     description: "Service or obligation has an associated cost"
+    category: structural
   SIGNED_BY:
     description: "Contract is signed by a party"
+    category: organizational
   PROVIDES_SERVICE:
     description: "Party provides a service"
+    category: organizational
   HELD_AT:
     description: "Event or service is at a venue"
+    category: organizational
   REQUIRES_INSURANCE:
     description: "Contract requires insurance coverage"
+    category: regulatory
   CROSS_REFERENCES:
     description: "One contract references another"
+    category: structural
   PENALIZES:
     description: "Breach triggers a penalty"
+    category: regulatory

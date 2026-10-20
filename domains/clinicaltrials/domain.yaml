@@ -34,68 +34,90 @@ fallback_relation: ASSOCIATED_WITH
 entity_types:
   Trial:
     description: "A clinical trial identified by an NCT registry ID or study acronym. Use the NCT ID as the canonical name."
+    display: { family: Evidence, shape: star, color: "#5f66ed" }
   Intervention:
     description: "A procedure, behavioral intervention, device use, or non-drug therapy being studied."
+    display: { family: Interventions, shape: hexagon, color: "#249e02" }
   Condition:
     description: "The disease, disorder, or indication being studied (e.g. 'Non-Small Cell Lung Cancer')."
+    display: { family: Conditions, shape: square, color: "#ed4b43" }
   Sponsor:
     description: "Organization funding or running the trial — pharmaceutical companies, academic centers, government agencies."
+    display: { family: Actors, shape: diamond, color: "#059eb1" }
   Investigator:
     description: "Principal investigator or key study personnel named in the protocol."
+    display: { family: Actors, shape: diamond, color: "#cc54c5" }
   Outcome:
     description: "Primary, secondary, or exploratory outcome measure (e.g. 'overall survival', 'progression-free survival')."
+    display: { family: Evidence, shape: star, color: "#926a0c" }
   Compound:
     description: "Small molecule, biologic, or drug candidate under investigation. Enriched via PubChem during --enrich."
+    display: { family: Interventions, shape: hexagon, color: "#a35472" }
   Biomarker:
     description: "Measurable indicator used for patient selection, stratification, or response assessment."
+    display: { family: Concepts, shape: triangleDown, color: "#158561" }
   Cohort:
     description: "A specific arm or group within the trial (e.g. 'Arm A: sotorasib 960 mg QD')."
+    display: { family: Populations, shape: triangle, color: "#937dc7" }
   Population:
     description: "The inclusion/exclusion-defined patient population for the trial."
+    display: { family: Populations, shape: triangle, color: "#9344c8" }
   TrialPhase:
     description: "The regulatory phase designation — Phase 1, Phase 2, Phase 2/3, Phase 3, Phase 4, or Observational."
+    display: { family: Evidence, shape: star, color: "#3875af" }
   Site:
     description: "A clinical study site — specific hospital, clinic, or country listed as a location."
+    display: { family: Actors, shape: diamond, color: "#889541" }
 
 relation_types:
   tests:
     description: "A Trial tests a Compound or Intervention."
+    category: therapeutic
     source_types: [Trial]
     target_types: [Compound, Intervention]
   treats:
     description: "A Compound or Intervention treats a Condition."
+    category: therapeutic
     source_types: [Compound, Intervention]
     target_types: [Condition]
   sponsored_by:
     description: "A Trial is sponsored by a Sponsor."
+    category: organizational
     source_types: [Trial]
     target_types: [Sponsor]
   has_outcome:
     description: "A Trial has a specified Outcome (endpoint)."
+    category: association
     source_types: [Trial]
     target_types: [Outcome]
   uses_biomarker:
     description: "A Trial uses a Biomarker for patient selection, stratification, or response assessment."
+    category: association
     source_types: [Trial]
     target_types: [Biomarker]
   enrolls:
     description: "A Trial enrolls a specific Population or Cohort."
+    category: structural
     source_types: [Trial]
     target_types: [Population, Cohort]
   investigates:
     description: "A Trial investigates a Condition."
+    category: organizational
     source_types: [Trial]
     target_types: [Condition]
   targets:
     description: "A Compound targets a Biomarker (e.g. sotorasib targets KRAS G12C)."
+    category: mechanism
     source_types: [Compound]
     target_types: [Biomarker]
   is_phase:
     description: "A Trial is of a given TrialPhase."
+    category: structural
     source_types: [Trial]
     target_types: [TrialPhase]
   co_intervention:
     description: "Two Interventions or Compounds are co-administered in the same Cohort."
+    category: therapeutic
     source_types: [Compound, Intervention]
     target_types: [Compound, Intervention]
     symmetric: true

@@ -50,6 +50,7 @@ fallback_relation: ASSOCIATED_WITH
 entity_types:
   COMPOUND:
     description: "Small molecules, biologics, drug candidates, approved drugs, and chemical probes"
+    display: { family: Interventions, shape: hexagon, color: "#5f66ed" }
     extraction_hints:
       - "Look for drug names (INN), brand names, compound codes (e.g. 'BMS-986158'), and chemical names"
       - "Include biologics such as monoclonal antibodies (e.g. 'trastuzumab'), ADCs, and gene therapies"
@@ -58,6 +59,7 @@ entity_types:
 
   GENE:
     description: "Genes, genetic loci, alleles, and genomic variants relevant to drug targets or disease mechanisms"
+    display: { family: Molecular, shape: triangle, color: "#249e02" }
     extraction_hints:
       - "Use HGNC symbols when available (e.g. 'BRCA1', 'TP53', 'KRAS')"
       - "Include specific variants and mutations (e.g. 'BRAF V600E', 'EGFR T790M')"
@@ -66,6 +68,7 @@ entity_types:
 
   PROTEIN:
     description: "Proteins, enzymes, receptors, ion channels, and protein complexes that serve as drug targets or functional entities"
+    display: { family: Molecular, shape: triangle, color: "#ed4b43" }
     extraction_hints:
       - "Look for drug targets: kinases, GPCRs, nuclear receptors, ion channels, transporters"
       - "Use PROTEIN when discussing binding, catalytic activity, structural domains, or post-translational modification"
@@ -74,6 +77,7 @@ entity_types:
 
   DISEASE:
     description: "Medical conditions, syndromes, and disease classifications with established diagnostic criteria"
+    display: { family: Conditions, shape: square, color: "#059eb1" }
     extraction_hints:
       - "Prefer MeSH disease terms for canonical naming"
       - "Include disease subtypes and staging (e.g. 'HER2-positive Breast Cancer', 'Stage IV NSCLC')"
@@ -82,6 +86,7 @@ entity_types:
 
   MECHANISM_OF_ACTION:
     description: "Pharmacological mechanisms by which compounds exert their effects"
+    display: { family: Concepts, shape: triangleDown, color: "#cc54c5" }
     extraction_hints:
       - "Look for phrases like 'inhibits', 'agonist of', 'antagonist of', 'blocks', 'modulates'"
       - "Capture the mechanism as a noun phrase (e.g. 'selective BRAF inhibition', 'PD-1 checkpoint blockade')"
@@ -90,6 +95,7 @@ entity_types:
 
   CLINICAL_TRIAL:
     description: "Specific clinical studies identified by registry ID, study name, or phase designation"
+    display: { family: Evidence, shape: star, color: "#926a0c" }
     extraction_hints:
       - "Look for NCT numbers (e.g. 'NCT02302807'), study acronyms (e.g. 'KEYNOTE-024'), and phase designations"
       - "Capture trial phase, primary endpoints, and patient population when mentioned"
@@ -97,6 +103,7 @@ entity_types:
 
   PATHWAY:
     description: "Biological signaling pathways, metabolic pathways, and regulatory cascades"
+    display: { family: Concepts, shape: triangleDown, color: "#a35472" }
     extraction_hints:
       - "Look for named pathways (e.g. 'MAPK/ERK pathway', 'PI3K/AKT/mTOR signaling', 'Wnt/beta-catenin pathway')"
       - "Include metabolic pathways (e.g. 'glycolysis', 'folate metabolism')"
@@ -104,6 +111,7 @@ entity_types:
 
   BIOMARKER:
     description: "Measurable indicators used for diagnosis, prognosis, patient stratification, or treatment response prediction"
+    display: { family: Concepts, shape: triangleDown, color: "#158561" }
     extraction_hints:
       - "Look for biomarkers used in patient selection (e.g. 'PD-L1 expression >= 50%', 'microsatellite instability-high')"
       - "Include genomic biomarkers (e.g. 'TMB-high'), protein biomarkers (e.g. 'HER2 overexpression'), and circulating biomarkers"
@@ -112,6 +120,7 @@ entity_types:
 
   ADVERSE_EVENT:
     description: "Drug-induced side effects, toxicities, and safety signals observed in clinical or post-market settings"
+    display: { family: Conditions, shape: square, color: "#937dc7" }
     extraction_hints:
       - "Prefer MedDRA Preferred Terms for naming (e.g. 'Hepatotoxicity', 'QT Prolongation')"
       - "Capture severity grades (e.g. 'Grade 3 neutropenia') and frequency when mentioned"
@@ -120,6 +129,7 @@ entity_types:
 
   ORGANIZATION:
     description: "Pharmaceutical companies, biotech firms, regulatory agencies, research institutions, and consortia"
+    display: { family: Actors, shape: diamond, color: "#9344c8" }
     extraction_hints:
       - "Look for sponsors, manufacturers, CROs, and regulatory bodies (e.g. 'Pfizer', 'FDA', 'EMA')"
       - "Include academic institutions and consortia when they are key actors in development"
@@ -127,6 +137,7 @@ entity_types:
 
   PUBLICATION:
     description: "Specific journal articles, clinical study reports, regulatory filings, and patent documents"
+    display: { family: Sources, shape: dot, color: "#a8a29e" }
     extraction_hints:
       - "Extract publications discussed substantively, not routine citations"
       - "Include landmark trials, meta-analyses, and regulatory documents"
@@ -134,6 +145,7 @@ entity_types:
 
   REGULATORY_ACTION:
     description: "Regulatory decisions, approvals, label changes, and safety communications by health authorities"
+    display: { family: Evidence, shape: star, color: "#3875af" }
     extraction_hints:
       - "Look for FDA approvals, EMA authorizations, REMS programs, and safety warnings"
       - "Capture the action type (e.g. 'accelerated approval', 'complete response letter', 'black box warning')"
@@ -141,6 +153,7 @@ entity_types:
 
   PHENOTYPE:
     description: "Observable biological traits, expression states, and patient characteristics used in stratification"
+    display: { family: Concepts, shape: triangleDown, color: "#889541" }
     extraction_hints:
       - "Use for observable traits: 'HER2-positive', 'EGFR-mutant', 'PD-L1 high', 'triple-negative'"
       - "Include cellular phenotypes (e.g. 'apoptosis', 'epithelial-mesenchymal transition')"
@@ -149,6 +162,7 @@ entity_types:
 
   METABOLITE:
     description: "Endogenous small molecules, substrates, cofactors, neurotransmitters, hormones"
+    display: { family: Interventions, shape: hexagon, color: "#1690ed" }
     extraction_hints:
       - "ATP, cAMP, dopamine, serotonin, glutamate, estradiol, cortisol"
       - "Substrates and products of drug-targeted enzymes"
@@ -156,6 +170,7 @@ entity_types:
 
   CELL_OR_TISSUE:
     description: "Cell types, tissues, organs, subcellular compartments, cell lines"
+    display: { family: Molecular, shape: triangle, color: "#c1774b" }
     extraction_hints:
       - "Immune cells: CD8+ T cells, NK cells, macrophages, Tregs, MDSCs"
       - "Tissues/organs: liver, brain, bone marrow, tumor microenvironment"
@@ -164,6 +179,7 @@ entity_types:
 
   PROTEIN_DOMAIN:
     description: "Functional protein domains, binding sites, catalytic regions, structural motifs"
+    display: { family: Molecular, shape: triangle, color: "#bf420d" }
     extraction_hints:
       - "Named domains: kinase domain, SH2 domain, bromodomain, zinc finger"
       - "Binding sites: ATP-binding pocket, allosteric site, active site"
@@ -171,6 +187,7 @@ entity_types:
 
   SEQUENCE_VARIANT:
     description: "Specific genetic/protein alterations — point mutations, fusions, amplifications"
+    display: { family: Molecular, shape: triangle, color: "#db3d7e" }
     extraction_hints:
       - "HGVS notation: BRAF V600E, KRAS G12C, EGFR T790M, ALK fusion"
       - "Actionable variants that are drug targets, biomarkers, or resistance mechanisms"
@@ -179,6 +196,7 @@ entity_types:
 relation_types:
   TARGETS:
     description: "Compound acts on a protein or gene target"
+    category: mechanism
     source_types: [COMPOUND]
     target_types: [PROTEIN, GENE]
     extraction_hints:
@@ -187,6 +205,7 @@ relation_types:
 
   INHIBITS:
     description: "Entity inhibits, suppresses, or blocks the activity of another entity"
+    category: mechanism
     source_types: [COMPOUND, PROTEIN]
     target_types: [PROTEIN, GENE, PATHWAY]
     extraction_hints:
@@ -195,6 +214,7 @@ relation_types:
 
   ACTIVATES:
     description: "Entity activates, stimulates, or enhances the activity of another entity"
+    category: mechanism
     source_types: [COMPOUND, PROTEIN]
     target_types: [PROTEIN, GENE, PATHWAY]
     extraction_hints:
@@ -203,6 +223,7 @@ relation_types:
 
   BINDS_TO:
     description: "Physical binding interaction between molecular entities"
+    category: mechanism
     source_types: [COMPOUND, PROTEIN]
     target_types: [PROTEIN]
     symmetric: true
@@ -212,6 +233,7 @@ relation_types:
 
   HAS_MECHANISM:
     description: "Compound operates through a specific mechanism of action"
+    category: mechanism
     source_types: [COMPOUND]
     target_types: [MECHANISM_OF_ACTION]
     extraction_hints:
@@ -220,6 +242,7 @@ relation_types:
 
   INDICATED_FOR:
     description: "Compound is indicated for or used to treat a disease"
+    category: therapeutic
     source_types: [COMPOUND]
     target_types: [DISEASE]
     extraction_hints:
@@ -228,6 +251,7 @@ relation_types:
 
   CONTRAINDICATED_FOR:
     description: "Compound is contraindicated for a disease or patient population"
+    category: therapeutic
     source_types: [COMPOUND]
     target_types: [DISEASE]
     review_required: true
@@ -237,6 +261,7 @@ relation_types:
 
   EVALUATED_IN:
     description: "Compound is evaluated or tested in a clinical trial"
+    category: therapeutic
     source_types: [COMPOUND]
     target_types: [CLINICAL_TRIAL]
     extraction_hints:
@@ -245,6 +270,7 @@ relation_types:
 
   CAUSES:
     description: "Compound causes or is associated with an adverse event"
+    category: causal
     source_types: [COMPOUND]
     target_types: [ADVERSE_EVENT]
     extraction_hints:
@@ -253,6 +279,7 @@ relation_types:
 
   DERIVED_FROM:
     description: "Compound is derived from, a metabolite of, or structurally based on another compound"
+    category: structural
     source_types: [COMPOUND]
     target_types: [COMPOUND]
     extraction_hints:
@@ -261,6 +288,7 @@ relation_types:
 
   COMBINED_WITH:
     description: "Compound is used in combination with another compound"
+    category: therapeutic
     source_types: [COMPOUND]
     target_types: [COMPOUND]
     symmetric: true
@@ -270,6 +298,7 @@ relation_types:
 
   ENCODES:
     description: "Gene encodes a protein product"
+    category: structural
     source_types: [GENE]
     target_types: [PROTEIN]
     extraction_hints:
@@ -278,6 +307,7 @@ relation_types:
 
   PARTICIPATES_IN:
     description: "Protein or gene participates in a biological pathway"
+    category: mechanism
     source_types: [PROTEIN, GENE]
     target_types: [PATHWAY]
     extraction_hints:
@@ -285,6 +315,7 @@ relation_types:
 
   IMPLICATED_IN:
     description: "Gene, protein, pathway, or phenotype is implicated in or contributes to a disease"
+    category: causal
     source_types: [GENE, PROTEIN, PATHWAY, PHENOTYPE]
     target_types: [DISEASE]
     extraction_hints:
@@ -293,6 +324,7 @@ relation_types:
 
   CONFERS_RESISTANCE_TO:
     description: "Gene, protein, or phenotype confers resistance to a compound"
+    category: causal
     source_types: [GENE, PROTEIN, PHENOTYPE]
     target_types: [COMPOUND]
     review_required: true
@@ -302,6 +334,7 @@ relation_types:
 
   PREDICTS_RESPONSE_TO:
     description: "Biomarker predicts response to a compound or mechanism of action"
+    category: association
     source_types: [BIOMARKER]
     target_types: [COMPOUND, MECHANISM_OF_ACTION]
     review_required: true
@@ -311,6 +344,7 @@ relation_types:
 
   DIAGNOSTIC_FOR:
     description: "Biomarker is used for diagnosis or prognosis of a disease"
+    category: association
     source_types: [BIOMARKER]
     target_types: [DISEASE]
     review_required: true
@@ -320,6 +354,7 @@ relation_types:
 
   DEVELOPED_BY:
     description: "Compound or clinical trial is developed or sponsored by an organization"
+    category: organizational
     source_types: [COMPOUND, CLINICAL_TRIAL]
     target_types: [ORGANIZATION]
     extraction_hints:
@@ -327,6 +362,7 @@ relation_types:
 
   PUBLISHED_IN:
     description: "Clinical trial results or compound data are published in a specific publication"
+    category: provenance
     source_types: [CLINICAL_TRIAL, COMPOUND]
     target_types: [PUBLICATION]
     extraction_hints:
@@ -334,6 +370,7 @@ relation_types:
 
   GRANTS_APPROVAL_FOR:
     description: "Regulatory action grants approval or authorization for a compound"
+    category: regulatory
     source_types: [REGULATORY_ACTION]
     target_types: [COMPOUND]
     extraction_hints:
@@ -342,6 +379,7 @@ relation_types:
 
   EXPRESSED_IN:
     description: "Gene or protein is expressed in a phenotypic context or tissue"
+    category: structural
     source_types: [GENE, PROTEIN]
     target_types: [CELL_OR_TISSUE]
     extraction_hints:
@@ -350,40 +388,49 @@ relation_types:
 
   INTERACTS_WITH:
     description: "Pharmacological drug-drug interaction"
+    category: mechanism
     source_types: [COMPOUND]
     target_types: [COMPOUND]
     symmetric: true
   HAS_VARIANT:
     description: "Gene harbors a specific sequence variant"
+    category: structural
     source_types: [GENE]
     target_types: [SEQUENCE_VARIANT]
   HAS_DOMAIN:
     description: "Protein contains a functional domain"
+    category: structural
     source_types: [PROTEIN]
     target_types: [PROTEIN_DOMAIN]
   METABOLIZED_BY:
     description: "Compound metabolized by an enzyme (CYP450, UGT, etc.)"
+    category: mechanism
     source_types: [COMPOUND]
     target_types: [PROTEIN]
   PHOSPHORYLATES:
     description: "Kinase phosphorylates a substrate protein"
+    category: mechanism
     source_types: [PROTEIN]
     target_types: [PROTEIN]
   FORMS_COMPLEX_WITH:
     description: "Proteins form a multi-subunit complex"
+    category: mechanism
     source_types: [PROTEIN]
     target_types: [PROTEIN]
     symmetric: true
   REGULATES_EXPRESSION:
     description: "Transcription factor or compound regulates gene expression"
+    category: mechanism
     source_types: [PROTEIN, COMPOUND]
     target_types: [GENE]
   LOCALIZED_TO:
     description: "Protein localized to a subcellular compartment"
+    category: structural
     source_types: [PROTEIN]
     target_types: [CELL_OR_TISSUE]
   ASSOCIATED_WITH:
     description: "General association between entities — use when a more specific relation does not apply"
+    category: association
     source_types: [COMPOUND, GENE, PROTEIN, DISEASE, MECHANISM_OF_ACTION, CLINICAL_TRIAL, PATHWAY, BIOMARKER, ADVERSE_EVENT, ORGANIZATION, PUBLICATION, REGULATORY_ACTION, PHENOTYPE]
     target_types: [COMPOUND, GENE, PROTEIN, DISEASE, MECHANISM_OF_ACTION, CLINICAL_TRIAL, PATHWAY, BIOMARKER, ADVERSE_EVENT, ORGANIZATION, PUBLICATION, REGULATORY_ACTION, PHENOTYPE]
     symmetric: true

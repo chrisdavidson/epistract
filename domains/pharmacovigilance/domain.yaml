@@ -49,89 +49,113 @@ entity_types:
     description: A pharmaceutical product implicated in or co-administered during
       an adverse event report. Prefer the WHO ATC code as the canonical identifier
       when available; record INN, brand names, and manufacturer codes as aliases.
+    display: { family: Interventions, shape: hexagon, color: "#5f66ed" }
   AdverseEvent:
     description: A clinical event experienced by a patient temporally associated with
       drug exposure. Prefer the MedDRA Preferred Term (PT) as the canonical name;
       record reporter verbatim, MedDRA Lowest-Level Term (LLT), and ICD-10 cross-walks
       as aliases.
+    display: { family: Conditions, shape: square, color: "#249e02" }
   Patient:
     description: The de-identified subject of an adverse event report. Captures age
       band, sex, weight band, and relevant medical history. Never store identifying
       information.
+    display: { family: Actors, shape: diamond, color: "#ed4b43" }
   Reporter:
     description: The party who submitted the adverse event report (physician, pharmacist,
       consumer, lawyer, manufacturer). Reporter type strongly conditions epistemic
       weight.
+    display: { family: Actors, shape: diamond, color: "#059eb1" }
   Outcome:
     description: The clinical resolution of the adverse event — recovered, recovered
       with sequelae, not recovered, fatal, or unknown. Maps to ICH E2B outcome categories.
+    display: { family: Concepts, shape: triangleDown, color: "#cc54c5" }
   ReportType:
     description: The provenance and structure of the report — spontaneous (FAERS,
       VAERS, EudraVigilance, MedWatch), case series, RCT meta-analysis, registry,
       post-marketing study, literature.
+    display: { family: Evidence, shape: star, color: "#926a0c" }
   TemporalRelationship:
     description: The time-to-onset relationship between drug exposure and event (e.g.,
       immediate, hours, days, weeks, months) and any latency window relevant to causality
       assessment.
+    display: { family: Concepts, shape: triangleDown, color: "#a35472" }
   Concomitant:
     description: A drug, supplement, or medical product co-administered with the suspect
       drug at the time of the adverse event. Material to confounder analysis and drug-drug
       interaction signal detection.
+    display: { family: Interventions, shape: hexagon, color: "#158561" }
   Indication:
     description: The clinical reason for which the suspect drug was prescribed or
       taken. Distinguishes signal from underlying disease confounding.
+    display: { family: Conditions, shape: square, color: "#937dc7" }
   DechallengeRechallenge:
     description: Documentation of whether the event resolved when the drug was withdrawn
       (dechallenge) and whether it recurred when the drug was reintroduced (rechallenge).
       Positive dechallenge plus positive rechallenge is the strongest single-case
       causality signal.
+    display: { family: Concepts, shape: triangleDown, color: "#9344c8" }
   RegulatoryAction:
     description: An action taken by a regulator or sponsor in response to safety signals
       — label change, boxed warning, Dear Healthcare Provider letter, REMS, market
       withdrawal, suspension, or recall.
+    display: { family: Evidence, shape: star, color: "#3875af" }
   CausalitySignal:
     description: An aggregate causality assessment derived from one or more reports
       — Bradford-Hill consistency, strength, temporality, biological plausibility,
       dose-response, specificity, coherence, analogy, and experiment.
+    display: { family: Evidence, shape: star, color: "#889541" }
 relation_types:
   EXPERIENCED:
     description: A Patient experienced an AdverseEvent.
+    category: causal
   TOOK:
     description: A Patient took a Drug or Concomitant prior to or during the AdverseEvent
       window.
+    category: therapeutic
   INDICATED_FOR:
     description: A Drug is indicated for an Indication (the prescribed reason for
       use).
+    category: therapeutic
   CO_ADMINISTERED_WITH:
     description: A Drug was co-administered with a Concomitant during the same exposure
       window. Symmetric — material to drug-drug interaction signal detection.
+    category: therapeutic
   REPORTED_BY:
     description: A ReportType / case was reported by a Reporter. Reporter identity
       (HCP, consumer, lawyer, sponsor) conditions epistemic weight.
+    category: provenance
   RESULTED_IN:
     description: An AdverseEvent resulted in an Outcome (recovered, sequelae, fatal,
       unknown).
+    category: causal
   OCCURRED_AFTER:
     description: An AdverseEvent occurred after a Drug exposure with a stated TemporalRelationship.
       Foundation of the temporality criterion.
+    category: association
   RESOLVED_ON_DECHALLENGE:
     description: An AdverseEvent resolved when the suspect Drug was withdrawn — captured
       via a DechallengeRechallenge entity.
+    category: causal
   RECURRED_ON_RECHALLENGE:
     description: An AdverseEvent recurred when the suspect Drug was reintroduced —
       captured via a DechallengeRechallenge entity. Strongest single-case causality
       signal.
+    category: causal
   CAUSED_BY:
     description: An AdverseEvent is asserted to be caused by a Drug. Asserted only
       when Bradford-Hill criteria are met or when the source explicitly attributes
       causation.
+    category: causal
   TRIGGERED:
     description: A CausalitySignal or AdverseEvent cluster triggered a RegulatoryAction
       (label change, withdrawal, REMS).
+    category: regulatory
   CONTRADICTS:
     description: A claim from one report or database contradicts a claim from another
       (e.g., FAERS-asserted causation contradicted by EudraVigilance dechallenge-negative
       case). Symmetric across the contradicting pair.
+    category: association
 community_label_anchors:
 - Drug
 - AdverseEvent

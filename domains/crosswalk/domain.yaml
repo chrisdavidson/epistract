@@ -40,26 +40,36 @@ fallback_relation: PRESENT_IN
 entity_types:
   Graph:
     description: "A source knowledge graph that contributed nodes to the spine. Named by the key the spine recorded for it."
+    display: { family: Sources, shape: dot, color: "#a8a29e" }
   Trial:
     description: "Canonical key on the `trial` axis -- a registry identifier (NCT########) after case normalisation."
+    display: { family: Evidence, shape: star, color: "#5f66ed" }
   Drug:
     description: "Canonical key on the `drug` axis -- a parent moiety name after brand, salt and hydrate suffixes are stripped."
+    display: { family: Interventions, shape: hexagon, color: "#249e02" }
   AdverseEvent:
     description: "Canonical key on the `adverse_event` axis -- an adverse event term after British-to-US orthographic normalisation."
+    display: { family: Conditions, shape: square, color: "#ed4b43" }
   Indication:
     description: "Canonical key on the `indication` axis -- a condition or indication term with parenthetical role markers stripped."
+    display: { family: Conditions, shape: square, color: "#059eb1" }
   Outcome:
     description: "Canonical key on the `outcome` axis -- an outcome measure name after whitespace normalisation."
+    display: { family: Evidence, shape: star, color: "#cc54c5" }
 
 relation_types:
   PRESENT_IN:
     description: "Links a canonical-key node to a source Graph node that holds at least one member node canonicalising to that key. Attributes carry the member node IDs."
+    category: provenance
   UNLABELED_ADVERSE_EVENT:
     description: "Cross-domain finding: an adverse event the probe graph attaches to a drug that the reference label graph does not. Graded high/medium/low by subtype."
+    category: causal
   COVERAGE_GAP:
     description: "Cross-domain finding: a trial outcome whose tokens are poorly covered by the reference graph's text for the same trial."
+    category: association
   OFF_LABEL_EXPOSURE:
     description: "Cross-domain finding (advisory only): a drug/indication pair in the probe graph not matched on the reference side. Ships advisory because the two indication vocabularies overlap on one term after normalisation."
+    category: therapeutic
 
 notes: |
   The entity types above mirror the axes declared in `crosswalks/pharma.yaml`.
