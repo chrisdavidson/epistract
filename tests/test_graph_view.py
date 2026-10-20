@@ -9,9 +9,16 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
+import pytest
+
 from core import run_sift
+
+NODE = shutil.which("node")
+needs_node = pytest.mark.skipif(NODE is None, reason="node not installed")
 
 STUB_HTML = (
     "<html><head></head><body>\n"
@@ -66,3 +73,53 @@ def test_cmd_view_hostile_entity_type_cannot_break_out_of_script(monkeypatch, tm
     # Exactly one <script> open and one </script> close: the overlay itself.
     assert html.count("<script>") == 1, html
     assert html.count("</script>") == 1, html
+
+
+@needs_node
+def test_cmd_view_overlay_is_valid_javascript(monkeypatch, tmp_path):
+    _write_graph(tmp_path, ["COMPOUND", "DISEASE", HOSTILE_TYPE])
+    script = _overlay_script(_run_cmd_view(monkeypatch, tmp_path))
+    assert "&amp;" not in script
+    js_file = tmp_path / "overlay.js"
+    js_file.write_text(script, encoding="utf-8")
+    result = subprocess.run([NODE, "--check", str(js_file)], capture_output=True, text=True)
+    assert result.returncode == 0, f"overlay is not valid JS: {result.stderr}"
+
+
+@needs_node
+def test_cmd_view_overlay_applies_resolved_color_and_shape(monkeypatch, tmp_path):
+    types = ["COMPOUND", "DISEASE", HOSTILE_TYPE]
+    _write_graph(tmp_path, types)
+    script = _overlay_script(_run_cmd_view(monkeypatch, tmp_path))
+    expected = run_sift._resolved_entity_display(tmp_path, None, {})
+
+    harness = (
+        "var items = " + json.dumps(
+            [{"id": f"n{i}", "entity_type": t, "shape": "dot",
+              "color": {"background": "#000000", "border": "#333333"}}
+             for i, t in enumerate(types)]
+        ) + ";\n"
+        "var nodes = {forEach: function(f) { items.forEach(f); },\n"
+        "  update: function(us) { us.forEach(function(u) {\n"
+        "    var n = items.find(function(x) { return x.id === u.id; });\n"
+        "    Object.assign(n, u); }); }};\n"
+        "var swatches = items.map(function(n) { return {value: '#000000',\n"
+        "  getAttribute: function() { return n.entity_type; }}; });\n"
+        "var document = {readyState: 'loading',\n"
+        "  querySelectorAll: function() { return swatches; },\n"
+        "  addEventListener: function(_e, f) { f(); }};\n"
+        + script +
+        "\nprocess.stdout.write(JSON.stringify({nodes: items,\n"
+        "  swatches: swatches.map(function(s) { return s.value; })}));\n"
+    )
+    js_file = tmp_path / "harness.js"
+    js_file.write_text(harness, encoding="utf-8")
+    result = subprocess.run([NODE, str(js_file)], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    out = json.loads(result.stdout)
+    for node, swatch in zip(out["nodes"], out["swatches"]):
+        spec = expected[node["entity_type"]]
+        assert node["color"]["background"] == spec["color"], node
+        assert node["color"]["border"] == "#333333", "community border must be kept"
+        assert node["shape"] == spec["shape"], node
+        assert swatch == spec["color"], "legend swatch must match the node color"

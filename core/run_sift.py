@@ -247,14 +247,14 @@ def _json_for_script(value: object) -> str:
     )
 
 
-def _resolved_entity_colors(
+def _resolved_entity_display(
     output_dir: Path, resolved_domain: str | None, template: dict
-) -> dict[str, str]:
-    """Return ``{entity_type: "#rrggbb"}`` for every type in the graph.
+) -> dict[str, dict[str, str]]:
+    """Return ``{entity_type: {"color": "#rrggbb", "shape": str}}`` for every type.
 
-    Colors come from ``core.graph_display.resolve_display``: the domain schema's
-    declared colors, with any template ``entity_colors`` applied as overrides, and
-    palette colors for observed types the schema does not declare.
+    Values come from ``core.graph_display.resolve_display``: the domain schema's
+    declared display, with any template ``entity_colors`` applied as overrides,
+    and palette colors for observed types the schema does not declare.
     """
     from core.graph_display import resolve_display
 
@@ -276,7 +276,67 @@ def _resolved_entity_colors(
             schema = None
 
     display = resolve_display(schema, observed, template.get("entity_colors") or None)
-    return {name: info["color"] for name, info in display["types"].items()}
+    return {
+        name: {"color": info["color"], "shape": info["shape"]}
+        for name, info in display["types"].items()
+    }
+
+
+def _resolved_entity_colors(
+    output_dir: Path, resolved_domain: str | None, template: dict
+) -> dict[str, str]:
+    """Return ``{entity_type: "#rrggbb"}`` for every type in the graph."""
+    display = _resolved_entity_display(output_dir, resolved_domain, template)
+    return {name: info["color"] for name, info in display.items()}
+
+
+def _display_overlay_script(entity_display: dict[str, dict[str, str]]) -> str:
+    """Return the <script> block that applies the resolved display to graph.html.
+
+    sift-kg colors nodes and its sidebar legend from its own palette. This script
+    runs after the page loads and rewrites, for every node whose type is in
+    ``entity_display``, the background color and the shape, then updates the
+    matching sidebar color swatches (``input[data-etype-color]``) so the legend
+    agrees with the canvas. Node borders (community colors) are left alone.
+    """
+    # CR-01: keys are graph-derived (untrusted); escape for the script context.
+    display_js = _json_for_script(entity_display)
+    return (
+        "<script>\n"
+        "// FIDL-06 D-05: resolved entity display overlay injected by cmd_view.\n"
+        "(function() {\n"
+        f"  var display = {display_js};\n"
+        "  var has = Object.prototype.hasOwnProperty;\n"
+        "  function applyDisplay() {\n"
+        "    if (typeof nodes !== \"undefined\" && nodes && nodes.forEach) {\n"
+        "      var updates = [];\n"
+        "      nodes.forEach(function(n) {\n"
+        "        var et = n.entity_type;\n"
+        "        if (!et || !has.call(display, et)) return;\n"
+        "        var spec = display[et];\n"
+        "        var border = (n.color && n.color.border) || spec.color;\n"
+        "        updates.push({id: n.id, shape: spec.shape, color: {\n"
+        "          background: spec.color,\n"
+        "          border: border,\n"
+        "          highlight: {background: spec.color, border: border}\n"
+        "        }});\n"
+        "      });\n"
+        "      if (updates.length) nodes.update(updates);\n"
+        "    }\n"
+        "    var swatches = document.querySelectorAll(\"input[data-etype-color]\");\n"
+        "    for (var i = 0; i < swatches.length; i++) {\n"
+        "      var t = swatches[i].getAttribute(\"data-etype-color\");\n"
+        "      if (has.call(display, t)) swatches[i].value = display[t].color;\n"
+        "    }\n"
+        "  }\n"
+        "  if (document.readyState === \"loading\") {\n"
+        "    document.addEventListener(\"DOMContentLoaded\", applyDisplay);\n"
+        "  } else {\n"
+        "    setTimeout(applyDisplay, 100);\n"
+        "  }\n"
+        "})();\n"
+        "</script>"
+    )
 
 
 def cmd_view(output_dir: str, **kwargs):
@@ -315,7 +375,7 @@ def cmd_view(output_dir: str, **kwargs):
     resolved_domain, _source = resolve_domain(Path(output_dir), None)
     template = load_template(resolved_domain)
     title_text = template.get("title") or "Knowledge Graph"
-    entity_colors = _resolved_entity_colors(Path(output_dir), resolved_domain, template)
+    entity_display = _resolved_entity_display(Path(output_dir), resolved_domain, template)
 
     try:
         html = graph_html.read_text(encoding="utf-8")
@@ -342,43 +402,11 @@ def cmd_view(output_dir: str, **kwargs):
     # Safety net: any remaining <h1></h1> (unusual pyvis versions) — drop them.
     html = html.replace("<h1></h1>", "")
 
-    # FIDL-06 D-05: entity_colors overlay — append a <script> block right before
-    # </body> that iterates the existing vis.js `nodes` DataSet on DOMContentLoaded
-    # and updates color.background for nodes whose entity_type matches a key
-    # in our template.yaml entity_colors dict. Existing color pickers in
-    # _inject_ui's sidebar still work; they just start from our overrides.
-    if entity_colors:
-        # CR-01: keys are graph-derived (untrusted); escape for the script context.
-        overrides_js = _json_for_script(entity_colors)
-        overlay_script = (
-            f'<script>\n'
-            f'// FIDL-06 D-05: domain entity_colors overlay injected by cmd_view.\n'
-            f'(function() {{\n'
-            f'  var overrides = {overrides_js};\n'
-            f'  function applyOverrides() {{\n'
-            f'    if (typeof nodes === "undefined" || !nodes.forEach) return;\n'
-            f'    var updates = [];\n'
-            f'    nodes.forEach(function(n) {{\n'
-            f'      var et = n.entity_type;\n'
-            f'      if (et && overrides[et]) {{\n'
-            f'        var color = overrides[et];\n'
-            f'        updates.push({{id: n.id, color: {{\n'
-            f'          background: color,\n'
-            f'          border: (n.color &amp;&amp; n.color.border) || color,\n'
-            f'          highlight: {{background: color, border: (n.color &amp;&amp; n.color.border) || color}}\n'
-            f'        }}}});\n'
-            f'      }}\n'
-            f'    }});\n'
-            f'    if (updates.length) nodes.update(updates);\n'
-            f'  }}\n'
-            f'  if (document.readyState === "loading") {{\n'
-            f'    document.addEventListener("DOMContentLoaded", applyOverrides);\n'
-            f'  }} else {{\n'
-            f'    setTimeout(applyOverrides, 100);\n'
-            f'  }}\n'
-            f'}})();\n'
-            f'</script>'
-        )
+    # FIDL-06 D-05: resolved display overlay - append a <script> block right
+    # before </body> that recolors and reshapes nodes in the vis.js `nodes`
+    # DataSet and syncs _inject_ui's legend swatches to the same colors.
+    if entity_display:
+        overlay_script = _display_overlay_script(entity_display)
         # Inject BEFORE </body> so _inject_ui's sidebar is already in place;
         # if </body> is missing (highly unusual), append at the end instead.
         if "</body>" in html:
