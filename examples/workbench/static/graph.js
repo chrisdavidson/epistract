@@ -958,7 +958,10 @@ function filterGraph() {
         const severityMatch = !severityNodeIds || severityNodeIds.has(n.id);
         // DEGREE-01: hide nodes whose linkDegree (linkDegreeMap, computed at build time
         // across ALL non-source edges, not currently visible edges) is below the threshold.
-        const degreeOk = (linkDegreeMap[n.id] || 0) >= minDegreeThreshold;
+        // Source nodes have no non-source edges by definition (linkDegree 0), so the
+        // threshold does not apply to them: the Show sources toggle alone decides.
+        const degreeOk = sourceNodeIds.has(n.id)
+            || (linkDegreeMap[n.id] || 0) >= minDegreeThreshold;
         const hidden = !(typeVisible && searchMatch && severityMatch && degreeOk);
         return { id: n.id, hidden };
     });

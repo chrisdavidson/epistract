@@ -103,6 +103,9 @@ def test_js_sources_toggle(mode):
         assert out["label"] == "Hide sources", out
         assert out["afterHide"] == ["d1"], out
         assert out["disabled"] is False, out
+        # WR-01: min degree 1 hides the isolated entity "c" but never a shown source.
+        assert out["afterShowMinDegree1"] == ["c"], out
+        assert out["pressedMinDegree1"] == "true", out
     else:
         assert out["disabled"] is True, out
         assert out["initialHidden"] == [], out

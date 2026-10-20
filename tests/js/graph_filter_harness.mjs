@@ -297,6 +297,16 @@ if (mode === 'sources' || mode === 'nosources') {
     out.label = label();
     btn.dispatch('click');
     out.afterHide = hiddenNodes();
+    // WR-01: a min-degree threshold must not hide source nodes while shown.
+    const slider = document.getElementById('min-degree-slider');
+    slider.value = '1';
+    slider.dispatch('input');
+    btn.dispatch('click');
+    out.afterShowMinDegree1 = hiddenNodes();
+    out.pressedMinDegree1 = btn.getAttribute('aria-pressed');
+    btn.dispatch('click');
+    slider.value = '0';
+    slider.dispatch('input');
   }
   process.stdout.write(JSON.stringify(out) + '\n');
   process.exit(0);
