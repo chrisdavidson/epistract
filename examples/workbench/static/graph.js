@@ -617,10 +617,23 @@ function buildGraph() {
             });
         }
 
+        const edgeKeyBtn = document.getElementById('edge-key-toggle');
+        if (edgeKeyBtn) {
+            edgeKeyBtn.addEventListener('click', () => {
+                const open = edgeKeyBtn.getAttribute('aria-expanded') !== 'true';
+                edgeKeyBtn.setAttribute('aria-expanded', String(open));
+                const panel = document.getElementById('edge-key');
+                if (!panel) return;
+                if (open) panel.removeAttribute('hidden');
+                else panel.setAttribute('hidden', '');
+            });
+        }
+
         _btnListenersAttached = true;
     }
 
     syncSourcesButton();
+    buildEdgeKey();
     window._graphDebug = { network, visNodes, visEdges };
 
     // Close sidebar on window resize so it does not float
@@ -630,6 +643,53 @@ function buildGraph() {
         window.addEventListener('resize', hideSidebar);
         _resizeListenerAttached = true;
     }
+}
+
+// Edge key: one row per relation category present in the loaded graph plus a
+// dashed row for claims that are not asserted. Hidden when no display data.
+function buildEdgeKey() {
+    const toggle = document.getElementById('edge-key-toggle');
+    const panel = document.getElementById('edge-key');
+    if (!toggle || !panel) return;
+    const entries = categoryEntries();
+    const counts = new Map();
+    for (const e of allEdges) {
+        const category = relationDisplay(e.relation_type).category;
+        counts.set(category, (counts.get(category) || 0) + 1);
+    }
+    const rows = [];
+    for (const entry of entries) {
+        const count = counts.get(entry.name) || 0;
+        if (count === 0) continue;
+        const row = document.createElement('div');
+        row.className = 'edge-key__row';
+        const label = document.createElement('span');
+        label.className = 'edge-key__label';
+        label.textContent = entry.label;
+        const num = document.createElement('span');
+        num.className = 'edge-key__count';
+        num.textContent = count.toLocaleString();
+        row.append(makeEdgeSample(entry.color), label, num);
+        rows.push(row);
+    }
+    if (entries.length === 0) {
+        panel.replaceChildren();
+        panel.setAttribute('hidden', '');
+        toggle.setAttribute('hidden', '');
+        toggle.setAttribute('aria-expanded', 'false');
+        return;
+    }
+    const other = entries.find(c => c.name === 'other');
+    const dashedRow = document.createElement('div');
+    dashedRow.className = 'edge-key__row';
+    const dashedLabel = document.createElement('span');
+    dashedLabel.className = 'edge-key__label';
+    dashedLabel.textContent = 'Dashed: not asserted (hypothesized, prophetic, speculative)';
+    dashedRow.append(makeEdgeSample(other ? other.color : undefined, { dashed: true }), dashedLabel);
+    rows.push(dashedRow);
+    panel.replaceChildren(...rows);
+    toggle.removeAttribute('hidden');
+    if (toggle.getAttribute('aria-expanded') !== 'true') panel.setAttribute('hidden', '');
 }
 
 function filterGraph() {

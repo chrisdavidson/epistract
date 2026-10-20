@@ -263,6 +263,16 @@ if (isEdges) {
   for (const id of ['r1', 'r2', 'r3']) {
     check(`${id} restored`, complete(record(id), colors[id], 0.8), record(id).color);
   }
+  const panel = document.getElementById('edge-key');
+  const toggle = document.getElementById('edge-key-toggle');
+  if (mode === 'edges') {
+    check('edge key rows', panel.children.length === 4, panel.children.length);
+    check('edge key toggle visible', !toggle.hasAttribute('hidden'));
+    toggle.dispatch('click');
+    check('edge key opens', toggle.getAttribute('aria-expanded') === 'true' && !panel.hasAttribute('hidden'));
+  } else {
+    check('edge key hidden on failure', toggle.hasAttribute('hidden') && panel.hasAttribute('hidden'));
+  }
   check('dash survives highlight', Array.isArray(record('r2').dashes));
   process.stdout.write(JSON.stringify({ passed, failed }) + '\n');
   process.exit(failed.length ? 1 : 0);

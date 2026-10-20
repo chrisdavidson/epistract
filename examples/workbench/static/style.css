@@ -1719,8 +1719,50 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+.graph-edge-key-btn {
+  opacity: 1;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.graph-edge-key-btn[aria-expanded="true"] {
+  border-color: var(--color-secondary);
+}
+
+.graph-edge-key-btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.edge-key {
+  max-height: 128px;
+  overflow-y: auto;
+  padding: var(--space-sm);
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.edge-key[hidden] {
+  display: none;
+}
+
+.edge-key__row {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--size-label);
+}
+
+.edge-key__count {
+  font-family: var(--font-data);
+  font-size: var(--size-data);
+  font-variant-numeric: tabular-nums;
+  color: #666666;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .toggle-btn,
+  .graph-edge-key-btn,
   .legend-chip {
     transition: none;
   }
