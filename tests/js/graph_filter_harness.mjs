@@ -7,6 +7,8 @@
 // argv[2] = "sources" / "nosources" exercise the Show sources toolbar button:
 // the harness prints {initialHidden, initialHiddenEdges, afterShow, pressed,
 // label, afterHide, disabled} read straight from the captured DataSets.
+// argv[2] = "edges" / "edges-fail" check edge category colors, dashes and the
+// complete color objects restored after a neighbourhood highlight is cleared.
 // argv[2] = "fit" fires the recorded stabilization handler at scale 0.1375 and
 // prints {fitBeforeFont, minLabelPx, minNodePx, minEdgePx, edgeIdsAreStrings}.
 import { pathToFileURL, fileURLToPath } from 'node:url';
@@ -135,13 +137,24 @@ for (let i = 0; i < 90; i++) {
     });
   }
 }
-const NODES = mode === 'fit' ? FIT_NODES : [
+const isEdges = mode === 'edges' || mode === 'edges-fail';
+const EDGE_NODES = [
+  { id: 'a', name: 'Aspirin', entity_type: 'COMPOUND' },
+  { id: 'b', name: 'Diabetes', entity_type: 'DISEASE' },
+  { id: 'c', name: 'Target', entity_type: 'COMPOUND' },
+];
+const EDGE_EDGES = [
+  { source: 'a', target: 'b', relation_type: 'TREATS', relation_id: 'r1', epistemic_status: 'asserted' },
+  { source: 'a', target: 'c', relation_type: 'INHIBITS', relation_id: 'r2', epistemic_status: 'hypothesized' },
+  { source: 'b', target: 'c', relation_type: 'NOT_IN_SCHEMA', relation_id: 'r3' },
+];
+const NODES = isEdges ? EDGE_NODES : mode === 'fit' ? FIT_NODES : [
   { id: 'a', name: 'Aspirin', entity_type: 'COMPOUND' },
   { id: 'b', name: 'Diabetes', entity_type: 'DISEASE' },
   { id: 'c', name: 'Mystery', entity_type: null },
   ...(withSources ? [{ id: 'd1', name: 'Doc one', entity_type: 'DOCUMENT' }] : []),
 ];
-const EDGES = mode === 'fit' ? FIT_EDGES : withSources
+const EDGES = isEdges ? EDGE_EDGES : mode === 'fit' ? FIT_EDGES : withSources
   ? [
     { source: 'a', target: 'd1', relation_type: 'MENTIONED_IN' },
     { source: 'a', target: 'b', relation_type: 'TREATS' },
@@ -164,7 +177,17 @@ const DISPLAY = {
   families: [{ name: 'Interventions' }, { name: 'Conditions' }, { name: 'Other' }],
   relations: withSources
     ? { MENTIONED_IN: { category: 'provenance', source_edge: true, description: '' } }
-    : {},
+    : isEdges
+      ? {
+        TREATS: { category: 'therapeutic', color: '#009e73', source_edge: false, description: '' },
+        INHIBITS: { category: 'mechanism', color: '#0072b2', source_edge: false, description: '' },
+      }
+      : {},
+  categories: {
+    mechanism: { label: 'Mechanism', color: '#0072b2' },
+    therapeutic: { label: 'Therapeutic', color: '#009e73' },
+    other: { label: 'Other', color: '#8b8f99' },
+  },
 };
 
 function respond(status, body) {
@@ -172,7 +195,7 @@ function respond(status, body) {
 }
 globalThis.fetch = async (url) => {
   if (url === '/api/graph/entity-types') {
-    return mode === 'fail' ? respond(500, {}) : respond(200, DISPLAY);
+    return (mode === 'fail' || mode === 'edges-fail') ? respond(500, {}) : respond(200, DISPLAY);
   }
   if (url === '/api/graph') return respond(200, { nodes: NODES, edges: EDGES });
   return respond(404, {});
@@ -209,6 +232,40 @@ if (mode === 'fit') {
   };
   process.stdout.write(JSON.stringify(out) + '\n');
   process.exit(0);
+}
+
+if (isEdges) {
+  const edgeSet = () => [...datasets].reverse().find((d) => [...d.items.values()].some((i) => 'from' in i));
+  const record = (id) => edgeSet().items.get(id);
+  const passed = [];
+  const failed = [];
+  const check = (name, cond, detail = '') => {
+    if (cond) passed.push(name); else failed.push({ name, detail: JSON.stringify(detail) });
+  };
+  const complete = (e, color, opacity) => e.color && e.color.color === color
+    && e.color.opacity === opacity && e.color.inherit === false
+    && e.color.highlight && e.color.highlight.color === color
+    && e.color.hover && e.color.hover.color === color;
+  const colors = mode === 'edges'
+    ? { r1: '#009e73', r2: '#0072b2', r3: '#8b8f99' }
+    : { r1: '#8b8f99', r2: '#8b8f99', r3: '#8b8f99' };
+  for (const id of ['r1', 'r2', 'r3']) {
+    check(`${id} initial color`, complete(record(id), colors[id], 0.8), record(id).color);
+  }
+  check('asserted solid', record('r1').dashes === false, record('r1').dashes);
+  check('missing status solid', record('r3').dashes === false, record('r3').dashes);
+  check('hypothesized dashed', Array.isArray(record('r2').dashes)
+    && record('r2').dashes[0] === 7 && record('r2').dashes[1] === 5, record('r2').dashes);
+  check('width stays numeric', typeof record('r1').width === 'number');
+  const click = (params) => { for (const fn of handlers.get('click') || []) fn(params); };
+  click({ nodes: ['a'], edges: [] });
+  click({ nodes: [], edges: [] });
+  for (const id of ['r1', 'r2', 'r3']) {
+    check(`${id} restored`, complete(record(id), colors[id], 0.8), record(id).color);
+  }
+  check('dash survives highlight', Array.isArray(record('r2').dashes));
+  process.stdout.write(JSON.stringify({ passed, failed }) + '\n');
+  process.exit(failed.length ? 1 : 0);
 }
 
 if (mode === 'sources' || mode === 'nosources') {
