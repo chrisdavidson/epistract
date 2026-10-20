@@ -268,22 +268,66 @@ try {
     timings.nodes = nodes.length;
     timings.edges = edges.length;
     check('perf: hub has many edges', best.n >= 200, best.n);
+
+    // hover update on the hub (focus compute + both DataSet writes)
+    {
+      const w = await setupWiring();
+      const other = [...w.nodeDs.items.keys()].find((id) => id !== best.id);
+      const hubParams = { node: best.id, pointer: { DOM: { x: 100, y: 100 } } };
+      const hoverRuns = [];
+      for (let i = 0; i < 20; i++) {
+        const t0 = performance.now();
+        w.fire('hoverNode', hubParams);
+        w.advance(20);
+        hoverRuns.push(performance.now() - t0);
+        w.fire('blurNode', { node: best.id });
+        w.advance(20);
+      }
+      hoverRuns.sort((a, b) => a - b);
+      timings.hover_update_median_ms = hoverRuns[10];
+      check('perf: hover wrote focus', w.updateLog.some((u) => u.kind === 'edges' && u.items.some((i) => i.font.size > 0)));
+      void other;
+    }
   }
 
-  if (mode === 'wiring') {
+  async function setupWiring() {
     const datasets = [];
     const handlers = new Map();
+    const updateLog = [];
     class DataSet {
-      constructor(items) { datasets.push(this); this.items = new Map(items.map((i) => [i.id, { ...i }])); }
-      update(us) { for (const u of [].concat(us)) this.items.set(u.id, { ...(this.items.get(u.id) || {}), ...u }); }
+      constructor(items) {
+        datasets.push(this);
+        this.kind = items[0] && 'from' in items[0] ? 'edges' : 'nodes';
+        this.items = new Map(items.map((i) => [i.id, { ...i }]));
+      }
+      update(us) {
+        const list = [].concat(us);
+        updateLog.push({ kind: this.kind, items: list.map((u) => ({ ...u })) });
+        for (const u of list) this.items.set(u.id, { ...(this.items.get(u.id) || {}), ...u });
+      }
       get(id) { return id === undefined ? [...this.items.values()] : this.items.get(id); }
       getIds() { return [...this.items.keys()]; }
     }
+    let edgeAdj = null;
+    const adjacencyOf = () => {
+      if (edgeAdj) return edgeAdj;
+      edgeAdj = new Map();
+      const eds = datasets.find((d) => d.kind === 'edges');
+      for (const e of eds.items.values()) {
+        for (const [a, b] of [[e.from, e.to], [e.to, e.from]]) {
+          if (!edgeAdj.has(a)) edgeAdj.set(a, []);
+          edgeAdj.get(a).push({ edge: e.id, other: b });
+        }
+      }
+      return edgeAdj;
+    };
     class Network {
       constructor() {
         return new Proxy(this, {
           get(_t, prop) {
             if (prop === 'getScale') return () => 1;
+            if (prop === 'getConnectedNodes') return (id) => [...new Set((adjacencyOf().get(id) || []).map((x) => x.other))];
+            if (prop === 'getConnectedEdges') return (id) => (adjacencyOf().get(id) || []).map((x) => x.edge);
             if (prop === 'on' || prop === 'once') {
               return (event, fn) => { (handlers.get(event) || handlers.set(event, []).get(event)).push(fn); };
             }
@@ -329,8 +373,110 @@ try {
     const container = document.getElementById('graph-container');
     const target = 'compound:semaglutide';
     const hoverParams = { node: target, pointer: { DOM: { x: 100, y: 100 } } };
+    globalThis.requestAnimationFrame = (fn) => globalThis.setTimeout(fn, 16);
+    globalThis.cancelAnimationFrame = (id) => globalThis.clearTimeout(id);
+    const nodeDs = datasets.find((d) => d.kind === 'nodes');
+    const edgeDs = datasets.find((d) => d.kind === 'edges');
+    return { datasets, handlers, updateLog, fire, advance, card, visible, container, target, hoverParams, nodeDs, edgeDs };
+  }
 
-    const nodeDs = datasets.find((d) => [...d.items.values()].some((i) => 'label' in i));
+  if (mode === 'focus') {
+    const { fire, advance, updateLog, nodeDs, edgeDs, hoverParams, target } = await setupWiring();
+    const style = await imp('graph_style.js');
+    const edgesOf = (id) => [...edgeDs.items.values()].filter((e) => e.from === id || e.to === id);
+    const connectedEdgeIds = new Set(edgesOf(target).map((e) => e.id));
+
+    // pure helpers
+    const fi = style.focusIds('h', ['a', 'b', 'c'], { a: 1, b: 9, c: 5 }, 3);
+    check('focusIds: center plus top by degree', fi instanceof Set && [...fi].sort().join() === 'b,c,h', [...fi]);
+    const tie = style.focusIds('h', ['z', 'y', 'x'], {}, 3);
+    check('focusIds: ties by id and cap', [...tie].join() === 'h,x,y', [...tie]);
+    check('focusIds: cap constant is 25', style.FOCUS_MAX_LABELS === 25);
+    const d = style.focusDelta(new Set(['a', 'b']), new Set(['b', 'c']));
+    check('focusDelta: added/removed', d.added.join() === 'c' && d.removed.join() === 'a', d);
+    const ef = style.edgeLabelFont(0.5);
+    check('edgeLabelFont: complete object', ef.size === style.labelFontSize(0.5) * 0.85
+      && ef.color === '#1a1a1a' && ef.strokeColor === '#ffffff' && ef.strokeWidth === 3 && ef.align === 'middle', ef);
+    check('edgeLabelFont: hidden size 0', style.edgeLabelFont(1, false).size === 0);
+
+    // rest state
+    const recs = [...edgeDs.items.values()];
+    check('edges carry label strings', recs.every((e) => typeof e.label === 'string' && e.label.length > 0));
+    check('edges rest at font size 0', recs.every((e) => e.font && e.font.size === 0));
+    const rested = edgeDs.items.get(edgesOf(target)[0].id);
+    check('edge label is humanized', rested.label === rested.label.toLowerCase() && !rested.label.includes('_'), rested.label);
+
+    // hover
+    updateLog.length = 0;
+    fire('hoverNode', hoverParams);
+    advance(20);
+    const nodeWrites = updateLog.filter((u) => u.kind === 'nodes');
+    const edgeWrites = updateLog.filter((u) => u.kind === 'edges');
+    check('hover: one nodes update', nodeWrites.length === 1, nodeWrites.length);
+    check('hover: one edges update', edgeWrites.length === 1, edgeWrites.length);
+    const nKeys = new Set(nodeWrites.flatMap((u) => u.items.flatMap((i) => Object.keys(i))));
+    const eKeys = new Set(edgeWrites.flatMap((u) => u.items.flatMap((i) => Object.keys(i))));
+    check('hover: node keys id+font only', [...nKeys].sort().join() === 'font,id', [...nKeys]);
+    check('hover: edge keys id+font only', [...eKeys].sort().join() === 'font,id', [...eKeys]);
+    const labelled = nodeWrites.flatMap((u) => u.items).filter((i) => i.font.size > 0);
+    check('hover: at most 25 gain labels', labelled.length <= 25 && labelled.length > 1, labelled.length);
+    check('hover: hovered node labelled', labelled.some((i) => i.id === target));
+    const eItems = edgeWrites.flatMap((u) => u.items);
+    check('hover: only connected edges written', eItems.length > 0 && eItems.every((i) => connectedEdgeIds.has(i.id)), eItems.length);
+    check('hover: edge names shown', eItems.every((i) => i.font.size > 0));
+    check('hover: complete edge font', eItems.every((i) => i.font.color === '#1a1a1a' && i.font.strokeColor === '#ffffff'));
+    const focusedNodeIds = new Set(labelled.map((i) => i.id));
+
+    // blur
+    updateLog.length = 0;
+    fire('blurNode', { node: target });
+    advance(20);
+    const backN = updateLog.filter((u) => u.kind === 'nodes').flatMap((u) => u.items);
+    const backE = updateLog.filter((u) => u.kind === 'edges').flatMap((u) => u.items);
+    check('blur: only focused ids written back', backN.length > 0 && backN.every((i) => focusedNodeIds.has(i.id)), backN.length);
+    check('blur: edges hidden again', backE.length === eItems.length && backE.every((i) => i.font.size === 0), backE.length);
+    check('blur: no opacity/hidden/color keys', updateLog.every((u) => u.items.every((i) => !('opacity' in i) && !('hidden' in i) && !('color' in i))));
+    const restN = backN.filter((i) => i.font.size > 0).map((i) => i.id);
+    check('blur: resting labels follow degree rule', restN.every((id) => id !== undefined), restN);
+
+    // selection persists across another hover
+    const other = [...nodeDs.items.keys()].find((id) => id !== target && !edgesOf(target).some((e) => e.from === id || e.to === id)
+      && edgesOf(id).length > 0 && nodeDs.items.get(id).hidden !== true);
+    updateLog.length = 0;
+    fire('click', { nodes: [target], edges: [] });
+    advance(20);
+    const selNodes = new Set(nodeDs.items.get(target) ? [...nodeDs.items.values()].filter((n) => n.font && n.font.size > 0).map((n) => n.id) : []);
+    check('select: node labelled', selNodes.has(target));
+    const neighborSample = edgesOf(target).map((e) => (e.from === target ? e.to : e.from)).filter((id) => nodeDs.items.get(id).hidden !== true);
+    check('select: neighbors labelled (capped)', neighborSample.some((id) => selNodes.has(id)));
+    fire('hoverNode', { node: other, pointer: { DOM: { x: 5, y: 5 } } });
+    advance(20);
+    fire('blurNode', { node: other });
+    advance(20);
+    const afterSel = new Set([...nodeDs.items.values()].filter((n) => n.font && n.font.size > 0).map((n) => n.id));
+    check('select: survives other hover+blur', [...selNodes].every((id) => afterSel.has(id)), [...selNodes].filter((id) => !afterSel.has(id)));
+    const edgeShown = (id) => edgeDs.items.get(id).font.size > 0;
+    check('select: edges of selection named', [...connectedEdgeIds].every((id) => edgeDs.items.get(id).hidden === true || edgeShown(id)));
+    fire('click', { nodes: [], edges: [] });
+    advance(20);
+    check('clear: selection labels removed', [...connectedEdgeIds].every((id) => !edgeShown(id)));
+
+    // single edge hover
+    const eid = [...edgeDs.items.keys()][0];
+    updateLog.length = 0;
+    fire('hoverEdge', { edge: eid });
+    advance(20);
+    const only = updateLog.filter((u) => u.kind === 'edges').flatMap((u) => u.items);
+    check('hoverEdge: only that edge', only.length === 1 && only[0].id === eid && only[0].font.size > 0, only);
+    updateLog.length = 0;
+    fire('blurEdge', { edge: eid });
+    advance(20);
+    check('blurEdge: restored to 0', edgeDs.items.get(eid).font.size === 0);
+  }
+
+  if (mode === 'wiring') {
+    const { datasets, fire, advance, card, visible, container, target, hoverParams } = await setupWiring();
+    const nodeDs = datasets.find((d) => d.kind === 'nodes');
     check('no vis title on nodes', Boolean(nodeDs) && [...nodeDs.items.values()].every((i) => !('title' in i)));
     check('card lives on body', Boolean(card()) && card().parentNode === body);
     check('card not in graph container', !findAll(container, (n) => n.id === 'graph-hover-card').length);

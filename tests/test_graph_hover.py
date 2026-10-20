@@ -77,6 +77,13 @@ def test_hover_wiring_in_graph_js(tmp_path):
 
 
 @pytest.mark.unit
+def test_hover_focus_labels_and_write_discipline(tmp_path):
+    _need_node()
+    display = _display_payload(tmp_path)
+    _run(GLP1 / "graph_data.json", display, "focus")
+
+
+@pytest.mark.unit
 def test_hover_card_latency_on_synthetic_hub(tmp_path):
     _need_node()
     display = _display_payload(tmp_path)
@@ -85,3 +92,4 @@ def test_hover_card_latency_on_synthetic_hub(tmp_path):
     timings = report["timings"]
     assert timings["nodes"] == 1738 and timings["edges"] == 2500
     assert timings["median_ms"] < 16, timings
+    assert timings["hover_update_median_ms"] < 50, timings
