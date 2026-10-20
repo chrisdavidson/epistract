@@ -228,6 +228,25 @@ def cmd_build(output_dir: str, domain_name: str | None = None):
     }))
 
 
+def _json_for_script(value: object) -> str:
+    """Serialize value as JSON that is safe to embed inside an HTML <script> block.
+
+    ``json.dumps`` leaves ``<``, ``>`` and ``&`` intact, so a string such as
+    ``</script><script>...`` (an LLM-extracted entity type, for example) would
+    close the script element. Escaping them as ``\\u`` sequences keeps the
+    value identical once parsed by JavaScript. U+2028/U+2029 are escaped too,
+    since older JavaScript engines treat them as line terminators.
+    """
+    return (
+        json.dumps(value)
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("&", "\\u0026")
+        .replace("\u2028", "\\u2028")
+        .replace("\u2029", "\\u2029")
+    )
+
+
 def _resolved_entity_colors(
     output_dir: Path, resolved_domain: str | None, template: dict
 ) -> dict[str, str]:
@@ -329,7 +348,8 @@ def cmd_view(output_dir: str, **kwargs):
     # in our template.yaml entity_colors dict. Existing color pickers in
     # _inject_ui's sidebar still work; they just start from our overrides.
     if entity_colors:
-        overrides_js = json.dumps(entity_colors)
+        # CR-01: keys are graph-derived (untrusted); escape for the script context.
+        overrides_js = _json_for_script(entity_colors)
         overlay_script = (
             f'<script>\n'
             f'// FIDL-06 D-05: domain entity_colors overlay injected by cmd_view.\n'
