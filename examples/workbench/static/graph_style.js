@@ -3,7 +3,8 @@
 //          relationRowParts, relationSentence, scaleBucket, labelFontSize, nodeSize,
 //          edgeWidth, truncateLabel, labelCutoff, stableEdgeIds and the screen-size
 //          constants (NODE_MIN_PX ... TRUNCATE_LABEL_CHARS), edgeDashes, edgeColorObject,
-//          EDGE_BASE_OPACITY, EDGE_DIM_OPACITY, EDGE_DASH_ON_PX, EDGE_DASH_OFF_PX
+//          EDGE_BASE_OPACITY, EDGE_DIM_OPACITY, EDGE_DASH_ON_PX, EDGE_DASH_OFF_PX,
+//          HOVER_TOP_RELATIONS, CARD_OFFSET_PX, CARD_MARGIN_PX, hoverCardModel, cardPosition
 
 // Screen-constant sizing. vis draws in world units, so at a fit scale of ~0.14
 // a world-unit size is a fraction of a pixel. These constants are pixel targets;
@@ -159,4 +160,100 @@ export function relationSentence(parts) {
     return parts.direction === 'out'
         ? `${parts.relation} → ${parts.other}`
         : `${parts.other} · ${parts.relation} →`;
+}
+
+// ---------------------------------------------------------------------------
+// Hover card model (pure; no DOM)
+// ---------------------------------------------------------------------------
+export const HOVER_TOP_RELATIONS = 4;
+export const CARD_OFFSET_PX = 16;
+export const CARD_MARGIN_PX = 8;
+
+function groupScoreCompare(a, b) {
+    return (b.support - a.support)
+        || (b.confidence - a.confidence)
+        || (a.sentence < b.sentence ? -1 : a.sentence > b.sentence ? 1 : 0);
+}
+
+// Card content for a node. incidentEdges is the node's adjacency list, so no
+// scan of the whole edge list is needed. opts: {isSourceNode(id), typeLabel,
+// family, description, top}.
+export function hoverCardModel(node, incidentEdges, nodeById, opts = {}) {
+    const top = opts.top === undefined ? HOVER_TOP_RELATIONS : opts.top;
+    const isSourceNode = opts.isSourceNode || (() => false);
+    const nameOf = (id) => {
+        const n = nodeById.get(id);
+        return n && n.name ? n.name : String(id);
+    };
+    const groups = new Map();
+    let linkCount = 0;
+    for (const edge of incidentEdges || []) {
+        const parts = relationRowParts(edge, node.id, nameOf);
+        if (isSourceNode(parts.otherId)) continue;
+        linkCount += 1;
+        const key = `${parts.direction}|${edge.relation_type}|${parts.otherId}`;
+        const support = Number(edge.support_count) || 0;
+        const confidence = Number(edge.confidence) || 0;
+        const group = groups.get(key);
+        if (!group) {
+            groups.set(key, { parts, count: 1, support, confidence, status: parts.status });
+            continue;
+        }
+        group.count += 1;
+        if (support > group.support || (support === group.support && confidence > group.confidence)) {
+            group.support = support;
+            group.confidence = confidence;
+            group.status = parts.status;
+        }
+    }
+    const ranked = [...groups.values()].map((g) => {
+        const shown = { ...g.parts, other: truncateLabel(g.parts.other) };
+        return { ...g, shown, sentence: relationSentence(shown) };
+    }).sort(groupScoreCompare);
+
+    const picked = ranked.slice(0, Math.max(top, 0));
+    // Keep both grammars visible on hubs: if the pick is one-directional but
+    // the other direction exists, the last pick yields to its best row.
+    if (picked.length > 1) {
+        const dirs = new Set(picked.map((g) => g.parts.direction));
+        if (dirs.size === 1) {
+            const missing = ranked.find((g) => !dirs.has(g.parts.direction));
+            if (missing) picked[picked.length - 1] = missing;
+        }
+    }
+    const relations = picked.map((g) => ({
+        direction: g.parts.direction,
+        relation: g.parts.relation,
+        other: g.shown.other,
+        sentence: g.sentence,
+        title: relationSentence(g.parts) + statusSuffix(g.status),
+        status: g.status,
+        count: g.count,
+    }));
+    return {
+        name: node.name || node.id,
+        typeLabel: opts.typeLabel || '',
+        family: opts.family || '',
+        description: opts.description || '',
+        linkCount,
+        sourceCount: (node.source_documents || []).length,
+        relations,
+        more: ranked.length - relations.length,
+        noLinks: linkCount === 0,
+    };
+}
+
+// Fixed-position placement: offset from the pointer, flipped when it would
+// overflow, then clamped so the card stays CARD_MARGIN_PX inside the viewport.
+export function cardPosition(pointer, size, viewport) {
+    let left = pointer.x + CARD_OFFSET_PX;
+    let top = pointer.y + CARD_OFFSET_PX;
+    if (left + size.w + CARD_MARGIN_PX > viewport.w) left = pointer.x - CARD_OFFSET_PX - size.w;
+    if (top + size.h + CARD_MARGIN_PX > viewport.h) top = pointer.y - CARD_OFFSET_PX - size.h;
+    const maxLeft = Math.max(CARD_MARGIN_PX, viewport.w - size.w - CARD_MARGIN_PX);
+    const maxTop = Math.max(CARD_MARGIN_PX, viewport.h - size.h - CARD_MARGIN_PX);
+    return {
+        left: Math.min(Math.max(left, CARD_MARGIN_PX), maxLeft),
+        top: Math.min(Math.max(top, CARD_MARGIN_PX), maxTop),
+    };
 }

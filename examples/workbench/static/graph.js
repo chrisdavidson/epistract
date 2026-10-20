@@ -7,8 +7,9 @@ import {
 import {
     isSourceEdge, linkDegrees, scaleBucket, labelFontSize, nodeSize, edgeWidth,
     truncateLabel, labelCutoff, stableEdgeIds, LABEL_BASE_WORLD,
-    edgeDashes, edgeColorObject, EDGE_BASE_OPACITY, EDGE_DIM_OPACITY,
+    edgeDashes, edgeColorObject, EDGE_BASE_OPACITY, EDGE_DIM_OPACITY, hoverCardModel,
 } from './graph_style.js';
+import { initHoverCard, showHoverCard, hideHoverCard } from './hovercard.js';
 
 // graph.js - Graph panel: vis.js network, search, entity type toggles
 
@@ -54,6 +55,8 @@ const FA2_SPRING_CONSTANT = 0.05;               // edge stiffness
 const FA2_DAMPING = 0.5;                        // higher settles faster with less oscillation
 const FA2_AVOID_OVERLAP = 0.6;                  // 0 to 1; adds a node-radius-aware repulsion term that stops dots from stacking
 
+const HOVER_CARD_DELAY_MS = 150;      // pause before the hover card appears
+
 const FALLBACK_SOURCE_TYPES = new Set(['DOCUMENT', 'PUBLICATION']); // used only when display data failed to load
 
 // Reduced-motion users get an instant fit; everyone else an eased one.
@@ -92,6 +95,11 @@ let _labelUpdateTimer = null;             // pending throttled applyScaleStyle()
 let _lastStyleKey = null;                 // last-applied `${cutoff}|${bucket}`; skip DataSet writes when unchanged
 let edgeColorById = new Map();            // stable edge id -> validated category color; source for every edge color write
 let edgeIdByIndex = [];                   // stable vis edge id for each entry of allEdges
+let nodeById = new Map();                 // id -> node record; built once per graph
+let adjacency = new Map();                // id -> incident edges; built once so hover never scans allEdges
+let _hoverTimer = null;                   // pending hover-card show
+let pinnedCardNodeId = null;              // node whose card stays pinned while selected
+let _hoverListenersAttached = false;
 
 // vis-network color object: type fill with a neutral border.
 function nodeColor(type) {
@@ -107,6 +115,7 @@ function nodeColor(type) {
 
 export async function initGraph(opts) {
     callbacks = opts || {};
+    initHoverCard();
 
     // Resolve type colors/shapes once, before the legend or nodes are built, so
     // every surface reads the same values regardless of build order.
@@ -228,7 +237,7 @@ let _degreeSliderListenerAttached = false;   // WR-02: guard min-degree slider d
 // 260802-cu1: node label declutter. Gates node label visibility on zoom
 // scale multiplied by node degree, so only hub nodes are labelled when
 // zoomed out. Edge labels are removed entirely (see edge mapping above);
-// relation type stays reachable via hover tooltip + sidebar edge detail.
+// relation type stays reachable via sidebar edge detail.
 // ---------------------------------------------------------------------------
 function applyScaleStyle() {
     if (!network || !visNodes) return;
@@ -311,6 +320,9 @@ function buildGraph() {
             _labelUpdateTimer = null;
         }
         _lastStyleKey = null;
+        cancelHover();
+        pinnedCardNodeId = null;
+        hideCard();
         sourcesShown = false;
         sourcesPlaced = false;
         for (const type of sourceTypes()) activeTypes.delete(type);
@@ -332,6 +344,15 @@ function buildGraph() {
         degreeMap[e.source] = (degreeMap[e.source] || 0) + 1;
         degreeMap[e.target] = (degreeMap[e.target] || 0) + 1;
     });
+
+    nodeById = new Map(allNodes.map(n => [n.id, n]));
+    adjacency = new Map();
+    for (const e of allEdges) {
+        for (const id of new Set([e.source, e.target])) {
+            if (!adjacency.has(id)) adjacency.set(id, []);
+            adjacency.get(id).push(e);
+        }
+    }
 
     // Sources-family nodes. Without display data the type filter is off, so
     // fall back to the pipeline's own DOCUMENT/PUBLICATION types.
@@ -369,10 +390,6 @@ function buildGraph() {
         .sort((a, b) => b - a);
 
     const nodes = allNodes.map(n => {
-        // CR-01: Build tooltip as an HTMLElement so vis.js renders it via DOM
-        // rather than innerHTML, preventing XSS from untrusted node data.
-        const tooltipEl = document.createElement('div');
-        tooltipEl.textContent = `${n.entity_type}: ${n.name}`;
         const d = typeDisplay(n.entity_type);
         const isSource = sourceNodeIds.has(n.id);
         return {
@@ -381,7 +398,6 @@ function buildGraph() {
             color: nodeColor(n.entity_type),
             borderWidth: 1,
             borderWidthSelected: 3,
-            title: tooltipEl,
             shape: d.shape,
             hidden: isNodeHiddenAtBuild(n),
             size: nodeSize(linkDegreeMap[n.id] || 0, maxDegree, 1, isSource),
@@ -391,7 +407,7 @@ function buildGraph() {
     });
 
     // No text label on edges (260802-cu1 declutter) — relation_type remains
-    // reachable via the vis hover tooltip default and the sidebar edge
+    // reachable via the sidebar edge
     // detail panel (sidebar.js showEdgeDetail()), so no information is lost.
     edgeIdByIndex = stableEdgeIds(allEdges);
     edgeColorById = new Map(allEdges.map((e, i) => [
@@ -452,7 +468,6 @@ function buildGraph() {
         },
         interaction: {
             hover: true,
-            tooltipDelay: 200,
             multiselect: true,
             dragNodes: true,
             navigationButtons: false,
@@ -507,11 +522,34 @@ function buildGraph() {
     network.once('stabilizationIterationsDone', settle);
     network.once('stabilized', settle);
 
+    // Hover card: shown after a short pause over a node; hidden by any
+    // gesture that moves the view. A selected node keeps its card pinned.
+    network.on('hoverNode', (params) => {
+        cancelHover();
+        const nodeId = params.node;
+        const point = params.pointer && params.pointer.DOM;
+        if (!point) return;
+        _hoverTimer = setTimeout(() => {
+            _hoverTimer = null;
+            showCardFor(nodeId, domToClient(point));
+        }, HOVER_CARD_DELAY_MS);
+    });
+    network.on('blurNode', () => {
+        cancelHover();
+        if (pinnedCardNodeId !== null) showPinnedCard();
+        else hideCard();
+    });
+    network.on('dragStart', () => { cancelHover(); hideCard(); });
+    network.on('zoom', () => { cancelHover(); hideCard(); });
+
     // Click node -> highlight neighbourhood + sidebar; click edge -> sidebar only;
     // canvas background -> clear highlight + close sidebar. (D-01..D-04)
     network.on('click', (params) => {
+        cancelHover();
         if (params.nodes.length > 0) {
             const nodeId = params.nodes[0];
+            pinnedCardNodeId = nodeId;
+            showPinnedCard();
 
             // D-02: second click on already-highlighted node clears dim; sidebar stays open
             if (highlightedNodeId === nodeId) {
@@ -549,6 +587,8 @@ function buildGraph() {
             showEdgeDetail(params.edges[0], visEdges, allNodes);
         } else {
             // D-03: canvas background click — clear highlight AND close sidebar
+            pinnedCardNodeId = null;
+            hideCard();
             clearHighlight();
             hideSidebar();
         }
@@ -643,6 +683,64 @@ function buildGraph() {
         window.addEventListener('resize', hideSidebar);
         _resizeListenerAttached = true;
     }
+
+    if (!_hoverListenersAttached) {
+        const dismiss = () => { cancelHover(); hideCard(); };
+        window.addEventListener('resize', dismiss);
+        window.addEventListener('scroll', dismiss, true);
+        document.addEventListener('keydown', (event) => {
+            if (event.key !== 'Escape') return;
+            pinnedCardNodeId = null;
+            dismiss();
+        });
+        _hoverListenersAttached = true;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Hover card helpers
+// ---------------------------------------------------------------------------
+function cancelHover() {
+    if (_hoverTimer) {
+        clearTimeout(_hoverTimer);
+        _hoverTimer = null;
+    }
+}
+
+function hideCard() {
+    hideHoverCard();
+    const container = document.getElementById('graph-container');
+    if (container) container.removeAttribute('aria-describedby');
+}
+
+// vis reports DOM coordinates relative to the canvas; the card is positioned
+// against the viewport.
+function domToClient(point) {
+    const container = document.getElementById('graph-container');
+    const rect = container ? container.getBoundingClientRect() : { left: 0, top: 0 };
+    return { x: rect.left + point.x, y: rect.top + point.y };
+}
+
+function showCardFor(nodeId, clientPoint) {
+    const node = nodeById.get(nodeId);
+    if (!node) return;
+    const d = typeDisplay(node.entity_type);
+    const model = hoverCardModel(node, adjacency.get(nodeId) || [], nodeById, {
+        isSourceNode: id => sourceNodeIds.has(id),
+        typeLabel: d.label,
+        family: d.family,
+        description: d.description,
+    });
+    showHoverCard(model, node.entity_type, clientPoint);
+    const container = document.getElementById('graph-container');
+    if (container) container.setAttribute('aria-describedby', 'graph-hover-card');
+}
+
+function showPinnedCard() {
+    if (!network || pinnedCardNodeId === null) return;
+    const pos = network.getPositions([pinnedCardNodeId])[pinnedCardNodeId];
+    if (!pos) return;
+    showCardFor(pinnedCardNodeId, domToClient(network.canvasToDOM(pos)));
 }
 
 // Edge key: one row per relation category present in the loaded graph plus a
