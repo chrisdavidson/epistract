@@ -516,3 +516,27 @@ def test_js_filter_keeps_nodes_when_display_missing(mode):
     out = json.loads(result.stdout.strip().splitlines()[-1])
     assert out["total"] == 3, out
     assert out["hidden"] == [], f"filter hid nodes in {mode} mode: {out}"
+
+
+@pytest.mark.unit
+def test_family_spelling_is_canonical_per_family():
+    """WR-03: case variants of one family share one spelling everywhere."""
+    from core.graph_display import resolve_display
+
+    schema = {
+        "entity_types": {
+            "A": {"display": {"family": "molecular"}},
+            "B": {"display": {"family": "Molecular"}},
+            "C": {"display": {"family": "sources"}},
+            "D": {"display": {"family": "OTHER"}},
+        }
+    }
+    display = resolve_display(schema, ())
+    types = display["types"]
+    assert types["A"]["family"] == types["B"]["family"] == "molecular"
+    assert types["C"]["family"] == "Sources"
+    assert types["D"]["family"] == "Other"
+    family_names = [f["name"] for f in display["families"]]
+    assert family_names == ["molecular", "Other", "Sources"]
+    for t in types.values():
+        assert t["family"] in family_names

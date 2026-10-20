@@ -269,6 +269,18 @@ def _resolve(
         else:
             families[name] = OTHER_FAMILY
 
+    # Families are grouped case-insensitively; give every member of a family the
+    # same spelling (the first one seen, or the built-in spelling for the
+    # Other/Sources tails) so consumers can compare family names exactly.
+    canonical: dict[str, str] = {
+        OTHER_FAMILY.lower(): OTHER_FAMILY,
+        SOURCES_FAMILY.lower(): SOURCES_FAMILY,
+    }
+    for name in order:
+        canonical.setdefault(families[name].lower(), families[name])
+    for name in order:
+        families[name] = canonical[families[name].lower()]
+
     # Colors: authored (override/declared) first, then pipeline greys, then auto.
     claimed: set[str] = set()
     owner: dict[str, str] = {}
