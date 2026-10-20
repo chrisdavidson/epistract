@@ -2,10 +2,12 @@ import { initSidebar, showNodeDetail, showEdgeDetail, hideSidebar } from './side
 import {
     loadDisplay, typeDisplay, typeKey, entityColor, legendEntries, buildLegendChip,
     renderLegendMessage, isSourceType, isSourceRelation, sourceTypes, setChipPressed,
+    relationDisplay, categoryEntries, makeEdgeSample,
 } from './display.js';
 import {
     isSourceEdge, linkDegrees, scaleBucket, labelFontSize, nodeSize, edgeWidth,
     truncateLabel, labelCutoff, stableEdgeIds, LABEL_BASE_WORLD,
+    edgeDashes, edgeColorObject, EDGE_BASE_OPACITY, EDGE_DIM_OPACITY,
 } from './graph_style.js';
 
 // graph.js - Graph panel: vis.js network, search, entity type toggles
@@ -88,6 +90,7 @@ let sourcesPlaced = false;                // sources already moved next to their
 let sourceNeighbours = new Map();         // source id -> ids of its non-source neighbours
 let _labelUpdateTimer = null;             // pending throttled applyScaleStyle() call (260802-cu1)
 let _lastStyleKey = null;                 // last-applied `${cutoff}|${bucket}`; skip DataSet writes when unchanged
+let edgeColorById = new Map();            // stable edge id -> validated category color; source for every edge color write
 let edgeIdByIndex = [];                   // stable vis edge id for each entry of allEdges
 
 // vis-network color object: type fill with a neutral border.
@@ -274,6 +277,7 @@ function applyScaleStyle() {
         const edgeUpdates = allEdges.map((e, i) => ({
             id: edgeIdByIndex[i],
             width: edgeWidth(e.support_count, scale),
+            dashes: edgeDashes(e.epistemic_status, scale),
         }));
         visEdges.update(edgeUpdates);
     }
@@ -390,9 +394,14 @@ function buildGraph() {
     // reachable via the vis hover tooltip default and the sidebar edge
     // detail panel (sidebar.js showEdgeDetail()), so no information is lost.
     edgeIdByIndex = stableEdgeIds(allEdges);
+    edgeColorById = new Map(allEdges.map((e, i) => [
+        edgeIdByIndex[i], relationDisplay(e.relation_type).color,
+    ]));
     const edges = allEdges.map((e, i) => ({
         id: edgeIdByIndex[i],
         width: edgeWidth(e.support_count, 1),
+        color: edgeColorObject(edgeColorById.get(edgeIdByIndex[i]), EDGE_BASE_OPACITY),
+        dashes: edgeDashes(e.epistemic_status, 1),
         from: e.source,
         to: e.target,
         arrows: 'to',
@@ -529,7 +538,7 @@ function buildGraph() {
             // Dim non-neighbourhood edges to opacity 0.15
             const edgeDims = visEdges.getIds()
                 .filter(id => !connectedEdgeIds.has(id))
-                .map(id => ({ id, color: { opacity: 0.15 } }));
+                .map(id => ({ id, color: edgeColorObject(edgeColorById.get(id), EDGE_DIM_OPACITY) }));
             if (edgeDims.length) visEdges.update(edgeDims);
 
             // Open sidebar (Phase 09 unchanged)
@@ -821,8 +830,10 @@ function setSourcesShown(on) {
 
 function clearHighlight() {
     if (!visNodes || !visEdges) return;
-    const nodeRestores = visNodes.getIds().map(id => ({ id, opacity: 1.0 }));
-    const edgeRestores = visEdges.getIds().map(id => ({ id, color: { opacity: 1.0 } }));
+    const nodeRestores = visNodes.getIds().map(id => ({ id, opacity: 1 }));
+    const edgeRestores = visEdges.getIds().map(id => ({
+        id, color: edgeColorObject(edgeColorById.get(id), EDGE_BASE_OPACITY),
+    }));
     visNodes.update(nodeRestores);
     visEdges.update(edgeRestores);
     highlightedNodeId = null;

@@ -1,17 +1,19 @@
 // display.js - Sole frontend source of entity type color, shape, label and description.
 // Exports: isHexColor, typeKey, setDisplayData, loadDisplay, typeDisplay, entityColor, legendEntries,
 //          makeSwatch, buildLegendChip, renderLegendMessage, isSourceType, isSourceRelation,
-//          sourceTypes, setChipPressed
+//          sourceTypes, setChipPressed, relationDisplay, categoryEntries, makeEdgeSample
 // SEC-01: values are validated before use and rendered via textContent, setAttribute and
 // createElement/createElementNS only. SVG tag names come from SWATCH_GEOMETRY, never from data.
 
 const NEUTRAL_COLOR = '#6b7280';
+const EDGE_NEUTRAL_COLOR = '#8b8f99';
 const SHAPES = ['dot', 'square', 'diamond', 'triangle', 'triangleDown', 'star', 'hexagon'];
 const SOURCES_FAMILY = 'Sources';
 
 let typeMap = new Map();
 let familyOrder = [];
 let relationMap = new Map();
+let categoryMap = new Map();
 let loadPromise = null;
 
 export function isHexColor(value) {
@@ -34,6 +36,10 @@ function humanize(type) {
     return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+function otherEdgeColor(cats) {
+    return cats.has('other') ? cats.get('other').color : EDGE_NEUTRAL_COLOR;
+}
+
 // Pure: validates every color and shape, then replaces module state.
 export function setDisplayData(payload) {
     const next = new Map();
@@ -51,13 +57,28 @@ export function setDisplayData(payload) {
         });
     }
     typeMap = next;
+    const cats = new Map();
+    const rawCats = payload && payload.categories;
+    if (rawCats && typeof rawCats === 'object') {
+        for (const [name, c] of Object.entries(rawCats)) {
+            if (!c || typeof c !== 'object') continue;
+            cats.set(name, {
+                label: typeof c.label === 'string' && c.label ? c.label : humanize(name),
+                color: isHexColor(c.color) ? c.color.toLowerCase() : EDGE_NEUTRAL_COLOR,
+            });
+        }
+    }
+    categoryMap = cats;
     const rels = new Map();
     const rawRels = payload && payload.relations;
     if (rawRels && typeof rawRels === 'object') {
         for (const [name, r] of Object.entries(rawRels)) {
             if (!r || typeof r !== 'object') continue;
+            const category = typeof r.category === 'string' && r.category ? r.category : 'other';
+            const catColor = cats.has(category) ? cats.get(category).color : otherEdgeColor(cats);
             rels.set(name, {
-                category: typeof r.category === 'string' && r.category ? r.category : 'other',
+                category,
+                color: isHexColor(r.color) ? r.color.toLowerCase() : catColor,
                 description: typeof r.description === 'string' ? r.description : '',
                 sourceEdge: r.source_edge === true,
             });
@@ -119,6 +140,31 @@ export function isSourceRelation(rel) {
 // Observed type keys that the resolver classed as sources.
 export function sourceTypes() {
     return [...typeMap.entries()].filter(([, d]) => d.isSource).map(([type]) => type);
+}
+
+// Category, color, label and description for a relation. Unknown relations are
+// category 'other'; without display data the color is the neutral edge grey.
+export function relationDisplay(rel) {
+    const known = relationMap.get(rel);
+    if (known) {
+        return {
+            category: known.category,
+            color: known.color,
+            label: humanize(rel),
+            description: known.description,
+        };
+    }
+    return {
+        category: 'other',
+        color: otherEdgeColor(categoryMap),
+        label: humanize(rel),
+        description: '',
+    };
+}
+
+// Relation categories in served order: [{name, label, color}].
+export function categoryEntries() {
+    return [...categoryMap.entries()].map(([name, c]) => ({ name, label: c.label, color: c.color }));
 }
 
 export function entityColor(type) {
@@ -206,6 +252,29 @@ export function makeSwatch(type, px = 16, { hollow = false } = {}) {
     for (const [name, value] of Object.entries(geom.attrs)) shapeEl.setAttribute(name, value);
     paintSwatchShape(shapeEl, color, hollow);
     svg.appendChild(shapeEl);
+    return svg;
+}
+
+// Returns a 24x8 inline SVG line sample in the given edge color; dashed for
+// claims that are not asserted. The color is validated before use.
+export function makeEdgeSample(color, { dashed = false } = {}) {
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 8');
+    svg.setAttribute('width', '24');
+    svg.setAttribute('height', '8');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    svg.setAttribute('class', 'edge-sample');
+
+    const line = document.createElementNS(SVG_NS, 'line');
+    line.setAttribute('x1', '0');
+    line.setAttribute('y1', '4');
+    line.setAttribute('x2', '24');
+    line.setAttribute('y2', '4');
+    line.setAttribute('stroke', isHexColor(color) ? color : EDGE_NEUTRAL_COLOR);
+    line.setAttribute('stroke-width', '2');
+    if (dashed) line.setAttribute('stroke-dasharray', '4 3');
+    svg.appendChild(line);
     return svg;
 }
 

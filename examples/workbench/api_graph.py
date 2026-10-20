@@ -97,7 +97,7 @@ async def get_communities(request: Request):
 
 @router.get("/entity-types")
 async def get_entity_types(request: Request):
-    """Return entity type counts plus resolved display (types, families, relations).
+    """Return entity type counts plus resolved display (types, families, relations, categories).
 
     Each type carries ``is_source`` and each relation ``source_edge``; the
     frontend only reads these flags.
@@ -123,4 +123,5 @@ async def get_entity_types(request: Request):
         "types": types,
         "families": display["families"],
         "relations": display["relations"],
+        "categories": display["categories"],
     }

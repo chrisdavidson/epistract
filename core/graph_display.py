@@ -102,6 +102,21 @@ RELATION_CATEGORIES: tuple[str, ...] = (
     "other",
 )
 
+# One color per relation category, served to the workbench so edges are drawn
+# by category. Each has contrast >= 3:1 on white and pairwise CIELAB deltaE76
+# >= 10 (enforced by tests).
+RELATION_CATEGORY_COLORS: dict[str, str] = {
+    "mechanism": "#0072b2",
+    "therapeutic": "#009e73",
+    "causal": "#d55e00",
+    "association": "#6b7280",
+    "provenance": "#9a8c7a",
+    "structural": "#8a6d00",
+    "organizational": "#c2569b",
+    "regulatory": "#7b3fb5",
+    "other": "#8b8f99",
+}
+
 OTHER_FAMILY = "Other"
 SOURCES_FAMILY = "Sources"
 MAX_FAMILY_LENGTH = 64
@@ -220,6 +235,7 @@ def _resolve_relations(schema: dict | None, warnings: list[str]) -> dict[str, di
                 category = "other"
             relations[name] = {
                 "category": category,
+                "color": RELATION_CATEGORY_COLORS[category],
                 "description": description if isinstance(description, str) else "",
                 "source_edge": name in SOURCE_EDGE_RELATIONS,
             }
@@ -228,6 +244,7 @@ def _resolve_relations(schema: dict | None, warnings: list[str]) -> dict[str, di
             name,
             {
                 "category": category,
+                "color": RELATION_CATEGORY_COLORS[category],
                 "description": "",
                 "source_edge": name in SOURCE_EDGE_RELATIONS,
             },
@@ -394,6 +411,10 @@ def _resolve(
         "types": types,
         "families": [{"name": f, "shape": family_shape[f.lower()]} for f in ordered_families],
         "relations": _resolve_relations(schema, warnings),
+        "categories": {
+            c: {"label": humanize_type(c), "color": RELATION_CATEGORY_COLORS[c]}
+            for c in RELATION_CATEGORIES
+        },
         "warnings": warnings,
     }
 
@@ -428,6 +449,27 @@ def is_source_edge(
     return isinstance(spec, dict) and spec.get("source_edge") is True
 
 
+def relation_category(display: dict, relation_type: str | None) -> tuple[str, str]:
+    """Return ``(category, color)`` for a relation type; never raises.
+
+    Unknown or missing relation names, and a ``display`` without relations,
+    resolve to the ``other`` category.
+
+    Args:
+        display: Result of :func:`resolve_display`.
+        relation_type: Relation name as found on a graph edge.
+
+    Returns:
+        The category name and its hex color.
+    """
+    relations = display.get("relations") if isinstance(display, dict) else None
+    spec = relations.get(relation_type) if isinstance(relations, dict) else None
+    category = spec.get("category") if isinstance(spec, dict) else None
+    if not isinstance(category, str) or category not in RELATION_CATEGORY_COLORS:
+        category = "other"
+    return category, RELATION_CATEGORY_COLORS[category]
+
+
 def validate_display(schema: dict | None) -> list[str]:
     """Return warnings for invalid display declarations in a schema; never raises."""
     return _resolve(schema, (), None)["warnings"]
@@ -449,8 +491,8 @@ def resolve_display(
     Returns:
         ``{"types": {T: {label, description, family, shape, color, origin,
         is_source}}, "families": [{name, shape}],
-        "relations": {R: {category, description, source_edge}},
-        "warnings": [str]}``. Colors are unique unless the author declared the
+        "relations": {R: {category, color, description, source_edge}},
+        "categories": {C: {label, color}}, "warnings": [str]}``. Colors are unique unless the author declared the
         same color twice, which is kept and reported in ``warnings``.
     """
     return _resolve(schema, observed_types, overrides)

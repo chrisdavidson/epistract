@@ -2,7 +2,8 @@
 // Exports: isSourceEdge, linkDegrees, humanizeRelation, isNonAsserted, statusSuffix,
 //          relationRowParts, relationSentence, scaleBucket, labelFontSize, nodeSize,
 //          edgeWidth, truncateLabel, labelCutoff, stableEdgeIds and the screen-size
-//          constants (NODE_MIN_PX ... TRUNCATE_LABEL_CHARS)
+//          constants (NODE_MIN_PX ... TRUNCATE_LABEL_CHARS), edgeDashes, edgeColorObject,
+//          EDGE_BASE_OPACITY, EDGE_DIM_OPACITY, EDGE_DASH_ON_PX, EDGE_DASH_OFF_PX
 
 // Screen-constant sizing. vis draws in world units, so at a fit scale of ~0.14
 // a world-unit size is a fraction of a pixel. These constants are pixel targets;
@@ -17,6 +18,10 @@ export const LABEL_SCREEN_PX = 12;
 export const LABEL_BASE_WORLD = 12;
 export const LABEL_MAX_WORLD = 240;
 export const TRUNCATE_LABEL_CHARS = 22;
+export const EDGE_BASE_OPACITY = 0.8;
+export const EDGE_DIM_OPACITY = 0.15;
+export const EDGE_DASH_ON_PX = 7;
+export const EDGE_DASH_OFF_PX = 5;
 
 // Integer bucket of the zoom level (half-octave steps); the label controller
 // only rewrites styles when this or the degree cutoff changes.
@@ -50,6 +55,25 @@ export function edgeWidth(supportCount, scale) {
     const px = Math.min(EDGE_MAX_PX, Math.max(EDGE_MIN_PX, 1 + 0.9 * Math.log2(Math.min(sc, 1e9))));
     const s = Math.max(Number(scale) || 0, 0.01);
     return px / s;
+}
+
+// Dash pattern that draws 7 px on / 5 px off at scale s for claims that are
+// not asserted; false (solid) for asserted or missing status.
+export function edgeDashes(status, scale) {
+    if (!isNonAsserted(status)) return false;
+    const s = Math.max(Number(scale) || 0, 0.01);
+    return [EDGE_DASH_ON_PX / s, EDGE_DASH_OFF_PX / s];
+}
+
+// Complete vis edge color object; partial objects let vis drop the category color.
+export function edgeColorObject(color, opacity) {
+    return {
+        color,
+        highlight: { color, opacity: 1 },
+        hover: { color, opacity: 1 },
+        inherit: false,
+        opacity,
+    };
 }
 
 // Code-point-safe truncation with an ellipsis.
