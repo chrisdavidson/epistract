@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from core.domain_resolver import resolve_domain as resolve_domain_package
-from core.graph_display import resolve_display
+from core.graph_display import entity_type_key, resolve_display
 from examples.workbench.api_chat import router as chat_router
 from examples.workbench.api_graph import router as graph_router
 from examples.workbench.api_sources import router as sources_router
@@ -276,7 +276,7 @@ def create_app(output_dir: Path, domain: str | None = None) -> FastAPI:
     app.state.template = template
 
     # Resolve entity-type colors/shapes once; every UI surface reads this.
-    observed_types = {n.get("entity_type", "UNKNOWN") for n in app.state.data.get_nodes()}
+    observed_types = {entity_type_key(n.get("entity_type")) for n in app.state.data.get_nodes()}
     app.state.display = resolve_display(
         _load_domain_schema(resolved_domain),
         observed_types,

@@ -1,5 +1,5 @@
 // display.js - Sole frontend source of entity type color, shape, label and description.
-// Exports: isHexColor, setDisplayData, loadDisplay, typeDisplay, entityColor, legendEntries,
+// Exports: isHexColor, typeKey, setDisplayData, loadDisplay, typeDisplay, entityColor, legendEntries,
 //          makeSwatch, buildLegendChip, renderLegendMessage
 // SEC-01: values are validated before use and rendered via textContent, setAttribute and
 // createElement/createElementNS only. SVG tag names come from SWATCH_GEOMETRY, never from data.
@@ -14,6 +14,11 @@ let loadPromise = null;
 
 export function isHexColor(value) {
     return typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value);
+}
+
+// Mirrors core.graph_display.entity_type_key: null/missing/empty -> 'UNKNOWN'.
+export function typeKey(type) {
+    return type === null || type === undefined || type === '' ? 'UNKNOWN' : String(type);
 }
 
 function humanize(type) {
@@ -68,7 +73,7 @@ export function loadDisplay() {
 }
 
 export function typeDisplay(type) {
-    const known = typeMap.get(type);
+    const known = typeMap.get(typeKey(type));
     if (known) return { ...known };
     return {
         color: NEUTRAL_COLOR,

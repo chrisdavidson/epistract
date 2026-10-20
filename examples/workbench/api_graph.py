@@ -4,7 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from core.graph_display import resolve_display
+from core.graph_display import entity_type_key
 
 router = APIRouter(prefix="/api/graph", tags=["graph"])
 
@@ -102,11 +102,16 @@ async def get_entity_types(request: Request):
     display = request.app.state.display
     type_counts: dict[str, int] = {}
     for node in data.get_nodes():
-        t = node.get("entity_type", "UNKNOWN")
+        t = entity_type_key(node.get("entity_type"))
         type_counts[t] = type_counts.get(t, 0) + 1
     types = []
     for t, count in type_counts.items():
-        spec = display["types"].get(t) or resolve_display(None, [t])["types"][t]
+        # Every observed type was resolved in create_app (same key function), so
+        # a miss means the data changed under us; skip rather than resolve a
+        # type in isolation (which would collide with the first palette color).
+        spec = display["types"].get(t)
+        if spec is None:
+            continue
         entry = {k: v for k, v in spec.items() if k != "origin"}
         types.append({**entry, "type": t, "count": count})
     return {

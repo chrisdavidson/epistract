@@ -1,6 +1,7 @@
 import { initSidebar, showNodeDetail, showEdgeDetail, hideSidebar } from './sidebar.js';
 import {
-    loadDisplay, typeDisplay, entityColor, legendEntries, buildLegendChip, renderLegendMessage,
+    loadDisplay, typeDisplay, typeKey, entityColor, legendEntries, buildLegendChip,
+    renderLegendMessage,
 } from './display.js';
 
 // graph.js - Graph panel: vis.js network, search, entity type toggles
@@ -569,7 +570,7 @@ function filterGraph() {
 
     // Update node visibility
     const updates = allNodes.map(n => {
-        const typeVisible = activeTypes.has(n.entity_type);
+        const typeVisible = activeTypes.has(typeKey(n.entity_type));
         const searchMatch = !searchTerm || (n.name || '').toLowerCase().includes(searchTerm);
         const severityMatch = !severityNodeIds || severityNodeIds.has(n.id);
         // DEGREE-01: hide nodes whose total degree (degreeMap, computed at build time

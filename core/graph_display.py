@@ -106,6 +106,21 @@ _CAMEL_ACRONYM = re.compile(r"(?<=[A-Z])(?=[A-Z][a-z])")
 # ---------------------------------------------------------------------------
 
 
+UNKNOWN_TYPE = "UNKNOWN"
+
+
+def entity_type_key(value: object) -> str:
+    """Return the key a node's ``entity_type`` is resolved and looked up under.
+
+    Missing, null and empty types map to ``"UNKNOWN"``; anything else is
+    stringified. Every caller that builds ``observed_types`` or looks a type up
+    in ``resolve_display(...)["types"]`` must use this, so the two agree.
+    """
+    if value is None or value == "":
+        return UNKNOWN_TYPE
+    return str(value)
+
+
 def humanize_type(type_name: str) -> str:
     """Return a sentence-case label for a type name.
 

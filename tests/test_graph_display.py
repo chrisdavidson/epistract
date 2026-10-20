@@ -446,3 +446,53 @@ def test_js_display_harness(tmp_path):
     assert result.returncode == 0, (
         f"harness failed\nstdout: {result.stdout}\nstderr: {result.stderr}"
     )
+
+
+@pytest.mark.unit
+def test_api_entity_types_null_and_non_string_types(tmp_path):
+    """WR-01: null, missing, empty and non-string entity types must not 500."""
+    from examples.workbench.server import create_app
+    from starlette.testclient import TestClient
+
+    nodes = [
+        {"id": "a", "name": "A", "entity_type": "COMPOUND"},
+        {"id": "b", "name": "B", "entity_type": None},
+        {"id": "c", "name": "C"},
+        {"id": "d", "name": "D", "entity_type": ""},
+        {"id": "e", "name": "E", "entity_type": 123},
+    ]
+    (tmp_path / "graph_data.json").write_text(
+        json.dumps({"metadata": {}, "nodes": nodes, "links": []})
+    )
+    resp = TestClient(create_app(tmp_path)).get("/api/graph/entity-types")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["entity_types"] == {"COMPOUND": 1, "UNKNOWN": 3, "123": 1}
+    by_type = {t["type"]: t for t in body["types"]}
+    assert set(by_type) == {"COMPOUND", "UNKNOWN", "123"}
+    colors = [t["color"] for t in body["types"]]
+    assert len(colors) == len(set(colors)), "resolved colors must stay unique"
+
+
+@pytest.mark.unit
+def test_js_type_key_matches_python():
+    """WR-01: display.js typeKey mirrors core.graph_display.entity_type_key."""
+    if shutil.which("node") is None:
+        pytest.skip("node not available")
+    from core.graph_display import entity_type_key
+
+    url = (STATIC / "display.js").resolve().as_uri()
+    script = (
+        f"const m = await import({json.dumps(url)});\n"
+        "process.stdout.write(JSON.stringify("
+        "[null, undefined, '', 123, 'COMPOUND'].map(m.typeKey)));\n"
+    )
+    result = subprocess.run(
+        ["node", "--input-type=module", "-e", script],
+        timeout=30,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    expected = [entity_type_key(v) for v in (None, None, "", 123, "COMPOUND")]
+    assert json.loads(result.stdout) == expected
