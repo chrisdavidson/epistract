@@ -1797,3 +1797,102 @@ body {
 
 .graph-detail-sidebar__relation-status { color: #666666; }
 .graph-detail-sidebar__count { font-family: var(--font-data); }
+
+/* ---------------------------------------------------------------------------
+   Graph hover card
+   --------------------------------------------------------------------------- */
+
+.graph-hover-card {
+  position: fixed;
+  pointer-events: none;
+  z-index: 900;
+  width: 300px;
+  max-width: calc(100vw - 16px);
+  max-height: 320px;
+  overflow: hidden;
+  padding: var(--space-md);
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08);
+  color: #1a1a1a;
+}
+
+.graph-hover-card[hidden] {
+  display: none;
+}
+
+.graph-hover-card__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.graph-hover-card__type {
+  font-size: var(--size-label);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #1a1a1a;
+}
+
+.graph-hover-card__name {
+  margin-top: var(--space-sm);
+  font-size: var(--size-body);
+  font-weight: 600;
+  line-height: 1.2;
+  color: #1a1a1a;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.graph-hover-card__desc {
+  margin-top: var(--space-xs);
+  font-size: var(--size-label);
+  font-weight: 400;
+  color: #666666;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+.graph-hover-card__meta {
+  margin-top: var(--space-sm);
+  font-family: var(--font-data);
+  font-size: var(--size-label);
+  color: #666666;
+}
+
+.graph-hover-card__divider {
+  height: 1px;
+  margin: var(--space-sm) 0;
+  background: #e5e7eb;
+}
+
+.graph-hover-card__row {
+  padding: var(--space-xs) 0;
+  font-size: var(--size-label);
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.graph-hover-card__status,
+.graph-hover-card__more {
+  color: #666666;
+}
+
+.graph-hover-card__more {
+  margin-top: var(--space-xs);
+  font-size: var(--size-label);
+}
+
+#graph-container:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
