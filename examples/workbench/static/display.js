@@ -1,6 +1,8 @@
 // display.js - Sole frontend source of entity type color, shape, label and description.
-// Exports: isHexColor, setDisplayData, loadDisplay, typeDisplay, entityColor, legendEntries
-// SEC-01: values are validated before use and rendered via textContent and style properties only.
+// Exports: isHexColor, setDisplayData, loadDisplay, typeDisplay, entityColor, legendEntries,
+//          makeSwatch, buildLegendChip, renderLegendMessage
+// SEC-01: values are validated before use and rendered via textContent, setAttribute and
+// createElement/createElementNS only. SVG tag names come from SWATCH_GEOMETRY, never from data.
 
 const NEUTRAL_COLOR = '#6b7280';
 const SHAPES = ['dot', 'square', 'diamond', 'triangle', 'triangleDown', 'star', 'hexagon'];
@@ -97,4 +99,135 @@ export function legendEntries() {
         || a.label.localeCompare(b.label)
     ));
     return entries;
+}
+
+// ---------------------------------------------------------------------------
+// Swatches, legend chips and legend messages
+// ---------------------------------------------------------------------------
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+// Fixed table: the only place an SVG tag name or geometry is defined.
+const SWATCH_GEOMETRY = {
+    dot: { tag: 'circle', attrs: { cx: '8', cy: '8', r: '6' } },
+    square: { tag: 'rect', attrs: { x: '2', y: '2', width: '12', height: '12', rx: '2' } },
+    diamond: { tag: 'polygon', attrs: { points: '8,1 15,8 8,15 1,8' } },
+    triangle: { tag: 'polygon', attrs: { points: '8,2 15,14 1,14' } },
+    triangleDown: { tag: 'polygon', attrs: { points: '1,2 15,2 8,14' } },
+    hexagon: { tag: 'polygon', attrs: { points: '8,1 14,4.5 14,11.5 8,15 2,11.5 2,4.5' } },
+    star: {
+        tag: 'polygon',
+        attrs: {
+            points: '8,1 9.76,5.57 14.66,5.84 10.85,8.93 12.11,13.66 8,11 3.89,13.66 5.15,8.93 1.34,5.84 6.24,5.57',
+        },
+    },
+};
+
+function paintSwatchShape(shapeEl, color, hollow) {
+    if (hollow) {
+        shapeEl.setAttribute('fill', 'none');
+        shapeEl.setAttribute('stroke', color);
+        shapeEl.setAttribute('stroke-width', '1.5');
+    } else {
+        shapeEl.setAttribute('fill', color);
+        shapeEl.removeAttribute('stroke');
+        shapeEl.removeAttribute('stroke-width');
+    }
+}
+
+// Returns an inline SVG showing the type's shape and color.
+export function makeSwatch(type, px = 16, { hollow = false } = {}) {
+    const d = typeDisplay(type);
+    const color = isHexColor(d.color) ? d.color : NEUTRAL_COLOR;
+    const geom = Object.prototype.hasOwnProperty.call(SWATCH_GEOMETRY, d.shape)
+        ? SWATCH_GEOMETRY[d.shape]
+        : SWATCH_GEOMETRY.dot;
+
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 16 16');
+    svg.setAttribute('width', String(px));
+    svg.setAttribute('height', String(px));
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    svg.setAttribute('class', 'type-swatch');
+
+    const shapeEl = document.createElementNS(SVG_NS, geom.tag);
+    for (const [name, value] of Object.entries(geom.attrs)) shapeEl.setAttribute(name, value);
+    paintSwatchShape(shapeEl, color, hollow);
+    svg.appendChild(shapeEl);
+    return svg;
+}
+
+let descriptionCounter = 0;
+
+// Builds one toggle chip for the entity-type legend. onToggle(type, pressed) fires after each click.
+export function buildLegendChip(entry, onToggle) {
+    const label = typeof entry.label === 'string' && entry.label ? entry.label : humanize(entry.type);
+    const count = Number.isFinite(entry.count) ? entry.count : 0;
+    const description = typeof entry.description === 'string' ? entry.description : '';
+    const family = typeof entry.family === 'string' && entry.family ? entry.family : 'Other';
+
+    const chip = document.createElement('button');
+    chip.setAttribute('type', 'button');
+    chip.className = 'legend-chip';
+    chip.setAttribute('aria-pressed', 'true');
+    chip.setAttribute('data-type', String(entry.type));
+    chip.setAttribute('title', description || `${family} family`);
+    chip.setAttribute('aria-label', `${label}, ${count.toLocaleString()}`);
+
+    const swatch = makeSwatch(entry.type, 16);
+    chip.appendChild(swatch);
+
+    const labelEl = document.createElement('span');
+    labelEl.className = 'legend-chip__label';
+    labelEl.textContent = label;
+    chip.appendChild(labelEl);
+
+    const countEl = document.createElement('span');
+    countEl.className = 'legend-chip__count';
+    countEl.textContent = count.toLocaleString();
+    chip.appendChild(countEl);
+
+    if (description) {
+        descriptionCounter += 1;
+        const descEl = document.createElement('span');
+        descEl.id = `legend-desc-${descriptionCounter}`;
+        descEl.className = 'visually-hidden';
+        descEl.textContent = description;
+        chip.appendChild(descEl);
+        chip.setAttribute('aria-describedby', descEl.id);
+    }
+
+    chip.addEventListener('click', () => {
+        const pressed = chip.getAttribute('aria-pressed') !== 'true';
+        chip.setAttribute('aria-pressed', String(pressed));
+        const color = entityColor(entry.type);
+        paintSwatchShape(swatch.firstChild, isHexColor(color) ? color : NEUTRAL_COLOR, !pressed);
+        if (typeof onToggle === 'function') onToggle(entry.type, pressed);
+    });
+
+    return chip;
+}
+
+const LEGEND_MESSAGES = {
+    empty: [
+        'No entity types to show',
+        'This graph has no nodes yet. Run /epistract:ingest to add documents, then reopen the workbench.',
+    ],
+    error: [
+        "Couldn't load entity types. The graph still works, but colors and the legend are unavailable. "
+        + 'Reload the page; if it persists, check that the workbench server is running.',
+    ],
+};
+
+// Replaces the container's content with the empty or error copy.
+export function renderLegendMessage(container, kind) {
+    const lines = LEGEND_MESSAGES[kind === 'error' ? 'error' : 'empty'];
+    const nodes = lines.map((text) => {
+        const p = document.createElement('p');
+        p.className = kind === 'error' ? 'legend-message legend-message--error' : 'legend-message';
+        p.textContent = text;
+        return p;
+    });
+    container.replaceChildren(...nodes);
 }
