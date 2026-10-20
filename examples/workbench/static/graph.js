@@ -56,6 +56,10 @@ let degreeMap = {};          // hoisted for sidebar and Phase 10 neighbourhood h
 let visNodes = null;
 let visEdges = null;
 let activeTypes = new Set();
+// WR-02: the type filter only applies once the legend has been built from the
+// display data. If that data failed to load (or is empty), activeTypes stays
+// empty and must not hide every node.
+let typeFilterEnabled = false;
 let callbacks = {};
 const pinnedNodes = new Set();
 let _resizeListenerAttached = false;
@@ -102,6 +106,7 @@ export async function initGraph(opts) {
             // repeated initGraph calls (e.g. domain switch) do not leave
             // ghost types active in the filter Set.
             activeTypes.clear();
+            typeFilterEnabled = false;
             const entries = displayLoaded ? legendEntries() : [];
             if (!displayLoaded) {
                 renderLegendMessage(toggleContainer, 'error');
@@ -109,6 +114,7 @@ export async function initGraph(opts) {
                 renderLegendMessage(toggleContainer, 'empty');
             } else {
                 toggleContainer.replaceChildren();
+                typeFilterEnabled = true;
                 for (const entry of entries) {
                     activeTypes.add(entry.type);
                     toggleContainer.appendChild(buildLegendChip(entry, (type, pressed) => {
@@ -120,6 +126,7 @@ export async function initGraph(opts) {
             }
         } catch (e) {
             console.warn('Could not build entity type legend:', e);
+            typeFilterEnabled = false;
             renderLegendMessage(toggleContainer, 'error');
         }
     }
@@ -570,7 +577,7 @@ function filterGraph() {
 
     // Update node visibility
     const updates = allNodes.map(n => {
-        const typeVisible = activeTypes.has(typeKey(n.entity_type));
+        const typeVisible = !typeFilterEnabled || activeTypes.has(typeKey(n.entity_type));
         const searchMatch = !searchTerm || (n.name || '').toLowerCase().includes(searchTerm);
         const severityMatch = !severityNodeIds || severityNodeIds.has(n.id);
         // DEGREE-01: hide nodes whose total degree (degreeMap, computed at build time

@@ -496,3 +496,23 @@ def test_js_type_key_matches_python():
     assert result.returncode == 0, result.stderr
     expected = [entity_type_key(v) for v in (None, None, "", 123, "COMPOUND")]
     assert json.loads(result.stdout) == expected
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("mode", ["ok", "fail"])
+def test_js_filter_keeps_nodes_when_display_missing(mode):
+    """WR-02: a failed display load must not make filters hide every node.
+
+    With the display loaded, every type starts active (null types included,
+    via typeKey); with it missing, the type filter is disabled.
+    """
+    if shutil.which("node") is None:
+        pytest.skip("node not available")
+    harness = Path(__file__).resolve().parent / "js" / "graph_filter_harness.mjs"
+    result = subprocess.run(
+        ["node", str(harness), mode], timeout=30, capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr
+    out = json.loads(result.stdout.strip().splitlines()[-1])
+    assert out["total"] == 3, out
+    assert out["hidden"] == [], f"filter hid nodes in {mode} mode: {out}"
