@@ -1,6 +1,7 @@
 // display.js - Sole frontend source of entity type color, shape, label and description.
 // Exports: isHexColor, typeKey, setDisplayData, loadDisplay, typeDisplay, entityColor, legendEntries,
-//          makeSwatch, buildLegendChip, renderLegendMessage
+//          makeSwatch, buildLegendChip, renderLegendMessage, isSourceType, isSourceRelation,
+//          sourceTypes, setChipPressed
 // SEC-01: values are validated before use and rendered via textContent, setAttribute and
 // createElement/createElementNS only. SVG tag names come from SWATCH_GEOMETRY, never from data.
 
@@ -10,6 +11,7 @@ const SOURCES_FAMILY = 'Sources';
 
 let typeMap = new Map();
 let familyOrder = [];
+let relationMap = new Map();
 let loadPromise = null;
 
 export function isHexColor(value) {
@@ -37,16 +39,31 @@ export function setDisplayData(payload) {
     const next = new Map();
     for (const t of (payload && payload.types) || []) {
         if (!t || typeof t.type !== 'string') continue;
+        const family = typeof t.family === 'string' && t.family ? t.family : 'Other';
         next.set(t.type, {
+            isSource: t.is_source === true || family === SOURCES_FAMILY,
             color: isHexColor(t.color) ? t.color.toLowerCase() : NEUTRAL_COLOR,
             shape: SHAPES.includes(t.shape) ? t.shape : 'dot',
-            family: typeof t.family === 'string' && t.family ? t.family : 'Other',
+            family,
             label: typeof t.label === 'string' && t.label ? t.label : humanize(t.type),
             description: typeof t.description === 'string' ? t.description : '',
             count: Number.isFinite(t.count) ? t.count : 0,
         });
     }
     typeMap = next;
+    const rels = new Map();
+    const rawRels = payload && payload.relations;
+    if (rawRels && typeof rawRels === 'object') {
+        for (const [name, r] of Object.entries(rawRels)) {
+            if (!r || typeof r !== 'object') continue;
+            rels.set(name, {
+                category: typeof r.category === 'string' && r.category ? r.category : 'other',
+                description: typeof r.description === 'string' ? r.description : '',
+                sourceEdge: r.source_edge === true,
+            });
+        }
+    }
+    relationMap = rels;
     familyOrder = ((payload && payload.families) || [])
         .map((f) => (f && typeof f.name === 'string' ? f.name : ''))
         .filter(Boolean);
@@ -83,6 +100,25 @@ export function typeDisplay(type) {
         description: '',
         count: 0,
     };
+}
+
+// True when the resolver classed the type as a source (Sources family).
+export function isSourceType(type) {
+    const known = typeMap.get(typeKey(type));
+    return known ? known.isSource === true : false;
+}
+
+// True when the relation is flagged source_edge. Without display data the
+// documented fallback is MENTIONED_IN only.
+export function isSourceRelation(rel) {
+    if (relationMap.size === 0) return rel === 'MENTIONED_IN';
+    const known = relationMap.get(rel);
+    return known ? known.sourceEdge === true : false;
+}
+
+// Observed type keys that the resolver classed as sources.
+export function sourceTypes() {
+    return [...typeMap.entries()].filter(([, d]) => d.isSource).map(([type]) => type);
 }
 
 export function entityColor(type) {
@@ -138,6 +174,16 @@ function paintSwatchShape(shapeEl, color, hollow) {
         shapeEl.removeAttribute('stroke');
         shapeEl.removeAttribute('stroke-width');
     }
+}
+
+// Sets a legend chip's pressed state and repaints its swatch hollow/filled.
+export function setChipPressed(chip, pressed) {
+    chip.setAttribute('aria-pressed', String(pressed));
+    const type = chip.getAttribute('data-type');
+    const shapeEl = chip.firstChild || (chip.children && chip.children[0]) || null;
+    if (type === null || !shapeEl || !shapeEl.firstChild) return;
+    const color = entityColor(type);
+    paintSwatchShape(shapeEl.firstChild, isHexColor(color) ? color : NEUTRAL_COLOR, !pressed);
 }
 
 // Returns an inline SVG showing the type's shape and color.
@@ -205,9 +251,7 @@ export function buildLegendChip(entry, onToggle) {
 
     chip.addEventListener('click', () => {
         const pressed = chip.getAttribute('aria-pressed') !== 'true';
-        chip.setAttribute('aria-pressed', String(pressed));
-        const color = entityColor(entry.type);
-        paintSwatchShape(swatch.firstChild, isHexColor(color) ? color : NEUTRAL_COLOR, !pressed);
+        setChipPressed(chip, pressed);
         if (typeof onToggle === 'function') onToggle(entry.type, pressed);
     });
 

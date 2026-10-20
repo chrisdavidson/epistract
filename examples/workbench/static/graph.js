@@ -1,8 +1,9 @@
 import { initSidebar, showNodeDetail, showEdgeDetail, hideSidebar } from './sidebar.js';
 import {
     loadDisplay, typeDisplay, typeKey, entityColor, legendEntries, buildLegendChip,
-    renderLegendMessage,
+    renderLegendMessage, isSourceType, isSourceRelation, sourceTypes, setChipPressed,
 } from './display.js';
+import { isSourceEdge, linkDegrees } from './graph_style.js';
 
 // graph.js - Graph panel: vis.js network, search, entity type toggles
 
@@ -49,6 +50,8 @@ const FA2_SPRING_CONSTANT = 0.05;               // edge stiffness
 const FA2_DAMPING = 0.5;                        // higher settles faster with less oscillation
 const FA2_AVOID_OVERLAP = 0.6;                  // 0 to 1; adds a node-radius-aware repulsion term that stops dots from stacking
 
+const FALLBACK_SOURCE_TYPES = new Set(['DOCUMENT', 'PUBLICATION']); // used only when display data failed to load
+
 let network = null;
 let allNodes = [];
 let allEdges = [];
@@ -68,8 +71,11 @@ let activeEpistemicStatuses = new Set();  // populated by buildEpistemicChips() 
 let confidenceThreshold = 0;             // populated by initConfidenceSlider() (plan 03)
 let activeRelationTypes = new Set();      // populated by buildRelationTypeDropdown() (Phase 11)
 let minDegreeThreshold = 0;               // populated by initMinDegreeSlider() (Phase 11)
-let maxDegree = 0;                        // hoisted from buildGraph() local; read by initMinDegreeSlider() (Phase 11 D-10)
-let sortedDegrees = [];                   // node degrees, descending; rebuilt with degreeMap in buildGraph() (260802-cu1)
+let maxDegree = 0;                        // highest linkDegree (edges without a Sources endpoint); read by initMinDegreeSlider() (Phase 11 D-10)
+let sortedDegrees = [];                   // linkDegrees of non-source nodes, descending; rebuilt in buildGraph() (260802-cu1)
+let linkDegreeMap = {};                   // id -> count of non-source edges; drives size, label budget and the min-degree slider
+let sourceNodeIds = new Set();            // ids of Sources-family nodes in the loaded graph
+let sourcesShown = false;                 // Show sources toggle; sources are hidden on load
 let _labelUpdateTimer = null;             // pending throttled applyLabelVisibility() call (260802-cu1)
 let _lastLabelDegreeCutoff = null;        // last-applied degree cutoff; skip DataSet write when unchanged (260802-cu1)
 
@@ -116,12 +122,17 @@ export async function initGraph(opts) {
                 toggleContainer.replaceChildren();
                 typeFilterEnabled = true;
                 for (const entry of entries) {
-                    activeTypes.add(entry.type);
-                    toggleContainer.appendChild(buildLegendChip(entry, (type, pressed) => {
+                    const sourceType = isSourceType(entry.type);
+                    if (!sourceType) activeTypes.add(entry.type);
+                    const chip = buildLegendChip(entry, (type, pressed) => {
                         if (pressed) activeTypes.add(type);
                         else activeTypes.delete(type);
+                        sourcesShown = sourceTypes().some(t => activeTypes.has(t));
+                        syncSourcesButton();
                         filterGraph();
-                    }));
+                    });
+                    if (sourceType) setChipPressed(chip, false);
+                    toggleContainer.appendChild(chip);
                 }
             }
         } catch (e) {
@@ -241,7 +252,7 @@ function applyLabelVisibility() {
     // border (color/borderWidth/fixed). Font updates and opacity/hidden
     // updates carry disjoint property sets so they never clobber each other.
     const updates = visNodes.getIds().map(id => {
-        const degree = degreeMap[id] || 0;
+        const degree = linkDegreeMap[id] || 0;
         const size = degree >= cutoff ? LABEL_VISIBLE_FONT_SIZE : LABEL_HIDDEN_FONT_SIZE;
         return { id, font: { ...NODE_FONT_BASE, size } };
     });
@@ -294,14 +305,30 @@ function buildGraph() {
         degreeMap[e.source] = (degreeMap[e.source] || 0) + 1;
         degreeMap[e.target] = (degreeMap[e.target] || 0) + 1;
     });
-    maxDegree = Object.values(degreeMap).reduce((acc, v) => Math.max(acc, v), 1);
+
+    // Sources-family nodes. Without display data the type filter is off, so
+    // fall back to the pipeline's own DOCUMENT/PUBLICATION types.
+    sourceNodeIds = new Set(allNodes
+        .filter(n => (typeFilterEnabled
+            ? isSourceType(n.entity_type)
+            : FALLBACK_SOURCE_TYPES.has(n.entity_type)))
+        .map(n => n.id));
+
+    // linkDegree: edges without a Sources endpoint. Size, label budget and the
+    // min-degree slider use it; the sidebar Degree row keeps the total.
+    linkDegreeMap = linkDegrees(
+        allEdges,
+        e => isSourceEdge(e, id => sourceNodeIds.has(id), isSourceRelation),
+    );
+    maxDegree = Object.values(linkDegreeMap).reduce((acc, v) => Math.max(acc, v), 1);
 
     // 260802-cu1: descending degree list backing the label budget in
     // applyLabelVisibility(). Built over allNodes, not degreeMap — degreeMap
     // omits isolated (degree-0) nodes, so indexing a budget into it would
     // silently overshoot on graphs with unconnected entities.
     sortedDegrees = allNodes
-        .map(n => degreeMap[n.id] || 0)
+        .filter(n => !sourceNodeIds.has(n.id))
+        .map(n => linkDegreeMap[n.id] || 0)
         .sort((a, b) => b - a);
 
     const nodes = allNodes.map(n => {
@@ -310,7 +337,7 @@ function buildGraph() {
         const tooltipEl = document.createElement('div');
         tooltipEl.textContent = `${n.entity_type}: ${n.name}`;
         const d = typeDisplay(n.entity_type);
-        const baseSize = 8 + Math.round(((degreeMap[n.id] || 0) / maxDegree) * 16);
+        const baseSize = 8 + Math.round(((linkDegreeMap[n.id] || 0) / maxDegree) * 16);
         return {
             id: n.id,
             label: n.name || n.id,
@@ -319,6 +346,7 @@ function buildGraph() {
             borderWidthSelected: 3,
             title: tooltipEl,
             shape: d.shape,
+            hidden: isNodeHiddenAtBuild(n),
             size: d.family === 'Sources' ? Math.round(baseSize * 0.6) : baseSize,
             font: { ...NODE_FONT_BASE, size: LABEL_VISIBLE_FONT_SIZE },
             _data: n,
@@ -332,6 +360,7 @@ function buildGraph() {
         from: e.source,
         to: e.target,
         arrows: 'to',
+        hidden: !sourcesShown && isSourceRelation(e.relation_type),
         _data: e,
     }));
 
@@ -533,8 +562,18 @@ function buildGraph() {
             });
         }
 
+        const sourcesBtn = document.getElementById('graph-show-sources-btn');
+        if (sourcesBtn) {
+            sourcesBtn.addEventListener('click', () => {
+                setSourcesShown(sourcesBtn.getAttribute('aria-pressed') !== 'true');
+            });
+        }
+
         _btnListenersAttached = true;
     }
+
+    syncSourcesButton();
+    window._graphDebug = { network, visNodes, visEdges };
 
     // Close sidebar on window resize so it does not float
     // in a stale DOM position (RESEARCH Pitfall 4).
@@ -577,12 +616,14 @@ function filterGraph() {
 
     // Update node visibility
     const updates = allNodes.map(n => {
-        const typeVisible = !typeFilterEnabled || activeTypes.has(typeKey(n.entity_type));
+        const typeVisible = typeFilterEnabled
+            ? activeTypes.has(typeKey(n.entity_type))
+            : !(sourceNodeIds.has(n.id) && !sourcesShown);
         const searchMatch = !searchTerm || (n.name || '').toLowerCase().includes(searchTerm);
         const severityMatch = !severityNodeIds || severityNodeIds.has(n.id);
-        // DEGREE-01: hide nodes whose total degree (degreeMap, computed at build time
-        // across ALL edges, not currently visible edges) is below the threshold.
-        const degreeOk = (degreeMap[n.id] || 0) >= minDegreeThreshold;
+        // DEGREE-01: hide nodes whose linkDegree (linkDegreeMap, computed at build time
+        // across ALL non-source edges, not currently visible edges) is below the threshold.
+        const degreeOk = (linkDegreeMap[n.id] || 0) >= minDegreeThreshold;
         const hidden = !(typeVisible && searchMatch && severityMatch && degreeOk);
         return { id: n.id, hidden };
     });
@@ -624,7 +665,12 @@ function filterGraph() {
             const hasRelType = e.relation_type != null && e.relation_type !== '';
             const relationHidden = hasRelType && !activeRelationTypes.has(e.relation_type);
 
-            return { id: edgeId, hidden: epistemicHidden || confidenceHidden || relationHidden };
+            const sourceRelHidden = !sourcesShown && isSourceRelation(e.relation_type);
+
+            return {
+                id: edgeId,
+                hidden: epistemicHidden || confidenceHidden || relationHidden || sourceRelHidden,
+            };
         });
 
         visEdges.update(edgeUpdates);
@@ -642,6 +688,58 @@ function filterGraph() {
     } else if (visibleCount > 0 && emptyMsg) {
         emptyMsg.remove();
     }
+}
+
+// ---------------------------------------------------------------------------
+// Show sources toggle (GVIS-06). Classification comes from the resolver via
+// display.js; this code only reads the flags.
+// ---------------------------------------------------------------------------
+function isNodeHiddenAtBuild(n) {
+    if (typeFilterEnabled) return !activeTypes.has(typeKey(n.entity_type));
+    return sourceNodeIds.has(n.id) && !sourcesShown;
+}
+
+function sourcesActive() {
+    return typeFilterEnabled ? sourceTypes().some(t => activeTypes.has(t)) : sourcesShown;
+}
+
+function syncSourcesButton() {
+    const btn = document.getElementById('graph-show-sources-btn');
+    if (!btn) return;
+    const text = document.createElement('span');
+    text.className = 'graph-toolbar__label';
+    if (sourceNodeIds.size === 0) {
+        btn.setAttribute('disabled', '');
+        btn.setAttribute('aria-pressed', 'false');
+        btn.setAttribute('title', 'This graph has no source nodes.');
+        text.textContent = 'Show sources';
+        btn.replaceChildren(text);
+        return;
+    }
+    btn.removeAttribute('disabled');
+    const on = sourcesActive();
+    btn.setAttribute('aria-pressed', String(on));
+    btn.setAttribute('title', on
+        ? 'Hide source documents and publications'
+        : `Show source documents and publications (${sourceNodeIds.size.toLocaleString()}) and their links`);
+    text.textContent = on ? 'Hide sources' : 'Show sources';
+    const count = document.createElement('span');
+    count.className = 'graph-toolbar__count';
+    count.textContent = sourceNodeIds.size.toLocaleString();
+    btn.replaceChildren(text, count);
+}
+
+function setSourcesShown(on) {
+    sourcesShown = on;
+    for (const type of sourceTypes()) {
+        if (on) activeTypes.add(type);
+        else activeTypes.delete(type);
+    }
+    document.querySelectorAll('.legend-chip[data-type]').forEach(chip => {
+        if (isSourceType(chip.getAttribute('data-type'))) setChipPressed(chip, on);
+    });
+    syncSourcesButton();
+    filterGraph();
 }
 
 function clearHighlight() {

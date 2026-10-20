@@ -82,7 +82,13 @@ PIPELINE_TYPES: dict[str, dict] = {
     "DOCUMENT": {"family": "Sources", "shape": "dot", "color": "#6b7280"},
     "PUBLICATION": {"family": "Sources", "shape": "dot", "color": "#a8a29e"},
 }
-PIPELINE_RELATIONS: dict[str, str] = {"MENTIONED_IN": "provenance"}
+PIPELINE_RELATIONS: dict[str, str] = {
+    "MENTIONED_IN": "provenance",
+    "PUBLISHED_IN": "provenance",
+}
+# Relations that only link an entity to its source document; they are hidden
+# together with the Sources nodes.
+SOURCE_EDGE_RELATIONS: frozenset[str] = frozenset({"MENTIONED_IN"})
 
 RELATION_CATEGORIES: tuple[str, ...] = (
     "mechanism",
@@ -215,9 +221,17 @@ def _resolve_relations(schema: dict | None, warnings: list[str]) -> dict[str, di
             relations[name] = {
                 "category": category,
                 "description": description if isinstance(description, str) else "",
+                "source_edge": name in SOURCE_EDGE_RELATIONS,
             }
     for name, category in PIPELINE_RELATIONS.items():
-        relations.setdefault(name, {"category": category, "description": ""})
+        relations.setdefault(
+            name,
+            {
+                "category": category,
+                "description": "",
+                "source_edge": name in SOURCE_EDGE_RELATIONS,
+            },
+        )
     return relations
 
 
@@ -365,6 +379,7 @@ def _resolve(
             "shape": family_shape[families[name].lower()],
             "color": colors[name],
             "origin": origins[name],
+            "is_source": families[name] == SOURCES_FAMILY,
         }
         for name in order
     }
@@ -388,6 +403,31 @@ def _resolve(
 # ---------------------------------------------------------------------------
 
 
+def is_source_edge(
+    edge: dict,
+    source_node_ids: set[str] | frozenset[str],
+    relations: dict[str, dict],
+) -> bool:
+    """Return True when an edge only expresses provenance.
+
+    An edge is a source edge when either endpoint is a Sources-family node or
+    its relation is flagged ``source_edge``. Never raises on missing keys.
+    The graph view and the workbench share this rule.
+
+    Args:
+        edge: Edge dict with ``source``, ``target`` and ``relation_type`` keys.
+        source_node_ids: Ids of nodes whose resolved type has ``is_source``.
+        relations: The ``relations`` map from :func:`resolve_display`.
+
+    Returns:
+        True for provenance edges, False for knowledge edges.
+    """
+    if edge.get("source") in source_node_ids or edge.get("target") in source_node_ids:
+        return True
+    spec = relations.get(edge.get("relation_type") or "")
+    return isinstance(spec, dict) and spec.get("source_edge") is True
+
+
 def validate_display(schema: dict | None) -> list[str]:
     """Return warnings for invalid display declarations in a schema; never raises."""
     return _resolve(schema, (), None)["warnings"]
@@ -407,8 +447,9 @@ def resolve_display(
         overrides: Legacy ``{type: "#rrggbb"}`` colors that win over declared ones.
 
     Returns:
-        ``{"types": {T: {label, description, family, shape, color, origin}},
-        "families": [{name, shape}], "relations": {R: {category, description}},
+        ``{"types": {T: {label, description, family, shape, color, origin,
+        is_source}}, "families": [{name, shape}],
+        "relations": {R: {category, description, source_edge}},
         "warnings": [str]}``. Colors are unique unless the author declared the
         same color twice, which is kept and reported in ``warnings``.
     """
