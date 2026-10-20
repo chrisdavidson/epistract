@@ -60,19 +60,19 @@ Auto-generated entity summary for the loaded graph — entity types with dedupli
 
 ![Workbench Chat — welcome](screenshots/workbench-02-chat-welcome.png)
 
-The chat panel reads its title, body text, placeholder, starter questions, and system-prompt **persona** from `domains/<name>/workbench/template.yaml`. Switch domains and the entire chat persona changes — the same workbench code works for any domain.
+The chat panel reads its title, body text, placeholder, starter questions, and system-prompt **persona** from `domains/<name>/workbench/template.yaml`. Switch domains and the entire chat persona changes — the same workbench code works for any domain. The input bar has a Clear button to reset the conversation and a model picker (with a cost-sort toggle) for choosing which model answers.
 
 ### Graph — visual exploration
 
 ![Workbench Graph Panel — S6 GLP-1](screenshots/workbench-03-graph-glp1.png)
 
-Full knowledge graph rendered in the workbench: nodes color-coded by entity type, community clusters, entity-type filter pills at the top, search bar for direct entity lookup. Pan, zoom, click any node to see neighborhood context; toggle entity types on and off to isolate sub-graphs.
+Full knowledge graph rendered in the workbench: nodes color-coded by entity type, community clusters, and a search bar for direct entity lookup. Above the graph sit entity-type and epistemic-status filter pills, a confidence threshold slider, a relation-type filter, a minimum-connections slider, and Fit View / Reset Pins buttons. Pan, zoom, click any node to see neighborhood context; toggle entity types and the other filters to isolate sub-graphs.
 
 ### Chat — epistemic layer in action
 
 ![Workbench Chat — prophetic patent claims](screenshots/workbench-04-chat-epistemic.png)
 
-Ask *"Which patents make prophetic claims about new indications?"* and the chat panel surfaces the prophetic claims the epistemic layer identified. With the drug-discovery persona active, Claude produces a structured analysis: per-patent prophetic claims, status flags, grouped summaries, and a meta-analysis highlighting the biggest gaps between prophetic claims and commercial reality. This is the cross-document synthesis the workbench is designed for.
+Ask *"Which patents make prophetic claims and how do they compare to the asserted clinical evidence?"* and the chat panel surfaces the prophetic claims the epistemic layer identified. With the drug-discovery persona active, the selected model (whichever is chosen in the input bar's model picker) produces a structured analysis: per-patent prophetic claims, status flags, a comparison against the asserted clinical evidence, and a meta-analysis highlighting the biggest gaps between prophetic claims and commercial reality. This is the cross-document synthesis the workbench is designed for.
 
 ## What You Can Do
 

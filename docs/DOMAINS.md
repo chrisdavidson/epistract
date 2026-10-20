@@ -48,7 +48,7 @@ All five live in `domains/` as self-contained packages — schemas are human-rea
 
 - **Showcase doc:** [`SHOWCASE-FDA.md`](SHOWCASE-FDA.md)
 - **Auto-generated analyst briefing:** [`tests/corpora/08_fda_labels/output/epistemic_narrative.md`](../tests/corpora/08_fda_labels/output/epistemic_narrative.md)
-- **Workbench screenshots:** [dashboard panel](screenshots/fda-labels-01-dashboard.png) · [chat welcome](screenshots/fda-labels-02-chat-welcome.png) · [graph panel](screenshots/fda-labels-03-graph.png) · [chat on epistemic](screenshots/fda-labels-04-chat-epistemic.png)
+- **Workbench screenshots:** [dashboard panel](screenshots/fda-labels-01-dashboard.png) · [chat welcome](screenshots/fda-labels-02-chat-welcome.png) · [graph panel](screenshots/fda-labels-03-graph.png) · [chat on boxed warnings](screenshots/fda-labels-04-chat-epistemic.png)
 - **Interactive graph** (clone + open locally): [`tests/corpora/08_fda_labels/output/graph.html`](../tests/corpora/08_fda_labels/output/graph.html)
 - **Scenario doc:** [`tests/scenarios/scenario-08-fda-product-labels.md`](../tests/scenarios/scenario-08-fda-product-labels.md)
 - **Raw corpus:** [`tests/corpora/08_fda_labels/docs/`](../tests/corpora/08_fda_labels/docs/) (7 SPL label files)
