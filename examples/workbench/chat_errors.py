@@ -21,6 +21,11 @@ import httpx
 DETAIL_LIMIT = 300
 
 _TOO_LARGE_RE = re.compile(r"context|token|length|too long|too large", re.IGNORECASE)
+# OpenRouter reports an unknown model id as HTTP 400 ("... is not a valid model
+# ID") or 404 ("No endpoints found for ..."), not always as a plain 404.
+_MODEL_MISSING_RE = re.compile(
+    r"not a valid model|no endpoints found|model not found|unknown model", re.IGNORECASE
+)
 
 
 # ---------------------------------------------------------------------------
@@ -139,7 +144,11 @@ def describe_provider_error(
             f"Your {label} key is not allowed to use the model '{model}'.",
             "Choose a different model in the model picker.",
         )
-    if status == 404 or etype == "not_found_error":
+    if (
+        status == 404
+        or etype == "not_found_error"
+        or (status == 400 and _MODEL_MISSING_RE.search(msg))
+    ):
         return make(
             "Model not found",
             f"{label} doesn't recognise the model '{model}'.",

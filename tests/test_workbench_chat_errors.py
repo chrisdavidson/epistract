@@ -89,6 +89,13 @@ CASES = [
     (None, ANTH_AUTH_BODY, "Anthropic", "API key not accepted", ["restart"]),
     (402, "{}", "OpenRouter", "Out of credits", ["credits"]),
     (404, "{}", "OpenRouter", "Model not found", ["model"]),
+    (
+        400,
+        '{"error":{"message":"nonexistent-vendor/no-such-model is not a valid model ID","code":400}}',
+        "OpenRouter",
+        "Model not found",
+        ["model"],
+    ),
     (429, "{}", "OpenRouter", "Rate limited", ["retry"]),
     (503, "{}", "OpenRouter", "The model provider is having trouble", ["retry"]),
     (

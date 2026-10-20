@@ -245,7 +245,13 @@ async def chat(request: Request, body: ChatRequest):
             model_override=body.model,
         )
     except RuntimeError as exc:
-        return EventSourceResponse(_error_stream(str(exc), title="Model provider misconfigured"))
+        return EventSourceResponse(
+            _error_stream(
+                str(exc),
+                title="Model provider misconfigured",
+                hint="Fix the settings described above and restart the workbench.",
+            )
+        )
     if not api_key:
         return EventSourceResponse(
             _error_stream(
@@ -452,14 +458,16 @@ async def _stream_openai_compat(
 
 
 async def _error_stream(
-    message: str, title: str = "No API key configured"
+    message: str,
+    title: str = "No API key configured",
+    hint: str = "Set one of the env vars above and restart the workbench.",
 ) -> AsyncGenerator[dict, None]:
     """Stream a structured configuration error followed by done."""
     yield error_event(
         {
             "title": title,
             "message": message,
-            "hint": "Set one of the env vars above and restart the workbench.",
+            "hint": hint,
             "detail": "",
             "status": None,
         }
