@@ -6,6 +6,7 @@
 //         epistemic        GLP-1 v3 Epistemic health section: render, toggle, Show in graph, Ask in chat
 //         epistemic-early  Show in graph clicked before the graph has finished loading
 //         epistemic-legacy legacy PICALM claims layer renders the section
+//         documents        GLP-1 v3 Documents table and the in-workbench source viewer
 //
 // Talks to an already running chromium over the DevTools protocol using only
 // Node built-ins. Prints one JSON line per check and a final
@@ -127,7 +128,7 @@ async function expectedSets(s) {
 
 async function openDashboard(s) {
   await s.ev(`document.querySelector('.nav-link[data-panel=dashboard]').click()`);
-  return s.waitFor(`document.querySelectorAll('.dashboard-link-btn').length > 0`);
+  return s.waitFor(`document.querySelectorAll('.dashboard-entity-summary .dashboard-link-btn').length > 0`);
 }
 
 // Waits until the graph is built and the visible node set equals `want`.
@@ -156,7 +157,7 @@ async function click() {
   await s.shot('dashboard.png');
 
   // (a) rows
-  const rows = await s.ev(`(() => [...document.querySelectorAll('.dashboard-link-btn')].map((b) => ({
+  const rows = await s.ev(`(() => [...document.querySelectorAll('.dashboard-entity-summary .dashboard-link-btn')].map((b) => ({
     type: b.getAttribute('data-entity-type'),
     count: Number(b.closest('tr').querySelector('td.dashboard-count').textContent.replace(/,/g, '')),
     cell: b.closest('tr').querySelector('td.dashboard-count').textContent.trim(),
@@ -175,7 +176,7 @@ async function click() {
   check('no img/script in dashboard', inj === 0, inj);
 
   // (c) keyboard: real Enter on the COMPOUND button
-  await s.ev(`document.querySelector('.dashboard-link-btn[data-entity-type="COMPOUND"]').focus()`);
+  await s.ev(`document.querySelector('.dashboard-entity-summary .dashboard-link-btn[data-entity-type="COMPOUND"]').focus()`);
   await s.key('Enter');
   check('Enter shows graph panel', await s.waitFor(`document.getElementById('graph-panel').style.display === 'flex'`));
   check('COMPOUND solo visible set', await waitVisible(s, sets.COMPOUND), (await s.ev(visibleIds)).length);
@@ -221,8 +222,8 @@ async function click() {
     slider: document.getElementById('min-degree-slider').value })`);
   check('setup: focus survives the dirty filters', dirty.stack > 0 && dirty.search !== '' && dirty.slider === '1', dirty);
   check('open dashboard again', await openDashboard(s));
-  check('dashboard still lists 13 rows', (await s.ev(`document.querySelectorAll('.dashboard-link-btn').length`)) === 13);
-  const pt = await s.ev(`(() => { const r = document.querySelector('tr.dashboard-link-row[data-entity-type="DISEASE"] td.dashboard-count').getBoundingClientRect();
+  check('dashboard still lists 13 rows', (await s.ev(`document.querySelectorAll('.dashboard-entity-summary .dashboard-link-btn').length`)) === 13);
+  const pt = await s.ev(`(() => { const r = document.querySelector('.dashboard-entity-summary tr.dashboard-link-row[data-entity-type="DISEASE"] td.dashboard-count').getBoundingClientRect();
     return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
   await s.click(pt.x, pt.y);
   check('DISEASE solo visible set', await waitVisible(s, sets.DISEASE), sets.DISEASE.length);
@@ -240,7 +241,7 @@ async function click() {
 
   // (e) source type
   check('open dashboard for DOCUMENT', await openDashboard(s));
-  await s.ev(`document.querySelector('.dashboard-link-btn[data-entity-type="DOCUMENT"]').click()`);
+  await s.ev(`document.querySelector('.dashboard-entity-summary .dashboard-link-btn[data-entity-type="DOCUMENT"]').click()`);
   check('DOCUMENT solo visible set', await waitVisible(s, sets.DOCUMENT), sets.DOCUMENT.length);
   check('DOCUMENT count is 34', sets.DOCUMENT.length === 34);
   check('Show sources pressed', (await s.ev(`document.getElementById('graph-show-sources-btn').getAttribute('aria-pressed')`)) === 'true');
@@ -283,7 +284,7 @@ async function early() {
   await s.send('Page.addScriptToEvaluateOnNewDocument', { source: `
     document.addEventListener('DOMContentLoaded', () => {
       const t = setInterval(() => {
-        const b = document.querySelector('.dashboard-link-btn[data-entity-type="COMPOUND"]');
+        const b = document.querySelector('.dashboard-entity-summary .dashboard-link-btn[data-entity-type="COMPOUND"]');
         if (!b) return;
         clearInterval(t);
         window.__early = { graphReady: !!window._graphDebug };
@@ -540,11 +541,163 @@ async function epistemicLegacy() {
   await s.done();
 }
 
+// --- Documents and the source viewer ----------------------------------------
+
+const DOC_BTN = '.documents-table .dashboard-doc-btn';
+const docRows = `[...document.querySelectorAll('.documents-table tbody tr.dashboard-doc-row')]`;
+const visibleDocRows = `${docRows}.filter((r) => r.offsetParent !== null)`;
+
+async function openDocuments(s) {
+  await s.ev(`document.querySelector('.nav-link[data-panel=dashboard]').click()`);
+  return s.waitFor(`document.querySelectorAll('${DOC_BTN}').length > 0`);
+}
+
+const panelDisplay = (s, sel) => s.ev(`getComputedStyle(document.querySelector(${q(sel)})).display`);
+
+async function documents() {
+  const s = await session();
+  await load(s);
+  check('dashboard opens with the documents table', await openDocuments(s));
+
+  const api = await s.ev(`(async () => (await (await fetch('/api/dashboard')).json()).documents)()`);
+  check('the API returns 34 documents', Array.isArray(api) && api.length === 34, api && api.length);
+
+  // (1) placement and heading
+  const heads = await s.ev(`[...document.querySelectorAll('#dashboard-content h3')].map((h) => h.textContent)`);
+  const iEpi = heads.indexOf('Epistemic health');
+  const iDocs = heads.indexOf('Documents (34)');
+  const iFind = heads.indexOf('Analysis Findings');
+  check('Documents (34) sits after Epistemic health and before Analysis Findings',
+    iEpi >= 0 && iDocs > iEpi && (iFind === -1 || iFind > iDocs), heads);
+
+  // (2) rows
+  const visible = await s.ev(`${visibleDocRows}.length`);
+  check('10 rows are visible', visible === 10, visible);
+  const rows = await s.ev(`(() => ${docRows}.map((r) => ({
+    aria: r.querySelector('button').getAttribute('aria-label'),
+    buttons: r.querySelectorAll('button').length,
+    entities: r.querySelectorAll('td.dashboard-count')[0].textContent.trim(),
+    relations: r.querySelectorAll('td.dashboard-count')[1].textContent.trim(),
+    shared: r.classList.contains('dashboard-link-row') && r.querySelector('button').classList.contains('dashboard-link-btn'),
+  })))()`);
+  check('34 rows in the DOM, one button each', rows.length === 34 && rows.every((r) => r.buttons === 1), rows.length);
+  check('row buttons keep the shared dashboard classes', rows.every((r) => r.shared));
+  check('aria-labels read "Read name: E entities, R relations"',
+    rows.every((r) => /^Read .+: \d[\d,]* entit(y|ies), \d[\d,]* relations?$/.test(r.aria || '')), rows.slice(0, 2).map((r) => r.aria));
+  check('count cells equal the API values in order',
+    rows.every((r, i) => r.entities === api[i].entity_count.toLocaleString('en-US')
+      && r.relations === api[i].relation_count.toLocaleString('en-US')), rows.slice(0, 2));
+  check('rows follow the API order (entity count descending)',
+    api.every((d, i) => i === 0 || api[i - 1].entity_count >= d.entity_count));
+  const names = await s.ev(`(() => ${docRows}.map((r) => r.querySelector('.documents-name__text').textContent))()`);
+  check('row names are the API display names', names.every((n, i) => n === api[i].display_name), names.slice(0, 2));
+  check('no row shows an id line', (await s.ev(`document.querySelectorAll('.documents-name__id').length`)) === 0);
+  check('entity summary rows are untouched', (await s.ev(`document.querySelectorAll('.dashboard-entity-summary tr.dashboard-link-row').length`)) === 13);
+
+  // (3) toggle
+  const toggle = `document.querySelector('.documents-toggle')`;
+  check('toggle reads Show all 34, collapsed',
+    (await s.ev(`${toggle}.textContent`)) === 'Show all 34' && (await s.ev(`${toggle}.getAttribute('aria-expanded')`)) === 'false');
+  await s.ev(`document.querySelector('.documents-section').scrollIntoView({ block: 'start', behavior: 'instant' })`);
+  await s.shot('dashboard-documents.png');
+  check('toggle clicked', await clickEl(s, toggle));
+  check('34 rows visible after expanding', (await s.ev(`${visibleDocRows}.length`)) === 34);
+  check('toggle reads Show first 10',
+    (await s.ev(`${toggle}.textContent`)) === 'Show first 10' && (await s.ev(`${toggle}.getAttribute('aria-expanded')`)) === 'true');
+  check('focus moved to the 11th row button',
+    (await s.ev(`document.activeElement === document.querySelectorAll('${DOC_BTN}')[10]`)) === true);
+  check('status announces all documents', (await s.ev(`document.getElementById('documents-status').textContent`)) === 'Showing all 34 documents.');
+  check('toggle clicked again', await clickEl(s, toggle));
+  check('24 rows hidden again', (await s.ev(`${visibleDocRows}.length`)) === 10);
+  check('focus returned to the toggle', (await s.ev(`document.activeElement === ${toggle}`)) === true);
+
+  // (4) open the first document with a real pointer click
+  const first = api[0];
+  const firstBtn = `document.querySelectorAll('${DOC_BTN}')[0]`;
+  const pt = await centreOf(s, firstBtn);
+  const scrolled = await s.ev(`document.getElementById('dashboard-panel').scrollTop`);
+  check('the dashboard is scrolled before opening', scrolled > 0, scrolled);
+  await s.click(pt.x, pt.y);
+  check('source panel shown', await s.waitFor(`getComputedStyle(document.getElementById('source-panel')).display === 'flex'`));
+  check('dashboard hidden', (await panelDisplay(s, '#dashboard-panel')) === 'none');
+  check('the reader shows the text', await s.waitFor(`!!document.querySelector('#source-reader .source-text')`));
+  const want = await s.ev(`(async () => (await (await fetch('/api/sources/${first.doc_id}')).json()).text)()`);
+  const got = await s.ev(`document.querySelector('#source-reader .source-text').textContent`);
+  check('reader text equals the API text', typeof want === 'string' && want.length > 0 && got === want, [want && want.length, got && got.length]);
+  check('no highlight mark without a highlight', (await s.ev(`document.querySelectorAll('#source-reader mark').length`)) === 0);
+  check('title is the display name', (await s.ev(`document.getElementById('source-title').textContent`)) === first.display_name);
+  check('title has focus', (await s.ev(`document.activeElement === document.getElementById('source-title')`)) === true);
+  check('status reads Opened name', (await s.ev(`document.getElementById('source-status').textContent`)) === `Opened ${first.display_name}.`);
+  check('the id line shows the document id', (await s.ev(`document.querySelector('.source-id').textContent`)) === first.doc_id);
+  const meta = await s.ev(`document.querySelector('.source-meta').textContent`);
+  check('meta line carries the counts', meta.startsWith(`${first.entity_count.toLocaleString('en-US')} entit`) && meta.includes(' relation'), meta);
+  check('nav Dashboard link stays active', (await s.ev(`document.querySelector('.nav-link[data-panel="dashboard"]').classList.contains('active')`)) === true);
+  check('back button says Back to Dashboard', (await s.ev(`document.getElementById('source-back-btn').textContent`)).includes('Back to Dashboard'));
+  check('no PDF link without a PDF', (await s.ev(`!document.getElementById('source-pdf-link')`)) === true);
+  await s.shot('source-viewer.png');
+
+  // (5) Esc goes back
+  await s.key('Escape');
+  check('Esc shows the dashboard again', await s.waitFor(`getComputedStyle(document.getElementById('dashboard-panel')).display === 'flex'`));
+  check('viewer hidden after Esc', (await panelDisplay(s, '#source-panel')) === 'none');
+  const restored = await s.ev(`document.getElementById('dashboard-panel').scrollTop`);
+  check('scrollTop restored', Math.abs(restored - scrolled) <= 1, [scrolled, restored]);
+  check('focus back on the row button', (await s.ev(`document.activeElement === ${firstBtn}`)) === true);
+
+  // (6) keyboard open, then the Back button
+  await s.key('Enter');
+  check('Enter on the row opens the viewer', await s.waitFor(`getComputedStyle(document.getElementById('source-panel')).display === 'flex'`));
+  check('the viewer loaded again', await s.waitFor(`!!document.querySelector('#source-reader .source-text')`));
+  await s.ev(`document.getElementById('source-back-btn').click()`);
+  check('Back button shows the dashboard', await s.waitFor(`getComputedStyle(document.getElementById('dashboard-panel')).display === 'flex'`));
+  check('Back button restores scrollTop', Math.abs((await s.ev(`document.getElementById('dashboard-panel').scrollTop`)) - scrolled) <= 1);
+  check('Back button restores focus', (await s.ev(`document.activeElement === ${firstBtn}`)) === true);
+
+  // (7) Show in graph
+  await s.ev(`window.__gst = []; window.addEventListener('graph-show-types', (e) => window.__gst.push(JSON.parse(JSON.stringify(e.detail))));`);
+  await clickEl(s, firstBtn);
+  check('viewer open for Show in graph', await s.waitFor(`!!document.querySelector('#source-reader .source-text')`));
+  check('Show in graph is enabled for a document with entities',
+    (await s.ev(`document.getElementById('source-graph-btn').getAttribute('aria-disabled')`)) === null && first.entity_count > 0);
+  check('Show in graph clicked', await clickEl(s, `document.getElementById('source-graph-btn')`));
+  check('graph panel shown', await s.waitFor(`getComputedStyle(document.getElementById('graph-panel')).display === 'flex' && getComputedStyle(document.getElementById('side-panel')).display === 'flex'`));
+  const gst = await s.ev(`window.__gst`);
+  check('graph-show-types carries the document focus',
+    JSON.stringify(gst) === JSON.stringify([{ reset: true, focus: { id: `doc:${first.doc_id}`, hops: 1 } }]), gst);
+  check('viewer hidden once the graph is shown', (await panelDisplay(s, '#source-panel')) === 'none');
+  await s.waitFor(`!window._graphDebug.busy`);
+
+  // (8) Esc on the Graph panel does not touch the viewer
+  await s.key('Escape');
+  await sleep(300);
+  check('Esc on the graph keeps the viewer hidden', (await panelDisplay(s, '#source-panel')) === 'none');
+  check('Esc on the graph keeps the graph visible', (await panelDisplay(s, '#graph-panel')) === 'flex');
+
+  // (9) unknown document
+  check('open the dashboard again', await openDocuments(s));
+  await s.ev(`window.dispatchEvent(new CustomEvent('navigate-source', { detail: { docId: 'no_such_doc' } }))`);
+  check('unknown id shows the viewer', await s.waitFor(`getComputedStyle(document.getElementById('source-panel')).display === 'flex'`));
+  check('unknown id: Document not available', await s.waitFor(`(document.querySelector('.source-state__title') || {}).textContent === 'Document not available'`),
+    await s.ev(`document.getElementById('source-reader').textContent`));
+  check('unknown id: exact body copy',
+    (await s.ev(`document.querySelector('.source-state__body').textContent`)) === "This document's text is not available in this output directory.");
+  check('unknown id: Show in graph is aria-disabled with its note',
+    (await s.ev(`document.getElementById('source-graph-btn').getAttribute('aria-disabled')`)) === 'true'
+    && (await s.ev(`(document.getElementById('source-graph-note') || {}).textContent`)) === 'This document has no entities in the graph, so there is nothing to focus.');
+  await s.shot('source-viewer-unavailable.png');
+  await s.ev(`document.getElementById('source-back-btn').click()`);
+  check('Back works from the unavailable state', await s.waitFor(`getComputedStyle(document.getElementById('dashboard-panel')).display === 'flex'`));
+
+  check('no script exceptions from the workbench', s.errors.length === 0, s.errors.slice(0, 3));
+  await s.done();
+}
+
 try {
   if (MODE === 'early') await early();
   else if (MODE === 'epistemic') await epistemic();
   else if (MODE === 'epistemic-early') await epistemicEarly();
   else if (MODE === 'epistemic-legacy') await epistemicLegacy();
+  else if (MODE === 'documents') await documents();
   else await click();
 } catch (e) {
   check('script completed', false, String(e && e.stack || e));

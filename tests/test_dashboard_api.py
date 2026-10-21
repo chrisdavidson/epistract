@@ -15,6 +15,15 @@ from examples.workbench.server import create_app
 ROOT = Path(__file__).resolve().parent.parent
 GLP1 = ROOT / "tests" / "corpora" / "06_glp1_landscape" / "output-v3"
 GLP1_FILES = ("graph_data.json", "communities.json", "claims_layer.json")
+DOCUMENT_KEYS = {
+    "doc_id",
+    "display_name",
+    "filename",
+    "entity_count",
+    "relation_count",
+    "has_text",
+    "has_pdf",
+}
 
 pytestmark = pytest.mark.unit
 
@@ -140,3 +149,111 @@ def test_non_object_claims_layer_still_200(tmp_path, claims):
     assert body["epistemic"]["available"] is False
     assert body["findings"] == []
     assert client.get("/api/graph/claims").status_code == 200
+
+
+# -- Documents ---------------------------------------------------------------
+
+
+@pytest.fixture()
+def glp1_with_docs(glp1_copy):
+    shutil.copytree(GLP1 / "ingested", glp1_copy / "ingested")
+    shutil.copy2(GLP1 / "triage.json", glp1_copy / "triage.json")
+    return glp1_copy
+
+
+def test_glp1_documents_rows(glp1_with_docs):
+    body = TestClient(create_app(glp1_with_docs, domain=None)).get("/api/dashboard").json()
+    docs = body["documents"]
+    assert len(docs) == 34
+    assert all(set(d) == DOCUMENT_KEYS for d in docs)
+    counts = [d["entity_count"] for d in docs]
+    assert counts[0] == max(counts) and counts == sorted(counts, reverse=True)
+    assert all(d["has_text"] is True and d["has_pdf"] is False for d in docs)
+    for key in ("epistemic", "entity_counts", "findings", "total_nodes", "total_edges"):
+        assert key in body, f"missing {key}"
+
+
+def test_documents_empty_without_ingested_dir(glp1_copy):
+    body = TestClient(create_app(glp1_copy, domain=None)).get("/api/dashboard").json()
+    assert body["documents"] == []
+    assert body["epistemic"]["available"] is True
+
+
+def test_sources_contract_unchanged_and_gains_flags(glp1_with_docs):
+    client = TestClient(create_app(glp1_with_docs, domain=None))
+    listing = client.get("/api/sources").json()
+    assert len(listing["documents"]) == 34
+    first = listing["documents"][0]
+    for key in ("doc_id", "filename", "display_name", "original_path", "size_bytes"):
+        assert key in first
+    assert first["has_text"] is True and first["has_pdf"] is False
+    ok = client.get(f"/api/sources/{first['doc_id']}")
+    assert ok.status_code == 200
+    assert set(ok.json()) == {"doc_id", "text"} and ok.json()["text"]
+    missing = client.get("/api/sources/no_such_doc")
+    assert missing.status_code == 404 and "error" in missing.json()
+    assert client.get("/api/sources/pdf/no_such_doc").status_code == 404
+    for hostile in ("..%2Fgraph_data", "%2e%2e%2fgraph_data", "..%5Cgraph_data"):
+        response = client.get(f"/api/sources/{hostile}")
+        assert response.status_code in (404, 422), hostile
+        assert "nodes" not in response.text
+
+
+def _pdf_output(tmp_path, *, triage_pdf: bool, pdf_name: str):
+    out = tmp_path / "out"
+    (out / "ingested").mkdir(parents=True)
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    (out / "ingested" / "foo_report.txt").write_text("Foo body", encoding="utf-8")
+    (out / "ingested" / "other.txt").write_text("Other body", encoding="utf-8")
+    (out / "graph_data.json").write_text(json.dumps({"nodes": [], "links": []}), encoding="utf-8")
+    (corpus / pdf_name).write_bytes(b"%PDF-1.4 stub")
+    first = corpus / ("Foo Report.pdf" if triage_pdf else "Foo Report.txt")
+    triage = {
+        "documents": [
+            {"doc_id": "foo_report", "file_path": str(first)},
+            {"doc_id": "other", "file_path": str(corpus / "other.txt")},
+        ]
+    }
+    (out / "triage.json").write_text(json.dumps(triage), encoding="utf-8")
+    return out
+
+
+def test_has_pdf_from_triage_path(tmp_path):
+    out = _pdf_output(tmp_path, triage_pdf=True, pdf_name="Foo Report.pdf")
+    client = TestClient(create_app(out, domain=None))
+    docs = {d["doc_id"]: d for d in client.get("/api/sources").json()["documents"]}
+    assert docs["foo_report"]["has_pdf"] is True
+    assert docs["other"]["has_pdf"] is False
+    dash = {d["doc_id"]: d for d in client.get("/api/dashboard").json()["documents"]}
+    assert dash["foo_report"]["has_pdf"] is True and dash["foo_report"]["has_text"] is True
+    pdf = client.get("/api/sources/pdf/foo_report")
+    assert pdf.status_code == 200
+    assert pdf.headers["content-type"] == "application/pdf"
+
+
+def test_has_pdf_from_doc_id_file_next_to_corpus(tmp_path):
+    out = _pdf_output(tmp_path, triage_pdf=False, pdf_name="other.pdf")
+    docs = {
+        d["doc_id"]: d
+        for d in TestClient(create_app(out, domain=None)).get("/api/sources").json()["documents"]
+    }
+    assert docs["other"]["has_pdf"] is True
+    assert docs["foo_report"]["has_pdf"] is False
+
+
+def test_has_pdf_does_not_walk_the_corpus_tree(tmp_path, monkeypatch):
+    out = _pdf_output(tmp_path, triage_pdf=True, pdf_name="Foo Report.pdf")
+    nested = tmp_path / "corpus" / "nested"
+    nested.mkdir()
+    (nested / "other.pdf").write_bytes(b"%PDF-1.4 stub")
+
+    def boom(self, pattern):
+        raise AssertionError("rglob must not run at startup")
+
+    monkeypatch.setattr(Path, "rglob", boom)
+    from examples.workbench.data_loader import WorkbenchData
+
+    docs = {d["doc_id"]: d for d in WorkbenchData(out).documents}
+    assert docs["foo_report"]["has_pdf"] is True
+    assert docs["other"]["has_pdf"] is False

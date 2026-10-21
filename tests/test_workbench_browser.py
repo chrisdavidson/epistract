@@ -48,6 +48,12 @@ def _serve(tmp_path_factory, corpus: Path, name: str):
     work = tmp_path_factory.mktemp(name)
     for fname in GLP1_FILES:
         shutil.copy2(corpus / fname, work / fname)
+    # The Documents table needs the ingested texts; triage.json keeps the original
+    # file names (its relative paths resolve because the server runs with cwd=ROOT).
+    if (corpus / "ingested").is_dir():
+        shutil.copytree(corpus / "ingested", work / "ingested")
+    if (corpus / "triage.json").is_file():
+        shutil.copy2(corpus / "triage.json", work / "triage.json")
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
@@ -190,3 +196,8 @@ def test_dashboard_epistemic_before_graph_ready(chromium_port, workbench_url):
 def test_dashboard_epistemic_legacy_picalm(chromium_port, picalm_workbench_url):
     result = _run(chromium_port, picalm_workbench_url, "epistemic-legacy")
     assert result["passed"] >= 6, result
+
+
+def test_dashboard_documents_glp1(chromium_port, workbench_url):
+    result = _run(chromium_port, workbench_url, "documents")
+    assert result["passed"] >= 20, result
