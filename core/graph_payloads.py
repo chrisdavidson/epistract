@@ -139,8 +139,9 @@ def subset_graph(
         display: Result of ``core.graph_display.resolve_display`` over the
             full graph (decides which nodes are sources).
         neighborhood: Node id, or case-insensitive name, to center on.
-        top_n: Keep the N nodes of highest knowledge degree and their neighbors.
-        depth: Hop radius for ``neighborhood``.
+        top_n: Keep the N nodes of highest knowledge degree and their neighbors
+            (must be >= 1).
+        depth: Hop radius for ``neighborhood`` (must be >= 1).
 
     Returns:
         ``(kept_nodes, kept_links, info)`` in input order. ``info`` is None
@@ -149,7 +150,13 @@ def subset_graph(
 
     Raises:
         EntityLookupError: When ``neighborhood`` matches no node or several nodes.
+        ValueError: When ``top_n`` or ``depth`` is below 1.
     """
+    # depth 0 would be the start node alone, which is not a neighbourhood.
+    if top_n is not None and top_n < 1:
+        raise ValueError(f"top_n must be >= 1, got {top_n}")
+    if depth < 1:
+        raise ValueError(f"depth must be >= 1, got {depth}")
     if neighborhood is None and top_n is None:
         return nodes, links, None
 

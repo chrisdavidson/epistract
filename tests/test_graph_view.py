@@ -488,3 +488,16 @@ def test_cli_bundler_error_reports_build_error_not_entity_hint(tmp_path, monkeyp
     assert "Error: could not build graph.html: static bundle: import cycle" in err, err
     assert "Pass the exact entity id" not in err, err
     assert not (tmp_path / "graph.html").exists()
+
+
+@pytest.mark.parametrize(
+    "flag,value", [("--top", "0"), ("--top", "-1"), ("--depth", "0"), ("--depth", "-3")]
+)
+def test_cli_non_positive_top_or_depth_is_rejected(tmp_path, flag, value):
+    _write_graph(tmp_path, ["COMPOUND", "DISEASE"])
+    args = ["view", str(tmp_path), "--neighborhood", "n0", flag, value, "--no-open"]
+    proc = _cli(*args)
+    assert proc.returncode == 1
+    assert f"Error: {flag} must be a positive integer" in proc.stderr, proc.stderr
+    assert "Traceback" not in proc.stderr
+    assert not (tmp_path / "graph.html").exists()

@@ -384,6 +384,10 @@ if __name__ == "__main__":
                 except (ValueError, IndexError):
                     print(f"Error: {flag} expects an integer", file=sys.stderr)
                     sys.exit(1)
+                # --depth 0 would show the start entity alone; both must be >= 1.
+                if kwargs[key] < 1:
+                    print(f"Error: {flag} must be a positive integer", file=sys.stderr)
+                    sys.exit(1)
         if "--no-open" in sys.argv:
             kwargs["open_browser"] = False
         try:

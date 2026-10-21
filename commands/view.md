@@ -8,8 +8,8 @@ Write `<output_dir>/graph.html` and open it. The page is one file that works off
 Arguments:
 - `output_dir` -- directory with graph_data.json (default: ./epistract-output)
 - `--neighborhood <entity>` -- show only the neighborhood of one entity (exact id or name)
-- `--depth <d>` -- hop radius for `--neighborhood` (default: 1; ignored without it)
-- `--top <n>` -- show the top N entities by connections, plus their neighbors
+- `--depth <d>` -- hop radius for `--neighborhood`, a positive integer (default: 1; ignored without it)
+- `--top <n>` -- show the top N entities by connections, plus their neighbors (N >= 1)
 - `--no-open` -- write `graph.html` without opening a browser
 
 ```bash
@@ -62,8 +62,8 @@ Examples:
 Arguments:
 - `output_dir` -- directory with graph_data.json (default: ./epistract-output)
 - `--neighborhood <entity>` -- show only the neighborhood of one entity (exact id or name)
-- `--depth <d>` -- hop radius for `--neighborhood` (default: 1; ignored without it)
-- `--top <n>` -- show the top N entities by connections, plus their neighbors
+- `--depth <d>` -- hop radius for `--neighborhood`, a positive integer (default: 1; ignored without it)
+- `--top <n>` -- show the top N entities by connections, plus their neighbors (N >= 1)
 - `--no-open` -- write `graph.html` without opening a browser
 
 ```bash

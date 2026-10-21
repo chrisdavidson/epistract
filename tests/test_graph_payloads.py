@@ -249,3 +249,17 @@ def test_subset_glp1_top_10_matches_independent_degree_ranking():
     assert {n["id"] for n in nodes_out} == keep
     assert len(links_out) == len(links)
     assert info["mode"] == "top" and info["shown"] == len(keep)
+
+
+@pytest.mark.parametrize("kwargs", [{"top_n": 0}, {"top_n": -1}])
+def test_subset_rejects_non_positive_top_n(kwargs):
+    nodes, links, display = _synthetic()
+    with pytest.raises(ValueError, match="top_n must be >= 1"):
+        subset_graph(nodes, links, display, **kwargs)
+
+
+@pytest.mark.parametrize("depth", [0, -3])
+def test_subset_rejects_non_positive_depth(depth):
+    nodes, links, display = _synthetic()
+    with pytest.raises(ValueError, match="depth must be >= 1"):
+        subset_graph(nodes, links, display, neighborhood="h1", depth=depth)
