@@ -3,6 +3,9 @@
 // usage: node workbench_dashboard_cdp.mjs <cdp-port> <workbench-url> <mode> [screenshot-dir]
 //   mode: click  full Dashboard -> Graph flow (rows, keyboard, mouse, sources, totals)
 //         early  Dashboard click fired before the graph has finished loading
+//         epistemic        GLP-1 v3 Epistemic health section: render, toggle, Show in graph, Ask in chat
+//         epistemic-early  Show in graph clicked before the graph has finished loading
+//         epistemic-legacy legacy PICALM claims layer renders the section
 //
 // Talks to an already running chromium over the DevTools protocol using only
 // Node built-ins. Prints one JSON line per check and a final
@@ -305,8 +308,217 @@ async function early() {
   await s.done();
 }
 
+// --- Epistemic health ------------------------------------------------------
+
+async function openEpistemic(s) {
+  await s.ev(`document.querySelector('.nav-link[data-panel=dashboard]').click()`);
+  const ok = await s.waitFor(`!!document.querySelector('.epistemic-health')`);
+  await s.ev(`document.querySelector('.epistemic-health').scrollIntoView({ block: 'start', behavior: 'instant' })`);
+  return ok;
+}
+
+// In-page expression for a section's buttons: key is a fixed section key.
+const secBtn = (key, action, nth = 0) => `document.querySelector('#epistemic-sec-${key}').parentElement`
+  + `.querySelectorAll('[data-action="${action}"]')[${nth}]`;
+
+// Scrolls the element to the middle of the viewport and returns its centre.
+async function centreOf(s, expr) {
+  return s.ev(`(() => { const b = ${expr}; if (!b) return null;
+    b.scrollIntoView({ block: 'center', behavior: 'instant' });
+    const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+}
+
+async function clickEl(s, expr) {
+  const pt = await centreOf(s, expr);
+  if (!pt) return false;
+  await s.click(pt.x, pt.y);
+  return true;
+}
+
+const focusTop = `(() => { const st = window._graphDebug.focus().stack; return st.length ? st[st.length - 1].id : null; })()`;
+
+async function epistemic() {
+  const s = await session();
+  await load(s);
+  check('dashboard opens with the epistemic section', await openEpistemic(s));
+
+  // (1) heading order
+  const heads = await s.ev(`[...document.querySelectorAll('#dashboard-content h3')].map((h) => h.textContent)`);
+  const iEnt = heads.indexOf('Entity Summary');
+  const iEpi = heads.indexOf('Epistemic health');
+  const iFind = heads.indexOf('Analysis Findings');
+  check('heading sits right after Entity Summary and before Analysis Findings',
+    iEnt >= 0 && iEpi === iEnt + 1 && (iFind === -1 || iFind > iEpi), heads);
+
+  // (2) chips
+  const chips = await s.ev(`[...document.querySelectorAll('.epistemic-health .epistemic-chip')].map((c) => c.textContent.replace(/\\s+/g, ' ').trim())`);
+  check('six status chips', chips.length === 6, chips);
+  check('chip order and shares', chips[0] === 'Asserted 758 89%' && chips[1] === 'Prophetic 61 7%' && chips[2] === 'Hypothesized 31 4%'
+    && chips.slice(3).every((c) => c.endsWith(' <1%')), chips);
+  check('status caption', (await s.ev(`document.querySelector('.epistemic-status .epistemic-hint').textContent`)) === 'Epistemic status of 855 relations');
+
+  // (3) tiny segment stays visible
+  const negW = await s.ev(`(() => { const seg = [...document.querySelectorAll('.epistemic-bar__seg')].find((x) => x.title.startsWith('Negative'));
+    return seg ? seg.getBoundingClientRect().width : -1; })()`);
+  check('negative segment is at least 6px wide', negW >= 6, negW);
+
+  // (4) counts
+  check('counts line', (await s.ev(`document.querySelector('.epistemic-counts').textContent`)) === '2 contradictions · 33 contested claims · 2 hypotheses');
+
+  // (5) card counts
+  const vis = (key) => s.ev(`(() => { const sec = document.querySelector('#epistemic-sec-${key}').parentElement;
+    return [...sec.querySelectorAll('.epistemic-card')].filter((c) => c.offsetParent !== null).length; })()`);
+  check('contradictions: 2 cards', (await vis('contradictions')) === 2);
+  check('hypotheses: 2 cards and no toggle', (await vis('hypotheses')) === 2
+    && (await s.ev(`!document.querySelector('#epistemic-sec-hypotheses').parentElement.querySelector('.epistemic-toggle')`)));
+  check('contested: 5 visible cards', (await vis('contested_claims')) === 5);
+  const tgText = await s.ev(`document.querySelector('#epistemic-sec-contested_claims').parentElement.querySelector('.epistemic-toggle').textContent`);
+  check('contested toggle reads Show all 33', tgText === 'Show all 33', tgText);
+
+  // screenshot before the toggle moves things
+  await s.ev(`document.querySelector('.epistemic-health').scrollIntoView({ block: 'start', behavior: 'instant' })`);
+  await s.shot('dashboard-epistemic.png');
+
+  // (6) toggle with a real mouse click
+  const toggleExpr = `document.querySelector('#epistemic-sec-contested_claims').parentElement.querySelector('.epistemic-toggle')`;
+  check('toggle clicked', await clickEl(s, toggleExpr));
+  check('toggle expands', (await s.ev(`${toggleExpr}.getAttribute('aria-expanded')`)) === 'true'
+    && (await vis('contested_claims')) === 33, await vis('contested_claims'));
+  check('toggle keeps focus', (await s.ev(`document.activeElement === ${toggleExpr}`)) === true);
+  check('toggle label flips', (await s.ev(`${toggleExpr}.textContent`)) === 'Show first 5');
+  await s.shot('dashboard-epistemic-expanded.png');
+  await clickEl(s, toggleExpr);
+  check('toggle collapses again', (await vis('contested_claims')) === 5 && (await s.ev(`${toggleExpr}.getAttribute('aria-expanded')`)) === 'false');
+
+  // (7) quotes
+  const quotes = await s.ev(`(() => [...document.querySelectorAll('.epistemic-card')].map((c) => {
+    const qs = [...c.querySelectorAll('.epistemic-quote')];
+    return { n: qs.length, clamp: qs.map((q) => getComputedStyle(q).webkitLineClamp) };
+  }))()`);
+  check('at most two quotes per card, clamped to 3 lines', quotes.every((c) => c.n <= 2 && c.clamp.every((v) => v === '3')) && quotes.some((c) => c.n === 2), quotes.slice(0, 3));
+
+  // (8) hypothesis card
+  const hyp = await s.ev(`(() => { const card = document.querySelector('#epistemic-sec-hypotheses').parentElement.querySelector('.epistemic-card');
+    return [...card.querySelectorAll('.epistemic-meta')].map((m) => m.textContent); })()`);
+  check('hypothesis card: capped entities', hyp.some((m) => m.startsWith('Entities:') && m.includes('+') && m.includes('more')), hyp);
+  check('hypothesis card: Sources line', hyp.some((m) => m.startsWith('Sources:')), hyp);
+
+  // (9) type scale
+  const type = await s.ev(`(() => {
+    const bad = [];
+    for (const n of document.querySelectorAll('.epistemic-health, .epistemic-health *')) {
+      const own = [...n.childNodes].some((c) => c.nodeType === 3 && c.textContent.trim());
+      if (!own) continue;
+      const cs = getComputedStyle(n);
+      if (!['13px', '14px', '15px'].includes(cs.fontSize) || !['400', '600'].includes(cs.fontWeight)) {
+        bad.push([n.tagName, n.className, cs.fontSize, cs.fontWeight]);
+      }
+    }
+    return bad;
+  })()`);
+  check('only 13/14/15px sizes and 400/600 weights', type.length === 0, type.slice(0, 4));
+
+  // (10) Show in graph, settled graph, real mouse click
+  const firstGraph = secBtn('contradictions', 'show-graph', 0);
+  check('Show in graph is enabled for the first contradiction', (await s.ev(`${firstGraph}.getAttribute('aria-disabled')`)) === null);
+  check('Show in graph clicked', await clickEl(s, firstGraph));
+  check('graph panel shown', await s.waitFor(`document.getElementById('graph-panel').style.display === 'flex'`));
+  check('graph focused on semaglutide', await s.waitFor(`(${focusTop}) === 'compound:semaglutide'`), await s.ev(focusTop));
+  await s.waitFor(`!window._graphDebug.busy`);
+  const fsize = await s.ev(`window._graphDebug.focus().size`);
+  check('focus set has at least two nodes', fsize >= 2, fsize);
+  check('graph search is empty', (await s.ev(`document.getElementById('graph-search').value`)) === '');
+  await s.ev(`new Promise((r) => setTimeout(r, 600))`);
+  await s.shot('graph-focus-semaglutide.png');
+
+  // (11) keyboard activation moves focus to the graph
+  check('open the dashboard again', await openEpistemic(s));
+  await s.ev(`${firstGraph}.scrollIntoView({ block: 'center', behavior: 'instant' }); ${firstGraph}.focus()`);
+  await s.key('Enter');
+  check('Enter focuses the graph container', await s.waitFor(`document.activeElement && document.activeElement.id === 'graph-container'`));
+  await s.waitFor(`!window._graphDebug.busy`);
+  check('keyboard focus centre is semaglutide', (await s.ev(focusTop)) === 'compound:semaglutide', await s.ev(focusTop));
+
+  // (12) Ask in chat only prefills
+  const urls = [];
+  s.on('Network.requestWillBeSent', (p) => urls.push(p.request.url));
+  const expectedQ = await s.ev(`(async () => { const d = await (await fetch('/api/dashboard')).json();
+    return d.epistemic.sections[0].items[0].question; })()`);
+  check('the API supplies a question', typeof expectedQ === 'string' && expectedQ.length > 0, expectedQ);
+  check('open the dashboard for chat', await openEpistemic(s));
+  urls.length = 0;
+  check('Ask in chat clicked', await clickEl(s, secBtn('contradictions', 'ask-chat', 0)));
+  check('chat panel shown', await s.waitFor(`document.querySelector('.chat-panel').style.display === 'flex'`));
+  check('chat input holds the question', (await s.ev(`document.getElementById('chat-input').value`)) === expectedQ,
+    await s.ev(`document.getElementById('chat-input').value`));
+  check('chat input has focus', (await s.ev(`document.activeElement && document.activeElement.id`)) === 'chat-input');
+  await s.ev(`new Promise((r) => setTimeout(r, 1000))`);
+  check('no /api/chat request was made', !urls.some((u) => u.includes('/api/chat')), urls.filter((u) => u.includes('/api/')));
+  await s.shot('chat-prefilled.png');
+
+  // (13)
+  check('no script exceptions from the workbench', s.errors.length === 0, s.errors.slice(0, 3));
+  await s.done();
+}
+
+async function epistemicEarly() {
+  const s = await session();
+  await s.viewport(1440, 1000);
+  const held = [];
+  let released = false;
+  s.on('Fetch.requestPaused', (p) => {
+    if (released) s.send('Fetch.continueRequest', { requestId: p.requestId });
+    else held.push(p.requestId);
+  });
+  await s.send('Fetch.enable', { patterns: [{ urlPattern: '*/api/graph', requestStage: 'Request' }] });
+  await s.send('Page.addScriptToEvaluateOnNewDocument', { source: `
+    document.addEventListener('DOMContentLoaded', () => {
+      const t = setInterval(() => {
+        const b = document.querySelector('.epistemic-btn[data-action="show-graph"]');
+        if (!b) return;
+        clearInterval(t);
+        window.__early = { graphReady: !!window._graphDebug };
+        b.click();
+      }, 1);
+    });` });
+  await s.send('Page.navigate', { url: URL_ });
+  check('early Show in graph click fired', await s.waitFor(`!!window.__early`, 30000), await s.ev(`window.__early`));
+  const early = await s.ev(`window.__early`);
+  check('early click: made before the graph loaded', early && early.graphReady === false, early);
+  check('early click: /api/graph was held until the click', held.length > 0, held.length);
+  check('early click: graph not built while held', (await s.ev(`!window._graphDebug`)) === true);
+  released = true;
+  for (const requestId of held.splice(0)) await s.send('Fetch.continueRequest', { requestId });
+  await s.send('Fetch.disable');
+  await s.waitFor(`!!window._graphDebug && window._graphDebug.settled`, 30000);
+  check('early click: graph panel shown', (await s.ev(`document.getElementById('graph-panel').style.display`)) === 'flex');
+  check('early click: graph focused on semaglutide', await s.waitFor(`window._graphDebug && (${focusTop}) === 'compound:semaglutide'`, 30000), await s.ev(focusTop));
+  check('early click: no script exceptions', s.errors.length === 0, s.errors.slice(0, 3));
+  await s.done();
+}
+
+async function epistemicLegacy() {
+  const s = await session();
+  await load(s);
+  check('dashboard opens with the epistemic section', await openEpistemic(s));
+  check('legacy counts line', (await s.ev(`document.querySelector('.epistemic-counts').textContent`)) === '1 contradiction · 1 hypothesis',
+    await s.ev(`document.querySelector('.epistemic-counts') && document.querySelector('.epistemic-counts').textContent`));
+  const quotes = await s.ev(`document.querySelector('#epistemic-sec-contradictions').parentElement.querySelector('.epistemic-card').querySelectorAll('.epistemic-quote').length`);
+  check('the contradiction card shows both statements', quotes === 2, quotes);
+  const chips = await s.ev(`[...document.querySelectorAll('.epistemic-health .epistemic-chip')].map((c) => c.textContent.trim())`);
+  check('a Contested chip exists', chips.some((c) => c.startsWith('Contested')), chips);
+  check('Show in graph is enabled', (await s.ev(`${secBtn('contradictions', 'show-graph', 0)}.getAttribute('aria-disabled')`)) === null);
+  await s.ev(`document.querySelector('.epistemic-health').scrollIntoView({ block: 'start', behavior: 'instant' })`);
+  await s.shot('dashboard-epistemic-picalm.png');
+  check('legacy: no script exceptions', s.errors.length === 0, s.errors.slice(0, 3));
+  await s.done();
+}
+
 try {
   if (MODE === 'early') await early();
+  else if (MODE === 'epistemic') await epistemic();
+  else if (MODE === 'epistemic-early') await epistemicEarly();
+  else if (MODE === 'epistemic-legacy') await epistemicLegacy();
   else await click();
 } catch (e) {
   check('script completed', false, String(e && e.stack || e));
