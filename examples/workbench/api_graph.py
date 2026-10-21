@@ -95,6 +95,16 @@ async def get_communities(request: Request):
     return data.communities
 
 
+@router.get("/groups")
+async def get_groups(request: Request):
+    """Return the group payload: default mode plus ``cluster`` and ``family`` modes.
+
+    Each mode carries ``available``/``reason``, its ``groups`` (``id``, short
+    ``label``, ``full_label``, ``size``) and the node-to-group ``assignment``.
+    """
+    return request.app.state.groups
+
+
 @router.get("/entity-types")
 async def get_entity_types(request: Request):
     """Return entity type counts plus resolved display (types, families, relations, categories).

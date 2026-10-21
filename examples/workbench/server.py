@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 
 from core.domain_resolver import load_domain_schema
 from core.graph_display import entity_type_key, resolve_display
+from core.graph_groups import build_groups
 from examples.workbench.api_chat import router as chat_router
 from examples.workbench.api_graph import router as graph_router
 from examples.workbench.api_sources import router as sources_router
@@ -277,6 +278,15 @@ def create_app(output_dir: Path, domain: str | None = None) -> FastAPI:
     )
     for warning in app.state.display["warnings"]:
         print(f"Warning: display: {warning}", file=sys.stderr)
+
+    # Group assignment (topic clusters and entity families) is computed once;
+    # /api/graph/groups serves it and the browser lays the graph out from it.
+    app.state.groups = build_groups(
+        app.state.data.get_nodes(),
+        app.state.data.get_edges(),
+        app.state.data.communities,
+        app.state.display,
+    )
 
     # Store output_dir and domain name for later use
     app.state.output_dir = output_dir
