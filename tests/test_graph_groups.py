@@ -290,6 +290,37 @@ def test_availability_collisions_stay_unique_and_short():
 
 
 @pytest.mark.unit
+def test_distinct_communities_with_equal_labels_stay_distinct():
+    from core.graph_groups import build_groups, normalize_communities
+
+    nodes = [{"id": i, "entity_type": "FOO"} for i in ("a", "b", "c", "d", "e")]
+    comm = {
+        "communities": [
+            {"id": 0, "label": "Kinase", "members": ["a", "b"]},
+            {"id": 1, "label": "Kinase", "members": ["c", "d"]},
+        ]
+    }
+    assert normalize_communities(comm, nodes) == {
+        "a": "Kinase",
+        "b": "Kinase",
+        "c": "Kinase",
+        "d": "Kinase",
+    }
+    cluster = build_groups(nodes, [], comm)["modes"]["cluster"]
+    assert cluster["available"] is True, cluster
+    asg = cluster["assignment"]
+    assert asg["a"] == asg["b"] and asg["c"] == asg["d"] and asg["a"] != asg["c"], asg
+    named = [g for g in cluster["groups"] if g["id"] != "other"]
+    assert [g["full_label"] for g in named] == ["Kinase", "Kinase"], named
+    assert sorted(g["label"] for g in named) == ["Kinase", "Kinase 2"], named
+    assert asg["e"] == "other", asg
+    # A per-node community field with the same label joins the listed community.
+    nodes_field = [*nodes[:4], {"id": "e", "entity_type": "FOO", "community": "Kinase"}]
+    one_more = build_groups(nodes_field, [], comm)["modes"]["cluster"]["assignment"]
+    assert one_more["e"] == one_more["a"], one_more
+
+
+@pytest.mark.unit
 def test_availability_survives_garbage_input():
     from core.graph_groups import build_groups
 

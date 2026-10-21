@@ -169,18 +169,20 @@ def _node_ids(nodes: object) -> list[dict]:
     return [n for n in nodes if isinstance(n, dict) and n.get("id") is not None]
 
 
-def normalize_communities(raw: object, nodes: list[dict]) -> dict[str, str]:
-    """Return ``{node_id: label}`` from either ``communities.json`` shape.
+def _ranked_communities(raw: object, nodes: list[dict]) -> list[tuple[str, list[str]]]:
+    """Return ``[(label, member_ids)]`` per community, largest first.
 
-    Accepts the flat ``{node_id: label}`` map and the
-    ``{"communities": [{"id", "label", "members"}]}`` list shape. Nodes not
-    covered fall back to their own ``community`` field. Non-string labels are
-    stringified; empty labels become ``Cluster N`` (N = size rank). Anything
-    unusable yields ``{}``.
+    One entry per community *identity*: each list-shape entry is its own
+    community even when its label repeats another's. The flat
+    ``{node_id: label}`` shape (and the per-node ``community`` field) carries
+    no identity beyond the label, so equal flat labels are one community; a
+    ``community`` field whose label matches a list entry joins that entry.
+    Empty labels become ``Cluster N`` (N = size rank).
     """
-    # raw key -> members; the key is the label, or ("list", index) for list entries.
+    # identity key -> members; ("list", index) for list entries, ("flat", label) otherwise.
     members: dict[object, list[str]] = {}
     labels: dict[object, str] = {}
+    listed_key_for_label: dict[str, object] = {}
 
     def add(key: object, label: str, node_id: str) -> None:
         members.setdefault(key, []).append(node_id)
@@ -195,6 +197,7 @@ def normalize_communities(raw: object, nodes: list[dict]) -> dict[str, str]:
                 if not isinstance(entry, dict) or not isinstance(entry.get("members"), list):
                     continue
                 label = _collapse(entry.get("label"))
+                listed_key_for_label.setdefault(label, ("list", index))
                 for member in entry["members"]:
                     if isinstance(member, (str, int)) and str(member) not in covered:
                         covered.add(str(member))
@@ -215,15 +218,25 @@ def normalize_communities(raw: object, nodes: list[dict]) -> dict[str, str]:
             continue
         label = _collapse(value)
         covered.add(node_id)
-        add(("flat", label), label, node_id)
+        add(listed_key_for_label.get(label, ("flat", label)), label, node_id)
 
     ranked = sorted(members, key=lambda k: (-len(members[k]), labels[k], str(k)))
-    result: dict[str, str] = {}
-    for rank, key in enumerate(ranked, start=1):
-        label = labels[key] or f"Cluster {rank}"
-        for node_id in members[key]:
-            result[node_id] = label
-    return result
+    return [
+        (labels[key] or f"Cluster {rank}", members[key]) for rank, key in enumerate(ranked, start=1)
+    ]
+
+
+def normalize_communities(raw: object, nodes: list[dict]) -> dict[str, str]:
+    """Return ``{node_id: label}`` from either ``communities.json`` shape.
+
+    Accepts the flat ``{node_id: label}`` map and the
+    ``{"communities": [{"id", "label", "members"}]}`` list shape. Nodes not
+    covered fall back to their own ``community`` field. Non-string labels are
+    stringified; empty labels become ``Cluster N`` (N = size rank). Anything
+    unusable yields ``{}``. Grouping uses the community identity, not this
+    label map (two list entries may share a label).
+    """
+    return {node_id: label for label, ids in _ranked_communities(raw, nodes) for node_id in ids}
 
 
 # ---------------------------------------------------------------------------
@@ -254,29 +267,35 @@ def _finish_mode(groups: dict[str, dict], assignment: dict[str, str]) -> dict:
     return {"available": True, "reason": None, "ordered": ordered, "assignment": assignment}
 
 
-def _cluster_mode(knowledge: list[str], mapping: dict[str, str]) -> dict:
-    by_label: dict[str, list[str]] = {}
+def _cluster_mode(knowledge: list[str], communities: list[tuple[str, list[str]]]) -> dict:
+    """Topic-cluster mode: one group per community identity (not per label).
+
+    Distinct communities that share a label stay distinct groups;
+    ``_unique_short_labels`` later tells their short labels apart.
+    """
+    member_of = {node_id: i for i, (_, ids) in enumerate(communities) for node_id in ids}
+    by_comm: dict[int, list[str]] = {}
     for node_id in knowledge:
-        label = mapping.get(node_id)
-        if label is not None:
-            by_label.setdefault(label, []).append(node_id)
-    if not by_label:
+        index = member_of.get(node_id)
+        if index is not None:
+            by_comm.setdefault(index, []).append(node_id)
+    if not by_comm:
         return _unavailable(REASON_NO_CLUSTERS)
-    if len(by_label) < 2:
+    if len(by_comm) < 2:
         return _unavailable(REASON_ONE_CLUSTER)
-    ranked = sorted(by_label, key=lambda lab: (-len(by_label[lab]), _full_label(lab), lab))
+    ranked = sorted(by_comm, key=lambda i: (-len(by_comm[i]), _full_label(communities[i][0]), i))
     kept = ranked[:MAX_CLUSTER_GROUPS]
     groups: dict[str, dict] = {}
     assignment: dict[str, str] = {}
-    for index, label in enumerate(kept, start=1):
-        gid = f"c{index}"
+    for rank, comm in enumerate(kept, start=1):
+        gid = f"c{rank}"
         groups[gid] = {
             "id": gid,
             "label": "",
-            "full_label": _full_label(label),
-            "size": len(by_label[label]),
+            "full_label": _full_label(communities[comm][0]),
+            "size": len(by_comm[comm]),
         }
-        for node_id in by_label[label]:
+        for node_id in by_comm[comm]:
             assignment[node_id] = gid
     leftover = [n for n in knowledge if n not in assignment]
     if leftover:
@@ -371,9 +390,8 @@ def build_groups(
             elif b in source_set and a not in source_set:
                 neighbours.setdefault(b, []).append(a)
 
-    mapping = normalize_communities(communities, valid)
     modes = {
-        "cluster": _cluster_mode(knowledge_ids, mapping),
+        "cluster": _cluster_mode(knowledge_ids, _ranked_communities(communities, valid)),
         "family": _family_mode(knowledge_nodes, display),
     }
     for mode in modes.values():
