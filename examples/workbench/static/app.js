@@ -2,6 +2,7 @@
 import { initChat, loadModelSelector } from './chat.js';
 import { initGraph } from './graph.js';
 import { loadDisplay, legendEntries, makeSwatch } from './display.js';
+import { buildEntitySummary } from './dashboard.js';
 // sources.js removed -- source docs now accessed via dashboard links
 
 // SEC-01 / VUL-03: local escapeHtml helper. We intentionally do NOT import the
@@ -221,6 +222,13 @@ function populateStarterCards(template) {
     }
 }
 
+// Switches to the Graph tab first (vis needs a visible container), then asks
+// graph.js to filter: detail is {types: [rawType]} or {reset: true}.
+function openGraphWith(detail) {
+    switchPanel('graph');
+    window.dispatchEvent(new CustomEvent('graph-show-types', { detail }));
+}
+
 async function populateDashboard(template) {
     const dashContent = document.getElementById('dashboard-content');
     if (!dashContent) return;
@@ -244,20 +252,30 @@ async function populateDashboard(template) {
             const safeSubtitle = dashData.subtitle ? escapeHtml(dashData.subtitle) : '';
             let autoHtml = '<h2 class="dashboard-title">' + safeTitle + '</h2>';
             if (safeSubtitle) autoHtml += '<p class="dashboard-subtitle">' + safeSubtitle + '</p>';
-            autoHtml += '<h3>Entity Summary</h3><div class="dashboard-table-wrap"><table class="dashboard-table"><thead><tr><th>Entity Type</th><th>Count</th></tr></thead><tbody>';
-            for (const [type, count] of Object.entries(dashData.entity_counts || {})) {
-                autoHtml += '<tr><td>' + escapeHtml(type) + '</td><td>' + escapeHtml(String(count)) + '</td></tr>';
+            // The entity section is built as DOM nodes (buildEntitySummary) after
+            // this sanitized head, so its data-* and aria-label attributes survive.
+            dashContent.innerHTML = (typeof DOMPurify !== 'undefined')
+                ? DOMPurify.sanitize(autoHtml, { ADD_ATTR: ['id'] })
+                : autoHtml;
+            try {
+                await loadDisplay();
+            } catch (e) {
+                console.warn('Could not load entity types for the dashboard:', e);
             }
-            autoHtml += '</tbody></table></div>';
-            autoHtml += '<p>Total entities: ' + escapeHtml(String(dashData.total_nodes || 0))
-                + ' | Total relationships: ' + escapeHtml(String(dashData.total_edges || 0)) + '</p>';
+            dashContent.appendChild(buildEntitySummary({
+                entityCounts: dashData.entity_counts,
+                totalNodes: dashData.total_nodes,
+                totalEdges: dashData.total_edges,
+                onSelectType: (type) => openGraphWith({ types: [type] }),
+                onShowAll: () => openGraphWith({ reset: true }),
+            }));
             // Custom rule findings — per-domain CUSTOM_RULES and cross-domain
             // rules both land in claims_layer.super_domain.custom_findings.
             // Purely additive: domains that ship no custom rules get an empty
             // list from /api/dashboard and this block renders nothing.
             const findings = dashData.findings || [];
             if (findings.length) {
-                autoHtml += '<h3>Analysis Findings</h3><div class="dashboard-table-wrap">'
+                let findingsHtml = '<h3>Analysis Findings</h3><div class="dashboard-table-wrap">'
                     + '<table class="dashboard-table"><thead><tr><th>Rule</th><th>Findings</th><th>By Severity</th></tr></thead><tbody>';
                 for (const f of findings) {
                     const sev = Object.entries(f.by_severity || {})
@@ -265,15 +283,17 @@ async function populateDashboard(template) {
                     const label = f.errors
                         ? String(f.rule_name) + ' (' + f.errors + ' rule error(s))'
                         : String(f.rule_name);
-                    autoHtml += '<tr><td>' + escapeHtml(label) + '</td><td>'
+                    findingsHtml += '<tr><td>' + escapeHtml(label) + '</td><td>'
                         + escapeHtml(String(f.total || 0)) + '</td><td>'
                         + escapeHtml(sev) + '</td></tr>';
                 }
-                autoHtml += '</tbody></table></div>';
+                findingsHtml += '</tbody></table></div>';
+                const findingsBox = document.createElement('div');
+                findingsBox.innerHTML = (typeof DOMPurify !== 'undefined')
+                    ? DOMPurify.sanitize(findingsHtml, { ADD_ATTR: ['id'] })
+                    : findingsHtml;
+                dashContent.appendChild(findingsBox);
             }
-            dashContent.innerHTML = (typeof DOMPurify !== 'undefined')
-                ? DOMPurify.sanitize(autoHtml, { ADD_ATTR: ['id'] })
-                : autoHtml;
         }
     } catch (e) {
         dashContent.innerHTML = '<p>Failed to load dashboard content.</p>';

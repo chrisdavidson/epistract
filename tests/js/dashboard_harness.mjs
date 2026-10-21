@@ -78,7 +78,7 @@ globalThis.document = {
 };
 
 const textOf = (n) => (n.isText ? n.textContent : (n.textContent || '') + (n.children || []).map(textOf).join(''));
-const walk = (n, fn) => { fn(n); (n.children || []).forEach((c) => walk(c, fn)); };
+const walk = (n, fn) => { if (!n) return; fn(n); (n.children || []).forEach((c) => walk(c, fn)); };
 const find = (root, pred) => { const out = []; walk(root, (n) => { if (n.matches && pred(n)) out.push(n); }); return out; };
 const byClass = (root, cls) => find(root, (n) => n.matches(`.${cls}`));
 const byTag = (root, tag) => find(root, (n) => n.tagName === tag);
@@ -223,7 +223,7 @@ const rowsOf = (root) => byClass(root, 'dashboard-link-row');
   const root = build({ B: 10, A: 3 }, 278, 900);
   const totals = byClass(root, 'dashboard-totals')[0];
   check('totals: paragraph wrapper', totals && totals.tagName === 'p');
-  const btn = byClass(totals, 'dashboard-totals-btn')[0];
+  const btn = byClass(totals, 'dashboard-totals-btn')[0] || makeEl('missing');
   check('totals: button markup', btn && btn.tagName === 'button' && btn.getAttribute('type') === 'button'
     && btn.getAttribute('data-dashboard-action') === 'show-all');
   check('totals: visible text', textOf(btn) === 'Total entities: 278 | Total relationships: 900 ›', textOf(btn));

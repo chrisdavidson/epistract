@@ -165,6 +165,8 @@ let focusEndedNote = null;                // name of a centre a filter just hid;
 let graphPanelActive = false;             // the Graph tab is the visible panel (guards Escape)
 let _lastFocusSig = null;                 // last graph-focus-changed payload, to dispatch only real changes
 let _focusListenersAttached = false;
+let pendingShowTypes = null;              // graph-show-types request waiting for the graph to load (or for a relayout to end); last request wins
+let _showTypesListenerAttached = false;
 let activeRegionId = null;                // group whose Groups-list row was clicked (zoomed to)
 let emphasizedRegionId = null;            // group whose row is hovered or focused
 let groupRowEls = new Map();              // group id -> its Groups-list row button
@@ -210,6 +212,15 @@ export async function initGraph(opts) {
     callbacks = opts || {};
     initHoverCard();
     initPresentMode();
+
+    // Registered before anything is awaited so a Dashboard click made while the
+    // display data or the graph is still loading is queued, never lost.
+    if (!_showTypesListenerAttached) {
+        _showTypesListenerAttached = true;
+        window.addEventListener('graph-show-types', (event) => {
+            requestShowTypes(event && event.detail);
+        });
+    }
 
     // Resolve type colors/shapes once, before the legend or nodes are built, so
     // every surface reads the same values regardless of build order.
@@ -330,7 +341,9 @@ async function loadGraphData() {
         initConfidenceSlider();
         buildRelationTypeDropdown();
         initMinDegreeSlider();
+        flushPendingShowTypes();
     } catch (e) {
+        pendingShowTypes = null;
         console.error('Failed to load graph data:', e);
         const container = document.getElementById('graph-container');
         // CR-01: use createElement/textContent instead of innerHTML (SEC-01)
@@ -973,6 +986,9 @@ function syncGroupControl(selected = groupMode) {
 
 function setGroupBusy(on) {
     relayoutBusy = on;
+    // A graph-show-types request held back by a running relayout is applied as
+    // soon as the layout that is finishing has run its follow-ups.
+    if (!on && pendingShowTypes !== null) queueMicrotask(flushPendingShowTypes);
     const group = document.getElementById('graph-group');
     const container = document.getElementById('graph-container');
     for (const el of [group, container]) {
@@ -2820,6 +2836,105 @@ function setSourcesShown(on) {
             ? `Sources shown: ${sourceNodeIds.size.toLocaleString()} nodes.`
             : 'Sources hidden.';
     }
+}
+
+// ---------------------------------------------------------------------------
+// graph-show-types (Dashboard click-through). detail is {types: [rawType]} to
+// show only that type, or {reset: true} for the default view. The payload comes
+// from another module, so it is validated here: anything that does not name a
+// known type with nodes falls back to the default view, never an empty graph.
+// ---------------------------------------------------------------------------
+
+// Node-hiding filters a Dashboard arrival must not inherit. Edge-only filters
+// (relation types, epistemic status, confidence) and grouping are left alone.
+function resetNodeFilters() {
+    const search = document.getElementById('graph-search');
+    if (search) search.value = '';
+    const severity = document.getElementById('severity-filter');
+    if (severity) severity.value = 'all';
+    const slider = document.getElementById('min-degree-slider');
+    const readout = document.getElementById('min-degree-value');
+    if (slider) slider.value = '0';
+    minDegreeThreshold = 0;
+    if (readout) readout.textContent = '0';   // textContent only (SEC-01)
+    if (focusStack.length > 0) exitFocus();
+}
+
+function requestShowTypes(detail) {
+    // No graph yet: keep the newest request and apply it when the graph loads.
+    if (!visNodes) {
+        pendingShowTypes = detail || {};
+        return;
+    }
+    applyShowTypes(detail);
+}
+
+function flushPendingShowTypes() {
+    if (pendingShowTypes === null || !visNodes) return;
+    if (focusStack.length > 0 && relayoutBusy) return;
+    const detail = pendingShowTypes;
+    pendingShowTypes = null;
+    try {
+        applyShowTypes(detail);
+    } catch (e) {
+        console.warn('Could not apply the requested entity types:', e);
+    }
+}
+
+function applyShowTypes(detail) {
+    if (!visNodes) return;
+    // Leaving focus needs an idle layout (exitFocus does nothing while one
+    // runs): keep the request and apply it when the relayout ends.
+    if (focusStack.length > 0 && relayoutBusy) {
+        pendingShowTypes = detail || {};
+        return;
+    }
+    pendingShowTypes = null;
+
+    const request = detail && typeof detail === 'object' ? detail : {};
+    const requested = Array.isArray(request.types)
+        ? request.types.filter(t => typeof t === 'string')
+        : [];
+    const entries = legendEntries();
+    const known = new Set(entries.map(entry => entry.type));
+    const present = new Set(allNodes.map(n => typeKey(n.entity_type)));
+    const chosen = typeFilterEnabled
+        ? [...new Set(requested.map(typeKey))].filter(t => known.has(t) && present.has(t))
+        : [];
+
+    resetNodeFilters();
+
+    activeTypes.clear();
+    if (chosen.length > 0) {
+        for (const type of chosen) activeTypes.add(type);
+    } else if (typeFilterEnabled) {
+        for (const entry of entries) {
+            if (!isSourceType(entry.type)) activeTypes.add(entry.type);
+        }
+    }
+    sourcesShown = typeFilterEnabled ? sourceTypes().some(t => activeTypes.has(t)) : false;
+    if (sourcesShown) placeSources();
+    document.querySelectorAll('.legend-chip[data-type]').forEach(chip => {
+        setChipPressed(chip, activeTypes.has(chip.getAttribute('data-type')));
+    });
+    syncSourcePhysics();
+    syncSourcesButton();
+    filterGraph();
+    fitView(null, false);
+
+    // Written last: the helpers above also write to this live region.
+    let message;
+    if (chosen.length > 0) {
+        const count = allNodes.filter(n => chosen.includes(typeKey(n.entity_type))).length;
+        const labels = entries.filter(entry => chosen.includes(entry.type)).map(entry => entry.label);
+        message = `Showing ${count.toLocaleString()} ${labels.join(', ')} ${count === 1 ? 'node' : 'nodes'}. Use the legend to show other types.`;
+    } else if (requested.length > 0 && typeFilterEnabled) {
+        message = `No ${String(requested[0])} nodes found. Showing the default graph.`;
+    } else {
+        message = `Showing the default graph: ${visibleDataNodeIds().length.toLocaleString()} entities.`;
+    }
+    const status = document.getElementById('graph-sources-status');
+    if (status) status.textContent = message;
 }
 
 function clearHighlight() {
