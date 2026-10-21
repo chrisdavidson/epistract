@@ -120,7 +120,7 @@ def test_single_resolved_map_static_guard():
         assert not hex_array.search(js), f"{name} has a hex color array"
         assert "Math.random" not in js, f"{name} calls Math.random"
         assert not re.search(r"%\s*PALETTE|#[0-9a-fA-F]{6}[^\n]*\.length\]", js)
-    for name in ("graph_style.js", "hovercard.js"):
+    for name in ("graph_style.js", "hovercard.js", "grouping.js"):
         js = _strip((STATIC / name).read_text())
         for banned in ("PALETTE", "ENTITY_COLORS", "entity_colors", "getEntityColor"):
             assert banned not in js, f"{name} contains {banned}"
@@ -131,6 +131,9 @@ def test_single_resolved_map_static_guard():
         assert not re.search(r"\.innerHTML\s*=", js), f"{name} assigns innerHTML"
         if name == "hovercard.js":
             assert "from './display.js'" in js, "hovercard.js does not import display.js"
+        if name == "grouping.js":
+            for token in ("document", "window"):
+                assert token not in js, f"grouping.js references {token}"
     graph = code["graph.js"]
     assert re.search(r"shape:\s*d\.shape", graph) or "typeDisplay(" in graph
     assert "shape: 'dot'" not in graph

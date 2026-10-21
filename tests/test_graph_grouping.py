@@ -62,3 +62,15 @@ def test_ungrouped_when_groups_missing():
     out = _run("graph_filter_harness.mjs", "ok")
     assert out["anchorCount"] == 0, out
     assert out["iterations"] == 400, out
+
+
+def test_regions_and_groups_list():
+    out = _run("graph_filter_harness.mjs", "regions")
+    assert out["failed"] == [], out["failed"][:10]
+    assert len(out["passed"]) > 25, out
+
+
+def test_groups_button_disabled_without_groups():
+    out = _run("graph_filter_harness.mjs", "nogroups")
+    assert out.get("failed") == [], out
+    assert out["passed"], out

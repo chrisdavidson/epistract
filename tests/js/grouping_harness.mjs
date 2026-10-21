@@ -121,9 +121,91 @@ check('groupIterations(499) = 200', G.groupIterations(499) === 200);
 check('groupIterations(500) = 150', G.groupIterations(500) === 150);
 check('groupIterations(1738) = 150', G.groupIterations(1738) === 150);
 
+// --- regionGeometry ------------------------------------------------------
+{
+    const groups = [
+        { id: 'g1', label: 'Alpha', size: 4 },
+        { id: 'g2', label: 'Beta', size: 3 },
+        { id: 'g3', label: 'Gamma', size: 12 },
+    ];
+    const assignment = new Map([
+        ['a', 'g1'], ['b', 'g1'], ['c', 'g1'], ['d', 'g1'],
+        ['e', 'g2'], ['f', 'g2'],
+    ]);
+    const positions = {
+        a: { x: 0, y: 0 }, b: { x: 100, y: 0 }, c: { x: 0, y: 100 }, d: { x: 100, y: 100 },
+        e: { x: 500, y: 500 }, f: { x: 500, y: 520 },
+        '__anchor:g1': { x: 9999, y: 9999 }, src: { x: -9999, y: -9999 },
+    };
+    const visible = new Set(['a', 'b', 'c', 'd', 'e', '__anchor:g1', 'src']);
+    const regions = G.regionGeometry(groups, positions, visible, assignment);
+    const byId = new Map(regions.map((r) => [r.id, r]));
+    check('regionGeometry drops groups with < 2 visible members', !byId.has('g2') && !byId.has('g3') && regions.length === 1);
+    const r1 = byId.get('g1');
+    check('regionGeometry centroid', r1 && r1.cx === 50 && r1.cy === 50);
+    check('regionGeometry radius = p90 + pad', r1 && Math.abs(r1.r - (Math.hypot(50, 50) + G.REGION_PAD)) < 1e-9);
+    check('regionGeometry carries label and count', r1 && r1.label === 'Alpha' && r1.count === 4);
+    check('regionGeometry ignores anchors and unassigned ids', r1 && r1.count === 4);
+    check('REGION constants', G.REGION_PAD === 40 && G.REGION_MIN_RADIUS === 40 && G.REGION_LABEL_PX === 13);
+    const tight = G.regionGeometry([{ id: 'g', label: 'T', size: 2 }],
+        { x1: { x: 0, y: 0 }, x2: { x: 2, y: 0 } }, new Set(['x1', 'x2']),
+        new Map([['x1', 'g'], ['x2', 'g']]));
+    check('regionGeometry min radius', tight.length === 1 && tight[0].r >= G.REGION_MIN_RADIUS);
+    // One far outlier among 10 points must not stretch the circle to it.
+    const pts = {};
+    const asg = new Map();
+    for (let i = 0; i < 9; i++) { pts[`p${i}`] = { x: i, y: 0 }; asg.set(`p${i}`, 'g'); }
+    pts.out = { x: 5000, y: 0 };
+    asg.set('out', 'g');
+    const outl = G.regionGeometry([{ id: 'g', label: 'O', size: 10 }], pts, new Set(Object.keys(pts)), asg);
+    check('regionGeometry p90 resists an outlier', outl.length === 1 && outl[0].r < 5000 - outl[0].cx);
+    check('regionGeometry empty input', G.regionGeometry([], {}, new Set(), new Map()).length === 0);
+}
+
+// --- placeRegionLabels ---------------------------------------------------
+{
+    const measure = (t) => t.length * 7;
+    const view = { left: -1000, top: -1000, right: 4000, bottom: 4000 };
+    const regs = [];
+    for (let i = 0; i < 11; i++) {
+        regs.push({ id: `g${i}`, label: `Group ${String.fromCharCode(65 + i)}`, cx: (i % 4) * 400, cy: Math.floor(i / 4) * 400, r: 80, count: 20 - i, other: false });
+    }
+    const placed = G.placeRegionLabels(regs, measure, 1, null, view);
+    check('placeRegionLabels places all spread regions', placed.length === 11);
+    const hit = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+    let overlap = false;
+    for (let i = 0; i < placed.length; i++) for (let j = i + 1; j < placed.length; j++) if (hit(placed[i], placed[j])) overlap = true;
+    check('placeRegionLabels boxes never overlap', !overlap);
+    check('placeRegionLabels order by size desc', placed[0].id === 'g0' && placed[10].id === 'g10');
+    check('placeRegionLabels box height = 13px + padding', Math.abs(placed[0].h - (13 + 8)) < 1e-9);
+    check('placeRegionLabels box width = text + padding', Math.abs(placed[0].w - (measure(placed[0].label) + 8)) < 1e-9);
+    const scaled = G.placeRegionLabels(regs, (t) => measure(t) / 0.5, 0.5, null, view);
+    check('placeRegionLabels scales box height with 1/scale', Math.abs(scaled[0].h - (13 + 8) / 0.5) < 1e-9);
+    // Crowded: two regions at the same spot -> the smaller is skipped, emphasized wins.
+    const crowd = [
+        { id: 'big', label: 'Big', cx: 0, cy: 0, r: 80, count: 50 },
+        { id: 'small', label: 'Small', cx: 5, cy: 5, r: 80, count: 5 },
+    ];
+    const c1 = G.placeRegionLabels(crowd, measure, 1, null, view);
+    check('placeRegionLabels skips a colliding pill', c1.length === 1 && c1[0].id === 'big');
+    const c2 = G.placeRegionLabels(crowd, measure, 1, 'small', view);
+    check('placeRegionLabels emphasized always drawn', c2.some((b) => b.id === 'small' && b.emphasized === true));
+    check('placeRegionLabels emphasized placed first', c2[0].id === 'small');
+    // Clamp: a region above the view gets its pill pulled inside.
+    const edge = G.placeRegionLabels([{ id: 'e', label: 'Edge', cx: 0, cy: -990, r: 80, count: 3 }], measure, 1, null, view);
+    check('placeRegionLabels clamps inside the view', edge.length === 1 && edge[0].y >= view.top && edge[0].x >= view.left
+        && edge[0].x + edge[0].w <= view.right && edge[0].y + edge[0].h <= view.bottom);
+    // tie on size -> label asc
+    const ties = G.placeRegionLabels([
+        { id: 't2', label: 'Zed', cx: 0, cy: 0, r: 50, count: 4 },
+        { id: 't1', label: 'Ant', cx: 900, cy: 0, r: 50, count: 4 },
+    ], measure, 1, null, view);
+    check('placeRegionLabels tie broken by label', ties[0].label === 'Ant');
+}
+
 // --- source hygiene ------------------------------------------------------
 const text = readFileSync(groupingPath, 'utf8');
-for (const token of ['document', 'window', 'Math.random']) {
+for (const token of ['document', 'window', 'Math.random', 'createElementNS', '.innerHTML =', 'PALETTE']) {
     check(`grouping.js has no "${token}"`, !text.includes(token));
 }
 
