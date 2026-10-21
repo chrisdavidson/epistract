@@ -1097,7 +1097,7 @@ mark.source-highlight {
 
 .documents-name {
   display: flex;
-  flex: 1;
+  flex: 0 1 auto;
   flex-direction: column;
   gap: var(--space-xs);
   min-width: 0;
