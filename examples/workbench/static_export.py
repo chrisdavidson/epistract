@@ -10,8 +10,10 @@ workbench and the static page therefore share one renderer.
 from __future__ import annotations
 
 import html
+import os
 import re
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -522,5 +524,15 @@ def write_static_graph(
         subset=view["subset"],
     )
     dest = output_dir / "graph.html"
-    dest.write_text(page, encoding="utf-8")
+    # Write a temp file in the same directory, then rename it over graph.html,
+    # so an interrupted write or a full disk never leaves a truncated page.
+    fd, tmp_name = tempfile.mkstemp(dir=output_dir, prefix=".graph.html.", suffix=".tmp")
+    tmp = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(page)
+        tmp.replace(dest)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
     return dest

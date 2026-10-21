@@ -501,3 +501,25 @@ def test_cli_non_positive_top_or_depth_is_rejected(tmp_path, flag, value):
     assert f"Error: {flag} must be a positive integer" in proc.stderr, proc.stderr
     assert "Traceback" not in proc.stderr
     assert not (tmp_path / "graph.html").exists()
+
+
+def test_graph_html_is_written_atomically(tmp_path, monkeypatch):
+    from examples.workbench import static_export
+
+    _write_graph(tmp_path, ["COMPOUND"])
+    dest = tmp_path / "graph.html"
+    dest.write_text("OLD PAGE", encoding="utf-8")
+
+    def interrupted(self, target):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(Path, "replace", interrupted)
+    with pytest.raises(OSError, match="disk full"):
+        static_export.write_static_graph(tmp_path)
+    assert dest.read_text(encoding="utf-8") == "OLD PAGE", "old page must survive a failed write"
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["graph.html", "graph_data.json"]
+
+    monkeypatch.undo()
+    static_export.write_static_graph(tmp_path)
+    assert dest.read_text(encoding="utf-8").startswith("<!DOCTYPE html>")
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["graph.html", "graph_data.json"]
