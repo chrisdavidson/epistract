@@ -253,6 +253,7 @@ export async function initGraph(opts) {
                     const sourceType = isSourceType(entry.type);
                     if (!sourceType) activeTypes.add(entry.type);
                     const chip = buildLegendChip(entry, (type, pressed) => {
+                        dropPendingShowTypes();
                         if (pressed) activeTypes.add(type);
                         else activeTypes.delete(type);
                         sourcesShown = sourceTypes().some(t => activeTypes.has(t));
@@ -278,13 +279,13 @@ export async function initGraph(opts) {
     // Search bar
     const searchInput = document.getElementById('graph-search');
     if (searchInput) {
-        searchInput.addEventListener('input', () => filterGraph());
+        searchInput.addEventListener('input', () => { dropPendingShowTypes(); filterGraph(); });
     }
 
     // Severity filter
     const severityFilter = document.getElementById('severity-filter');
     if (severityFilter) {
-        severityFilter.addEventListener('change', () => filterGraph());
+        severityFilter.addEventListener('change', () => { dropPendingShowTypes(); filterGraph(); });
     }
 
     // Panel open/close handlers: window listeners, so registered once even
@@ -2860,6 +2861,13 @@ function resetNodeFilters() {
     if (focusStack.length > 0) exitFocus();
 }
 
+// A node filter the user changes directly is newer than a Dashboard request
+// still waiting (for the graph to load or for a relayout to end): the user's
+// input wins and the stale request is dropped, never applied over it.
+function dropPendingShowTypes() {
+    pendingShowTypes = null;
+}
+
 function requestShowTypes(detail) {
     // No graph yet: keep the newest request and apply it when the graph loads.
     if (!visNodes) {
@@ -2887,6 +2895,8 @@ function applyShowTypes(detail) {
     // runs): keep the request and apply it when the relayout ends.
     if (focusStack.length > 0 && relayoutBusy) {
         pendingShowTypes = detail || {};
+        const waiting = document.getElementById('graph-sources-status');
+        if (waiting) waiting.textContent = 'The graph is arranging; the selected type will be shown when it finishes.';
         return;
     }
     pendingShowTypes = null;
@@ -3165,6 +3175,7 @@ function initMinDegreeSlider() {
     // WR-02: guard against duplicate registration on repeated init calls
     if (!_degreeSliderListenerAttached) {
         slider.addEventListener('input', () => {
+            dropPendingShowTypes();
             minDegreeThreshold = parseInt(slider.value, 10) || 0;
             readout.textContent = String(minDegreeThreshold);   // textContent only (SEC-01)
             filterGraph();
