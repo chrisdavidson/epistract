@@ -219,7 +219,7 @@ You type these inside Claude Code.
 | `/epistract:validate` | Check chemical structures (SMILES) and DNA/protein sequences found in extractions |
 | `/epistract:epistemic` | Add certainty labels and write the analyst briefing |
 | `/epistract:dashboard` | Open the interactive workbench (graph + dashboard + chat) |
-| `/epistract:view` | Open a simpler interactive graph viewer in your browser |
+| `/epistract:view` | Open a self-contained interactive graph viewer (same look as the workbench graph) in your browser |
 | `/epistract:query` | Search the graph by entity name or type |
 | `/epistract:ask` | Ask one plain-English question about the graph |
 | `/epistract:export` | Save the graph as GraphML, GEXF, CSV, SQLite, or JSON (OKF is available from the terminal — see below) |

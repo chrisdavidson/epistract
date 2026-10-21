@@ -27,7 +27,7 @@ All five live in `domains/` as self-contained packages — schemas are human-rea
 - **Showcase doc:** [`SHOWCASE-GLP1.md`](SHOWCASE-GLP1.md)
 - **Auto-generated analyst briefing:** [`tests/corpora/06_glp1_landscape/output-v3/epistemic_narrative.md`](../tests/corpora/06_glp1_landscape/output-v3/epistemic_narrative.md)
 - **Workbench screenshots:** [dashboard panel](screenshots/workbench-01-dashboard.png) · [chat welcome](screenshots/workbench-02-chat-welcome.png) · [graph panel](screenshots/workbench-03-graph-glp1.png) · [chat on prophetic claims](screenshots/workbench-04-chat-epistemic.png)
-- **Interactive graph** (clone + open locally): [`tests/corpora/06_glp1_landscape/output-v3/graph.html`](../tests/corpora/06_glp1_landscape/output-v3/graph.html)
+- **Interactive graph** (clone + open locally; the linked corpus `graph.html` files were produced by the earlier pyvis viewer and are kept as legacy outputs — regenerate with `/epistract:view <dir>` to see the current viewer): [`tests/corpora/06_glp1_landscape/output-v3/graph.html`](../tests/corpora/06_glp1_landscape/output-v3/graph.html)
 - **Scenario history (V1 → V2 → V3):** [`tests/scenarios/scenario-06-glp1-landscape-v2.md`](../tests/scenarios/scenario-06-glp1-landscape-v2.md)
 - **V2 scenario gallery (S1–S5 screenshots from regression validation):** [S1 PICALM](../tests/scenarios/screenshots/scenario-01-graph-v2.png) · [S2 KRAS G12C](../tests/scenarios/screenshots/scenario-02-graph-v2.png) · [S3 Rare Disease](../tests/scenarios/screenshots/scenario-03-graph-v2.png) · [S4 Immuno-oncology](../tests/scenarios/screenshots/scenario-04-graph-v2.png) · [S5 Cardiovascular](../tests/scenarios/screenshots/scenario-05-graph-v2.png) · [S6 GLP-1](../tests/scenarios/screenshots/scenario-06-graph-v2.png)
 

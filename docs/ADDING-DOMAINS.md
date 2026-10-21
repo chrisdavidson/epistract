@@ -156,6 +156,7 @@ relation_types:
 - Invalid values (bad hex, unknown shape or category) produce warnings, not errors, and fall back to the defaults.
 - Freezing explicit colors in `domain.yaml` keeps them stable when types are added later. The wizard does this for you: generated domains get a `display` block for every entity type.
 - Color alone is not colorblind-safe at 18+ types; shape, label and legend carry identity too.
+- These hints drive both the workbench graph and the standalone `graph.html` from `/epistract:view`: node colors and shapes, the legend, "Group by" Entity family, and edge-key colors per relation category. Source documents are hidden by default and shown with "Show sources".
 
 #### Drug Discovery Example (17 entity types, 30 relation types)
 

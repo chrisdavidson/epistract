@@ -40,7 +40,7 @@ Use the wizard (`/epistract:domain`) to auto-generate all of these from a sample
 4. **Normalize** — `core/normalize_extractions.py` renames variant filenames, dedupes same-doc extractions, coerces schema drift, and gates the pipeline: if recovery rate is below `--fail-threshold` (default 0.95), the build aborts before graph construction.
 5. **Build** — `core/run_sift.py build` wraps the sift-kg engine: graph construction, community detection via Louvain, entity resolution via LiteLLM, export. Populates `graph_data.json` including `metadata.domain`. Invokes the domain's `validation/run_validation.py` if present — failure is non-fatal (writes `validation_report.json` with status).
 6. **Epistemic analysis** — `core/label_epistemic.py` dispatches to `domains/<name>/epistemic.py`. Regex hedging patterns + domain-specific contradiction pairs + CUSTOM_RULES produce `claims_layer.json`. Then the LLM narrator reads the classified graph and the domain persona and writes `epistemic_narrative.md`.
-7. **View / Dashboard** — `core/run_sift.py view` renders a static `graph.html`; `/epistract:dashboard` launches the interactive FastAPI workbench (see [WORKBENCH.md](WORKBENCH.md)).
+7. **View / Dashboard** — `core/run_sift.py view` builds a self-contained `graph.html` from the workbench graph renderer (`examples/workbench/static_export.py`, payloads from `core/graph_payloads.py`); `/epistract:dashboard` launches the interactive FastAPI workbench (see [WORKBENCH.md](WORKBENCH.md)).
 
 ## Data Formats
 

@@ -1,6 +1,6 @@
 # Interactive Workbench
 
-In addition to the static `graph.html` viewer, epistract ships an interactive FastAPI-backed workbench with three panels: a force-directed graph canvas, a chat assistant powered by Claude, and an auto-generated dashboard summary.
+The static `graph.html` written by `/epistract:view` shares the workbench's graph panel renderer (a single offline file, graph only). On top of it, epistract ships an interactive FastAPI-backed workbench with three panels: a force-directed graph canvas, a chat assistant powered by Claude, and an auto-generated dashboard summary.
 
 Launch it with:
 
@@ -66,7 +66,7 @@ The chat panel reads its title, body text, placeholder, starter questions, and s
 
 ![Workbench Graph Panel — S6 GLP-1](screenshots/workbench-03-graph-glp1.png)
 
-Full knowledge graph rendered in the workbench: nodes color-coded by entity type, community clusters, and a search bar for direct entity lookup. Above the graph sit entity-type and epistemic-status filter pills, a confidence threshold slider, a relation-type filter, a minimum-connections slider, and Fit View / Reset Pins buttons. Pan, zoom, click any node to see neighborhood context; toggle entity types and the other filters to isolate sub-graphs.
+Full knowledge graph rendered in the workbench: nodes colored and shaped per entity type from the domain's `domain.yaml` `display` hints, with source documents hidden until "Show sources" is pressed, hover cards on nodes and edges, an edge key with one color per relation category, "Group by" (Topic cluster by default, Entity family, or None), focus mode (double-click a node, or use the sidebar button, to see its 1- or 2-hop neighborhood; Esc exits), and a search bar for direct entity lookup. Above the graph sit entity-type and epistemic-status filter pills, a confidence threshold slider, a relation-type filter, a minimum-connections slider, and Fit View / Reset Pins buttons. Pan, zoom, click any node to see neighborhood context; toggle entity types and the other filters to isolate sub-graphs.
 
 ### Chat — epistemic layer in action
 

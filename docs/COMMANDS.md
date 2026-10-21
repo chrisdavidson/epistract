@@ -41,7 +41,7 @@ Each command has a fuller spec under `commands/<name>.md` — this doc is the qu
 | Command | Runs | When to use |
 |---|---|---|
 | `/epistract:build <dir>` | Graph build only | Re-running the builder on existing extractions |
-| `/epistract:view <dir>` | `graph.html` generation only | Re-generating the static viewer |
+| `/epistract:view <dir>` | Single offline `graph.html` (flags: `--neighborhood`, `--depth`, `--top`, `--no-open`) | Re-generating the static viewer, or a subset view of one entity |
 | `/epistract:validate <dir>` | Molecular / sequence / custom validation only | Re-running domain validators (produces `validation_report.json`) |
 | `/epistract:query <dir> <query>` | Entity search | Post-run exploration from the CLI |
 | `/epistract:export <dir> <format>` | GraphML / GEXF / CSV / SQLite / JSON export | Handing the graph to downstream tools |

@@ -85,14 +85,14 @@ The `resolve_domain` helper returns a `(resolved_domain: str | None, source: str
 
 - **Workbench server (`examples/workbench/server.py::create_app`)** — calls `resolve_domain` then `load_template`; `GET /api/template` returns the resolved template.
 - **Launcher (`scripts/launch_workbench.py`)** — calls `resolve_domain` for the console banner (so users can see which source won); passes the raw `--domain` into `create_app` (which re-resolves — the helper is idempotent).
-- **Standalone graph viewer (`core/run_sift.py::cmd_view`)** — post-processes `graph.html` to replace the empty `<h1></h1>` with `<h1>{domain title}</h1>` and colors vis.js nodes from the shared resolver (`core/graph_display.py`): declared `display` colors from `domain.yaml`, then any legacy `template.yaml:entity_colors` override. The overlay also applies each type's family shape and rewrites the color swatches in sift-kg's sidebar so they match the nodes. sift-kg's sidebar still lists types only (no family grouping or shape swatches); the full family legend arrives in Phase 5.
+- **Standalone graph viewer (`core/run_sift.py::cmd_view`)** — writes a self-contained `graph.html` through `examples/workbench/static_export.py`. The domain title goes into the page title via `html.escape`; display and group payloads are embedded from the same core helpers the workbench uses (`core/graph_payloads.py`, `core/graph_display.py`): declared `display` colors and shapes from `domain.yaml`, then any legacy `template.yaml:entity_colors` override. There is no pyvis and no color overlay.
 - **Chat system prompt (`examples/workbench/system_prompt.py::build_system_prompt`)** — reads `template.analysis_patterns.cross_references_heading` (and `appears_in_phrase`) to customize the cross-references section for the domain. Contracts uses "CROSS-CONTRACT REFERENCES"; drug-discovery uses "CROSS-STUDY REFERENCES".
 
 ### Legacy-graph behavior (D-08)
 
 Graphs built before Phase 17 have no `metadata.domain` key. When such a graph is opened:
 - Workbench: falls back to the generic `Knowledge Graph Explorer` template with a one-shot stderr warning.
-- `graph.html`: gets `<h1>Knowledge Graph</h1>` (generic) and gets distinct automatic colors from the shared resolver (`core/graph_display.py`) rather than sift-kg's default palette.
+- `graph.html`: gets the fallback title "Knowledge graph" and distinct automatic colors from the shared resolver (`core/graph_display.py`).
 - Chat system prompt: keeps the hardcoded "CROSS-CONTRACT REFERENCES" (the pre-Phase-17 behavior) with a one-shot stderr warning.
 
 No migration script is provided — users rebuild their graphs to get the new metadata. Rebuilds are fast enough (typically < 1 minute for a 60-doc corpus) that a migration script would cost more than it saves.
@@ -100,7 +100,7 @@ No migration script is provided — users rebuild their graphs to get the new me
 ### What propagation does NOT do
 
 - **No live chat re-parse** — if `template.yaml:analysis_patterns` changes, users must restart the workbench to pick it up. The template is loaded once at `create_app` time.
-- **No browser-side fetch of metadata** — `graph.html` reads nothing from the network; the `<h1>` and color overlay are baked into the HTML at `cmd_view` time.
+- **No browser-side fetch of metadata** — `graph.html` reads nothing from the network; the page's fetch calls are answered from an embedded JSON island written at `cmd_view` time.
 - **No per-user overrides** — the template is per-domain, not per-user. Future scope.
 - **No DomainContext object** — explicitly rejected in 17-CONTEXT.md §deferred item 1. The metadata-field approach is simpler and covers the current consumer set; revisit if a second cross-cutting field (e.g., `ocr_mode`, `extensions`) needs the same propagation.
 
@@ -114,7 +114,7 @@ No migration script is provided — users rebuild their graphs to get the new me
 ### Related
 
 - `core/run_sift.cmd_build` — persists metadata.domain.
-- `core/run_sift.cmd_view` — post-processes graph.html with domain title + entity colors.
+- `core/run_sift.cmd_view` — writes the self-contained graph.html (domain title, entity colors and shapes, groups) via `static_export.write_static_graph`.
 - `examples/workbench/template_loader.resolve_domain` — precedence resolver.
 - `examples/workbench/template_schema.AnalysisPatterns` — Pydantic model for domain-specific chat vocabulary.
 - `domains/contracts/workbench/template.yaml:analysis_patterns` — "CROSS-CONTRACT REFERENCES".
