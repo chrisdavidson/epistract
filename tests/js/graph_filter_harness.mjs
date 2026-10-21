@@ -647,6 +647,7 @@ if (isControl) {
     check('nothing disabled', GROUP_MODES.every((m) => snap.disabled[m] === null), snap.disabled);
     check('hint empty when all enabled', snap.hint === '', snap.hint);
     check('cluster anchors', JSON.stringify(anchorIds()) === JSON.stringify(['__anchor:c1', '__anchor:c2']), anchorIds());
+    check('WR-05: small graph relayout timeout is the 15 s floor', window._graphDebug.relayoutTimeoutMs() === 15000, window._graphDebug.relayoutTimeoutMs());
 
     // Entity family
     groupButtons.family.dispatch('click');

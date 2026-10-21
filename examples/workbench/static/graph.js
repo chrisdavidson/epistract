@@ -13,7 +13,7 @@ import {
 import { initHoverCard, showHoverCard, hideHoverCard, isHoverCardVisible } from './hovercard.js';
 import {
     packGroups, seedInside, anchorNodeSpecs, anchorEdgeSpecs, dataEdgeLengths,
-    isAnchorId, groupIterations, FIT_MARGIN, regionGeometry, placeRegionLabels,
+    isAnchorId, groupIterations, relayoutTimeoutFor, FIT_MARGIN, regionGeometry, placeRegionLabels,
     REGION_COLORS, REGION_LABEL_PX, REGION_PILL_PAD_PX, clampIntoRegion,
     kHop, pushFocus, popFocus, truncateFocus, setTopHops, crumbsFor, focusModeLabelIds,
     radioTarget, FOCUS_MODE_MAX_LABELS, FOCUS_OUTER_RING_LABELS, FOCUS_TRUNCATE_CHARS, separateRegions, REGION_SEPARATION_GAP, focusLayout, fnv1a,
@@ -167,7 +167,8 @@ let _groupListenersAttached = false;
 let _frameRegions = null;                 // regions computed by beforeDrawing, reused by afterDrawing
 let _lastPlaced = [];                     // pill boxes drawn in the last frame
 let _regionFont = null;                   // --font-body stack, read once
-const RELAYOUT_TIMEOUT_MS = 15000;        // a relayout not finished by now is rolled back (window._relayoutTimeoutMs overrides)
+// A relayout not finished within relayoutTimeoutMs() is rolled back; the
+// budget scales with the node count (grouping.js relayoutTimeoutFor, WR-05).
 const RELAYOUT_FAIL_MESSAGE_MS = 6000;    // how long the failure message stays in the hint slot (window._relayoutFailMessageMs overrides)
 const RELAYOUT_FAIL_TEXT = "Couldn't arrange groups. Showing the previous layout.";
 const RELAYOUT_BUSY_TEXT = 'Arranging groups\u2026';
@@ -1157,6 +1158,11 @@ function startRelayout(mode, token) {
     runRelayoutStabilization(mode, groupIterations(knowledgeCount), token);
 }
 
+// window._relayoutTimeoutMs overrides the scaled budget (tests, debugging).
+function relayoutTimeoutMs() {
+    return window._relayoutTimeoutMs ?? relayoutTimeoutFor(allNodes.length);
+}
+
 function captureLayoutState() {
     return {
         mode: groupMode,
@@ -1195,8 +1201,7 @@ function relayout(mode) {
     setGroupBusy(true);
     setHintOverride(RELAYOUT_BUSY_TEXT);
     syncGroupControl(mode);
-    const timeoutMs = window._relayoutTimeoutMs ?? RELAYOUT_TIMEOUT_MS;
-    _relayoutTimer = setTimeout(() => failRelayout(token), timeoutMs);
+    _relayoutTimer = setTimeout(() => failRelayout(token), relayoutTimeoutMs());
     // Two frames let the arranging text paint before stabilization blocks.
     afterFrames(2, () => {
         if (token !== layoutToken) return;
@@ -1719,6 +1724,7 @@ function buildGraph() {
         get groupCount() { return groupLayout.size; },
         get settled() { return _initialSettled; },
         get busy() { return relayoutBusy; },
+        relayoutTimeoutMs: () => relayoutTimeoutMs(),
         dataNodes: () => visNodes.get().filter(n => !n._anchor),
         dataEdges: () => visEdges.get().filter(e => !e._anchor),
         anchorCount: () => visNodes.get().filter(n => n._anchor).length,

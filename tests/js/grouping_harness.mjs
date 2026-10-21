@@ -120,6 +120,10 @@ check('isAnchorId tolerates non-strings', !G.isAnchorId(undefined) && !G.isAncho
 check('groupIterations(499) = 200', G.groupIterations(499) === 200);
 check('groupIterations(500) = 150', G.groupIterations(500) === 150);
 check('groupIterations(1738) = 150', G.groupIterations(1738) === 150);
+check('relayoutTimeoutFor keeps the 15 s floor on small graphs', G.relayoutTimeoutFor(278) === 15000 && G.relayoutTimeoutFor(0) === 15000);
+check('relayoutTimeoutFor scales past the floor', G.relayoutTimeoutFor(1738) === 17380 && G.relayoutTimeoutFor(10000) === 100000);
+check('relayoutTimeoutFor tolerates bad input', G.relayoutTimeoutFor(NaN) === 15000 && G.relayoutTimeoutFor(-5) === 15000);
+check('relayoutTimeoutFor uses the named constants', G.relayoutTimeoutFor(5000) === Math.max(G.RELAYOUT_TIMEOUT_MIN_MS, G.RELAYOUT_TIMEOUT_PER_NODE_MS * 5000));
 
 // --- regionGeometry ------------------------------------------------------
 {

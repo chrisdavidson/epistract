@@ -1,6 +1,6 @@
 // grouping.js - pure layout helpers for the grouped graph (no DOM, no vis).
 //
-// Exports: fnv1a, clampIntoRegion, regionGeometry, placeRegionLabels, groupIterations, isAnchorId, packGroups, seedInside,
+// Exports: fnv1a, clampIntoRegion, regionGeometry, placeRegionLabels, groupIterations, relayoutTimeoutFor, isAnchorId, packGroups, seedInside,
 // anchorNodeSpecs, anchorEdgeSpecs, dataEdgeLengths, separateRegions, focusLayout and the tuning constants
 // below. graph.js wires these into vis-network: each group gets a hidden fixed
 // anchor node, every member is tied to its anchor by hidden spring edges, and
@@ -15,6 +15,12 @@ export const GROUP_PACK_RADIUS = 80;                // world units of circle rad
 export const GROUP_ITERATIONS_SMALL = 200;          // stabilization iterations below GROUP_LARGE_NODE_COUNT nodes
 export const GROUP_ITERATIONS_LARGE = 150;          // stabilization iterations at or above GROUP_LARGE_NODE_COUNT nodes
 export const GROUP_LARGE_NODE_COUNT = 500;          // node count at which the lower iteration budget applies
+export const RELAYOUT_TIMEOUT_MIN_MS = 15000;       // a relayout always gets at least this long before it is rolled back
+// Extra time per data node. Measured on the 1,738-node FDA corpus: 400 free
+// iterations took 7 s (about 0.01 ms per node-iteration). A grouped relayout
+// runs 150-200 iterations with ANCHOR_EDGE_MULTIPLICITY extra springs per
+// member, about 2-4 ms per node, so 10 ms per node leaves 2.5x headroom.
+export const RELAYOUT_TIMEOUT_PER_NODE_MS = 10;
 export const INTRA_GROUP_EDGE_LENGTH = 90;          // rest length (world units) of an edge inside one group
 export const FIT_MARGIN = 0.08;                     // fraction of the fitted scale given up as breathing room around the fit
 export const REGION_PAD = 40;                       // world units added to the p90 member distance for a region radius
@@ -58,6 +64,13 @@ export function fnv1a(str) {
 // Stabilization iteration budget for a grouped build of `nodeCount` nodes.
 export function groupIterations(nodeCount) {
     return nodeCount >= GROUP_LARGE_NODE_COUNT ? GROUP_ITERATIONS_LARGE : GROUP_ITERATIONS_SMALL;
+}
+
+// Time a relayout of a `nodeCount`-node graph may take before it is rolled back:
+// max(RELAYOUT_TIMEOUT_MIN_MS, RELAYOUT_TIMEOUT_PER_NODE_MS x nodes).
+export function relayoutTimeoutFor(nodeCount) {
+    const n = Number.isFinite(nodeCount) && nodeCount > 0 ? nodeCount : 0;
+    return Math.max(RELAYOUT_TIMEOUT_MIN_MS, Math.ceil(RELAYOUT_TIMEOUT_PER_NODE_MS * n));
 }
 
 // True for the id of an anchor node or an anchor edge.
