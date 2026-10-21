@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from core.domain_resolver import load_domain_schema
+from core.epistemic_health import build_epistemic_health
 from core.graph_display import entity_type_key, resolve_display
 from core.graph_groups import build_groups
 from examples.workbench.api_chat import router as chat_router
@@ -358,12 +359,12 @@ def create_app(output_dir: Path, domain: str | None = None) -> FastAPI:
         # only surface on which cross-domain findings (core/cross_domain.py)
         # and per-domain CUSTOM_RULES findings are visible without opening the
         # chat panel — /api/graph/claims carries the full list.
+        super_domain = app.state.data.claims_layer.get("super_domain")
         custom_findings = (
-            (app.state.data.claims_layer.get("super_domain") or {}).get(
-                "custom_findings"
-            )
-            or {}
+            super_domain.get("custom_findings") if isinstance(super_domain, dict) else None
         )
+        if not isinstance(custom_findings, dict):
+            custom_findings = {}
         finding_summary: list[dict] = []
         for rule_name in sorted(custom_findings):
             rule_findings = custom_findings[rule_name]
@@ -397,6 +398,7 @@ def create_app(output_dir: Path, domain: str | None = None) -> FastAPI:
             "total_nodes": len(nodes),
             "total_edges": len(edges),
             "findings": finding_summary,
+            "epistemic": build_epistemic_health(data.claims_layer, nodes),
         }
 
     @app.get("/api/health")
