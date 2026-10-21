@@ -2235,7 +2235,7 @@ button.graph-focus-bar__crumb:focus-visible {
   list-style: none;
 }
 
-.epistemic-chip {
+.epistemic-health .epistemic-chip {
   display: inline-flex;
   align-items: center;
   gap: var(--space-xs);
@@ -2246,7 +2246,7 @@ button.graph-focus-bar__crumb:focus-visible {
   line-height: 1.5;
 }
 
-.epistemic-chip::before {
+.epistemic-health .epistemic-chip::before {
   content: "";
   width: 8px;
   height: 8px;
@@ -2255,13 +2255,13 @@ button.graph-focus-bar__crumb:focus-visible {
   flex: none;
 }
 
-.epistemic-chip__count {
+.epistemic-health .epistemic-chip__count {
   font-family: var(--font-data);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
-.epistemic-chip__share {
+.epistemic-health .epistemic-chip__share {
   font-family: var(--font-data);
   font-variant-numeric: tabular-nums;
 }
