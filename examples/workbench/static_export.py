@@ -38,11 +38,20 @@ FALLBACK_TITLE = "Knowledge graph"
 NAME_CAP = 40
 FILTER_HINT = "Run /epistract:view without filters to see the whole graph."
 
-# `import ... from './x.js';` (possibly multi-line), capturing the module path.
-IMPORT = re.compile(r"^import\s[\s\S]*?\sfrom\s+'(\./[^']+\.js)';[ \t]*\n", re.M)
-EXPORT_LIST = re.compile(r"^export\s+\{[^}]*\};?[ \t]*\n", re.M)
-EXPORT_DECL = re.compile(r"^export\s+(async\s+function|function|const|let|class)\b", re.M)
-LEFTOVER = re.compile(r"^\s*(import|export)\b", re.M)
+# Module syntax the bundler understands. Every line that starts with `import` or
+# `export` (after optional indentation) must match one of these at column 0, or
+# bundling fails with the file and line: nothing is ever dropped silently.
+# `import { a, b } from './x.js';` (braces may span lines), either quote style.
+NAMED_IMPORT = re.compile(
+    r"import[ \t]*\{([^}]*)\}[ \t]*from[ \t]*(['\"])(\./[^'\"\n]+\.js)\2[ \t]*;?[ \t]*(?:\n|\Z)"
+)
+# `export { a, b };` with nothing after it on the line (no `from`).
+EXPORT_LIST = re.compile(r"export[ \t]*\{([^}]*)\}[ \t]*;?[ \t]*(?:\n|\Z)")
+EXPORT_DECL = re.compile(
+    r"export[ \t]+(async[ \t]+function\*?|function\*?|const|let|var|class)(?![\w$])"
+)
+MODULE_STMT = re.compile(r"^[ \t]*(?:import|export)(?![\w$])", re.M)
+IDENT = re.compile(r"[A-Za-z_$][\w$]*")
 SCRIPT_CLOSE = re.compile(r"</(script)", re.I)
 STYLE_CLOSE = re.compile(r"</(style)", re.I)
 
@@ -122,18 +131,80 @@ SKIP_LINK = '<a class="static-skip" href="#graph-container">Skip to graph</a>\n'
 # ---------------------------------------------------------------------------
 
 
-def _strip_module_syntax(source: str) -> str:
-    """Remove relative imports and ``export`` keywords from one ES module."""
-    source = IMPORT.sub("", source)
-    source = EXPORT_LIST.sub("", source)
-    return EXPORT_DECL.sub(lambda m: m.group(1), source)
+def _plain_names(specifiers: str) -> bool:
+    """True when ``specifiers`` is a comma list of bare identifiers (no ``as``)."""
+    names = [part.strip() for part in specifiers.split(",")]
+    if names and names[-1] == "":
+        names.pop()  # trailing comma
+    return bool(names) and all(IDENT.fullmatch(n) for n in names)
+
+
+def _parse_module(source: str, name: str) -> tuple[str, list[str]]:
+    """Strip module syntax from one ES module and list its relative imports.
+
+    Supported: named imports of relative ``./x.js`` modules, ``export { a, b };``
+    and ``export`` before ``function``/``async function``/``const``/``let``/
+    ``var``/``class``. Any other statement that starts with ``import`` or
+    ``export`` raises, so code is never removed or left undefined silently.
+
+    Args:
+        source: Module source text.
+        name: File name used in error messages.
+
+    Returns:
+        ``(body, deps)``: the source with imports and export keywords removed,
+        and the imported module names (without ``./``) in source order.
+
+    Raises:
+        ValueError: ``static bundle: <name>:<line>: ...`` for unsupported syntax.
+    """
+    out: list[str] = []
+    deps: list[str] = []
+    pos = 0
+    for stmt in MODULE_STMT.finditer(source):
+        start = stmt.start()
+        if start < pos:
+            continue  # inside a statement already consumed (multi-line import)
+
+        def fail(why: str, start: int = start) -> None:
+            line_no = source.count("\n", 0, start) + 1
+            line = source[start:].split("\n", 1)[0].strip()
+            raise ValueError(f"static bundle: {name}:{line_no}: {why}: {line!r}")
+
+        if source[start] in " \t":
+            fail("indented import/export (or dynamic import()) is not supported")
+        out.append(source[pos:start])
+        if source.startswith("import", start):
+            m = NAMED_IMPORT.match(source, start)
+            if not m:
+                fail("only `import { a, b } from './x.js';` is supported")
+            if not _plain_names(m.group(1)):
+                fail("aliased (`as`) or empty import lists are not supported")
+            deps.append(m.group(3).removeprefix("./"))
+            pos = m.end()
+            continue
+        m = EXPORT_LIST.match(source, start)
+        if m:
+            if not _plain_names(m.group(1)):
+                fail("aliased (`as`) or empty export lists are not supported")
+            pos = m.end()
+            continue
+        m = EXPORT_DECL.match(source, start)
+        if not m:
+            fail("only `export { a };` and exported declarations are supported")
+        out.append(m.group(1))
+        pos = m.end()
+    out.append(source[pos:])
+    return "".join(out), deps
 
 
 def bundle_modules(static_dir: Path, entry: str = "graph.js") -> str:
     """Concatenate ``entry`` and its relative imports into one module body.
 
     Modules are emitted dependencies first, derived from the import statements
-    themselves so a new import in a module cannot silently break the bundle.
+    themselves. Import/export forms the bundler does not support raise with the
+    file and line (see ``_parse_module``), so a new import in a module cannot
+    silently break the bundle.
 
     Args:
         static_dir: Directory holding the workbench ``*.js`` modules.
@@ -157,19 +228,16 @@ def bundle_modules(static_dir: Path, entry: str = "graph.js") -> str:
             raise ValueError(f"static bundle: import cycle through {name}")
         visiting.append(name)
         source = (static_dir / name).read_text(encoding="utf-8")
-        for dep in IMPORT.findall(source):
-            visit(dep.removeprefix("./"))
+        body, deps = _parse_module(source, name)
+        bodies[name] = body
+        for dep in deps:
+            visit(dep)
         visiting.pop()
         order.append(name)
 
+    bodies: dict[str, str] = {}
     visit(entry)
-    parts = []
-    for name in order:
-        source = (static_dir / name).read_text(encoding="utf-8")
-        parts.append(f"// ---- {name} ----\n" + _strip_module_syntax(source))
-    bundle = "\n".join(parts)
-    if LEFTOVER.search(bundle):
-        raise ValueError("static bundle: unsupported import/export syntax left after stripping")
+    bundle = "\n".join(f"// ---- {name} ----\n" + bodies[name] for name in order)
     return SCRIPT_CLOSE.sub(r"<\\/\1", bundle)
 
 
