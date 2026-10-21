@@ -17,11 +17,16 @@
 // argv[2] = "regions" serves a payload with a hostile label, drives the
 // beforeDrawing/afterDrawing handlers with a recording canvas context and the
 // Groups button and list through the fake DOM.
+// argv[2] = "control" / "control-nocomm" / "control-fail" / "control-sources"
+// drive the Group by radiogroup: relayout lifecycle, fallback without topic
+// clusters, relayout failure recovery and group-aware source placement. In
+// "ok" (groups 404) the harness also reports the load-failure control state.
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const mode = process.argv[2] || 'ok';
 const isRegions = mode === 'regions';
+const isControl = mode.startsWith('control');
 
 function makeEl(id = '') {
   const listeners = {};
@@ -37,7 +42,9 @@ function makeEl(id = '') {
     classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
     addEventListener(type, fn) { (listeners[type] = listeners[type] || []).push(fn); },
     removeEventListener() {},
-    dispatch(type) { for (const fn of listeners[type] || []) fn({ target: el }); },
+    dispatch(type, extra = {}) {
+      for (const fn of [...(listeners[type] || [])]) fn({ target: el, preventDefault() {}, ...extra });
+    },
     appendChild(c) { el.children.push(c); return c; },
     append(...cs) { el.children.push(...cs); },
     replaceChildren(...cs) { el.children = cs; },
@@ -51,7 +58,7 @@ function makeEl(id = '') {
     querySelectorAll: () => [],
     contains: () => false,
     getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 600 }),
-    focus() {},
+    focus() { globalThis.__focused = el; },
     get firstChild() { return el.children[0] || null; },
     innerHTML: '',
     offsetWidth: 800,
@@ -78,6 +85,23 @@ globalThis.document = {
   body: makeEl('body'),
 };
 
+const GROUP_MODES = ['cluster', 'family', 'none'];
+const groupButtons = {};
+for (const m of GROUP_MODES) {
+  const b = makeEl(`group-${m}`);
+  b.setAttribute('data-mode', m);
+  b.setAttribute('role', 'radio');
+  groupButtons[m] = b;
+}
+document.getElementById('graph-group').querySelectorAll = () => GROUP_MODES.map((m) => groupButtons[m]);
+
+// World positions the control modes read and write through getPositions/moveNode.
+const WORLD_DEFAULT = {
+  a: { x: 0, y: 0 }, e: { x: 40, y: 0 }, b: { x: 1000, y: 0 }, c: { x: 1040, y: 0 },
+  f: { x: 0, y: 1000 }, g: { x: 40, y: 1000 }, d1: { x: 500, y: 500 },
+};
+const world = new Map(Object.entries(WORLD_DEFAULT).map(([k, v]) => [k, { ...v }]));
+const onceFns = new WeakSet();
 const datasets = [];
 const FIT_SCALE = 0.1375;
 const handlers = new Map();
@@ -127,19 +151,39 @@ class Network {
       get(target, prop) {
         if (prop === 'getScale') return () => (mode === 'fit' ? FIT_SCALE : 1);
         if (prop === 'on' || prop === 'once') {
-          return (event, fn) => { (handlers.get(event) || handlers.set(event, []).get(event)).push(fn); };
+          return (event, fn) => {
+            if (prop === 'once') onceFns.add(fn);
+            (handlers.get(event) || handlers.set(event, []).get(event)).push(fn);
+          };
         }
-        if (prop === 'off') return () => undefined;
+        if (prop === 'off') {
+          return (event, fn) => {
+            const list = handlers.get(event);
+            if (list && fn) handlers.set(event, list.filter((h) => h !== fn));
+          };
+        }
+        if (prop === 'stabilize') {
+          return (...args) => {
+            if (globalThis.__stabilizeThrows) throw new Error('stabilize failed');
+            networkCalls.push({ kind: 'stabilize', args });
+          };
+        }
+        if (prop === 'moveNode' && isControl) {
+          return (id, x, y) => { world.set(id, { x, y }); networkCalls.push({ kind: 'moveNode', args: [id, x, y] }); };
+        }
         if (prop === 'fit') {
           return (opts) => { calls.push({ kind: 'fit', order: order++, opts }); };
         }
-        if (prop === 'setOptions' || prop === 'stabilize' || prop === 'moveTo' || prop === 'moveNode') {
+        if (prop === 'setOptions' || prop === 'moveTo' || prop === 'moveNode') {
           return (...args) => { networkCalls.push({ kind: String(prop), args }); };
         }
         if (prop === 'DOMtoCanvas') {
           return (p) => ({ x: -300 + p.x * 2.25, y: -300 + p.y * 3 });
         }
         if (prop === 'getPositions') {
+          if (isControl) {
+            return (ids) => Object.fromEntries((ids || [...world.keys()]).map((id) => [id, { ...(world.get(id) || { x: 0, y: 0 }) }]));
+          }
           if (isRegions) {
             const table = {
               a: { x: 0, y: 0 }, e: { x: 40, y: 0 }, b: { x: 1000, y: 0 }, c: { x: 1040, y: 0 },
@@ -168,7 +212,7 @@ globalThis.window = {
   innerHeight: 800,
 };
 
-const isGroups = mode === 'groups' || isRegions;
+const isGroups = mode === 'groups' || isRegions || isControl;
 const withSources = mode === 'sources' || isGroups;
 const FIT_NODES = [{ id: 'hub', name: 'Hub compound', entity_type: 'COMPOUND' }];
 const FIT_EDGES = [];
@@ -203,7 +247,7 @@ const NODES = isEdges ? EDGE_NODES : mode === 'fit' ? FIT_NODES : [
   { id: 'b', name: 'Diabetes', entity_type: 'DISEASE' },
   { id: 'c', name: 'Mystery', entity_type: null },
   ...(isGroups ? [{ id: 'e', name: 'Empagliflozin', entity_type: 'COMPOUND' }] : []),
-  ...(isRegions ? [{ id: 'f', name: 'Fenofibrate', entity_type: 'COMPOUND' }, { id: 'g', name: 'Gemfibrozil', entity_type: 'COMPOUND' }] : []),
+  ...(isRegions || isControl ? [{ id: 'f', name: 'Fenofibrate', entity_type: 'COMPOUND' }, { id: 'g', name: 'Gemfibrozil', entity_type: 'COMPOUND' }] : []),
   ...(withSources ? [{ id: 'd1', name: 'Doc one', entity_type: 'DOCUMENT' }] : []),
 ];
 const EDGES = isEdges ? EDGE_EDGES : mode === 'fit' ? FIT_EDGES : isGroups
@@ -285,6 +329,33 @@ const GROUPS_PAYLOAD = {
   },
 };
 
+const controlPayload = (clusterAvailable) => ({
+  default: clusterAvailable ? 'cluster' : 'family',
+  modes: {
+    cluster: clusterAvailable
+      ? {
+        available: true,
+        reason: null,
+        groups: [
+          { id: 'c1', label: 'Glycemic control', full_label: 'Glycemic control: a, e, f, g', size: 4 },
+          { id: 'c2', label: 'Diabetes', full_label: 'Diabetes', size: 2 },
+        ],
+        assignment: { a: 'c1', e: 'c1', f: 'c1', g: 'c1', b: 'c2', c: 'c2', d1: 'c1' },
+      }
+      : { available: false, reason: 'No topic clusters in this project', groups: [], assignment: {} },
+    family: {
+      available: true,
+      reason: null,
+      groups: [
+        { id: 'fam1', label: 'Interventions', full_label: 'Interventions', size: 2 },
+        { id: 'fam2', label: 'Conditions', full_label: 'Conditions', size: 2 },
+        { id: 'fam3', label: 'Other', full_label: 'Other', size: 2 },
+      ],
+      assignment: { a: 'fam1', b: 'fam1', e: 'fam2', f: 'fam2', c: 'fam3', g: 'fam3', d1: 'fam1' },
+    },
+  },
+});
+
 function respond(status, body) {
   return { ok: status < 400, status, statusText: String(status), json: async () => body };
 }
@@ -293,12 +364,18 @@ globalThis.fetch = async (url) => {
     return (mode === 'fail' || mode === 'edges-fail') ? respond(500, {}) : respond(200, DISPLAY);
   }
   if (url === '/api/graph') return respond(200, { nodes: NODES, edges: EDGES });
+  if (url === '/api/graph/groups' && isControl) return respond(200, controlPayload(mode !== 'control-nocomm'));
   if (url === '/api/graph/groups' && isRegions) return respond(200, REGIONS_PAYLOAD);
   if (url === '/api/graph/groups' && isGroups) return respond(200, GROUPS_PAYLOAD);
   return respond(404, {});
 };
 console.warn = () => {};
 console.error = () => {};
+
+if (mode === 'control-fail') {
+  window._relayoutTimeoutMs = 60;
+  window._relayoutFailMessageMs = 400;
+}
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const graphJs = path.resolve(here, '..', '..', 'examples', 'workbench', 'static', 'graph.js');
@@ -378,6 +455,235 @@ if (mode === 'groups') {
     && anchorNodes().every((n) => !('font' in n) && n.size === 1 && n.opacity === undefined);
   process.stdout.write(JSON.stringify(out) + '\n');
   process.exit(0);
+}
+
+const tick = (ms = 80) => new Promise((r) => setTimeout(r, ms));
+const stabilizeCalls = () => networkCalls.filter((c) => c.kind === 'stabilize');
+const controlSnapshot = () => ({
+  checked: Object.fromEntries(GROUP_MODES.map((m) => [m, groupButtons[m].getAttribute('aria-checked')])),
+  disabled: Object.fromEntries(GROUP_MODES.map((m) => [m, groupButtons[m].getAttribute('aria-disabled')])),
+  titles: Object.fromEntries(GROUP_MODES.map((m) => [m, groupButtons[m].getAttribute('title')])),
+  tabindex: Object.fromEntries(GROUP_MODES.map((m) => [m, groupButtons[m].getAttribute('tabindex')])),
+  hint: document.getElementById('graph-group-hint').textContent,
+});
+
+if (isControl) {
+  const passed = [];
+  const failed = [];
+  const check = (name, cond, detail = '') => {
+    if (cond) passed.push(name); else failed.push({ name, detail: JSON.stringify(detail) });
+  };
+  const nodeSet = () => [...datasets].reverse().find((d) => [...d.items.values()].some((i) => 'label' in i && !('from' in i)));
+  const edgeSet = () => [...datasets].reverse().find((d) => [...d.items.values()].some((i) => 'from' in i));
+  const anchorIds = () => [...nodeSet().items.values()].filter((n) => n._anchor).map((n) => n.id).sort();
+  const dataEdges = () => [...edgeSet().items.values()].filter((e) => !e._anchor);
+  const container = document.getElementById('graph-container');
+  const radiogroup = document.getElementById('graph-group');
+  const hint = () => document.getElementById('graph-group-hint').textContent;
+  const status = () => document.getElementById('graph-group-status').textContent;
+  const DATA_IDS = ['a', 'b', 'c', 'e', 'f', 'g', 'd1'];
+  const worldCopy = () => Object.fromEntries(DATA_IDS.map((id) => [id, { ...world.get(id) }]));
+  const near = (a, b) => Math.abs(a.x - b.x) <= 1 && Math.abs(a.y - b.y) <= 1;
+  // Fire the recorded completion handlers like vis would, after the layout has moved.
+  const emitDone = () => {
+    for (const id of DATA_IDS) {
+      const w = world.get(id);
+      world.set(id, { x: w.x + 7, y: w.y + 13 });
+    }
+    const fns = [...(handlers.get('stabilizationIterationsDone') || [])];
+    for (const fn of fns) {
+      if (onceFns.has(fn)) handlers.set('stabilizationIterationsDone', handlers.get('stabilizationIterationsDone').filter((h) => h !== fn));
+      fn();
+    }
+  };
+  const go = async (fn) => { fn(); await tick(); emitDone(); await tick(); };
+  const lastFit = () => [...calls].reverse().find((c) => c.kind === 'fit' && c.opts && Array.isArray(c.opts.nodes));
+
+  emitDone(); // the initial build settles
+  await tick();
+
+  if (mode === 'control') {
+    let snap = controlSnapshot();
+    check('cluster selected', snap.checked.cluster === 'true' && snap.checked.family === 'false' && snap.checked.none === 'false', snap.checked);
+    check('roving tabindex', snap.tabindex.cluster === '0' && snap.tabindex.family === '-1' && snap.tabindex.none === '-1', snap.tabindex);
+    check('enabled titles', snap.titles.cluster === 'Group nodes by topic cluster (communities found in the documents)'
+      && snap.titles.family === 'Group nodes by entity family' && snap.titles.none === 'No grouping: free layout', snap.titles);
+    check('nothing disabled', GROUP_MODES.every((m) => snap.disabled[m] === null), snap.disabled);
+    check('hint empty when all enabled', snap.hint === '', snap.hint);
+    check('cluster anchors', JSON.stringify(anchorIds()) === JSON.stringify(['__anchor:c1', '__anchor:c2']), anchorIds());
+
+    // Entity family
+    groupButtons.family.dispatch('click');
+    check('busy on the radiogroup', radiogroup.getAttribute('aria-busy') === 'true');
+    check('busy on the graph container', container.getAttribute('aria-busy') === 'true');
+    check('arranging text shown', hint() === 'Arranging groups…', hint());
+    check('target is selected while arranging', groupButtons.family.getAttribute('aria-checked') === 'true');
+    groupButtons.none.dispatch('click');
+    await tick();
+    check('click while busy is ignored', groupButtons.none.getAttribute('aria-checked') === 'false'
+      && stabilizeCalls().length === 1, { checked: groupButtons.none.getAttribute('aria-checked'), n: stabilizeCalls().length });
+    check('family stabilizes with the group budget', stabilizeCalls().length === 1 && stabilizeCalls()[0].args[0] === 200, stabilizeCalls());
+    check('cluster anchors replaced by family anchors', JSON.stringify(anchorIds()) === JSON.stringify(['__anchor:fam1', '__anchor:fam2', '__anchor:fam3']), anchorIds());
+    check('mode is family', window._graphDebug.mode === 'family');
+    emitDone();
+    await tick();
+    check('settled physics off', networkCalls.some((c) => c.kind === 'setOptions' && c.args[0] && c.args[0].physics === false));
+    const fit = lastFit();
+    check('settle fits visible data nodes only', fit && JSON.stringify([...fit.opts.nodes].sort()) === JSON.stringify(['a', 'b', 'c', 'e', 'f', 'g']), fit && fit.opts.nodes);
+    check('busy released', radiogroup.getAttribute('aria-busy') === null && container.getAttribute('aria-busy') === null);
+    check('arranging text cleared', hint() === '', hint());
+    check('family announced', status() === 'Grouped by entity family: 3 groups.', status());
+    check('family checked after settle', controlSnapshot().checked.family === 'true');
+
+    // None: first time runs a free layout and caches it
+    groupButtons.none.dispatch('click');
+    await tick();
+    check('none removes every anchor', anchorIds().length === 0, anchorIds());
+    check('none resets edge lengths', dataEdges().every((e) => e.length === 160), dataEdges().map((e) => e.length));
+    check('first none stabilizes freely', stabilizeCalls().length === 2 && stabilizeCalls()[1].args[0] === 400, stabilizeCalls());
+    check('debug group count zero', window._graphDebug.groupCount === 0);
+    emitDone();
+    await tick();
+    check('grouping off announced', status() === 'Grouping off.', status());
+    const freeSnap = worldCopy();
+
+    // Back through both grouped modes, then None restores the cache
+    await go(() => groupButtons.cluster.dispatch('click'));
+    check('cluster announced', status() === 'Grouped by topic cluster: 2 groups.', status());
+    check('cluster anchors back', anchorIds().length === 2);
+    await go(() => groupButtons.family.dispatch('click'));
+    const stabilizeBefore = stabilizeCalls().length;
+    check('grouped layout moved nodes', !near(world.get('a'), freeSnap.a));
+    groupButtons.none.dispatch('click');
+    check('restoring none is instant (not busy)', radiogroup.getAttribute('aria-busy') === null && hint() === '', hint());
+    await tick();
+    check('cached none runs no physics', stabilizeCalls().length === stabilizeBefore, stabilizeCalls().length);
+    check('cached none removes anchors', anchorIds().length === 0);
+    check('cached positions restored within 1 unit', DATA_IDS.every((id) => near(world.get(id), freeSnap[id])), { world: worldCopy(), freeSnap });
+    check('cached none edge lengths reset', dataEdges().every((e) => e.length === 160));
+    check('cached none announced', status() === 'Grouping off.' && controlSnapshot().checked.none === 'true', status());
+
+    // Keyboard
+    const key = async (target, k) => { groupButtons[target].dispatch('keydown', { key: k }); await tick(); emitDone(); await tick(); };
+    await key('none', 'ArrowLeft');
+    check('ArrowLeft moves to the previous option', controlSnapshot().checked.family === 'true' && globalThis.__focused === groupButtons.family, controlSnapshot().checked);
+    await key('family', 'ArrowRight');
+    check('ArrowRight moves to the next option', controlSnapshot().checked.none === 'true');
+    await key('none', 'ArrowRight');
+    check('ArrowRight wraps', controlSnapshot().checked.cluster === 'true');
+    await key('cluster', 'ArrowLeft');
+    check('ArrowLeft wraps', controlSnapshot().checked.none === 'true');
+    await key('none', 'Home');
+    check('Home selects the first', controlSnapshot().checked.cluster === 'true');
+    await key('cluster', 'End');
+    check('End selects the last', controlSnapshot().checked.none === 'true');
+    await key('none', 'ArrowUp');
+    check('ArrowUp moves back', controlSnapshot().checked.family === 'true');
+    await key('family', 'ArrowDown');
+    check('ArrowDown moves on', controlSnapshot().checked.none === 'true');
+    await key('cluster', ' ');
+    check('Space activates the focused option', controlSnapshot().checked.cluster === 'true');
+    await key('family', 'Enter');
+    check('Enter activates the focused option', controlSnapshot().checked.family === 'true');
+    const nBefore = stabilizeCalls().length;
+    groupButtons.family.dispatch('click');
+    await tick();
+    check('re-selecting the current mode does nothing', stabilizeCalls().length === nBefore);
+  }
+
+  if (mode === 'control-nocomm') {
+    const snap = controlSnapshot();
+    check('cluster disabled', snap.disabled.cluster === 'true', snap.disabled);
+    check('cluster title is the reason', snap.titles.cluster === 'No topic clusters in this project', snap.titles);
+    check('hint explains', snap.hint === 'Topic cluster: No topic clusters in this project.', snap.hint);
+    check('family selected', snap.checked.family === 'true' && snap.checked.cluster === 'false', snap.checked);
+    check('cluster tabindex -1', snap.tabindex.cluster === '-1' && snap.tabindex.family === '0', snap.tabindex);
+    check('fallback announced', status() === 'Topic clusters unavailable: No topic clusters in this project. Grouped by entity family.', status());
+    check('family anchors on load', anchorIds().length === 3);
+    groupButtons.cluster.dispatch('click');
+    await tick();
+    check('clicking a disabled option does nothing', stabilizeCalls().length === 0 && controlSnapshot().checked.family === 'true');
+    groupButtons.family.dispatch('keydown', { key: 'ArrowLeft' });
+    await tick();
+    check('ArrowLeft skips the disabled option', controlSnapshot().checked.cluster === 'false' && controlSnapshot().checked.none === 'true', controlSnapshot().checked);
+    emitDone();
+    await tick();
+    check('none settles', anchorIds().length === 0 && controlSnapshot().checked.none === 'true');
+    groupButtons.none.dispatch('keydown', { key: 'ArrowRight' });
+    await tick();
+    check('ArrowRight skips it too', controlSnapshot().checked.family === 'true', controlSnapshot().checked);
+  }
+
+  if (mode === 'control-fail') {
+    const before = worldCopy();
+    groupButtons.family.dispatch('click');
+    await tick(40);
+    const late = [...(handlers.get('stabilizationIterationsDone') || [])];
+    check('stabilization started', stabilizeCalls().length === 1);
+    await tick(150);
+    const snap = controlSnapshot();
+    const failText = "Couldn't arrange groups. Showing the previous layout.";
+    check('previous mode reselected', snap.checked.cluster === 'true' && snap.checked.family === 'false', snap.checked);
+    check('previous anchors restored', JSON.stringify(anchorIds()) === JSON.stringify(['__anchor:c1', '__anchor:c2']), anchorIds());
+    check('failure shown in the hint', snap.hint === failText, snap.hint);
+    check('failure announced', status() === failText, status());
+    check('busy released after failure', radiogroup.getAttribute('aria-busy') === null && container.getAttribute('aria-busy') === null);
+    check('mode restored', window._graphDebug.mode === 'cluster');
+    check('positions restored', DATA_IDS.every((id) => near(world.get(id), before[id])), { world: worldCopy(), before });
+    const fitsBefore = calls.filter((c) => c.kind === 'fit').length;
+    const physicsOffBefore = networkCalls.filter((c) => c.kind === 'setOptions' && c.args[0] && c.args[0].physics === false).length;
+    for (const fn of late) fn();
+    await tick();
+    check('stale completion is discarded', calls.filter((c) => c.kind === 'fit').length === fitsBefore
+      && networkCalls.filter((c) => c.kind === 'setOptions' && c.args[0] && c.args[0].physics === false).length === physicsOffBefore
+      && window._graphDebug.mode === 'cluster' && status() === failText, status());
+    await tick(500);
+    check('failure message clears', hint() === '', hint());
+
+    globalThis.__stabilizeThrows = true;
+    groupButtons.family.dispatch('click');
+    await tick(120);
+    check('a throwing relayout also recovers', controlSnapshot().checked.cluster === 'true'
+      && controlSnapshot().hint === failText && anchorIds().length === 2 && window._graphDebug.mode === 'cluster', controlSnapshot());
+    globalThis.__stabilizeThrows = false;
+    await tick(500);
+    await go(() => groupButtons.family.dispatch('click'));
+    check('the control works again after a failure', window._graphDebug.mode === 'family' && controlSnapshot().checked.family === 'true', controlSnapshot().checked);
+  }
+
+  if (mode === 'control-sources') {
+    const srcBtn = document.getElementById('graph-show-sources-btn');
+    const regionsBefore = JSON.stringify(window._graphDebug.regionGeometry());
+    const movesFor = (id) => networkCalls.filter((c) => c.kind === 'moveNode' && c.args[0] === id);
+    srcBtn.dispatch('click');
+    const m1 = movesFor('d1');
+    const last1 = m1[m1.length - 1];
+    check('source moved on reveal', Boolean(last1));
+    // a (0,0) and e (40,0) are in the source's group; b is not. Jitter for index 0 is (-36, -36).
+    check('source sits at its group centroid', last1 && Math.abs(last1.args[1] - (20 - 36)) < 1e-6 && Math.abs(last1.args[2] - (0 - 36)) < 1e-6, last1 && last1.args);
+    check('source does not change region geometry', JSON.stringify(window._graphDebug.regionGeometry()) === regionsBefore);
+    groupButtons.family.dispatch('click');
+    await tick();
+    const d1 = nodeSet().items.get('d1');
+    check('source physics off during relayout', d1.physics === false, d1.physics);
+    const sourceEdges = dataEdges().filter((e) => e._data && e._data.relation_type === 'MENTIONED_IN');
+    check('source edges physics off during relayout', sourceEdges.length === 3 && sourceEdges.every((e) => e.physics === false), sourceEdges.map((e) => e.physics));
+    emitDone();
+    await tick();
+    const m2 = movesFor('d1');
+    const last2 = m2[m2.length - 1];
+    // In the family mode d1's plurality group holds a and b, not e.
+    const wa = world.get('a');
+    const wb = world.get('b');
+    check('source re-placed inside its family group', last2 && m2.length > m1.length
+      && Math.abs(last2.args[1] - ((wa.x + wb.x) / 2 - 36)) < 1e-6 && Math.abs(last2.args[2] - ((wa.y + wb.y) / 2 - 36)) < 1e-6, last2 && last2.args);
+    check('source physics restored after settle', nodeSet().items.get('d1').physics === true);
+    check('source stays visible', nodeSet().items.get('d1').hidden !== true);
+    check('anchors never include sources', !anchorIds().some((id) => id.includes('d1')));
+  }
+
+  process.stdout.write(JSON.stringify({ passed, failed }) + '\n');
+  process.exit(failed.length ? 1 : 0);
 }
 
 if (isRegions || mode === 'nogroups') {
@@ -624,5 +930,13 @@ process.stdout.write(JSON.stringify({
   total: nodeUpdates.length,
   anchorCount: anyAnchor ? 1 : 0,
   iterations: okStab && okStab.iterations,
+  groupControl: await (async () => {
+    const before = controlSnapshot();
+    groupButtons.cluster.dispatch('click');
+    groupButtons.family.dispatch('click');
+    groupButtons.none.dispatch('keydown', { key: 'ArrowLeft' });
+    await tick();
+    return { ...before, stabilizeCalls: stabilizeCalls().length, after: controlSnapshot().checked };
+  })(),
 }) + '\n');
 process.exit(0);

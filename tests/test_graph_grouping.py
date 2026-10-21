@@ -74,3 +74,37 @@ def test_groups_button_disabled_without_groups():
     out = _run("graph_filter_harness.mjs", "nogroups")
     assert out.get("failed") == [], out
     assert out["passed"], out
+
+
+def _passed(out: dict, minimum: int) -> None:
+    assert out["failed"] == [], out["failed"][:10]
+    assert len(out["passed"]) >= minimum, out
+
+
+def test_group_control_relayout():
+    _passed(_run("graph_filter_harness.mjs", "control"), 45)
+
+
+def test_group_control_fallback():
+    _passed(_run("graph_filter_harness.mjs", "control-nocomm"), 11)
+
+
+def test_group_control_load_failure():
+    out = _run("graph_filter_harness.mjs", "ok")
+    ctl = out["groupControl"]
+    reason = "Grouping data didn't load. Reload the page to try again."
+    assert ctl["checked"] == {"cluster": "false", "family": "false", "none": "true"}, ctl
+    assert ctl["disabled"]["cluster"] == "true" and ctl["disabled"]["family"] == "true", ctl
+    assert ctl["disabled"]["none"] is None, ctl
+    assert ctl["titles"]["cluster"] == reason and ctl["titles"]["family"] == reason, ctl
+    assert ctl["hint"] == f"Topic cluster: {reason} Entity family: {reason}", ctl
+    assert ctl["stabilizeCalls"] == 0, ctl
+    assert ctl["after"]["none"] == "true", ctl
+
+
+def test_group_relayout_failure():
+    _passed(_run("graph_filter_harness.mjs", "control-fail"), 13)
+
+
+def test_sources_join_assigned_group():
+    _passed(_run("graph_filter_harness.mjs", "control-sources"), 8)
