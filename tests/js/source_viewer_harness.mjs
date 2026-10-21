@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+const MODE = process.argv[2] || '';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const MODULE = path.resolve(here, '..', '..', 'examples', 'workbench', 'static', 'source_viewer.js');
 
@@ -44,6 +45,22 @@ function makeEl(tag) {
       cs.forEach((c) => el.appendChild(typeof c === 'string' ? { textContent: c, children: [], isText: true } : c));
     },
     removeChild(c) { el.children = el.children.filter((x) => x !== c); c.parentNode = null; return c; },
+    insertBefore(c, ref) {
+      if (c.parentNode) c.parentNode.removeChild(c);
+      const at = ref ? el.children.indexOf(ref) : -1;
+      c.parentNode = el;
+      if (at < 0) el.children.push(c); else el.children.splice(at, 0, c);
+      return c;
+    },
+    replaceChild(c, old) {
+      const at = el.children.indexOf(old);
+      if (at < 0) throw new Error('replaceChild: not a child');
+      if (c.parentNode) c.parentNode.removeChild(c);
+      el.children[el.children.indexOf(old)] = c;
+      c.parentNode = el;
+      old.parentNode = null;
+      return old;
+    },
     replaceChildren(...cs) {
       el.children.forEach((c) => { c.parentNode = null; });
       el.children = [];
@@ -63,7 +80,7 @@ function makeEl(tag) {
     listenerCount: (type) => (listeners[type] || []).length,
     focus(options) { focusLog.push({ el, options }); doc.activeElement = el; },
     getClientRects() { return el.isConnected ? [{}] : []; },
-    scrollIntoView() {},
+    scrollIntoView(options) { scrollLog.push({ el, options }); },
     matches(sel) {
       const m = /^([a-z0-9]*)((?:\.[\w-]+)*)$/i.exec(sel);
       if (!m) return false;
@@ -74,8 +91,12 @@ function makeEl(tag) {
       for (let n = el; n; n = n.parentNode) if (n.isRoot) return true;
       return false;
     },
-    get textContent() { return text; },
-    set textContent(v) { text = String(v); el.children = []; },
+    get textContent() { return text + el.children.map((c) => c.textContent).join(''); },
+    set textContent(v) {
+      text = String(v);
+      el.children.forEach((c) => { c.parentNode = null; });
+      el.children = [];
+    },
     get innerHTML() { return ''; },
     set innerHTML(v) { innerHtmlWrites.push(String(v)); },
   };
@@ -83,9 +104,33 @@ function makeEl(tag) {
 }
 
 let focusLog = [];
+let scrollLog = [];
 let doc;
 
-const textOf = (n) => (n.isText ? n.textContent : (n.textContent || '') + (n.children || []).map(textOf).join(''));
+// A DOM text node: data, splitText and a parent that can replace it.
+function makeText(data) {
+  const node = {
+    isText: true,
+    children: [],
+    parentNode: null,
+    data: String(data),
+    get textContent() { return node.data; },
+    set textContent(v) { node.data = String(v); },
+    splitText(i) {
+      const rest = makeText(node.data.slice(i));
+      node.data = node.data.slice(0, i);
+      const parent = node.parentNode;
+      if (parent) {
+        parent.children.splice(parent.children.indexOf(node) + 1, 0, rest);
+        rest.parentNode = parent;
+      }
+      return rest;
+    },
+  };
+  return node;
+}
+
+const textOf = (n) => n.textContent;
 const walk = (n, fn) => { if (!n) return; fn(n); (n.children || []).forEach((c) => walk(c, fn)); };
 const find = (root, pred) => { const out = []; walk(root, (n) => { if (n.matches && pred(n)) out.push(n); }); return out; };
 const byClass = (root, cls) => find(root, (n) => n.matches(`.${cls}`));
@@ -101,13 +146,14 @@ async function setup({ activePanel = 'dashboard', docs } = {}) {
   createdTags = [];
   innerHtmlWrites = [];
   focusLog = [];
+  scrollLog = [];
   const registry = new Map();
   const docListeners = {};
   doc = {
     activeElement: null,
     body: makeEl('body'),
     createElement: (tag) => { createdTags.push(String(tag).toLowerCase()); return makeEl(tag); },
-    createTextNode: (t) => ({ textContent: String(t), children: [], isText: true, parentNode: null }),
+    createTextNode: (t) => makeText(t),
     getElementById: (id) => registry.get(id) || null,
     querySelector: (sel) => registry.get(`q:${sel}`) || null,
     addEventListener(type, fn) { (docListeners[type] = docListeners[type] || []).push(fn); },
@@ -203,6 +249,86 @@ const loaded = async (env, docId, body = { doc_id: docId, text: 'Hello\nworld' }
   await settle();
   return call;
 };
+
+// --- 0. highlight: markFirstMatch -------------------------------------------------
+const finish = () => {
+  process.stdout.write(JSON.stringify({ passed, failed }) + '\n');
+  process.exit(failed.length ? 1 : 0);
+};
+
+{
+  const env = await setup({ docs: [] });
+  const { markFirstMatch } = env.mod;
+  check('highlight: markFirstMatch is exported', typeof markFirstMatch === 'function');
+
+  // Builds a parent holding one text node, runs markFirstMatch, and reports the result.
+  const run = (body, needle) => {
+    const parent = makeEl('div');
+    parent.isRoot = true;
+    const node = makeText(body);
+    parent.appendChild(node);
+    const mark = markFirstMatch(node, needle);
+    const marks = parent.children.filter((c) => c.tagName === 'mark');
+    return { parent, node, mark, marks, joined: parent.textContent, marked: marks.map((m) => m.textContent) };
+  };
+  const roundTrips = (body, r) => r.joined === body;
+
+  let r = run('alpha beta gamma beta', 'BETA');
+  check('highlight: first match only, case-insensitive', r.marks.length === 1 && r.marked[0] === 'beta' && r.mark === r.marks[0], r.marked);
+  check('highlight: text around the mark is intact', roundTrips('alpha beta gamma beta', r) && r.parent.children[0].textContent === 'alpha '
+    && r.parent.children[2].textContent === ' gamma beta', r.parent.children.map((c) => c.textContent));
+  check('highlight: the mark has the source-highlight class and a tag of mark', r.mark.className === 'source-highlight' && r.mark.tagName === 'mark');
+
+  r = run('beta at the start', 'beta at');
+  check('highlight: match at index 0', r.marked[0] === 'beta at' && roundTrips('beta at the start', r), r.marked);
+  r = run('and the very end', 'very end');
+  check('highlight: match at the very end', r.marked[0] === 'very end' && roundTrips('and the very end', r), r.marked);
+  r = run('see a.b*c (x) here', 'a.b*c (x)');
+  check('highlight: regex metacharacters match literally', r.marked[0] === 'a.b*c (x)' && roundTrips('see a.b*c (x) here', r), r.marked);
+  r = run('aXbbc (x)', 'a.b*c (x)');
+  check('highlight: metacharacters are not interpreted as a pattern', r.marks.length === 0 && r.mark === null, r.marked);
+
+  r = run('the quoted   passage\nspans lines here', 'quoted passage spans lines');
+  check('highlight: whitespace-flexible match', r.marked[0] === 'quoted   passage\nspans lines' && roundTrips('the quoted   passage\nspans lines here', r), r.marked);
+  r = run('line one\nline two', 'line one\n line two');
+  check('highlight: needle with a line break matches text with different whitespace', r.marks.length === 1, r.marked);
+
+  const longNeedle = 'x'.repeat(60) + ' this tail does not occur';
+  r = run('before ' + 'x'.repeat(60) + ' something else', longNeedle);
+  check('highlight: falls back to the first 60 characters', r.marked[0] === 'x'.repeat(60) && roundTrips('before ' + 'x'.repeat(60) + ' something else', r), r.marked);
+
+  for (const [label, body, needle] of [
+    ['too short', 'alpha beta', 'al'],
+    ['too short after trim', 'alpha beta', '  a  '],
+    ['empty needle', 'alpha beta', ''],
+    ['empty text', '', 'alpha'],
+    ['no match', 'alpha beta', 'gamma delta'],
+    ['non-string needle', 'alpha beta', null],
+  ]) {
+    r = run(body, needle);
+    check(`highlight: ${label} leaves the single text node untouched`, r.mark === null && r.marks.length === 0
+      && r.parent.children.length === 1 && r.parent.children[0] === r.node && r.node.data === body, r.parent.children.length);
+  }
+
+  const huge = 'k'.repeat(400);
+  r = run('start ' + huge + ' end', huge);
+  check('highlight: needles over 300 characters are capped', r.marked[0] === 'k'.repeat(300) && roundTrips('start ' + huge + ' end', r), r.marked.map((m) => m.length));
+
+  const turkish = 'İİİ before target after';
+  r = run(turkish, 'target');
+  check('highlight: a string whose lowercase differs in length does not mis-slice', r.marked[0] === 'target' && roundTrips(turkish, r), r.marked);
+
+  const bigBody = 'word '.repeat(200000) + 'needle here';
+  const t0 = Date.now();
+  r = run(bigBody, 'needle here');
+  check('highlight: a large text is marked quickly and exactly', r.marked[0] === 'needle here' && Date.now() - t0 < 2000, Date.now() - t0);
+
+  const viewerSource = fs.readFileSync(MODULE, 'utf8');
+  check('highlight source: no spread of a node array into a call', !/\(\s*\.\.\.\s*(nodes|segments|parts|pieces)\b/.test(viewerSource.replace(/replaceChildren\(\.\.\.(nodes|actions)\)/g, '')), 'spread');
+  check('highlight source: no innerHTML', !viewerSource.includes('innerHTML'));
+}
+
+if (MODE === 'highlight') finish();
 
 // --- 1. formatSize and exports ------------------------------------------------
 {
@@ -552,6 +678,43 @@ function respondSeed(env, call) {
   check('large: exactly 2,000,000 characters are not cut', byClass(env.q.reader(), 'source-note').length === 0 && env.q.text().textContent.length === 2000000);
 }
 
+// --- 13b. highlight in the open flow ------------------------------------------------------
+{
+  const env = await setup({ docs: DOCS });
+  await loaded(env, 'doc_1', { doc_id: 'doc_1', text: 'First line.\nThe cited passage is here.\nLast line.' }, { highlight: 'cited PASSAGE' });
+  const marks = byTag(env.q.reader(), 'mark');
+  check('open+highlight: exactly one mark', marks.length === 1 && marks[0].textContent === 'cited passage', marks.map((m) => m.textContent));
+  check('open+highlight: the reader still holds the whole text', env.q.text().textContent === 'First line.\nThe cited passage is here.\nLast line.');
+  check('open+highlight: the mark sits inside .source-text', marks[0].parentNode === env.q.text());
+  check('open+highlight: scrolled to the centre with smooth behaviour', scrollLog.length === 1 && scrollLog[0].el === marks[0]
+    && scrollLog[0].options.block === 'center' && scrollLog[0].options.behavior === 'smooth', JSON.stringify(scrollLog.map((s) => s.options)));
+  check('open+highlight: status adds the cited-passage sentence', env.q.status().textContent === 'Opened Doc One. Cited passage highlighted.', env.q.status().textContent);
+
+  scrollLog = [];
+  globalThis.window.matchMedia = (q) => ({ matches: q === '(prefers-reduced-motion: reduce)' });
+  await loaded(env, 'doc_1', { doc_id: 'doc_1', text: 'alpha beta' }, { highlight: 'beta' });
+  check('open+highlight: reduced motion uses auto behaviour', scrollLog.length === 1 && scrollLog[0].options.behavior === 'auto', JSON.stringify(scrollLog.map((s) => s.options)));
+  globalThis.window.matchMedia = () => ({ matches: false });
+
+  scrollLog = [];
+  env.q.reader().scrollTop = 99;
+  await loaded(env, 'doc_1', { doc_id: 'doc_1', text: 'alpha beta' }, { highlight: 'not in the text' });
+  check('open+miss: no mark, no scroll, reader at the top', byTag(env.q.reader(), 'mark').length === 0 && scrollLog.length === 0 && env.q.reader().scrollTop === 0);
+  check('open+miss: status is the plain opened sentence and no error state', env.q.status().textContent === 'Opened Doc One.' && byClass(env.q.reader(), 'source-state').length === 0, env.q.status().textContent);
+
+  env.q.reader().scrollTop = 99;
+  await loaded(env, 'doc_1', { doc_id: 'doc_1', text: 'alpha beta' });
+  check('open: reader scrollTop is reset before every open', env.q.reader().scrollTop === 0 && byTag(env.q.reader(), 'mark').length === 0);
+
+  await loaded(env, 'doc_1', { doc_id: 'doc_1', text: 'alpha beta' }, { section: 'beta' });
+  check('open+legacy section: the legacy field highlights too', byTag(env.q.reader(), 'mark').length === 1);
+
+  const hostile = '<img src=x onerror=1>';
+  createdTags = [];
+  await loaded(env, 'doc_1', { doc_id: 'doc_1', text: `pre ${hostile} post` }, { highlight: hostile });
+  check('open+hostile highlight: literal text, no img element', byTag(env.q.reader(), 'mark')[0].textContent === hostile && !createdTags.includes('img'));
+}
+
 // --- 14. SEC-01 ---------------------------------------------------------------------------------
 {
   const hostile = ['<img src=x onerror=1>', '"><script>alert(1)</script>'];
@@ -574,5 +737,4 @@ function respondSeed(env, call) {
   check('source: text requests encode the id', source.includes("encodeURIComponent"));
 }
 
-process.stdout.write(JSON.stringify({ passed, failed }) + '\n');
-process.exit(failed.length ? 1 : 0);
+finish();
