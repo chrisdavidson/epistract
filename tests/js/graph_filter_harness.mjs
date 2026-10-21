@@ -1122,8 +1122,11 @@ if (isFocus) {
     // --- rebuild resets ---
     dbl('hub');
     await tick();
+    const panelListeners = ['graph-panel-closed', 'graph-panel-opened'].map((t) => (winListeners[t] || []).length);
     await graph.initGraph({});
     for (let i = 0; i < 20; i++) await tick(0);
+    check('IN-07: initGraph again adds no panel listeners', JSON.stringify(['graph-panel-closed', 'graph-panel-opened']
+      .map((t) => (winListeners[t] || []).length)) === JSON.stringify(panelListeners), panelListeners);
     check('buildGraph resets the focus stack and bar', stackIds().length === 0 && !barShown());
     check('rebuild shows every node again', visibleIds().length === 8, visibleIds());
   }

@@ -100,6 +100,7 @@ let typeFilterEnabled = false;
 let callbacks = {};
 const pinnedNodes = new Set();
 let _resizeListenerAttached = false;
+let _panelListenersAttached = false;      // graph-panel-opened/closed window listeners
 let highlightedNodeId = null;             // currently highlighted node; null = no highlight active
 let activeEpistemicStatuses = new Set();  // populated by buildEpistemicChips() (plan 03)
 let confidenceThreshold = 0;             // populated by initConfidenceSlider() (plan 03)
@@ -270,17 +271,21 @@ export async function initGraph(opts) {
         severityFilter.addEventListener('change', () => filterGraph());
     }
 
-    // Resize handler for when panel opens
-    window.addEventListener('graph-panel-closed', () => { graphPanelActive = false; });
-    window.addEventListener('graph-panel-opened', () => {
-        graphPanelActive = true;
-        if (network) {
-            // A plain fit() emits neither `zoom` nor `animationFinished`, so
-            // the scale-aware label/size controller must be run explicitly or
-            // it keeps the styles computed while the panel was hidden.
-            setTimeout(() => fitView(null, false), 100);
-        }
-    });
+    // Panel open/close handlers: window listeners, so registered once even
+    // when initGraph runs again (domain switch).
+    if (!_panelListenersAttached) {
+        _panelListenersAttached = true;
+        window.addEventListener('graph-panel-closed', () => { graphPanelActive = false; });
+        window.addEventListener('graph-panel-opened', () => {
+            graphPanelActive = true;
+            if (network) {
+                // A plain fit() emits neither `zoom` nor `animationFinished`, so
+                // the scale-aware label/size controller must be run explicitly or
+                // it keeps the styles computed while the panel was hidden.
+                setTimeout(() => fitView(null, false), 100);
+            }
+        });
+    }
 }
 
 async function loadGraphData() {
