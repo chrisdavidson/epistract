@@ -2,8 +2,9 @@
 
 This module is import-light on purpose (standard library plus
 ``core.graph_display``): the workbench API serves its output at
-``GET /api/graph/groups`` and the static ``/epistract:view`` graph reuses
-``build_groups`` so both surfaces group a graph the same way.
+``GET /api/graph/groups``. It lives in ``core`` so the static
+``/epistract:view`` graph can reuse ``build_groups`` (planned for Phase 5;
+the workbench is the only caller today) and group a graph the same way.
 
 Three public functions, none of which raise on malformed input:
 
