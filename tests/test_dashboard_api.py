@@ -50,6 +50,21 @@ def test_hostile_type_returned_verbatim(tmp_path):
     assert body["entity_counts"] == {hostile: 1}, body["entity_counts"]
 
 
+def test_missing_null_or_empty_type_counts_as_unknown(tmp_path):
+    graph = {
+        "nodes": [
+            {"id": "n1", "label": "n1", "entity_type": None},
+            {"id": "n2", "label": "n2", "entity_type": ""},
+            {"id": "n3", "label": "n3"},
+            {"id": "n4", "label": "n4", "entity_type": "DRUG"},
+        ],
+        "links": [],
+    }
+    (tmp_path / "graph_data.json").write_text(json.dumps(graph), encoding="utf-8")
+    body = TestClient(create_app(tmp_path, domain=None)).get("/api/dashboard").json()
+    assert body["entity_counts"] == {"UNKNOWN": 3, "DRUG": 1}, body["entity_counts"]
+
+
 def test_domain_dashboard_html_path_unchanged(tmp_path, monkeypatch):
     domains = tmp_path / "domains"
     wb = domains / "fakedomain" / "workbench"

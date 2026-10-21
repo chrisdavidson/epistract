@@ -338,7 +338,11 @@ def create_app(output_dir: Path, domain: str | None = None) -> FastAPI:
         edges = data.get_edges()
         entity_counts: dict[str, int] = {}
         for n in nodes:
-            t = n.get("entity_type", "UNKNOWN")
+            # Same key the graph uses (display.js typeKey): a missing, null or
+            # empty type is "UNKNOWN", so the Dashboard row matches graph nodes.
+            t = n.get("entity_type")
+            if t is None or t == "":
+                t = "UNKNOWN"
             entity_counts[t] = entity_counts.get(t, 0) + 1
         # `template.get("dashboard")` may return None (Pydantic default) when
         # the domain template has no `dashboard:` block. `dict.get(k, default)`
