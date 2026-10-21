@@ -370,7 +370,7 @@ def test_neighborhood_depth_two_notice_copy(tmp_path):
 def test_full_graph_has_metadata_line_and_no_notice(tmp_path):
     work = _glp1_copy(tmp_path)
     page = _subset_view(work)
-    assert "static-notice" not in page.split("<main", 1)[0]
+    assert not NOTICE_RE.search(page)
     (meta,) = META_RE.findall(page)
     text = _text(meta)
     assert re.fullmatch(

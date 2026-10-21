@@ -68,10 +68,7 @@ FETCH_SHIM = """(function () {
   };
 })();"""
 
-MODULE_BOOT = (
-    "await initGraph({});\n"
-    "window.dispatchEvent(new CustomEvent('graph-panel-opened'));\n"
-)
+SKIP_LINK = '<a class="static-skip" href="#graph-container">Skip to graph</a>\n'
 
 
 # ---------------------------------------------------------------------------
@@ -303,7 +300,7 @@ def build_static_html(
     vis = SCRIPT_CLOSE.sub(
         r"<\\/\1", (STATIC_DIR / "vis-network.min.js").read_text(encoding="utf-8")
     )
-    bundle = bundle_modules(STATIC_DIR)
+    bundle = bundle_modules(STATIC_DIR, entry="static_view.js")
 
     return (
         "<!DOCTYPE html>\n"
@@ -315,6 +312,7 @@ def build_static_html(
         f"<style>\n{_inline_css()}\n</style>\n"
         "</head>\n"
         '<body class="static-view">\n'
+        f"{SKIP_LINK}"
         '<header class="static-header">'
         f'<h1 title="{safe_title}">{safe_title}</h1>'
         f"{_meta_line(stats, generated)}</header>\n"
@@ -325,7 +323,7 @@ def build_static_html(
         f'<script type="application/json" id="epistract-data">{json_for_script(payload)}</script>\n'
         f"<script>\n{FETCH_SHIM}\n</script>\n"
         f"<script>\n{vis}\n</script>\n"
-        f'<script type="module">\n{bundle}\n{MODULE_BOOT}</script>\n'
+        f'<script type="module">\n{bundle}\n</script>\n'
         "</body>\n"
         "</html>\n"
     )
