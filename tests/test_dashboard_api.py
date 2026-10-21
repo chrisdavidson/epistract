@@ -77,3 +77,52 @@ def test_domain_dashboard_html_path_unchanged(tmp_path, monkeypatch):
     (out / "graph_data.json").write_text(json.dumps({"nodes": [], "links": []}), encoding="utf-8")
     app = create_app(out, domain="fakedomain")
     assert TestClient(app).get("/api/dashboard").json() == {"html": page}
+
+
+@pytest.mark.parametrize("domain", [None, "drug-discovery"])
+def test_glp1_epistemic_section(glp1_copy, domain):
+    body = TestClient(create_app(glp1_copy, domain=domain)).get("/api/dashboard").json()
+    for key in ("title", "entity_counts", "total_nodes", "total_edges", "findings"):
+        assert key in body, f"missing {key}"
+    epistemic = body["epistemic"]
+    assert epistemic["available"] is True
+    sections = epistemic["sections"]
+    assert [s["key"] for s in sections] == ["contradictions", "contested_claims", "hypotheses"]
+    assert [s["count"] for s in sections] == [2, 33, 2]
+    assert sum(s["count"] for s in epistemic["status_counts"]) == 855
+    assert epistemic["status_counts"][0] == {"status": "asserted", "count": 758}
+
+
+def test_no_claims_layer_epistemic_not_run(tmp_path):
+    graph = {"nodes": [{"id": "n1", "label": "n1", "entity_type": "DRUG"}], "links": []}
+    (tmp_path / "graph_data.json").write_text(json.dumps(graph), encoding="utf-8")
+    body = TestClient(create_app(tmp_path, domain=None)).get("/api/dashboard").json()
+    assert body["epistemic"] == {"available": False, "status_counts": [], "sections": []}
+
+
+def test_hostile_claim_strings_verbatim(tmp_path):
+    evidence = "<img src=x onerror=1>"
+    gap = '"><script>alert(1)</script>'
+    graph = {"nodes": [{"id": "n1", "label": "n1", "entity_type": "DRUG"}], "links": []}
+    claims = {
+        "super_domain": {
+            "conflicts": [{"type": "contradiction", "evidence": evidence}],
+            "coverage_gaps": [{"description": gap}],
+        }
+    }
+    (tmp_path / "graph_data.json").write_text(json.dumps(graph), encoding="utf-8")
+    (tmp_path / "claims_layer.json").write_text(json.dumps(claims), encoding="utf-8")
+    body = TestClient(create_app(tmp_path, domain=None)).get("/api/dashboard").json()
+    sections = {s["key"]: s for s in body["epistemic"]["sections"]}
+    assert sections["conflicts"]["items"][0]["title"] == evidence
+    assert sections["coverage_gaps"]["items"][0]["title"] == gap
+
+
+def test_malformed_claims_layer_still_200(tmp_path):
+    graph = {"nodes": [{"id": "n1", "label": "n1", "entity_type": "DRUG"}], "links": []}
+    claims = {"super_domain": "oops", "summary": []}
+    (tmp_path / "graph_data.json").write_text(json.dumps(graph), encoding="utf-8")
+    (tmp_path / "claims_layer.json").write_text(json.dumps(claims), encoding="utf-8")
+    response = TestClient(create_app(tmp_path, domain=None)).get("/api/dashboard")
+    assert response.status_code == 200
+    assert response.json()["epistemic"]["available"] is False
