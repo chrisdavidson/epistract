@@ -152,6 +152,7 @@ let focusStack = [];                      // focus mode path: [{id, hops}], the 
 let focusHops = 1;                        // neighbourhood size of the current focus (shared with the sidebar)
 let focusPre = null;                      // {positions, sourcesPlaced} captured before the first focus layout
 let _focusLayoutKey = null;              // signature of the focus layout last applied
+let _focusOpensSidebar = false;           // set while a focus change that will open the sidebar lays out
 let _measureCtx = null;                  // 2d context used to measure label widths
 let focusSet = null;                      // Set of node ids shown while focused; null when not focused
 let focusLabelIds = new Set();            // focus nodes drawn with full labels
@@ -2277,8 +2278,7 @@ function syncFocusLayout() {
         dy: centreBox.dy + FOCUS_CENTRE_EXTRA_PX / 2,
     });
     const container = document.getElementById('graph-container');
-    const sb = document.getElementById('graph-detail-sidebar');
-    const cover = (sb && sb.offsetWidth) || SIDEBAR_FALLBACK_PX;
+    const cover = focusCoverPx();
     const availW = Math.max(((container && container.clientWidth) || 0) - cover - FOCUS_VIEW_PAD_PX, 200);
     const availH = Math.max(((container && container.clientHeight) || 0) - FOCUS_VIEW_PAD_PX, 200);
     const layout = focusLayout({ centerId: top.id, ring1, ring2, boxes, aspect: availW / availH });
@@ -2295,6 +2295,17 @@ function syncFocusLayout() {
         moves.push([id, { x: sx / n + ((index % 7) - 3) * 12, y: sy / n + ((Math.floor(index / 7) % 7) - 3) * 12 }]);
     });
     writePositions(moves);
+}
+
+// IN-06: canvas width the sidebar covers for a focus layout: the open sidebar,
+// or the one the running focus change is about to open (entry selects the
+// centre after filterGraph() has laid the focus out). A closed sidebar that
+// stays closed (e.g. a filter change after a canvas click) covers nothing.
+function focusCoverPx() {
+    const open = sidebarCoverPx();
+    if (open > 0 || !_focusOpensSidebar) return open;
+    const sb = document.getElementById('graph-detail-sidebar');
+    return (sb && sb.offsetWidth) || SIDEBAR_FALLBACK_PX;
 }
 
 function restoreFocusLayout() {
@@ -2385,7 +2396,12 @@ function selectFocusCenter(id) {
 function applyFocusChange(kind) {
     cancelHover();
     hideCard();
-    filterGraph();
+    _focusOpensSidebar = kind !== 'exit';
+    try {
+        filterGraph();
+    } finally {
+        _focusOpensSidebar = false;
+    }
     if (focusEndedNote === null) {
         const top = focusStack[focusStack.length - 1];
         if (kind === 'exit') announceGroup('Focus ended.');
