@@ -297,6 +297,10 @@ async function populateDashboard(template) {
                 epistemic: dashData.epistemic,
                 onShowInGraph: (id, event) => openGraphWith({ reset: true, focus: { id, hops: 1 } }, event),
                 onAskInChat: (question) => askInChat(question),
+                documents: dashData.documents,
+                onOpenDocument: (docId, highlight) => window.dispatchEvent(
+                    new CustomEvent('navigate-source', { detail: { docId, highlight } }),
+                ),
             }));
             // The viewer module owns the 'navigate-source' event and switches panels.
             const docsSection = buildDocuments({

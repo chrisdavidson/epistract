@@ -329,15 +329,42 @@ function buildDistribution(counts) {
     return wrap;
 }
 
+// `names` is a string (one span) or a short list of nodes already built.
 function buildMetaLine(label, names, rest, fullTitle) {
     const p = el('p', 'epistemic-meta');
-    p.append(text('strong', '', label), text('span', '', names));
+    p.appendChild(text('strong', '', label));
+    if (Array.isArray(names)) {
+        for (const node of names) p.appendChild(node);
+    } else {
+        p.appendChild(text('span', '', names));
+    }
     if (rest > 0) p.appendChild(document.createTextNode(` +${rest} more`));
     if (fullTitle) p.setAttribute('title', fullTitle);
     return p;
 }
 
-function buildStatement(st) {
+// A document id that is in the Documents list is a button that opens the source
+// viewer; any other id stays plain text. The click handler looks the payload up
+// in the closure through data-section / data-index (/ data-statement).
+function buildDocLink(ctx, docId, key, index, statementIndex, highlighted) {
+    if (!ctx.known.has(docId)) {
+        const plain = text('span', 'epistemic-meta__doc', docId);
+        plain.setAttribute('title', docId);
+        return plain;
+    }
+    const b = text('button', 'epistemic-doc-link epistemic-meta__doc', docId);
+    b.setAttribute('type', 'button');
+    b.setAttribute('title', docId);
+    b.setAttribute('data-action', 'open-doc');
+    b.setAttribute('data-section', key);
+    b.setAttribute('data-index', String(index));
+    b.setAttribute('data-doc-id', docId);
+    if (statementIndex !== null) b.setAttribute('data-statement', String(statementIndex));
+    b.setAttribute('aria-label', highlighted ? `Read ${docId} with the cited passage highlighted` : `Read ${docId}`);
+    return b;
+}
+
+function buildStatement(st, ctx, key, index, statementIndex) {
     const frag = [];
     const quote = el('blockquote', 'epistemic-quote');
     quote.textContent = st.text;
@@ -347,9 +374,7 @@ function buildStatement(st) {
     if (st.document || hasConf) {
         const meta = el('p', 'epistemic-meta');
         if (st.document) {
-            const doc = text('span', 'epistemic-meta__doc', st.document);
-            doc.setAttribute('title', st.document);
-            meta.appendChild(doc);
+            meta.appendChild(buildDocLink(ctx, st.document, key, index, statementIndex, !!st.text));
         }
         if (hasConf) {
             const conf = `Confidence ${Math.round(st.confidence * 100)}%`;
@@ -360,7 +385,7 @@ function buildStatement(st) {
     return frag;
 }
 
-function buildCard(section, index, item) {
+function buildCard(section, index, item, ctx) {
     const key = section.def.key;
     const title = item.title || section.def.singular;
     const li = el('li', 'epistemic-card');
@@ -376,16 +401,26 @@ function buildCard(section, index, item) {
     }
 
     const quoted = item.statements.slice(0, MAX_QUOTES);
-    for (const st of quoted) {
-        for (const node of buildStatement(st)) li.appendChild(node);
-    }
+    quoted.forEach((st, statementIndex) => {
+        for (const node of buildStatement(st, ctx, key, index, statementIndex)) li.appendChild(node);
+    });
 
     const shownDocs = new Set(quoted.map((st) => st.document));
     const sources = item.documents.filter((d) => !shownDocs.has(d));
     if (sources.length) {
-        const line = buildMetaLine('Sources: ', sources.slice(0, MAX_NAMES).join(', '), sources.length - MAX_NAMES, item.documents.join(', '));
-        line.children[1].className = 'epistemic-meta__doc';
-        li.appendChild(line);
+        const shownSources = sources.slice(0, MAX_NAMES);
+        let names;
+        if (shownSources.some((id) => ctx.known.has(id))) {
+            names = [];
+            shownSources.forEach((id, i) => {
+                if (i > 0) names.push(document.createTextNode(', '));
+                const cited = item.statements.some((st) => st.document === id && st.text);
+                names.push(buildDocLink(ctx, id, key, index, null, cited));
+            });
+        } else {
+            names = [text('span', 'epistemic-meta__doc', shownSources.join(', '))];
+        }
+        li.appendChild(buildMetaLine('Sources: ', names, sources.length - MAX_NAMES, item.documents.join(', ')));
     }
 
     const graphEntity = item.entities.find((e) => e.id);
@@ -419,7 +454,7 @@ function buildCard(section, index, item) {
     return li;
 }
 
-function buildSection(section, itemsByKey, toggles) {
+function buildSection(section, itemsByKey, toggles, ctx) {
     const key = section.def.key;
     const block = el('div', 'epistemic-section');
     const heading = text('h4', '', `${section.label} (${section.count.toLocaleString()})`);
@@ -432,7 +467,7 @@ function buildSection(section, itemsByKey, toggles) {
     section.items.forEach((item, index) => {
         itemsByKey.set(`${key}:${index}`, item);
     });
-    section.items.slice(0, VISIBLE_CARDS).forEach((item, index) => head.appendChild(buildCard(section, index, item)));
+    section.items.slice(0, VISIBLE_CARDS).forEach((item, index) => head.appendChild(buildCard(section, index, item, ctx)));
     block.appendChild(head);
 
     if (section.items.length > VISIBLE_CARDS) {
@@ -455,7 +490,7 @@ function buildSection(section, itemsByKey, toggles) {
         rest.setAttribute('id', restId);
         rest.setAttribute('hidden', '');
         rest.setAttribute('aria-labelledby', `epistemic-sec-${key}`);
-        section.items.slice(VISIBLE_CARDS).forEach((item, i) => rest.appendChild(buildCard(section, i + VISIBLE_CARDS, item)));
+        section.items.slice(VISIBLE_CARDS).forEach((item, i) => rest.appendChild(buildCard(section, i + VISIBLE_CARDS, item, ctx)));
         block.append(toggle, rest);
         toggles.set(key, { toggle, rest, lower, show });
     }
@@ -482,7 +517,10 @@ function flipToggle(state) {
 // gaps. Anything that is not a well-formed payload renders the not-run message.
 //   onShowInGraph(entityId, event)  "Show in graph" on an item with a graph entity
 //   onAskInChat(question, event)    "Ask in chat" (prefills the chat only)
-export function buildEpistemicHealth({ epistemic, onShowInGraph, onAskInChat }) {
+//   documents                       the Documents list; only ids in it become links
+//   onOpenDocument(docId, highlight, event)  a document id link; highlight is the
+//                                   cited statement's text when there is one
+export function buildEpistemicHealth({ epistemic, onShowInGraph, onAskInChat, documents, onOpenDocument }) {
     const root = el('section', 'epistemic-health');
     root.setAttribute('aria-labelledby', 'epistemic-heading');
     const heading = text('h3', '', 'Epistemic health');
@@ -508,9 +546,16 @@ export function buildEpistemicHealth({ epistemic, onShowInGraph, onAskInChat }) 
         root.appendChild(text('p', 'epistemic-hint', NONE_FOUND_COPY));
     }
 
+    const known = new Set();
+    if (Array.isArray(documents)) {
+        for (const row of documents) {
+            if (isObj(row) && typeof row.doc_id === 'string' && row.doc_id) known.add(row.doc_id);
+        }
+    }
+    const ctx = { known };
     const itemsByKey = new Map();
     const toggles = new Map();
-    for (const section of sections) root.appendChild(buildSection(section, itemsByKey, toggles));
+    for (const section of sections) root.appendChild(buildSection(section, itemsByKey, toggles, ctx));
 
     // One delegated listener; the item payload comes from the closure, never
     // from the DOM.
@@ -527,6 +572,25 @@ export function buildEpistemicHealth({ epistemic, onShowInGraph, onAskInChat }) 
         }
         const item = itemsByKey.get(`${sectionKey}:${button.dataset.index}`);
         if (!item) return;
+        if (action === 'open-doc') {
+            // The id and the passage come from the item in the closure; the
+            // attributes only say which statement was meant.
+            const statementIndex = button.dataset.statement;
+            let docId;
+            let statement;
+            if (statementIndex !== undefined) {
+                statement = item.statements[Number(statementIndex)];
+                docId = statement ? statement.document : '';
+            } else {
+                docId = button.dataset.docId;
+                if (!item.documents.includes(docId)) return;
+                statement = item.statements.find((st) => st.document === docId && st.text);
+            }
+            if (!docId || !known.has(docId)) return;
+            const highlight = statement && statement.document === docId && statement.text ? statement.text : undefined;
+            if (typeof onOpenDocument === 'function') onOpenDocument(docId, highlight, event);
+            return;
+        }
         if (action === 'show-graph') {
             if (button.getAttribute('aria-disabled') === 'true') return;
             const entity = item.entities.find((e) => e.id);
