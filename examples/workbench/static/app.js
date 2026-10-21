@@ -2,7 +2,7 @@
 import { initChat, loadModelSelector } from './chat.js';
 import { initGraph } from './graph.js';
 import { loadDisplay, legendEntries, makeSwatch } from './display.js';
-import { buildEntitySummary, buildEpistemicHealth } from './dashboard.js';
+import { buildDocuments, buildEntitySummary, buildEpistemicHealth } from './dashboard.js';
 // sources.js removed -- source docs now accessed via dashboard links
 
 // SEC-01 / VUL-03: local escapeHtml helper. We intentionally do NOT import the
@@ -289,6 +289,14 @@ async function populateDashboard(template) {
                 onShowInGraph: (id, event) => openGraphWith({ reset: true, focus: { id, hops: 1 } }, event),
                 onAskInChat: (question) => askInChat(question),
             }));
+            // The viewer module owns the 'navigate-source' event and switches panels.
+            const docsSection = buildDocuments({
+                documents: dashData.documents,
+                onOpen: (doc) => window.dispatchEvent(
+                    new CustomEvent('navigate-source', { detail: { docId: doc.doc_id } }),
+                ),
+            });
+            if (docsSection) dashContent.appendChild(docsSection);
             // Custom rule findings — per-domain CUSTOM_RULES and cross-domain
             // rules both land in claims_layer.super_domain.custom_findings.
             // Purely additive: domains that ship no custom rules get an empty

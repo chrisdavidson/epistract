@@ -1,5 +1,5 @@
 // dashboard.js - DOM builders for the auto-generated Dashboard: the entity
-// summary and the epistemic health section.
+// summary, the epistemic health section and the documents table.
 //
 // SEC-01: entity type keys, claim text, statuses, entity names and document
 // ids come from graph_data.json / claims_layer.json and are untrusted. They
@@ -536,5 +536,172 @@ export function buildEpistemicHealth({ epistemic, onShowInGraph, onAskInChat }) 
             if (typeof onAskInChat === 'function') onAskInChat(question, event);
         }
     });
+    return root;
+}
+
+// --- Documents ---------------------------------------------------------------
+
+const VISIBLE_DOCUMENTS = 10;
+const DOCUMENTS_HINT = 'Entities and relations extracted from each document. Select a document to read it.';
+const DOCUMENTS_EMPTY_COPY = 'No source documents were found in this output directory. '
+    + 'Run /epistract:ingest to add documents, then reload the workbench.';
+
+function slug(value) {
+    return String(value).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+function nonNegative(value) {
+    const n = Number(value);
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+}
+
+function cleanDocument(raw) {
+    if (!isObj(raw) || typeof raw.doc_id !== 'string' || !raw.doc_id) return null;
+    const filename = str(raw.filename);
+    return {
+        raw,
+        doc_id: raw.doc_id,
+        name: str(raw.display_name) || filename || raw.doc_id,
+        entities: nonNegative(raw.entity_count),
+        relations: nonNegative(raw.relation_count),
+        hasText: raw.has_text !== false,
+        hasPdf: raw.has_pdf === true,
+    };
+}
+
+function unitLabel(n, one, many) {
+    return `${n.toLocaleString()} ${n === 1 ? one : many}`;
+}
+
+function buildDocumentRow(doc, index) {
+    const tr = el('tr', 'dashboard-link-row dashboard-doc-row');
+    tr.setAttribute('data-index', String(index));
+    tr.setAttribute('data-doc-id', doc.doc_id);
+
+    const showId = slug(doc.name) !== slug(doc.doc_id);
+    const btn = el('button', 'dashboard-link-btn dashboard-doc-btn');
+    btn.setAttribute('type', 'button');
+    btn.setAttribute('data-doc-id', doc.doc_id);
+    let label = `Read ${doc.name}: ${unitLabel(doc.entities, 'entity', 'entities')}, ${unitLabel(doc.relations, 'relation', 'relations')}`;
+    if (!doc.hasText) label += doc.hasPdf ? ' (PDF only)' : ' (text not available)';
+    btn.setAttribute('aria-label', label);
+    btn.setAttribute('title', showId ? `${doc.name}\n${doc.doc_id}` : doc.name);
+
+    const nameStack = el('span', 'documents-name');
+    nameStack.appendChild(text('span', 'documents-name__text', doc.name));
+    if (showId) nameStack.appendChild(text('span', 'documents-name__id', doc.doc_id));
+    btn.appendChild(nameStack);
+    if (!doc.hasText) btn.appendChild(text('span', 'documents-flag', doc.hasPdf ? 'PDF only' : 'No text'));
+    const chevron = text('span', 'dashboard-link-chevron', '›');
+    chevron.setAttribute('aria-hidden', 'true');
+    btn.appendChild(chevron);
+
+    const cell = el('td', 'dashboard-link-cell');
+    cell.appendChild(btn);
+    const countCell = (n) => text('td', n === 0 ? 'dashboard-count dashboard-count--zero' : 'dashboard-count', n.toLocaleString());
+    tr.append(cell, countCell(doc.entities), countCell(doc.relations));
+    return { tr, btn };
+}
+
+// The "Documents" section: one row per source document with its entity and
+// relation counts, the first ten shown and the rest behind a toggle. Returns
+// null when the reply carried no `documents` list, so the caller omits the
+// section.
+//   onOpen(doc, event)  a row was activated; doc is the cleaned row from the list
+export function buildDocuments({ documents, onOpen }) {
+    if (!Array.isArray(documents)) return null;
+    const docs = documents.map(cleanDocument).filter(Boolean);
+
+    const root = el('section', 'documents-section');
+    root.setAttribute('aria-labelledby', 'documents-heading');
+    const heading = text('h3', '', docs.length ? `Documents (${docs.length.toLocaleString()})` : 'Documents');
+    heading.setAttribute('id', 'documents-heading');
+    root.appendChild(heading);
+    if (docs.length === 0) {
+        root.appendChild(text('p', 'dashboard-empty__body', DOCUMENTS_EMPTY_COPY));
+        return root;
+    }
+
+    root.appendChild(text('p', 'dashboard-hint', DOCUMENTS_HINT));
+
+    const table = el('table', 'dashboard-table documents-table');
+    table.setAttribute('aria-labelledby', 'documents-heading');
+    const colgroup = el('colgroup');
+    for (let i = 0; i < 3; i += 1) colgroup.appendChild(el('col'));
+    const headRow = el('tr');
+    headRow.append(text('th', '', 'Document'), text('th', '', 'Entities'), text('th', '', 'Relations'));
+    const thead = el('thead');
+    thead.appendChild(headRow);
+    const head = el('tbody');
+    docs.slice(0, VISIBLE_DOCUMENTS).forEach((doc, i) => head.appendChild(buildDocumentRow(doc, i).tr));
+    table.append(colgroup, thead, head);
+
+    let rest = null;
+    let firstRevealed = null;
+    if (docs.length > VISIBLE_DOCUMENTS) {
+        rest = el('tbody');
+        rest.setAttribute('id', 'documents-rest');
+        rest.setAttribute('hidden', '');
+        docs.slice(VISIBLE_DOCUMENTS).forEach((doc, i) => {
+            const built = buildDocumentRow(doc, i + VISIBLE_DOCUMENTS);
+            if (!firstRevealed) firstRevealed = built.btn;
+            rest.appendChild(built.tr);
+        });
+        table.appendChild(rest);
+    }
+
+    // One delegated listener on the table; the document comes from the closure
+    // by row index, never from the DOM text.
+    table.addEventListener('click', (event) => {
+        const target = event && event.target;
+        const row = target && typeof target.closest === 'function'
+            ? target.closest('tr.dashboard-link-row')
+            : null;
+        if (!row) return;
+        const index = Number(row.getAttribute('data-index'));
+        if (!Number.isInteger(index) || index < 0 || index >= docs.length) return;
+        if (typeof onOpen === 'function') onOpen(docs[index].raw, event);
+    });
+
+    const wrap = el('div', 'dashboard-table-wrap');
+    wrap.appendChild(table);
+    root.appendChild(wrap);
+
+    const status = el('span', 'visually-hidden');
+    status.setAttribute('id', 'documents-status');
+    status.setAttribute('role', 'status');
+    status.setAttribute('aria-live', 'polite');
+
+    if (rest) {
+        const total = docs.length.toLocaleString();
+        const toggle = el('button', 'documents-toggle');
+        toggle.setAttribute('type', 'button');
+        toggle.setAttribute('aria-expanded', 'false');
+        toggle.setAttribute('aria-controls', 'documents-rest');
+        const collapsed = () => {
+            toggle.textContent = `Show all ${total}`;
+            toggle.setAttribute('aria-label', `Show all ${total} documents`);
+        };
+        collapsed();
+        toggle.addEventListener('click', () => {
+            const open = toggle.getAttribute('aria-expanded') !== 'true';
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            if (open) {
+                rest.removeAttribute('hidden');
+                toggle.textContent = `Show first ${VISIBLE_DOCUMENTS}`;
+                toggle.setAttribute('aria-label', `Show only the first ${VISIBLE_DOCUMENTS} documents`);
+                status.textContent = `Showing all ${total} documents.`;
+                // The toggle sits below the table: land in the revealed rows.
+                firstRevealed.focus({ preventScroll: true });
+            } else {
+                rest.setAttribute('hidden', '');
+                collapsed();
+                status.textContent = `Showing the first ${VISIBLE_DOCUMENTS} of ${total} documents.`;
+                toggle.focus({ preventScroll: true });
+            }
+        });
+        root.appendChild(toggle);
+    }
+    root.appendChild(status);
     return root;
 }

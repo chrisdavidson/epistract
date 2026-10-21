@@ -1162,6 +1162,65 @@ body {
   text-align: right;
 }
 
+/* Documents table */
+
+.documents-table {
+  table-layout: fixed;
+}
+
+.documents-table col:nth-child(n + 2) {
+  width: 120px;
+}
+
+.documents-table th:nth-child(n + 2) {
+  text-align: right;
+}
+
+.documents-table tbody[hidden] {
+  display: none;
+}
+
+.documents-name {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.documents-name__text,
+.documents-name__id {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.documents-name__id {
+  font-family: var(--font-data);
+  font-size: var(--size-label);
+  font-variant-numeric: tabular-nums;
+  color: #666666;
+}
+
+.documents-flag {
+  flex: none;
+  margin-left: var(--space-sm);
+  font-size: var(--size-label);
+  color: #666666;
+  white-space: nowrap;
+}
+
+.dashboard-table td.dashboard-count--zero {
+  font-weight: 400;
+  color: #666666;
+}
+
+.dashboard-link-row:hover .documents-name__text {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
 .dashboard-totals {
   margin-top: var(--space-md);
 }
@@ -2382,7 +2441,8 @@ button.graph-focus-bar__crumb:focus-visible {
 }
 
 .epistemic-btn,
-.epistemic-toggle {
+.epistemic-toggle,
+.documents-toggle {
   min-height: 36px;
   padding: var(--space-sm) var(--space-md);
   background: #ffffff;
@@ -2397,24 +2457,28 @@ button.graph-focus-bar__crumb:focus-visible {
   transition: background 0.15s;
 }
 
-.epistemic-toggle {
+.epistemic-toggle,
+.documents-toggle {
   margin-top: var(--space-sm);
 }
 
 .epistemic-btn:hover,
-.epistemic-toggle:hover {
+.epistemic-toggle:hover,
+.documents-toggle:hover {
   border-color: #9ca3af;
   background: rgba(0, 0, 0, 0.04);
 }
 
 .epistemic-btn:focus-visible,
-.epistemic-toggle:focus-visible {
+.epistemic-toggle:focus-visible,
+.documents-toggle:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 1px;
 }
 
 .epistemic-btn:active,
-.epistemic-toggle:active {
+.epistemic-toggle:active,
+.documents-toggle:active {
   border-color: #1a1a2e;
 }
 
@@ -2546,7 +2610,8 @@ button.graph-focus-bar__crumb:focus-visible {
   .dashboard-link-row,
   .dashboard-totals-btn,
   .epistemic-btn,
-  .epistemic-toggle {
+  .epistemic-toggle,
+  .documents-toggle {
     transition: none;
   }
 }
