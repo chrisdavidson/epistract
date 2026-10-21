@@ -138,6 +138,20 @@ SKIP_LINK = '<a class="static-skip" href="#graph-container">Skip to graph</a>\n'
 # ---------------------------------------------------------------------------
 
 
+def script_safe(js: str) -> str:
+    """Neutralise sequences that would end or derail an inline ``<script>``.
+
+    ``</script`` becomes ``<\\/script`` and ``<!--`` becomes ``<\\!--``. In the
+    HTML parser, ``<!--`` followed by ``<script`` enters the double-escaped
+    state, where ``</script>`` no longer closes the element. Both rewrites keep
+    a JavaScript string or template literal's value unchanged (``\\/`` and
+    ``\\!`` are identity escapes; a ``/u`` regex literal would reject ``\\!``).
+    Today ``<!--`` occurs nowhere in vis-network or the workbench modules, and
+    ``</script`` only inside vis-network string literals.
+    """
+    return SCRIPT_CLOSE.sub(r"<\\/\1", js).replace("<!--", "<\\!--")
+
+
 def _plain_names(specifiers: str) -> bool:
     """True when ``specifiers`` is a comma list of bare identifiers (no ``as``)."""
     names = [part.strip() for part in specifiers.split(",")]
@@ -238,7 +252,8 @@ def bundle_modules(static_dir: Path, entry: str = "graph.js") -> str:
 
     Returns:
         JavaScript source with imports and ``export`` keywords removed and
-        ``</script`` escaped so it can sit inside an inline module script.
+        passed through ``script_safe`` so it can sit inside an inline module
+        script.
 
     Raises:
         ValueError: On an import cycle, import/export syntax this bundler
@@ -277,7 +292,7 @@ def bundle_modules(static_dir: Path, entry: str = "graph.js") -> str:
                 )
             declared[ident] = where
     bundle = "\n".join(f"// ---- {name} ----\n" + bodies[name] for name in order)
-    return SCRIPT_CLOSE.sub(r"<\\/\1", bundle)
+    return script_safe(bundle)
 
 
 def slice_graph_panel(index_html: str) -> str:
@@ -448,9 +463,7 @@ def build_static_html(
     safe_title = html.escape(title, quote=True)
     index_html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
     panel = slice_graph_panel(index_html)
-    vis = SCRIPT_CLOSE.sub(
-        r"<\\/\1", (STATIC_DIR / "vis-network.min.js").read_text(encoding="utf-8")
-    )
+    vis = script_safe((STATIC_DIR / "vis-network.min.js").read_text(encoding="utf-8"))
     bundle = bundle_modules(STATIC_DIR, entry="static_view.js")
 
     return (

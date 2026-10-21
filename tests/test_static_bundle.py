@@ -6,6 +6,7 @@ the file and line; it must never drop source lines silently.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -131,3 +132,23 @@ def test_top_level_destructuring_is_rejected(tmp_path):
     source = "import { a } from './a.js';\nconst { x, y } = a();\n"
     with pytest.raises(ValueError, match=r"entry\.js:2"):
         _bundle(tmp_path, source)
+
+
+def test_bundle_neutralises_html_comment_open_and_script_close(tmp_path):
+    # `<!--` followed by `<script` would switch the HTML parser into the
+    # double-escaped state, where `</script>` no longer ends the element.
+    source = "export const s = '<!-- <script>x</script>';\n"
+    bundle = _bundle(tmp_path, source)
+    assert "<!--" not in bundle and "</script" not in bundle, bundle
+    assert "<\\!-- <script>x<\\/script>" in bundle, bundle
+
+
+def test_inline_script_helper_covers_vis_and_bundle():
+    from examples.workbench import static_export
+
+    assert static_export.script_safe("a<!--b</SCRIPT>") == "a<\\!--b<\\/SCRIPT>"
+    page = static_export.build_static_html(
+        title="t", payload={}, stats=None, generated="2026-01-01"
+    )
+    scripts = re.findall(r"<script[^>]*>(.*?)</script>", page, re.S)
+    assert scripts and all("<!--" not in body for body in scripts)
