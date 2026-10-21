@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import shutil
 from pathlib import Path
 
@@ -64,3 +65,11 @@ def test_claims_payload_tolerates_empty_layer():
         "findings": [],
     }
 
+
+
+def test_routes_delegate_to_shared_helpers():
+    """The route modules call the core helpers so a future inline copy is caught."""
+    from examples.workbench import api_graph
+
+    assert "entity_types_payload" in inspect.getsource(api_graph.get_entity_types)
+    assert "claims_payload" in inspect.getsource(api_graph.get_claims)

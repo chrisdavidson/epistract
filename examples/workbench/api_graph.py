@@ -4,7 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from core.graph_display import entity_type_key
+from core.graph_payloads import claims_payload, entity_types_payload
 
 router = APIRouter(prefix="/api/graph", tags=["graph"])
 
@@ -54,38 +54,11 @@ async def get_node(request: Request, node_id: str):
 async def get_claims(request: Request):
     """Return claims layer data (conflicts, gaps, risks, custom findings).
 
-    Reshapes the nested claims_layer structure into the flat format
-    the frontend expects: {conflicts, gaps, risks, cross_references,
-    custom_findings, findings}.
-
-    `custom_findings` is the channel both the per-domain `CUSTOM_RULES` hook
-    (`core/label_epistemic.py`) and the cross-domain rules engine
-    (`core/cross_domain.py`) write to, keyed by rule name. It was dropped
-    here until now, which made every custom rule's output invisible over the
-    API. `findings` is the same data flattened into one severity-bearing list
-    so the dashboard can render it without knowing the rule names in advance.
+    The payload is built in ``core.graph_payloads.claims_payload`` so the static
+    graph.html and the workbench share it: ``{conflicts, gaps, risks,
+    cross_references, custom_findings, findings}``.
     """
-    data = request.app.state.data
-    cl = data.claims_layer
-    sd = cl.get("super_domain", {})
-    custom_findings = sd.get("custom_findings", {}) or {}
-
-    flattened: list[dict] = []
-    for rule_name, rule_findings in custom_findings.items():
-        if not isinstance(rule_findings, list):
-            continue
-        for f in rule_findings:
-            if isinstance(f, dict):
-                flattened.append({"rule_name": rule_name, **f})
-
-    return {
-        "conflicts": sd.get("conflicts", []),
-        "gaps": sd.get("coverage_gaps", []),
-        "risks": sd.get("risks", []),
-        "cross_references": sd.get("cross_contract_entities", []),
-        "custom_findings": custom_findings,
-        "findings": flattened,
-    }
+    return claims_payload(request.app.state.data.claims_layer)
 
 
 @router.get("/communities")
@@ -109,29 +82,9 @@ async def get_groups(request: Request):
 async def get_entity_types(request: Request):
     """Return entity type counts plus resolved display (types, families, relations, categories).
 
-    Each type carries ``is_source`` and each relation ``source_edge``; the
-    frontend only reads these flags.
+    Built in ``core.graph_payloads.entity_types_payload`` so graph.html and the
+    workbench share it. Each type carries ``is_source`` and each relation
+    ``source_edge``; the frontend only reads these flags.
     """
     data = request.app.state.data
-    display = request.app.state.display
-    type_counts: dict[str, int] = {}
-    for node in data.get_nodes():
-        t = entity_type_key(node.get("entity_type"))
-        type_counts[t] = type_counts.get(t, 0) + 1
-    types = []
-    for t, count in type_counts.items():
-        # Every observed type was resolved in create_app (same key function), so
-        # a miss means the data changed under us; skip rather than resolve a
-        # type in isolation (which would collide with the first palette color).
-        spec = display["types"].get(t)
-        if spec is None:
-            continue
-        entry = {k: v for k, v in spec.items() if k != "origin"}
-        types.append({**entry, "type": t, "count": count})
-    return {
-        "entity_types": type_counts,
-        "types": types,
-        "families": display["families"],
-        "relations": display["relations"],
-        "categories": display["categories"],
-    }
+    return entity_types_payload(data.get_nodes(), request.app.state.display)
