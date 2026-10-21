@@ -15,13 +15,13 @@
     </div>
 
     <div class="nav-links">
-      <button class="nav-link" data-panel="dashboard">
+      <button class="nav-link" data-panel="dashboard" title="Dashboard">
         <span class="nav-icon">&#x1F4CA;</span> Dashboard
       </button>
-      <button class="nav-link active" data-panel="chat">
+      <button class="nav-link active" data-panel="chat" title="Chat">
         <span class="nav-icon">&#x1F4AC;</span> Chat
       </button>
-      <button class="nav-link" data-panel="graph">
+      <button class="nav-link" data-panel="graph" title="Graph">
         <span class="nav-icon">&#x25C9;</span> Graph
       </button>
     </div>
@@ -48,12 +48,21 @@
       </div>
     </div>
 
-    <div class="sidebar-section">
+    <div class="sidebar-section" id="entity-legend-section">
       <h3 class="sidebar-section-title">Entity Types</h3>
       <div class="legend" id="entity-legend">
         <!-- Populated dynamically from /api/template + /api/graph/entity-types -->
       </div>
     </div>
+
+    <!-- Graph filter rail: app.js arrangeGraphRail() moves the graph-panel
+         filters in here, so the graph keeps the panel height. The markup
+         stays in the graph panel because the static graph.html export
+         extracts that region. -->
+    <div class="graph-filter-rail" id="graph-filter-rail" role="group" aria-label="Graph filters"></div>
+
+    <button type="button" class="sidebar-collapse-btn" id="sidebar-collapse-btn"
+            aria-expanded="true" aria-controls="sidebar" title="Collapse sidebar">&laquo; Collapse</button>
   </nav>
 
   <!-- Hamburger toggle for mobile -->

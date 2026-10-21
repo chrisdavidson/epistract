@@ -30,6 +30,8 @@ function switchPanel(panel) {
     dashboardPanel.style.display = 'none';
     chatPanel.style.display = 'none';
     sidePanel.style.display = 'none';
+    // Shows the graph filter rail (and hides the entity legend) in the sidebar.
+    document.body.classList.toggle('graph-active', panel === 'graph');
 
     if (panel === 'dashboard') {
         dashboardPanel.style.display = 'flex';
@@ -63,6 +65,105 @@ function updatePanelTabs(active) {
     document.querySelectorAll('.panel-tab').forEach(tab => {
         tab.classList.toggle('active', tab.dataset.tab === active);
     });
+}
+
+// ---------------------------------------------------------------------------
+// Graph filter rail -- the graph filters live in the sidebar, not above the graph
+// ---------------------------------------------------------------------------
+// [filter section id, accessible name, starts collapsed]. Relation types have
+// no toggle of their own: the section is already a <details>.
+const RAIL_SECTIONS = [
+    ['entity-type-filter', 'Entity types', false],
+    ['epistemic-filter', 'Epistemic status', false],
+    ['confidence-filter', 'Confidence', true],
+    ['relation-type-filter', null, false],
+    ['min-degree-filter', 'Min. connections', true],
+];
+const SIDEBAR_COLLAPSED_KEY = 'epistract.sidebarCollapsed';
+
+// Moves the graph-panel filters into the sidebar rail and the search box into
+// the toolbar row. The markup stays in the graph panel of index.html because
+// the static graph.html export slices that region and lays it out itself
+// (static_view.js); only the element ids matter to graph.js.
+function arrangeGraphRail() {
+    const rail = document.getElementById('graph-filter-rail');
+    const controls = document.querySelector('#graph-panel .graph-controls');
+    const toolbar = controls && controls.querySelector('.graph-toolbar');
+    const search = document.getElementById('graph-search');
+    const legendLabel = document.getElementById('entity-legend-label');
+    const entityToggles = document.getElementById('entity-toggles');
+    if (!rail || !controls || !toolbar) return;
+
+    if (search) toolbar.insertBefore(search, toolbar.firstChild);
+
+    // The entity label and chips are loose children of .graph-controls; give
+    // them a section wrapper like the other filters have.
+    if (legendLabel && entityToggles) {
+        const entitySection = document.createElement('div');
+        entitySection.id = 'entity-type-filter';
+        entitySection.append(legendLabel, entityToggles);
+        controls.appendChild(entitySection);
+    }
+
+    for (const [id, name, collapsed] of RAIL_SECTIONS) {
+        const filter = document.getElementById(id);
+        if (!filter) continue;
+        const section = document.createElement('div');
+        section.className = 'rail-section';
+        if (name) {
+            const toggle = document.createElement('button');
+            toggle.type = 'button';
+            toggle.className = 'rail-section__toggle';
+            toggle.setAttribute('aria-controls', id);
+            toggle.addEventListener('click', () => {
+                setRailSectionCollapsed(section, toggle, name, !section.classList.contains('rail-section--collapsed'));
+            });
+            section.appendChild(toggle);
+            setRailSectionCollapsed(section, toggle, name, collapsed);
+        }
+        section.appendChild(filter);
+        rail.appendChild(section);
+    }
+
+    const severity = document.getElementById('severity-filter');
+    if (severity) rail.appendChild(severity);
+}
+
+function setRailSectionCollapsed(section, toggle, name, collapsed) {
+    section.classList.toggle('rail-section--collapsed', collapsed);
+    toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    toggle.setAttribute('aria-label', `${collapsed ? 'Expand' : 'Collapse'} ${name}`);
+    toggle.textContent = collapsed ? '▸' : '▾';
+}
+
+// Collapses the sidebar to an icon strip on the graph panel. The choice is a
+// per-viewer convenience, so storage failures are ignored.
+function wireSidebarCollapse() {
+    const btn = document.getElementById('sidebar-collapse-btn');
+    if (!btn) return;
+    let collapsed = false;
+    try {
+        collapsed = localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1';
+    } catch (e) { /* storage unavailable */ }
+
+    function apply() {
+        document.body.classList.toggle('sidebar-collapsed', collapsed);
+        btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        btn.title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+        btn.setAttribute('aria-label', btn.title);
+        btn.textContent = collapsed ? '\u00BB' : '\u00AB Collapse';
+    }
+
+    btn.addEventListener('click', () => {
+        collapsed = !collapsed;
+        apply();
+        try {
+            localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0');
+        } catch (e) { /* storage unavailable */ }
+        // The graph canvas changed width; refit it to the new size.
+        if (activePanel === 'graph') window.dispatchEvent(new CustomEvent('graph-panel-opened'));
+    });
+    apply();
 }
 
 // ---------------------------------------------------------------------------
@@ -278,6 +379,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.dispatchEvent(new CustomEvent('navigate-source', { detail: { docId, section } }));
     }});
     loadModelSelector();
+    arrangeGraphRail();
+    wireSidebarCollapse();
     await initGraph({ template, openChat: (question) => {
         switchPanel('chat');
         window.dispatchEvent(new CustomEvent('ask-question', { detail: { question } }));

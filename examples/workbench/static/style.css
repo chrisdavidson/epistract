@@ -2199,3 +2199,248 @@ button.graph-focus-bar__crumb:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 1px;
 }
+
+/* ---------------------------------------------------------------------------
+   Graph filter rail -- graph filters in the sidebar (app.js arrangeGraphRail)
+   --------------------------------------------------------------------------- */
+
+.graph-filter-rail {
+  display: none;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+body.graph-active .graph-filter-rail {
+  display: flex;
+}
+
+body.graph-active #entity-legend-section {
+  display: none;
+}
+
+.rail-section {
+  position: relative;
+}
+
+.rail-section > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+/* Collapsed: only the section label (which carries any live value) stays. */
+.rail-section--collapsed > div > :not(.filter-section-label) {
+  display: none;
+}
+
+.rail-section__toggle {
+  position: absolute;
+  top: -2px;
+  right: 0;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.rail-section__toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.rail-section__toggle:focus-visible,
+.sidebar-collapse-btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.graph-filter-rail .filter-section-label {
+  color: rgba(255, 255, 255, 0.5);
+  padding-right: 28px;
+  margin: 0;
+}
+
+.graph-filter-rail #relation-type-filter summary.relation-type-summary::after {
+  content: "\25B8";
+  float: right;
+  width: 24px;
+  margin-right: -28px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.graph-filter-rail #relation-type-details[open] summary.relation-type-summary::after {
+  content: "\25BE";
+}
+
+/* Entity chips become a one-per-row list on the dark rail. */
+.graph-filter-rail .legend-chips {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 2px;
+  max-height: none;
+  overflow: visible;
+}
+
+.graph-filter-rail .legend-chip,
+.graph-filter-rail .legend-chip[aria-pressed="true"],
+.graph-filter-rail .legend-chip[aria-pressed="false"] {
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  text-align: left;
+}
+
+.graph-filter-rail .legend-chip[aria-pressed="false"] {
+  color: rgba(255, 255, 255, 0.4);
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.graph-filter-rail .legend-chip[aria-pressed="false"] .type-swatch {
+  opacity: 0.4;
+}
+
+.graph-filter-rail .legend-chip:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.graph-filter-rail .legend-chip__count {
+  margin-left: auto;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.graph-filter-rail .relation-type-panel {
+  max-height: 240px;
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.graph-filter-rail .relation-type-panel input,
+.graph-filter-rail #confidence-slider,
+.graph-filter-rail #min-degree-slider {
+  accent-color: #8ea2ff;
+}
+
+.graph-filter-rail .relation-type-actions .toggle-btn {
+  background: transparent;
+  color: inherit;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.graph-filter-rail .severity-filter {
+  width: 100%;
+}
+
+/* With the filters gone, search shares the toolbar row. */
+.side-panel .graph-toolbar {
+  align-items: center;
+}
+
+.side-panel .graph-toolbar .graph-search {
+  flex: 1 1 200px;
+  width: auto;
+  min-width: 160px;
+  padding: 4px var(--space-md);
+  min-height: 30px;
+}
+
+.sidebar-collapse-btn {
+  /* Sticky so it stays reachable while a long filter rail scrolls. */
+  position: sticky;
+  bottom: 0;
+  flex-shrink: 0;
+  margin-top: auto;
+  align-self: stretch;
+  text-align: left;
+  background: var(--color-secondary);
+  box-shadow: 0 -8px 8px var(--color-secondary), 0 12px 0 12px var(--color-secondary);
+  display: none;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: var(--size-label);
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.sidebar-collapse-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+/* The rail sits below the nav; leave room for the collapse button. */
+body.graph-active .sidebar-collapse-btn {
+  display: block;
+}
+
+/* Collapsed sidebar: an icon strip on the graph panel only. */
+body.graph-active.sidebar-collapsed .sidebar {
+  width: 56px;
+  padding: var(--space-lg) var(--space-sm);
+}
+
+body.graph-active.sidebar-collapsed .sidebar-header,
+body.graph-active.sidebar-collapsed .sidebar-section,
+body.graph-active.sidebar-collapsed .graph-filter-rail {
+  display: none;
+}
+
+body.graph-active.sidebar-collapsed .nav-link {
+  justify-content: center;
+  padding: var(--space-sm) 0;
+  font-size: 0;
+}
+
+body.graph-active.sidebar-collapsed .nav-icon {
+  font-size: 16px;
+}
+
+body.graph-active.sidebar-collapsed .sidebar-collapse-btn {
+  text-align: center;
+}
+
+/* Below 1024px the sidebar is an off-canvas drawer; collapsing does not apply. */
+@media (max-width: 1024px) {
+  body.graph-active .sidebar-collapse-btn {
+    display: none;
+  }
+
+  /* The open drawer holds the graph filters, so it must sit above the
+     fixed graph panel (both are z-index 100; the hamburger stays on top). */
+  .sidebar.open {
+    z-index: 150;
+  }
+
+  body.graph-active.sidebar-collapsed .sidebar {
+    width: var(--sidebar-width);
+    padding: var(--space-lg);
+  }
+
+  body.graph-active.sidebar-collapsed .sidebar-header,
+  body.graph-active.sidebar-collapsed .sidebar-section {
+    display: block;
+  }
+
+  body.graph-active.sidebar-collapsed .graph-filter-rail {
+    display: flex;
+  }
+
+  body.graph-active.sidebar-collapsed .nav-link {
+    justify-content: flex-start;
+    padding: var(--space-sm) var(--space-md);
+    font-size: var(--size-body);
+  }
+}
