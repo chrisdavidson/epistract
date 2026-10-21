@@ -90,14 +90,53 @@ function buildTable(rows, onSelectType) {
     return wrap;
 }
 
-function buildTotals(totalNodes, totalEdges) {
-    const p = el('p');
-    p.textContent = `Total entities: ${totalNodes.toLocaleString()} | Total relationships: ${totalEdges.toLocaleString()}`;
+function strongNumber(value) {
+    return text('strong', '', value.toLocaleString());
+}
+
+// The totals line is a button: it opens the graph with the default view.
+function buildTotals(totalNodes, totalEdges, onShowAll) {
+    const p = el('p', 'dashboard-totals');
+    const btn = el('button', 'dashboard-totals-btn');
+    btn.setAttribute('type', 'button');
+    btn.setAttribute('data-dashboard-action', 'show-all');
+    btn.setAttribute(
+        'aria-label',
+        `Show all ${totalNodes.toLocaleString()} entities and ${totalEdges.toLocaleString()} relationships in the graph`,
+    );
+    const chevron = text('span', '', '›');
+    chevron.setAttribute('aria-hidden', 'true');
+    btn.append(
+        document.createTextNode('Total entities: '),
+        strongNumber(totalNodes),
+        document.createTextNode(' | Total relationships: '),
+        strongNumber(totalEdges),
+        document.createTextNode(' '),
+        chevron,
+    );
+    btn.addEventListener('click', (event) => {
+        if (typeof onShowAll === 'function') onShowAll(event);
+    });
+    p.appendChild(btn);
     return p;
 }
 
+function buildEmpty() {
+    const box = el('div', 'dashboard-empty');
+    box.append(
+        text('p', 'dashboard-empty__title', 'No entities yet'),
+        text(
+            'p',
+            'dashboard-empty__body',
+            'The graph has no entities to summarize. Run /epistract:ingest to add documents, then reload the workbench.',
+        ),
+    );
+    return box;
+}
+
 // The "Entity Summary" section: heading, hint, count-sorted table of
-// clickable rows and the totals line.
+// clickable rows and the totals button. A graph without entities gets an
+// explanation instead.
 //   onSelectType(rawType, event)  a row was activated
 //   onShowAll(event)              the totals were activated
 export function buildEntitySummary({ entityCounts, totalNodes, totalEdges, onSelectType, onShowAll }) {
@@ -107,9 +146,13 @@ export function buildEntitySummary({ entityCounts, totalNodes, totalEdges, onSel
     const rows = sortEntityRows(entityCounts);
     const nodes = Number(totalNodes) || 0;
     const edges = Number(totalEdges) || 0;
+    if (rows.length === 0 || nodes === 0) {
+        root.appendChild(buildEmpty());
+        return root;
+    }
 
     root.appendChild(text('p', 'dashboard-hint', 'Select an entity type to see those nodes in the graph.'));
     root.appendChild(buildTable(rows, onSelectType));
-    root.appendChild(buildTotals(nodes, edges));
+    root.appendChild(buildTotals(nodes, edges, onShowAll));
     return root;
 }

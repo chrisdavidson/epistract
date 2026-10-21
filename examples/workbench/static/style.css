@@ -1042,7 +1042,7 @@ body {
 }
 
 .dashboard-content h3 {
-  font-size: 1.1rem;
+  font-size: var(--size-body);
   font-weight: 600;
   color: #1a1a2e;
   margin: 1.5rem 0 0.75rem;
@@ -1084,6 +1084,134 @@ body {
 
 .dashboard-table tbody tr:hover {
   background: #f8fafc;
+}
+
+.dashboard-hint {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--size-label);
+  line-height: 1.5;
+  color: #666666;
+}
+
+.dashboard-link-row {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.dashboard-link-row:hover,
+.dashboard-link-row:focus-within {
+  background: #f8fafc;
+}
+
+.dashboard-link-row:active {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.dashboard-table td.dashboard-link-cell {
+  padding: 0;
+  vertical-align: middle;
+}
+
+.dashboard-link-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  min-height: 40px;
+  padding: var(--space-sm) var(--space-md);
+  background: transparent;
+  border: 0;
+  color: #1a1a1a;
+  font: inherit;
+  font-size: var(--size-label);
+  line-height: 1.5;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dashboard-link-btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.dashboard-link-label {
+  user-select: none;
+}
+
+.dashboard-link-row:hover .dashboard-link-label {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.dashboard-link-chevron {
+  margin-left: auto;
+  color: #9ca3af;
+}
+
+.dashboard-link-row:hover .dashboard-link-chevron {
+  color: #1a1a1a;
+}
+
+.dashboard-table td.dashboard-count {
+  padding: var(--space-sm) var(--space-md);
+  vertical-align: middle;
+  font-family: var(--font-data);
+  font-size: var(--size-data);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.dashboard-totals {
+  margin-top: var(--space-md);
+}
+
+.dashboard-totals-btn {
+  min-height: 36px;
+  padding: var(--space-sm) var(--space-md);
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  color: #1a1a1a;
+  font: inherit;
+  font-size: var(--size-body);
+  line-height: 1.5;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.dashboard-totals-btn strong {
+  font-family: var(--font-data);
+  font-weight: 600;
+}
+
+.dashboard-totals-btn:hover {
+  border-color: #9ca3af;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.dashboard-totals-btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.dashboard-totals-btn:active {
+  border-color: #1a1a2e;
+}
+
+.dashboard-empty__title {
+  margin: 0 0 var(--space-xs);
+  font-size: var(--size-body);
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.dashboard-empty__body {
+  margin: 0;
+  font-size: var(--size-label);
+  line-height: 1.5;
+  color: #666666;
 }
 
 .dashboard-table.compact td,
@@ -2066,7 +2194,9 @@ button.graph-focus-bar__crumb:focus-visible {
   .toggle-btn,
   .graph-edge-key-btn,
   .graph-group-row,
-  .legend-chip {
+  .legend-chip,
+  .dashboard-link-row,
+  .dashboard-totals-btn {
     transition: none;
   }
 }

@@ -224,9 +224,15 @@ function populateStarterCards(template) {
 
 // Switches to the Graph tab first (vis needs a visible container), then asks
 // graph.js to filter: detail is {types: [rawType]} or {reset: true}.
-function openGraphWith(detail) {
+// A keyboard activation (event.detail === 0) moves focus to the graph so the
+// user does not stay on a button of the hidden Dashboard.
+function openGraphWith(detail, event) {
     switchPanel('graph');
     window.dispatchEvent(new CustomEvent('graph-show-types', { detail }));
+    if (event && event.detail === 0) {
+        const container = document.getElementById('graph-container');
+        if (container) container.focus();
+    }
 }
 
 async function populateDashboard(template) {
@@ -266,8 +272,8 @@ async function populateDashboard(template) {
                 entityCounts: dashData.entity_counts,
                 totalNodes: dashData.total_nodes,
                 totalEdges: dashData.total_edges,
-                onSelectType: (type) => openGraphWith({ types: [type] }),
-                onShowAll: () => openGraphWith({ reset: true }),
+                onSelectType: (type, event) => openGraphWith({ types: [type] }, event),
+                onShowAll: (event) => openGraphWith({ reset: true }, event),
             }));
             // Custom rule findings — per-domain CUSTOM_RULES and cross-domain
             // rules both land in claims_layer.super_domain.custom_findings.
@@ -296,7 +302,9 @@ async function populateDashboard(template) {
             }
         }
     } catch (e) {
-        dashContent.innerHTML = '<p>Failed to load dashboard content.</p>';
+        const failure = document.createElement('p');
+        failure.textContent = 'Failed to load dashboard content. Reload the page to try again.';
+        dashContent.replaceChildren(failure);
     }
 }
 
