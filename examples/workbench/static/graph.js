@@ -16,7 +16,7 @@ import {
     isAnchorId, groupIterations, FIT_MARGIN, regionGeometry, placeRegionLabels,
     REGION_COLORS, REGION_LABEL_PX, REGION_PILL_PAD_PX, clampIntoRegion,
     kHop, pushFocus, popFocus, truncateFocus, setTopHops, crumbsFor, focusModeLabelIds,
-    radioTarget, FOCUS_MODE_MAX_LABELS, FOCUS_TRUNCATE_CHARS,
+    radioTarget, FOCUS_MODE_MAX_LABELS, FOCUS_TRUNCATE_CHARS, separateRegions, focusLayout, fnv1a,
 } from './grouping.js';
 
 // graph.js - Graph panel: vis.js network, search, entity type toggles
@@ -148,6 +148,9 @@ let _hintTimer = null;                    // clears the relayout failure message
 let _groupControlAttached = false;
 let focusStack = [];                      // focus mode path: [{id, hops}], the last entry is the centre
 let focusHops = 1;                        // neighbourhood size of the current focus (shared with the sidebar)
+let focusPre = null;                      // {positions, sourcesPlaced} captured before the first focus layout
+let _focusLayoutKey = null;              // signature of the focus layout last applied
+let _measureCtx = null;                  // 2d context used to measure label widths
 let focusSet = null;                      // Set of node ids shown while focused; null when not focused
 let focusLabelIds = new Set();            // focus nodes drawn with full labels
 let focusCounts = { 1: 0, 2: 0 };         // node counts for 1 and 2 hops around the centre
@@ -492,6 +495,11 @@ function fitView(ids, animation = false) {
         network.off('animationFinished', _fitShrink);
         _fitShrink = null;
     }
+    const cover = sidebarCoverPx();
+    if (cover > 0) {
+        fitBesideSidebar(fitIds, cover, animation);
+        return;
+    }
     network.fit({ nodes: fitIds, animation });
     const shrink = () => {
         network.moveTo({ scale: network.getScale() * (1 - FIT_MARGIN), animation: false });
@@ -503,6 +511,52 @@ function fitView(ids, animation = false) {
         _fitShrink = () => {
             _fitShrink = null;
             shrink();
+        };
+        network.once('animationFinished', _fitShrink);
+    }
+}
+
+// Width in px of the part of the canvas the open detail sidebar covers.
+function sidebarCoverPx() {
+    const sb = document.getElementById('graph-detail-sidebar');
+    if (!sb || !sb.classList || sb.classList.contains('graph-detail-sidebar--closed')) return 0;
+    return sb.offsetWidth || SIDEBAR_FALLBACK_PX;
+}
+
+// Fits `ids` into the canvas area the sidebar leaves uncovered.
+function fitBesideSidebar(ids, cover, animation) {
+    const container = document.getElementById('graph-container');
+    const cw = (container && container.clientWidth) || 0;
+    const ch = (container && container.clientHeight) || 0;
+    const positions = network.getPositions(ids);
+    let minX = Infinity; let maxX = -Infinity; let minY = Infinity; let maxY = -Infinity;
+    for (const id of ids) {
+        const p = positions[id];
+        if (!p) continue;
+        minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+        minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+    }
+    const availW = cw - cover;
+    if (!Number.isFinite(minX) || availW <= 2 * FIT_EDGE_PAD_PX || ch <= 2 * FIT_EDGE_PAD_PX) {
+        network.fit({ nodes: ids, animation });
+        return;
+    }
+    const spanX = Math.max(maxX - minX, 1);
+    const spanY = Math.max(maxY - minY, 1);
+    const scale = Math.min(
+        Math.min((availW - 2 * FIT_EDGE_PAD_PX) / spanX, (ch - 2 * FIT_EDGE_PAD_PX) / spanY) * (1 - FIT_MARGIN),
+        FIT_MAX_SCALE,
+    );
+    // The view position is the world point at the canvas centre; centring the
+    // nodes in the uncovered area means looking cover / 2 px to the right of them.
+    const position = { x: (minX + maxX) / 2 + cover / 2 / scale, y: (minY + maxY) / 2 };
+    network.moveTo({ position, scale, animation });
+    if (animation === false) {
+        applyScaleStyle();
+    } else {
+        _fitShrink = () => {
+            _fitShrink = null;
+            applyScaleStyle();
         };
         network.once('animationFinished', _fitShrink);
     }
@@ -532,7 +586,8 @@ function visibleMembersByGroup() {
 }
 
 function currentRegions() {
-    if (groupMode === 'none' || !network || !visNodes) return [];
+    // A focus view lays out only its own neighbourhood; group regions are not drawn then.
+    if (groupMode === 'none' || focusStack.length > 0 || !network || !visNodes) return [];
     const ids = [];
     for (const list of visibleMembersByGroup().values()) ids.push(...list);
     const positions = network.getPositions(ids) || {};
@@ -856,6 +911,32 @@ function captureDataPositions() {
     return new Map(ids.filter(id => positions[id]).map(id => [id, { x: positions[id].x, y: positions[id].y }]));
 }
 
+// After a force layout, moves whole groups apart until no two region circles
+// overlap. Members keep their relative positions, so every radius is unchanged.
+function separateGroupRegions() {
+    if (groupMode === 'none' || !network || !visNodes) return;
+    // Geometry comes from every member, shown or not, so a focus view or a
+    // filter does not change where the groups end up.
+    const ids = [...groupAssignment.keys()].filter(id => visNodes.get(id));
+    const regions = regionGeometry(currentGroups(), network.getPositions(ids) || {}, new Set(ids), groupAssignment);
+    if (regions.length < 2) return;
+    const offsets = separateRegions(regions);
+    const byGroup = new Map();
+    for (const [id, gid] of groupAssignment) {
+        if (!byGroup.has(gid)) byGroup.set(gid, []);
+        byGroup.get(gid).push(id);
+    }
+    for (const [gid, off] of offsets) {
+        if (Math.abs(off.dx) < 1e-6 && Math.abs(off.dy) < 1e-6) continue;
+        const ids = (byGroup.get(gid) || []).filter(id => visNodes.get(id));
+        const positions = network.getPositions(ids);
+        for (const id of ids) {
+            const p = positions[id];
+            if (p) network.moveNode(id, p.x + off.dx, p.y + off.dy);
+        }
+    }
+}
+
 function removeAnchors() {
     const edgeIds = visEdges.getIds().filter(isAnchorId);
     if (edgeIds.length) visEdges.remove(edgeIds);
@@ -910,9 +991,14 @@ function completeRelayout(mode) {
     }
     network.setOptions({ physics: false });
     if (mode === 'none' && !freeLayoutPositions) freeLayoutPositions = captureDataPositions();
+    separateGroupRegions();
+    // The positions a focus view would restore are stale after a relayout.
+    focusPre = null;
+    _focusLayoutKey = null;
     sourcesPlaced = false;
     if (sourcesActive()) placeSources();
     syncSourcePhysics();
+    syncFocusLayout();
     fitView(null, false);
     applyScaleStyle();
     relayoutPrev = null;
@@ -1329,6 +1415,7 @@ function buildGraph() {
         network.setOptions({ physics: false });
         // Fit first so the controller reads the real fit scale, not the
         // pre-fit one (stabilization fit is animated and lags the event).
+        separateGroupRegions();
         fitView(null, false);
         applyScaleStyle();
         if (groupMode === 'none') freeLayoutPositions = captureDataPositions();
@@ -1929,11 +2016,21 @@ function filterGraph() {
 // Focus mode (R-01, R-02). A focus is a stack of centres; the top entry's 1- or
 // 2-hop neighbourhood over the filter-eligible graph is the only part of the
 // graph shown. It is a second mask inside filterGraph(): nodes outside the set
-// are hidden, nothing is dimmed and nothing is relaid out. The walk reads the
+// are hidden and nothing is dimmed; the shown nodes are laid out afresh (and
+// put back on exit). The walk reads the
 // adjacency Map, never vis hidden flags or network.getConnected*.
 // ---------------------------------------------------------------------------
 const HOP_WORD = { 1: '1 hop', 2: '2 hops' };
 const FOCUS_ENDED_HINT_MS = 6000;
+const SIDEBAR_FALLBACK_PX = 320;         // sidebar width when it cannot be measured
+const FIT_EDGE_PAD_PX = 30;              // clear px kept between fitted nodes and the uncovered area's edge
+const FIT_MAX_SCALE = 1;                 // a fit never zooms in past 1:1
+const FOCUS_LAYOUT_FONT_PX = 13;         // label size assumed when spacing a focus layout
+const FOCUS_NODE_HALF_PX = 3;            // half the node marker height assumed in a focus label box
+const FOCUS_LABEL_LINE_PX = 16;          // label line height assumed in a focus label box
+const FOCUS_CENTRE_SCALE = 1.35;         // the centre's label box is this much wider than its measured text
+const FOCUS_CENTRE_EXTRA_PX = 14;        // and this much taller (larger marker)
+const FOCUS_VIEW_PAD_PX = 40;            // px of the viewport reserved around a focus layout
 
 function nodeName(id) {
     const n = nodeById.get(id);
@@ -1945,6 +2042,8 @@ function countText(n) {
 }
 
 function resetFocusState() {
+    focusPre = null;
+    _focusLayoutKey = null;
     focusStack = [];
     focusHops = 1;
     focusSet = null;
@@ -1998,8 +2097,113 @@ function resolveFocus(eligible) {
     focusLabelIds = focusModeLabelIds(top.id, focusSet, one, inSetDegree, FOCUS_MODE_MAX_LABELS);
 }
 
+// Width in px of `text` at the focus label size.
+function labelWidthPx(text) {
+    if (_measureCtx === null && typeof document.createElement === 'function') {
+        const canvas = document.createElement('canvas');
+        _measureCtx = (canvas && typeof canvas.getContext === 'function' && canvas.getContext('2d')) || false;
+    }
+    if (_measureCtx) {
+        _measureCtx.font = `${FOCUS_LAYOUT_FONT_PX}px sans-serif`;
+        return _measureCtx.measureText(text).width;
+    }
+    return text.length * FOCUS_LAYOUT_FONT_PX * 0.55;
+}
+
+function focusSortKey(id) {
+    const n = nodeById.get(id);
+    return `${groupAssignment.get(id) || ''}\u0000${(n && n.entity_type) || ''}\u0000${nodeName(id)}`;
+}
+
+// While focused the neighbourhood is laid out in label-sized rows around the
+// centre (see focusLayout); the positions from before the first focus are kept and put
+// back exactly when focus ends. Physics is already off after any layout.
+function syncFocusLayout() {
+    if (!network || !visNodes) return;
+    if (focusStack.length === 0 || focusSet === null) {
+        restoreFocusLayout();
+        return;
+    }
+    const top = focusStack[focusStack.length - 1];
+    const eligible = eligibleNodeSet(filterContext());
+    const ring1Ids = [...focusNeighbourhood(top.id, 1, eligible)].filter(id => id !== top.id && focusSet.has(id));
+    const ring1Set = new Set(ring1Ids);
+    const ring2Ids = [...focusSet].filter(id => id !== top.id && !ring1Set.has(id));
+    const shownSources = [...sourceNodeIds].filter(id => {
+        const rec = visNodes.get(id);
+        return rec && rec.hidden !== true;
+    }).sort();
+    const key = fnv1a([top.id, top.hops, [...focusSet].sort().join(','), shownSources.join(',')].join('|'));
+    if (key === _focusLayoutKey) return;
+    _focusLayoutKey = key;
+    if (!focusPre) focusPre = { positions: captureDataPositions(), sourcesPlaced };
+
+    const keyed = id => ({ id, key: focusSortKey(id) });
+    const ring1 = ring1Ids.map(keyed).sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : (a.id < b.id ? -1 : 1)));
+    const rank = new Map(ring1.map((it, i) => [it.id, i]));
+    const ring2 = ring2Ids.map(id => {
+        let parent = null;
+        for (const e of adjacency.get(id) || []) {
+            const other = e.source === id ? e.target : e.source;
+            if (rank.has(other) && focusEdgeEligible(e) && (parent === null || rank.get(other) < rank.get(parent))) parent = other;
+        }
+        return { ...keyed(id), parent };
+    });
+    const boxes = new Map();
+    for (const id of focusSet) {
+        // Every focus node may show a label at the fit scale: the full name for
+        // the labelled set, the resting truncation for the rest.
+        const text = truncateLabel(nodeName(id), focusLabelIds.has(id) ? FOCUS_TRUNCATE_CHARS : undefined);
+        boxes.set(id, {
+            w: Math.max(labelWidthPx(text), 2 * FOCUS_NODE_HALF_PX) + 4,
+            h: 2 * FOCUS_NODE_HALF_PX + FOCUS_LABEL_LINE_PX,
+            dy: FOCUS_LABEL_LINE_PX / 2,
+        });
+    }
+    // The centre is drawn larger (bigger marker, bigger label) than its neighbours.
+    const centreBox = boxes.get(top.id);
+    boxes.set(top.id, {
+        w: Math.round(centreBox.w * FOCUS_CENTRE_SCALE),
+        h: centreBox.h + FOCUS_CENTRE_EXTRA_PX,
+        dy: centreBox.dy + FOCUS_CENTRE_EXTRA_PX / 2,
+    });
+    const container = document.getElementById('graph-container');
+    const sb = document.getElementById('graph-detail-sidebar');
+    const cover = (sb && sb.offsetWidth) || SIDEBAR_FALLBACK_PX;
+    const availW = Math.max(((container && container.clientWidth) || 0) - cover - FOCUS_VIEW_PAD_PX, 200);
+    const availH = Math.max(((container && container.clientHeight) || 0) - FOCUS_VIEW_PAD_PX, 200);
+    const layout = focusLayout({ centerId: top.id, ring1, ring2, boxes, aspect: availW / availH });
+    for (const [id, p] of layout) {
+        if (visNodes.get(id)) network.moveNode(id, p.x, p.y);
+    }
+    // Sources have no labels: each sits at its focused neighbours' centre.
+    shownSources.forEach((id, index) => {
+        let sx = 0; let sy = 0; let n = 0;
+        for (const nb of sourceNeighbours.get(id) || []) {
+            const p = layout.get(nb);
+            if (!p) continue;
+            sx += p.x; sy += p.y; n += 1;
+        }
+        if (n === 0) return;
+        network.moveNode(id, sx / n + ((index % 7) - 3) * 12, sy / n + ((Math.floor(index / 7) % 7) - 3) * 12);
+    });
+}
+
+function restoreFocusLayout() {
+    _focusLayoutKey = null;
+    if (!focusPre) return;
+    const pre = focusPre;
+    focusPre = null;
+    for (const [id, p] of pre.positions) {
+        if (visNodes.get(id)) network.moveNode(id, p.x, p.y);
+    }
+    sourcesPlaced = pre.sourcesPlaced;
+    if (!sourcesPlaced && sourcesActive()) placeSources();
+}
+
 // Runs after filterGraph() wrote the visibility: labels, bar and event.
 function finishFocusUpdate(previousLabels) {
+    syncFocusLayout();
     refreshFocusLabels(previousLabels);
     syncFocusBar();
     if (focusEndedNote !== null) {

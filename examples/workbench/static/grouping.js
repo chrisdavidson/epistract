@@ -1,7 +1,7 @@
 // grouping.js - pure layout helpers for the grouped graph (no DOM, no vis).
 //
 // Exports: fnv1a, clampIntoRegion, regionGeometry, placeRegionLabels, groupIterations, isAnchorId, packGroups, seedInside,
-// anchorNodeSpecs, anchorEdgeSpecs, dataEdgeLengths and the tuning constants
+// anchorNodeSpecs, anchorEdgeSpecs, dataEdgeLengths, separateRegions, focusLayout and the tuning constants
 // below. graph.js wires these into vis-network: each group gets a hidden fixed
 // anchor node, every member is tied to its anchor by hidden spring edges, and
 // members start inside their group's circle, so the force layout settles into
@@ -389,4 +389,131 @@ export function radioTarget(key, values, current) {
         default:
             return undefined;
     }
+}
+
+// ---------------------------------------------------------------------------
+// Region separation and focus layout
+// ---------------------------------------------------------------------------
+export const REGION_SEPARATION_GAP = 24;           // minimum world-unit gap kept between two region circles
+const SEPARATION_MAX_ITERATIONS = 400;              // upper bound on separation passes
+export const FOCUS_BOX_GAP = 6;                     // px of clear space kept between two focus label boxes
+const FOCUS_ROW_FILL = 1.15;                         // row width slack over the ideal packed area when sizing rows
+const FOCUS_DEFAULT_BOX = { w: 30, h: 28, dy: 8 };  // box used for a node with no measured box
+
+// Pushes overlapping region circles apart along the line between their
+// centres until none overlap (gap included). regions: Array<{id, cx, cy, r}>.
+// Returns Map(id -> {dx, dy}) of the translation each region needs; whole
+// groups move rigidly, so no radius changes. Deterministic: pairs are visited
+// in id order and coincident centres separate along an id-derived direction.
+export function separateRegions(regions, gap = REGION_SEPARATION_GAP, maxIterations = SEPARATION_MAX_ITERATIONS) {
+    const items = [...regions]
+        .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+        .map(r => ({ id: r.id, x: r.cx, y: r.cy, r: r.r, dx: 0, dy: 0 }));
+    for (let iter = 0; iter < maxIterations; iter++) {
+        let moved = false;
+        for (let i = 0; i < items.length; i++) {
+            for (let j = i + 1; j < items.length; j++) {
+                const a = items[i];
+                const b = items[j];
+                const need = a.r + b.r + gap;
+                let ex = b.x - a.x;
+                let ey = b.y - a.y;
+                let d = Math.hypot(ex, ey);
+                if (d >= need) continue;
+                if (d < 1e-6) {
+                    const angle = (fnv1a(a.id + '|' + b.id) / UINT32_RANGE) * 2 * Math.PI;
+                    ex = Math.cos(angle);
+                    ey = Math.sin(angle);
+                    d = 1;
+                }
+                const push = (need - d) / 2 + 0.01;
+                const ux = ex / d;
+                const uy = ey / d;
+                a.x -= ux * push; a.y -= uy * push; a.dx -= ux * push; a.dy -= uy * push;
+                b.x += ux * push; b.y += uy * push; b.dx += ux * push; b.dy += uy * push;
+                moved = true;
+            }
+        }
+        if (!moved) break;
+    }
+    return new Map(items.map(i => [i.id, { dx: i.dx, dy: i.dy }]));
+}
+
+// Positions for a focus view, in px, with the centre node at the origin.
+// Label boxes (wide and short) are packed into horizontal rows that stack
+// outward from the centre row, alternating below and above it, so the 1-hop
+// nodes occupy the rows nearest the centre and the 2-hop nodes start on fresh
+// rows outside them. Nodes keep the order given (callers sort 1-hop nodes by
+// group, entity type and name, and 2-hop nodes by their parent's position), so
+// related nodes sit side by side. The row width follows the viewport aspect
+// (width / height) so the result fills the view without shrinking it.
+//   ring1: Array<{id, key}>; ring2: Array<{id, key, parent}>
+//   boxes: Map(id -> {w, h, dy}) label box size in px, centred dy below the node point
+// Returns Map(id -> {x, y}). Pure and deterministic; no two boxes overlap.
+export function focusLayout({ centerId, ring1, ring2 = [], boxes, aspect = 1.6, gap = FOCUS_BOX_GAP }) {
+    const boxOf = id => (boxes && boxes.get(id)) || FOCUS_DEFAULT_BOX;
+    const byKey = (a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    const out = new Map();
+    const first = [...ring1].sort(byKey);
+    const order1 = new Map(first.map((it, i) => [it.id, i]));
+    const orderOf = id => (order1.has(id) ? order1.get(id) : -1);
+    const second = [...ring2].sort((a, b) => (orderOf(a.parent) - orderOf(b.parent)) || byKey(a, b));
+
+    const cBox = boxOf(centerId);
+    const all = [{ id: centerId }, ...first, ...second];
+    const maxH = all.reduce((m, it) => Math.max(m, boxOf(it.id).h), 0);
+    const pitch = maxH + gap / 2;
+    const area = all.reduce((sum, it) => sum + (boxOf(it.id).w + gap) * pitch, 0);
+    const maxW = all.reduce((m, it) => Math.max(m, boxOf(it.id).w + gap), 0);
+    const rowWidth = Math.max(maxW, Math.sqrt(area * Math.max(aspect, 0.5) * FOCUS_ROW_FILL));
+
+    // Row k sits at y = rowY(k): 0, +1, -1, +2, -2, ... times the pitch.
+    const rowY = k => (k === 0 ? 0 : (k % 2 === 1 ? (k + 1) / 2 : -k / 2)) * pitch;
+    let row = 0;
+    const place = (items, withCentre) => {
+        let i = 0;
+        while (i < items.length || withCentre) {
+            const line = [];
+            let width = 0;
+            if (withCentre) {
+                withCentre = false;
+                width = cBox.w + gap;
+            }
+            while (i < items.length && (line.length === 0 && width === 0 || width + boxOf(items[i].id).w + gap <= rowWidth)) {
+                width += boxOf(items[i].id).w + gap;
+                line.push(items[i]);
+                i += 1;
+            }
+            if (row === 0) {
+                // The centre node stays at x = 0; the row's items split around it.
+                const half = Math.ceil(line.length / 2);
+                const left = line.slice(0, half);
+                const right = line.slice(half);
+                let x = -(cBox.w / 2 + gap);
+                for (let j = left.length - 1; j >= 0; j--) {
+                    const b = boxOf(left[j].id);
+                    out.set(left[j].id, { x: x - b.w / 2, y: 0 });
+                    x -= b.w + gap;
+                }
+                x = cBox.w / 2 + gap;
+                for (const it of right) {
+                    const b = boxOf(it.id);
+                    out.set(it.id, { x: x + b.w / 2, y: 0 });
+                    x += b.w + gap;
+                }
+            } else {
+                let x = -(width - gap) / 2;
+                for (const it of line) {
+                    const b = boxOf(it.id);
+                    out.set(it.id, { x: x + b.w / 2, y: rowY(row) });
+                    x += b.w + gap;
+                }
+            }
+            row += 1;
+        }
+    };
+    out.set(centerId, { x: 0, y: 0 });
+    place(first, true);
+    if (second.length > 0) place(second, false);
+    return out;
 }

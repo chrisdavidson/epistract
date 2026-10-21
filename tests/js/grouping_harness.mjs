@@ -311,6 +311,54 @@ check('groupIterations(1738) = 150', G.groupIterations(1738) === 150);
         && G.radioTarget(' ', ['a'], 'zz') === null);
 }
 
+// --- separateRegions -----------------------------------------------------
+{
+    const regs = [
+        { id: 'a', cx: 0, cy: 0, r: 100 }, { id: 'b', cx: 50, cy: 0, r: 100 },
+        { id: 'c', cx: 20, cy: 30, r: 80 }, { id: 'd', cx: 0, cy: 0, r: 40 }, { id: 'far', cx: 2000, cy: 0, r: 50 },
+    ];
+    const offs = G.separateRegions(regs);
+    const moved = regs.map(r => ({ ...r, cx: r.cx + offs.get(r.id).dx, cy: r.cy + offs.get(r.id).dy }));
+    let overlaps = 0;
+    for (let i = 0; i < moved.length; i++) for (let j = i + 1; j < moved.length; j++) {
+        if (Math.hypot(moved[i].cx - moved[j].cx, moved[i].cy - moved[j].cy) < moved[i].r + moved[j].r) overlaps++;
+    }
+    check('separateRegions leaves no overlapping pair', overlaps === 0);
+    check('separateRegions leaves a distant region alone', offs.get('far').dx === 0 && offs.get('far').dy === 0);
+    check('separateRegions is deterministic', JSON.stringify([...G.separateRegions(regs)]) === JSON.stringify([...offs]));
+    check('separateRegions with no overlap returns zero offsets', [...G.separateRegions([{ id: 'x', cx: 0, cy: 0, r: 10 }, { id: 'y', cx: 500, cy: 0, r: 10 }]).values()].every(o => o.dx === 0 && o.dy === 0));
+}
+
+// --- focusLayout ---------------------------------------------------------
+{
+    const boxes = new Map();
+    const ring1 = []; const ring2 = [];
+    const width = i => 60 + (G.fnv1a(`w${i}`) % 200);
+    for (let i = 0; i < 59; i++) { boxes.set(`a${i}`, { w: width(i), h: 24, dy: 8 }); ring1.push({ id: `a${i}`, key: `g${i % 5}|${i}` }); }
+    for (let i = 0; i < 80; i++) { boxes.set(`b${i}`, { w: width(i + 500), h: 24, dy: 8 }); ring2.push({ id: `b${i}`, key: `k${i}`, parent: `a${i % 59}` }); }
+    boxes.set('c', { w: 100, h: 24, dy: 8 });
+    const run = () => G.focusLayout({ centerId: 'c', ring1, ring2, boxes, aspect: 1.5 });
+    const out = run();
+    check('focusLayout places every node once', out.size === 1 + 59 + 80);
+    check('focusLayout puts the centre at the origin', out.get('c').x === 0 && out.get('c').y === 0);
+    let overlaps = 0;
+    const ids = [...out.keys()];
+    for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) {
+        const pa = out.get(ids[i]); const pb = out.get(ids[j]);
+        const ba = boxes.get(ids[i]); const bb = boxes.get(ids[j]);
+        if (Math.abs(pa.x - pb.x) < (ba.w + bb.w) / 2 && Math.abs((pa.y + ba.dy) - (pb.y + bb.dy)) < (ba.h + bb.h) / 2) overlaps++;
+    }
+    check('focusLayout boxes never overlap', overlaps === 0);
+    check('focusLayout is deterministic', JSON.stringify([...run()]) === JSON.stringify([...out]));
+    const meanAbsY = list => list.reduce((s, it) => s + Math.abs(out.get(it.id).y), 0) / list.length;
+    check('focusLayout keeps 1-hop nodes nearer the centre than 2-hop nodes', meanAbsY(ring1) < meanAbsY(ring2));
+    const rowsOf = list => new Set(list.map(it => out.get(it.id).y));
+    const shared = [...rowsOf(ring1)].filter(y => rowsOf(ring2).has(y));
+    check('focusLayout starts 2-hop nodes on rows of their own', shared.length === 0);
+    const single = G.focusLayout({ centerId: 'c', ring1: [], ring2: [], boxes });
+    check('focusLayout with no neighbours is just the centre', single.size === 1 && single.get('c').x === 0);
+}
+
 // --- source hygiene ------------------------------------------------------
 const text = readFileSync(groupingPath, 'utf8');
 for (const token of ['document', 'window', 'Math.random', 'createElementNS', '.innerHTML =', 'PALETTE']) {
