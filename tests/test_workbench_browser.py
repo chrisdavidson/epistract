@@ -29,6 +29,15 @@ GLP1 = ROOT / "tests" / "corpora" / "06_glp1_landscape" / "output-v3"
 GLP1_FILES = ("graph_data.json", "communities.json", "claims_layer.json")
 
 
+def _log_tail(path: Path, limit: int = 2000) -> str:
+    """Return the end of a captured process log for a failure message."""
+    try:
+        text = path.read_text(errors="replace")
+    except OSError:
+        return "(no log captured)"
+    return text[-limit:] or "(log is empty)"
+
+
 @pytest.fixture(scope="module")
 def workbench_url(tmp_path_factory):
     pytest.importorskip("uvicorn")
@@ -38,6 +47,10 @@ def workbench_url(tmp_path_factory):
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
+    # The tools are present (skipif/importorskip above), so a server that does
+    # not come up is a regression: fail with its log rather than skip.
+    log_path = work / "server.log"
+    log = log_path.open("w")
     proc = subprocess.Popen(
         [
             sys.executable,
@@ -49,8 +62,8 @@ def workbench_url(tmp_path_factory):
             "127.0.0.1",
         ],
         cwd=ROOT,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stdout=log,
+        stderr=subprocess.STDOUT,
     )
     try:
         url = f"http://127.0.0.1:{port}"
@@ -58,14 +71,17 @@ def workbench_url(tmp_path_factory):
         up = False
         while time.time() < deadline and not up:
             if proc.poll() is not None:
-                pytest.skip("workbench server exited before answering")
+                pytest.fail(
+                    f"workbench server exited (code {proc.returncode}) before answering:\n"
+                    f"{_log_tail(log_path)}"
+                )
             try:
                 with urllib.request.urlopen(f"{url}/api/template", timeout=1) as resp:
                     up = resp.status == 200
             except OSError:
                 time.sleep(0.3)
         if not up:
-            pytest.skip("workbench server did not answer in time")
+            pytest.fail(f"workbench server did not answer in time:\n{_log_tail(log_path)}")
         yield url + "/"
     finally:
         proc.terminate()
@@ -74,11 +90,14 @@ def workbench_url(tmp_path_factory):
         except subprocess.TimeoutExpired:
             proc.kill()
             proc.wait()
+        log.close()
 
 
 @pytest.fixture(scope="module")
 def chromium_port(tmp_path_factory):
     profile = tmp_path_factory.mktemp("chromium-profile")
+    log_path = tmp_path_factory.mktemp("chromium-log") / "chromium.log"
+    log = log_path.open("w")
     proc = subprocess.Popen(
         [
             CHROMIUM,
@@ -89,18 +108,21 @@ def chromium_port(tmp_path_factory):
             f"--user-data-dir={profile}",
             "about:blank",
         ],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stdout=log,
+        stderr=subprocess.STDOUT,
     )
     try:
         port_file = profile / "DevToolsActivePort"
         deadline = time.time() + 30
         while time.time() < deadline and not port_file.exists():
             if proc.poll() is not None:
-                pytest.skip("chromium exited before opening a debugging port")
+                pytest.fail(
+                    f"chromium exited (code {proc.returncode}) before opening a debugging "
+                    f"port:\n{_log_tail(log_path)}"
+                )
             time.sleep(0.2)
         if not port_file.exists():
-            pytest.skip("chromium did not open a debugging port")
+            pytest.fail(f"chromium did not open a debugging port:\n{_log_tail(log_path)}")
         yield int(port_file.read_text().splitlines()[0])
     finally:
         proc.terminate()
@@ -109,6 +131,7 @@ def chromium_port(tmp_path_factory):
         except subprocess.TimeoutExpired:
             proc.kill()
             proc.wait()
+        log.close()
 
 
 def _run(port: int, url: str, mode: str) -> dict:
