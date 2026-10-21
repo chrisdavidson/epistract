@@ -808,7 +808,7 @@ function trimPeriod(text) {
 function groupModeState(mode) {
     if (mode === 'none') return { enabled: true, reason: '' };
     if (!groupsPayload || typeof groupsPayload !== 'object') {
-        return { enabled: false, reason: GROUP_LOAD_FAILURE };
+        return { enabled: false, reason: callbacks.groupLoadFailure || GROUP_LOAD_FAILURE };
     }
     const entry = groupsPayload.modes && groupsPayload.modes[mode];
     const usable = entry && entry.available === true

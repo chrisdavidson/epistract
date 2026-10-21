@@ -98,13 +98,6 @@ def test_compact_layout_filters_tab_order_print_and_motion(chromium_port, glp1_h
 # Failure, partial-data and empty states
 # ---------------------------------------------------------------------------
 
-NO_JS_TITLE = "JavaScript is required"
-NO_JS_BODY = (
-    "This graph viewer draws the graph in your browser. Turn on JavaScript for "
-    "this file and reload. Nothing is sent over the network."
-)
-
-
 def _doctored_page(glp1_dir: Path, mode: str) -> str:
     view = static_export.build_view_data(glp1_dir)
     payload = dict(view["payload"])
@@ -156,24 +149,9 @@ def test_standalone_empty_graph_state(chromium_port, tmp_path):
     assert result["passed"] >= 3, result
 
 
-def test_noscript_card_shows_with_javascript_off(glp1_html):
-    text = glp1_html.read_text(encoding="utf-8")
-    assert "<noscript>" in text
-    proc = subprocess.run(
-        [
-            CHROMIUM,
-            "--headless=new",
-            "--no-sandbox",
-            "--disable-gpu",
-            "--blink-settings=scriptEnabled=false",
-            "--dump-dom",
-            glp1_html.as_uri(),
-        ],
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    dom = proc.stdout
-    assert "<h1" in dom, dom[:300]
-    assert NO_JS_TITLE in dom and NO_JS_BODY in dom
-    assert "Failed to load" not in dom
+def test_noscript_card_shows_with_javascript_off(chromium_port, glp1_html, tmp_path):
+    assert "<noscript>" in glp1_html.read_text(encoding="utf-8")
+    shots = tmp_path / "shots"
+    shots.mkdir()
+    result = _run(chromium_port, glp1_html.as_uri(), "no-js", shots)
+    assert result["passed"] >= 4, result

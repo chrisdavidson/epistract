@@ -144,7 +144,71 @@ function wireFilters({ controls, button, panel, badge, glyph }) {
     updateBadge();
 }
 
-const filterParts = arrangeControls();
-await initGraph({});
-window.dispatchEvent(new CustomEvent('graph-panel-opened'));
-if (filterParts) wireFilters(filterParts);
+function makeCard(heading, body) {
+    const card = document.createElement('div');
+    card.className = 'static-card';
+    const h = document.createElement('h2');
+    h.textContent = heading;
+    const p = document.createElement('p');
+    p.textContent = body;
+    card.append(h, p);
+    return card;
+}
+
+// Reads the embedded graph payload through the same fetch shim the graph uses.
+async function embeddedNodeCount() {
+    try {
+        const resp = await fetch('/api/graph');
+        const data = await resp.json();
+        return Array.isArray(data.nodes) ? data.nodes.length : -1;
+    } catch (e) {
+        return -1;
+    }
+}
+
+async function start() {
+    const keys = Array.isArray(window.__epistractKeys) ? window.__epistractKeys : [];
+    if (!keys.includes('/api/graph')) {
+        // Details only on the console; the card never echoes data or errors.
+        console.error('epistract: the graph payload is missing or unreadable in this file');
+        window.__epistractShowCard(
+            'The data in this file is missing or damaged. Run /epistract:view again to regenerate graph.html.');
+        window.__epistractReady = true;
+        return;
+    }
+
+    const filterParts = arrangeControls();
+    await initGraph({
+        groupLoadFailure: 'Grouping data is missing from this file. Run /epistract:view again.',
+    });
+    window.__epistractReady = true;
+    window.dispatchEvent(new CustomEvent('graph-panel-opened'));
+    if (filterParts) wireFilters(filterParts);
+
+    if (!keys.includes('/api/graph/entity-types')) {
+        const header = document.querySelector('.static-header');
+        if (header) {
+            const status = document.createElement('p');
+            status.className = 'static-status';
+            status.setAttribute('role', 'status');
+            status.textContent = 'Some display data is missing from this file. Run /epistract:view again to regenerate it.';
+            header.appendChild(status);
+        }
+    }
+
+    if ((await embeddedNodeCount()) === 0) {
+        // initGraph does not wait for the graph build; the data is embedded, so
+        // the build finishes within the same task. Yield once so the empty card
+        // replaces the (blank) canvas instead of being drawn over by it.
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        const container = byId('graph-container');
+        if (container) {
+            container.removeAttribute('aria-busy');
+            container.replaceChildren(makeCard(
+                'No nodes to show',
+                'This graph has no nodes yet. Run /epistract:ingest to add documents, then run /epistract:view again.'));
+        }
+    }
+}
+
+await start();

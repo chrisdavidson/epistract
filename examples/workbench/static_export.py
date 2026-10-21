@@ -54,9 +54,12 @@ FETCH_SHIM = """(function () {
   try {
     data = JSON.parse(document.getElementById('epistract-data').textContent);
   } catch (e) {
-    console.error('epistract: embedded graph data is unreadable', e);
+    data = {};
   }
   var has = Object.prototype.hasOwnProperty;
+  // The embedded URL keys, so the page can tell a missing payload from a damaged
+  // one without reading the data itself. Empty when the island cannot be parsed.
+  window.__epistractKeys = Object.keys(data);
   window.fetch = function (url) {
     var key = String(url);
     if (has.call(data, key)) {
@@ -67,6 +70,49 @@ FETCH_SHIM = """(function () {
       json: function () { return Promise.resolve({}); } });
   };
 })();"""
+
+# Classic script that runs before the module. It owns the failure card (so the
+# copy lives in one place) and shows it when the module script cannot run. Literal
+# text, createElement and textContent only; nothing from the data reaches it.
+FAILURE_FALLBACK = """(function () {
+  var shown = false;
+  window.__epistractReady = false;
+  window.__epistractShowCard = function (body) {
+    if (shown) return;
+    shown = true;
+    var main = document.getElementById('static-main');
+    if (!main) return;
+    var card = document.createElement('div');
+    card.className = 'static-card';
+    card.setAttribute('role', 'alert');
+    var heading = document.createElement('h2');
+    heading.textContent = "This graph couldn't be loaded";
+    var text = document.createElement('p');
+    text.textContent = body;
+    card.appendChild(heading);
+    card.appendChild(text);
+    main.replaceChildren(card);
+  };
+  function onFailure() {
+    if (window.__epistractReady === true) return;
+    window.__epistractShowCard(
+      'Your browser could not run the graph script. Try a current version of Chrome, ' +
+      'Edge, Firefox or Safari, or regenerate the file with /epistract:view.');
+  }
+  window.addEventListener('error', onFailure);
+  window.addEventListener('unhandledrejection', onFailure);
+})();"""
+
+NOSCRIPT_HEAD = "<noscript><style>#side-panel{display:none}</style></noscript>\n"
+NOSCRIPT_CARD = (
+    "<noscript>"
+    '<div class="static-card">'
+    "<h2>JavaScript is required</h2>"
+    "<p>This graph viewer draws the graph in your browser. Turn on JavaScript for "
+    "this file and reload. Nothing is sent over the network.</p>"
+    "</div>"
+    "</noscript>\n"
+)
 
 SKIP_LINK = '<a class="static-skip" href="#graph-container">Skip to graph</a>\n'
 
@@ -310,6 +356,7 @@ def build_static_html(
         '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
         f"<title>{safe_title} - Epistract</title>\n"
         f"<style>\n{_inline_css()}\n</style>\n"
+        f"{NOSCRIPT_HEAD}"
         "</head>\n"
         '<body class="static-view">\n'
         f"{SKIP_LINK}"
@@ -319,9 +366,11 @@ def build_static_html(
         f"{_notice(subset)}"
         '<main id="static-main" class="static-main">\n'
         f'<aside class="side-panel open" id="side-panel">{panel}</aside>\n'
+        f"{NOSCRIPT_CARD}"
         "</main>\n"
         f'<script type="application/json" id="epistract-data">{json_for_script(payload)}</script>\n'
         f"<script>\n{FETCH_SHIM}\n</script>\n"
+        f"<script>\n{FAILURE_FALLBACK}\n</script>\n"
         f"<script>\n{vis}\n</script>\n"
         f'<script type="module">\n{bundle}\n</script>\n'
         "</body>\n"

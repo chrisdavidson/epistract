@@ -376,16 +376,37 @@ async function emptyGraph() {
   await s.done();
 }
 
+async function noJs() {
+  const s = await session();
+  await s.viewport(1440, 1000);
+  await s.send('Emulation.setScriptExecutionDisabled', { value: true });
+  await s.send('Page.navigate', { url: URL_ });
+  await sleep(2000);
+  const st = await s.ev(`(() => { const card = document.querySelector('main .static-card');
+    const side = document.getElementById('side-panel');
+    return { h1: (document.querySelector('.static-header h1') || {}).textContent,
+      heading: card && card.querySelector('h2') ? card.querySelector('h2').textContent : null,
+      body: card && card.querySelector('p') ? card.querySelector('p').textContent : null,
+      cardVisible: card ? card.getBoundingClientRect().height > 0 : false,
+      sideDisplay: side ? getComputedStyle(side).display : 'absent' }; })()`);
+  check('no-js: header title shows', Boolean(st.h1), st);
+  check('no-js: card heading', st.heading === 'JavaScript is required', st);
+  check('no-js: card body', st.body === 'This graph viewer draws the graph in your browser. Turn on JavaScript for this file and reload. Nothing is sent over the network.', st.body);
+  check('no-js: card visible and empty panel hidden', st.cardVisible && st.sideDisplay === 'none', st);
+  await s.shot('phase5-no-js.png');
+  await s.done();
+}
+
 if (MODE === 'layout') {
   try {
     await layout();
   } catch (err) {
     check('script ran to completion', false, String(err && err.message).slice(0, 200));
   }
-} else if (['no-graph', 'bad-json', 'script-error', 'no-groups', 'no-display', 'empty'].includes(MODE)) {
+} else if (['no-graph', 'bad-json', 'script-error', 'no-groups', 'no-display', 'empty', 'no-js'].includes(MODE)) {
   try {
     const run = { 'no-graph': brokenPayload, 'bad-json': brokenPayload, 'script-error': scriptError,
-      'no-groups': noGroups, 'no-display': noDisplay, empty: emptyGraph }[MODE];
+      'no-groups': noGroups, 'no-display': noDisplay, empty: emptyGraph, 'no-js': noJs }[MODE];
     await run(MODE);
   } catch (err) {
     check('script ran to completion', false, String(err && err.message).slice(0, 200));
