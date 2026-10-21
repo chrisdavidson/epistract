@@ -11,6 +11,9 @@
 // complete color objects restored after a neighbourhood highlight is cleared.
 // argv[2] = "fit" fires the recorded stabilization handler at scale 0.1375 and
 // prints {fitBeforeFont, minLabelPx, minNodePx, minEdgePx, edgeIdsAreStrings}.
+// argv[2] = "groups" serves a /api/graph/groups payload and prints the grouped
+// default build facts (anchors, iterations, fit set, anchor edges after a
+// filter). Every other mode gets a 404 there and builds ungrouped.
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -78,29 +81,61 @@ const calls = [];
 let order = 0;
 class DataSet {
   constructor(items) { datasets.push(this); this.items = new Map(items.map((i) => [i.id ?? Math.random(), { ...i }])); }
+  get length() { return this.items.size; }
+  add(us) {
+    for (const u of [].concat(us)) {
+      calls.push({ kind: 'add', order: order++, u: JSON.parse(JSON.stringify(u)) });
+      this.items.set(u.id, { ...u });
+    }
+  }
+  remove(ids) {
+    for (const id of [].concat(ids)) {
+      const key = typeof id === 'object' && id !== null ? id.id : id;
+      calls.push({ kind: 'remove', order: order++, id: key });
+      this.items.delete(key);
+    }
+  }
   update(us) {
     for (const u of [].concat(us)) {
       calls.push({ kind: 'update', order: order++, u: JSON.parse(JSON.stringify(u)) });
       this.items.set(u.id, { ...(this.items.get(u.id) || {}), ...u });
     }
   }
-  get(id) { return id === undefined ? [...this.items.values()] : this.items.get(id); }
+  get(arg) {
+    if (arg === undefined) return [...this.items.values()];
+    if (typeof arg === 'function') return [...this.items.values()].filter(arg);
+    if (arg && typeof arg === 'object') {
+      const all = [...this.items.values()];
+      return typeof arg.filter === 'function' ? all.filter(arg.filter) : all;
+    }
+    return this.items.get(arg);
+  }
   getIds() { return [...this.items.keys()]; }
   forEach(fn) { this.items.forEach((v) => fn(v)); }
 }
 // Network: every method is a no-op; getScale/getPositions return sane values.
+let networkOptions = null;
+const networkCalls = [];
 class Network {
-  constructor() {
+  constructor(container, data, options) {
+    networkOptions = options;
     return new Proxy(this, {
       get(target, prop) {
         if (prop === 'getScale') return () => (mode === 'fit' ? FIT_SCALE : 1);
         if (prop === 'on' || prop === 'once') {
           return (event, fn) => { (handlers.get(event) || handlers.set(event, []).get(event)).push(fn); };
         }
+        if (prop === 'off') return () => undefined;
         if (prop === 'fit') {
           return (opts) => { calls.push({ kind: 'fit', order: order++, opts }); };
         }
-        if (prop === 'getPositions') return () => ({});
+        if (prop === 'setOptions' || prop === 'stabilize' || prop === 'moveTo' || prop === 'moveNode') {
+          return (...args) => { networkCalls.push({ kind: String(prop), args }); };
+        }
+        if (prop === 'getPositions') {
+          if (mode !== 'groups') return () => ({});
+          return (ids) => Object.fromEntries((ids || []).map((id, i) => [id, { x: i * 10, y: i * 5 }]));
+        }
         if (prop === 'getSelectedNodes') return () => [];
         if (prop === 'body') return { data: { nodes: new DataSet([]) } };
         if (prop === 'then') return undefined;
@@ -119,7 +154,8 @@ globalThis.window = {
   innerHeight: 800,
 };
 
-const withSources = mode === 'sources';
+const isGroups = mode === 'groups';
+const withSources = mode === 'sources' || isGroups;
 const FIT_NODES = [{ id: 'hub', name: 'Hub compound', entity_type: 'COMPOUND' }];
 const FIT_EDGES = [];
 for (let i = 0; i < 90; i++) {
@@ -152,9 +188,18 @@ const NODES = isEdges ? EDGE_NODES : mode === 'fit' ? FIT_NODES : [
   { id: 'a', name: 'Aspirin', entity_type: 'COMPOUND' },
   { id: 'b', name: 'Diabetes', entity_type: 'DISEASE' },
   { id: 'c', name: 'Mystery', entity_type: null },
+  ...(isGroups ? [{ id: 'e', name: 'Empagliflozin', entity_type: 'COMPOUND' }] : []),
   ...(withSources ? [{ id: 'd1', name: 'Doc one', entity_type: 'DOCUMENT' }] : []),
 ];
-const EDGES = isEdges ? EDGE_EDGES : mode === 'fit' ? FIT_EDGES : withSources
+const EDGES = isEdges ? EDGE_EDGES : mode === 'fit' ? FIT_EDGES : isGroups
+  ? [
+    { source: 'a', target: 'd1', relation_type: 'MENTIONED_IN' },
+    { source: 'e', target: 'd1', relation_type: 'MENTIONED_IN' },
+    { source: 'b', target: 'd1', relation_type: 'MENTIONED_IN' },
+    { source: 'a', target: 'b', relation_type: 'TREATS' },
+    { source: 'a', target: 'e', relation_type: 'TREATS' },
+  ]
+  : withSources
   ? [
     { source: 'a', target: 'd1', relation_type: 'MENTIONED_IN' },
     { source: 'a', target: 'b', relation_type: 'TREATS' },
@@ -190,6 +235,23 @@ const DISPLAY = {
   },
 };
 
+const GROUPS_PAYLOAD = {
+  default: 'cluster',
+  modes: {
+    cluster: {
+      available: true,
+      reason: null,
+      groups: [
+        { id: 'c1', label: 'Glycemic control', full_label: 'Glycemic control: a and e', size: 2 },
+        { id: 'c2', label: 'Diabetes', full_label: 'Diabetes', size: 1 },
+        { id: 'other', label: 'Unclustered', full_label: 'Unclustered', size: 1 },
+      ],
+      assignment: { a: 'c1', e: 'c1', b: 'c2', c: 'other', d1: 'c1' },
+    },
+    family: { available: false, reason: 'No entity families defined for this domain', groups: [], assignment: {} },
+  },
+};
+
 function respond(status, body) {
   return { ok: status < 400, status, statusText: String(status), json: async () => body };
 }
@@ -198,6 +260,7 @@ globalThis.fetch = async (url) => {
     return (mode === 'fail' || mode === 'edges-fail') ? respond(500, {}) : respond(200, DISPLAY);
   }
   if (url === '/api/graph') return respond(200, { nodes: NODES, edges: EDGES });
+  if (url === '/api/graph/groups' && isGroups) return respond(200, GROUPS_PAYLOAD);
   return respond(404, {});
 };
 console.warn = () => {};
@@ -230,6 +293,55 @@ if (mode === 'fit') {
     minEdgePx: Math.min(...edges.map((e) => (typeof e.width === 'number' ? e.width * FIT_SCALE : 0))),
     edgeIdsAreStrings: edges.every((e) => typeof e.id === 'string'),
   };
+  process.stdout.write(JSON.stringify(out) + '\n');
+  process.exit(0);
+}
+
+if (mode === 'groups') {
+  const nodeSet = () => [...datasets].reverse().find((d) => [...d.items.values()].some((i) => 'label' in i && !('from' in i)));
+  const edgeSet = () => [...datasets].reverse().find((d) => [...d.items.values()].some((i) => 'from' in i));
+  const anchorNodes = () => [...nodeSet().items.values()].filter((n) => n._anchor);
+  const anchorEdges = () => [...edgeSet().items.values()].filter((e) => e._anchor);
+  const dataNodes = () => [...nodeSet().items.values()].filter((n) => !n._anchor);
+  const settleFns = [...(handlers.get('stabilizationIterationsDone') || [])];
+  calls.length = 0;
+  for (const fn of settleFns) fn();
+  const fitCall = calls.find((c) => c.kind === 'fit');
+  const fitNodes = fitCall && fitCall.opts && Array.isArray(fitCall.opts.nodes) ? fitCall.opts.nodes : null;
+  const stab = networkOptions && networkOptions.physics && networkOptions.physics.stabilization;
+  const noAnchorsOrHidden = (ids) => Array.isArray(ids) && ids.length > 0 && ids.every((id) => {
+    const rec = nodeSet().items.get(id);
+    return rec && !rec._anchor && rec.hidden !== true && !String(id).startsWith('__anchor');
+  });
+  const out = {
+    anchorCount: anchorNodes().length,
+    groupCount: 3,
+    anchorsHiddenFixed: anchorNodes().length > 0 && anchorNodes().every((n) => n.hidden === true
+      && n.fixed && n.fixed.x === true && n.fixed.y === true && n.physics === true),
+    anchorEdgeCount: anchorEdges().length,
+    anchorEdgesHidden: anchorEdges().every((e) => e.hidden === true),
+    sourcePhysicsOff: nodeSet().items.get('d1').physics === false,
+    sourceHidden: nodeSet().items.get('d1').hidden === true,
+    iterations: stab && stab.iterations,
+    stabilizationFit: stab && stab.fit,
+    fitNodesHaveNoAnchorOrHidden: noAnchorsOrHidden(fitNodes),
+    debugMode: window._graphDebug && window._graphDebug.mode,
+    debugGroupCount: window._graphDebug && window._graphDebug.groupCount,
+    debugAnchorCount: window._graphDebug && window._graphDebug.anchorCount(),
+    debugDataNodes: window._graphDebug && window._graphDebug.dataNodes().length,
+  };
+  // A search-driven filterGraph() must never unhide an anchor edge.
+  const search = document.getElementById('graph-search');
+  search.value = 'aspirin';
+  search.dispatch('input');
+  search.value = '';
+  search.dispatch('input');
+  out.anchorEdgesHiddenAfterFilter = anchorEdges().length > 0 && anchorEdges().every((e) => e.hidden === true);
+  out.anchorNodesHiddenAfterFilter = anchorNodes().every((n) => n.hidden === true);
+  const labelDebug = window._labelDebug || {};
+  const labelledData = dataNodes().filter((n) => n.font && n.font.size > 0).length;
+  out.labelledExcludesAnchors = labelDebug.labelled === labelledData
+    && anchorNodes().every((n) => !('font' in n) && n.size === 1 && n.opacity === undefined);
   process.stdout.write(JSON.stringify(out) + '\n');
   process.exit(0);
 }
@@ -343,8 +455,12 @@ search.dispatch('input');
 DataSet.prototype.update = origUpdate;
 const nodeUpdates = seen.filter((u) => NODES.some((n) => n.id === u.id) && 'hidden' in u);
 
+const okStab = networkOptions && networkOptions.physics && networkOptions.physics.stabilization;
+const anyAnchor = [...datasets].some((d) => [...d.items.values()].some((i) => i._anchor));
 process.stdout.write(JSON.stringify({
   hidden: nodeUpdates.filter((u) => u.hidden).map((u) => u.id),
   total: nodeUpdates.length,
+  anchorCount: anyAnchor ? 1 : 0,
+  iterations: okStab && okStab.iterations,
 }) + '\n');
 process.exit(0);
