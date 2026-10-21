@@ -52,7 +52,7 @@ function makeEl(id = '', tagName = '', namespaceURI = null) {
     getAttribute(name) { return name in attrs ? attrs[name] : null; },
     removeAttribute(name) { delete attrs[name]; },
     addEventListener(type, fn) { (listeners[type] ||= []).push(fn); },
-    _fire(type, ev = {}) { (listeners[type] || []).forEach((fn) => fn({ preventDefault() {}, ...ev })); },
+    _fire(type, ev = {}) { (listeners[type] || []).forEach((fn) => fn(ev.type ? ev : { preventDefault() {}, ...ev })); },
   };
   return el;
 }

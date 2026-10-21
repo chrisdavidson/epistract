@@ -2029,7 +2029,38 @@ button.graph-focus-bar__crumb:focus-visible {
   outline-offset: 1px;
 }
 
+.graph-detail-sidebar__focus {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.graph-detail-sidebar__focus-btn,
+.graph-detail-sidebar__focus-btn:not(.active) {
+  opacity: 1;
+}
+
+.graph-detail-sidebar__focus-btn {
+  min-height: 28px;
+  font-size: var(--size-label);
+  font-weight: 600;
+}
+
+.graph-detail-sidebar__focus-btn:disabled {
+  border: 1px dashed #e5e7eb;
+  background: transparent;
+  color: #666666;
+  cursor: default;
+}
+
+.graph-detail-sidebar__focus-btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .graph-detail-sidebar__focus-btn,
   .graph-focus-bar button,
   .graph-group button,
   .toggle-btn,

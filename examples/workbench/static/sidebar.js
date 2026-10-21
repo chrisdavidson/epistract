@@ -6,12 +6,17 @@ import { isSourceRelation, isSourceType, makeSwatch, typeDisplay } from './displ
 import {
     isLinkEdge, isSourceEdge, relationRowParts, relationSentence, statusSuffix,
 } from './graph_style.js';
+import { radioTarget } from './grouping.js';
 
 // ---------------------------------------------------------------------------
 // Module-level state
 // ---------------------------------------------------------------------------
 let sidebarEl = null;
 let sidebarBody = null;
+// The Focus row currently rendered (null when the sidebar shows an edge, an
+// error or nothing). graph.js reports focus changes through window events.
+let focusRow = null;
+let focusListenerAttached = false;
 
 
 // ---------------------------------------------------------------------------
@@ -57,6 +62,12 @@ export function showNodeDetail(nodeId, allNodes, allEdges, opts = {}) {
 
     // Build body content container
     const bodyFrag = document.createDocumentFragment();
+    focusRow = null;
+
+    // --- Focus control (first block; only when the caller supports focus) ---
+    if (typeof opts.focusInfo === 'function') {
+        bodyFrag.appendChild(_buildFocusRow(nodeId, opts.focusInfo));
+    }
 
     // --- Attributes section (links row first) ---
     const attrsSection = _makeSection('Attributes');
@@ -175,6 +186,7 @@ export function showEdgeDetail(edgeId, visEdges, allNodes) {
         return;
     }
     const edge = edgeRecord._data || {};
+    focusRow = null;
 
     // Build header
     const titleEl = document.createElement('span');
@@ -277,6 +289,7 @@ export function showEdgeDetail(edgeId, visEdges, allNodes) {
 
 
 export function hideSidebar() {
+    focusRow = null;
     sidebarEl?.classList.add('graph-detail-sidebar--closed');
     // The graph container is described by the sidebar while it is open.
     const container = document.getElementById('graph-container');
@@ -289,6 +302,127 @@ export function hideSidebar() {
 // ---------------------------------------------------------------------------
 // Private helpers
 // ---------------------------------------------------------------------------
+
+const HOP_WORDS = { 1: '1 hop', 2: '2 hops' };
+const FOCUS_BTN_TITLE = 'Show only this node and its neighbors (or double-click the node)';
+const FOCUS_DISABLED_TITLE = 'This node has no links to focus on.';
+
+function _nodeCountText(n) {
+    const count = Number.isFinite(n) ? n : 0;
+    return `${count.toLocaleString()} ${count === 1 ? 'node' : 'nodes'}`;
+}
+
+
+function _focusRowRender() {
+    const row = focusRow;
+    if (!row) return;
+    const disabled = !row.center && row.counts[1] <= 1;
+    row.btn.textContent = row.center ? 'Exit focus' : 'Focus on this node';
+    row.btn.title = disabled ? FOCUS_DISABLED_TITLE : FOCUS_BTN_TITLE;
+    row.btn.disabled = disabled;
+    if (disabled) {
+        row.btn.setAttribute('disabled', '');
+        row.btn.classList.add('graph-detail-sidebar__focus-btn--disabled');
+    } else {
+        row.btn.removeAttribute('disabled');
+        row.btn.classList.remove('graph-detail-sidebar__focus-btn--disabled');
+    }
+    for (const hops of [1, 2]) {
+        const seg = row.segs[hops];
+        const checked = row.hops === hops;
+        seg.textContent = `${HOP_WORDS[hops]} \u00b7 ${_nodeCountText(row.counts[hops])}`;
+        seg.setAttribute('aria-checked', String(checked));
+        seg.setAttribute('tabindex', checked ? '0' : '-1');
+    }
+}
+
+
+function _focusRowFromEvent(event) {
+    const row = focusRow;
+    if (!row) return;
+    const detail = (event && event.detail) || {};
+    row.center = detail.id === row.nodeId;
+    row.hops = detail.hops === 2 ? 2 : 1;
+    if (row.center && detail.counts) {
+        row.counts = { 1: detail.counts[1], 2: detail.counts[2] };
+    } else {
+        const info = row.getInfo() || {};
+        row.counts = { 1: (info.counts || {})[1], 2: (info.counts || {})[2] };
+    }
+    _focusRowRender();
+}
+
+
+// Focus on this node + the shared 1/2 hop toggle. Talks to graph.js through
+// window events only (graph-focus-node / -exit / -hops in, -changed out).
+function _buildFocusRow(nodeId, getInfo) {
+    const info = getInfo(nodeId) || {};
+    const counts = info.counts || {};
+    const wrap = document.createElement('div');
+    wrap.className = 'graph-detail-sidebar__focus';
+
+    const btn = document.createElement('button');
+    btn.className = 'toggle-btn graph-detail-sidebar__focus-btn';
+    btn.setAttribute('type', 'button');
+
+    const group = document.createElement('div');
+    group.className = 'graph-group graph-detail-sidebar__hops';
+    group.setAttribute('role', 'radiogroup');
+    group.setAttribute('aria-label', 'Neighborhood size');
+    const segs = {};
+    for (const hops of [1, 2]) {
+        const seg = document.createElement('button');
+        seg.setAttribute('type', 'button');
+        seg.setAttribute('role', 'radio');
+        segs[hops] = seg;
+        group.appendChild(seg);
+    }
+
+    const row = {
+        nodeId,
+        getInfo: () => getInfo(nodeId),
+        btn,
+        segs,
+        center: info.centerId === nodeId,
+        hops: info.hops === 2 ? 2 : 1,
+        counts: { 1: counts[1], 2: counts[2] },
+    };
+    focusRow = row;
+
+    const emit = (type, detail) => window.dispatchEvent(new CustomEvent(type, detail ? { detail } : undefined));
+    const chooseHops = (hops) => {
+        row.hops = hops;
+        if (row.center) emit('graph-focus-node', { id: nodeId, hops });
+        else emit('graph-focus-hops', { hops });
+        _focusRowRender();
+    };
+    btn.addEventListener('click', () => {
+        if (btn.disabled) return;
+        if (row.center) emit('graph-focus-exit');
+        else emit('graph-focus-node', { id: nodeId, hops: row.hops });
+    });
+    for (const hops of [1, 2]) {
+        segs[hops].addEventListener('click', () => chooseHops(hops));
+        segs[hops].addEventListener('keydown', (event) => {
+            const target = radioTarget(event.key, [1, 2], hops);
+            if (target === undefined) return;
+            event.preventDefault();
+            if (!target) return;
+            if (typeof segs[target].focus === 'function') segs[target].focus();
+            chooseHops(target);
+        });
+    }
+    wrap.appendChild(btn);
+    wrap.appendChild(group);
+    _focusRowRender();
+
+    if (!focusListenerAttached) {
+        focusListenerAttached = true;
+        window.addEventListener('graph-focus-changed', _focusRowFromEvent);
+    }
+    return wrap;
+}
+
 
 function _openSidebar() {
     sidebarEl?.classList.remove('graph-detail-sidebar--closed');
@@ -365,6 +499,7 @@ function _makeAttrRow(key, value) {
 
 
 function _showErrorState(message) {
+    focusRow = null;
     const errEl = document.createElement('div');
     errEl.className = 'graph-detail-sidebar__empty';
     errEl.textContent = message;  // static error strings only

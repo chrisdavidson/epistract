@@ -78,7 +78,7 @@ function isSourceNodeId(id) {
     return sourceNodeIds.has(id);
 }
 
-const SIDEBAR_OPTS = { isSourceNode: isSourceNodeId, isSourceEdge: isSourceEdgeRecord };
+const SIDEBAR_OPTS = { isSourceNode: isSourceNodeId, isSourceEdge: isSourceEdgeRecord, focusInfo };
 
 // Reduced-motion users get an instant fit; everyone else an eased one.
 function fitAnimation(duration) {
@@ -2249,6 +2249,12 @@ function attachFocusListeners() {
         enterFocus(detail.id, detail.hops);
     });
     window.addEventListener('graph-focus-exit', () => exitFocus());
+    // The sidebar's hop toggle for a node that is not the centre: it only sets
+    // the shared hop count. While focused, the centre keeps its own setting.
+    window.addEventListener('graph-focus-hops', (event) => {
+        const detail = (event && event.detail) || {};
+        if (focusStack.length === 0) focusHops = detail.hops === 2 ? 2 : 1;
+    });
 }
 
 // ---------------------------------------------------------------------------
