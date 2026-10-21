@@ -139,7 +139,8 @@ let groupLayout = new Map();              // group id -> {x, y, r} circle the gr
 let sourceGroup = new Map();               // source id -> its plurality group id for the current build
 let _fitShrink = null;                    // pending post-animation fit margin handler
 let layoutToken = 0;                      // bumped by every relayout, failure and rebuild; stale completions compare and bail
-let relayoutBusy = false;                 // a relayout is arranging groups
+let relayoutBusy = false;                 // a layout (the initial one or a relayout) is in flight
+let _initialSettled = false;              // the initial layout of the current build has settled
 let freeLayoutPositions = null;           // Map id -> {x, y} of the free layout; restored by the None option
 let relayoutPrev = null;                  // layout state to roll back to if the running relayout fails
 let _relayoutTimer = null;                // fails a relayout that never completes
@@ -170,6 +171,8 @@ const RELAYOUT_TIMEOUT_MS = 15000;        // a relayout not finished by now is r
 const RELAYOUT_FAIL_MESSAGE_MS = 6000;    // how long the failure message stays in the hint slot (window._relayoutFailMessageMs overrides)
 const RELAYOUT_FAIL_TEXT = "Couldn't arrange groups. Showing the previous layout.";
 const RELAYOUT_BUSY_TEXT = 'Arranging groups\u2026';
+const LAYOUT_BUSY_TEXT = 'Arranging layout\u2026';   // hint while an ungrouped initial layout settles
+const GROUP_SETTLING_TITLE = 'Available once the layout has settled';
 const GROUP_LOAD_FAILURE = "Grouping data didn't load. Reload the page to try again.";
 const GROUP_MODE_ORDER = ['cluster', 'family', 'none'];
 const GROUP_MODE_LABELS = { cluster: 'Topic cluster', family: 'Entity family', none: 'None' };
@@ -845,7 +848,12 @@ function syncGroupControl(selected = groupMode) {
         const checked = state.enabled && mode === selected;
         btn.setAttribute('aria-checked', String(checked));
         btn.setAttribute('tabindex', checked ? '0' : '-1');
-        if (state.enabled) {
+        if (state.enabled && !_initialSettled) {
+            // CR-01: the initial layout is still stabilizing; a relayout now
+            // would cut it short, so every option waits for it.
+            btn.setAttribute('aria-disabled', 'true');
+            btn.setAttribute('title', GROUP_SETTLING_TITLE);
+        } else if (state.enabled) {
             btn.removeAttribute('aria-disabled');
             btn.setAttribute('title', GROUP_MODE_TITLES[mode]);
         } else {
@@ -1130,7 +1138,8 @@ function captureLayoutState() {
 }
 
 function relayout(mode) {
-    if (relayoutBusy || !network || !visNodes || !visEdges) return;
+    // CR-01: never restart stabilize() underneath the initial layout.
+    if (!_initialSettled || relayoutBusy || !network || !visNodes || !visEdges) return;
     if (!GROUP_MODE_ORDER.includes(mode) || mode === groupMode) return;
     if (!groupModeState(mode).enabled) return;
     const token = layoutToken += 1;
@@ -1409,6 +1418,11 @@ function buildGraph() {
         },
     };
 
+    // CR-01: the initial stabilization is a layout in flight. The Group by
+    // control, focus and source placement wait for settle() to release it.
+    _initialSettled = false;
+    setGroupBusy(true);
+    const buildToken = layoutToken;
     network = new vis.Network(container, { nodes: visNodes, edges: visEdges }, options);
     initSidebar();
 
@@ -1446,21 +1460,26 @@ function buildGraph() {
     // solvers behave this way.) Iteration-budget completion is deterministic
     // and bounded, so key off it and keep `stabilized` as a safety net for
     // the case where the simulation settles before the budget is spent.
+    //
+    // CR-01: settle() belongs to this build only. A handler left over from an
+    // earlier build (stale token) or a second event never touches physics.
     let _settled = false;
     const settle = () => {
-        if (_settled) return;
+        if (_settled || buildToken !== layoutToken) return;
         _settled = true;
+        network.off('stabilizationIterationsDone', settle);
+        network.off('stabilized', settle);
         network.setOptions({ physics: false });
+        _initialSettled = true;
+        setGroupBusy(false);
         // Fit first so the controller reads the real fit scale, not the
         // pre-fit one (stabilization fit is animated and lags the event).
         separateGroupRegionsForView();
         fitView(null, false);
         applyScaleStyle();
         if (groupMode === 'none') freeLayoutPositions = captureDataPositions();
-        if (!relayoutBusy) {
-            _hintOverride = null;
-            renderGroupHint();
-        }
+        setHintOverride(null);
+        syncGroupControl();
     };
     network.once('stabilizationIterationsDone', settle);
     network.once('stabilized', settle);
@@ -1653,10 +1672,8 @@ function buildGraph() {
     buildEdgeKey();
     renderGroupsList();
     syncGroupControl();
-    if (groupMode !== 'none') {
-        _hintOverride = RELAYOUT_BUSY_TEXT;
-        renderGroupHint();
-    }
+    _hintOverride = groupMode !== 'none' ? RELAYOUT_BUSY_TEXT : LAYOUT_BUSY_TEXT;
+    renderGroupHint();
     if (groupMode === 'family' && groupModeState('cluster').enabled === false) {
         announceGroup(`Topic clusters unavailable: ${trimPeriod(groupModeState('cluster').reason)}. Grouped by entity family.`);
     }
@@ -1666,6 +1683,8 @@ function buildGraph() {
         visEdges,
         get mode() { return groupMode; },
         get groupCount() { return groupLayout.size; },
+        get settled() { return _initialSettled; },
+        get busy() { return relayoutBusy; },
         dataNodes: () => visNodes.get().filter(n => !n._anchor),
         dataEdges: () => visEdges.get().filter(e => !e._anchor),
         anchorCount: () => visNodes.get().filter(n => n._anchor).length,

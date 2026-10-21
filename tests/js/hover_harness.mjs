@@ -367,6 +367,8 @@ try {
     const g = await imp('graph.js');
     await g.initGraph({});
     for (let i = 0; i < 20; i++) await new Promise((r) => setTimeout(r, 0));
+    // vis reports the initial layout done; focus and the Group by control wait for it.
+    for (const fn of [...(handlers.get('stabilizationIterationsDone') || [])]) fn();
 
     // Deterministic timers from here on.
     let now = 0;

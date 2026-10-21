@@ -85,6 +85,10 @@ def test_group_control_relayout():
     _passed(_run("graph_filter_harness.mjs", "control"), 45)
 
 
+def test_group_control_waits_for_initial_settle():
+    _passed(_run("graph_filter_harness.mjs", "control-early"), 12)
+
+
 def test_group_control_fallback():
     _passed(_run("graph_filter_harness.mjs", "control-nocomm"), 11)
 

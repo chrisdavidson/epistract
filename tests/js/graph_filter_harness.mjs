@@ -21,6 +21,9 @@
 // drive the Group by radiogroup: relayout lifecycle, fallback without topic
 // clusters, relayout failure recovery and group-aware source placement. In
 // "ok" (groups 404) the harness also reports the load-failure control state.
+// argv[2] = "control-early" clicks the Group by control before the initial
+// layout settles (CR-01): the control is disabled and a stale initial-settle
+// handler cannot stop a later relayout.
 // argv[2] = "focus" / "focus-filters" drive focus mode: double-click entry, the
 // breadcrumb bar, hop toggle, Esc chain, graph-focus-* events, composition with
 // Show sources, filters and grouping.
@@ -445,6 +448,11 @@ const graph = await import(pathToFileURL(graphJs).href);
 await graph.initGraph({});
 // Let loadGraphData's fetches and buildGraph settle.
 for (let i = 0; i < 20; i++) await new Promise((r) => setTimeout(r, 0));
+// The real vis always reports the initial layout done; modes that do not
+// drive it themselves get it here (the Group by control waits for it).
+if (['ok', 'fail', 'sources', 'nosources'].includes(mode)) {
+  for (const fn of [...(handlers.get('stabilizationIterationsDone') || [])]) fn();
+}
 
 if (mode === 'fit') {
   calls.length = 0;
@@ -560,8 +568,53 @@ if (isControl) {
   const go = async (fn) => { fn(); await tick(); emitDone(); await tick(); };
   const lastFit = () => [...calls].reverse().find((c) => c.kind === 'fit' && c.opts && Array.isArray(c.opts.nodes));
 
-  emitDone(); // the initial build settles
-  await tick();
+  if (mode !== 'control-early') {
+    emitDone(); // the initial build settles
+    await tick();
+  }
+
+  if (mode === 'control-early') {
+    const snap0 = controlSnapshot();
+    check('before settle: every option aria-disabled', GROUP_MODES.every((m) => snap0.disabled[m] === 'true'), snap0.disabled);
+    check('before settle: the build mode stays checked', snap0.checked.cluster === 'true', snap0.checked);
+    check('before settle: titles give the reason', GROUP_MODES.every((m) => snap0.titles[m] === 'Available once the layout has settled'), snap0.titles);
+    check('before settle: arranging text', snap0.hint === 'Arranging groups…', snap0.hint);
+    check('before settle: graph busy', container.getAttribute('aria-busy') === 'true' && window._graphDebug.settled === false);
+    groupButtons.family.dispatch('click');
+    groupButtons.none.dispatch('click');
+    groupButtons.cluster.dispatch('keydown', { key: 'ArrowRight' });
+    await tick();
+    check('clicks before settle are ignored', stabilizeCalls().length === 0 && window._graphDebug.mode === 'cluster'
+      && controlSnapshot().checked.family === 'false', { n: stabilizeCalls().length, mode: window._graphDebug.mode });
+    const staleDone = [...(handlers.get('stabilizationIterationsDone') || [])];
+    const staleStab = [...(handlers.get('stabilized') || [])];
+    // vis's safety-net event settles the initial layout.
+    for (const fn of staleStab) fn();
+    await tick();
+    const snap1 = controlSnapshot();
+    check('settle enables the control', GROUP_MODES.every((m) => snap1.disabled[m] === null) && window._graphDebug.settled === true, snap1.disabled);
+    check('settle restores the option titles', snap1.titles.family === 'Group nodes by entity family', snap1.titles);
+    check('settle clears the arranging text and busy state', snap1.hint === '' && container.getAttribute('aria-busy') === null, snap1.hint);
+    check('settle removes both of its handlers', !(handlers.get('stabilizationIterationsDone') || []).some((h) => staleDone.includes(h))
+      && !(handlers.get('stabilized') || []).some((h) => staleStab.includes(h)));
+    groupButtons.family.dispatch('click');
+    await tick();
+    check('after settle a click starts a relayout', stabilizeCalls().length === 1 && window._graphDebug.busy === true);
+    const offBefore = networkCalls.filter((c) => c.kind === 'setOptions' && c.args[0] && c.args[0].physics === false).length;
+    for (const fn of [...staleDone, ...staleStab]) fn();
+    await tick();
+    check('a stale initial settle cannot stop the relayout', window._graphDebug.busy === true
+      && networkCalls.filter((c) => c.kind === 'setOptions' && c.args[0] && c.args[0].physics === false).length === offBefore
+      && hint() === 'Arranging groups…', hint());
+    emitDone();
+    await tick();
+    check('the relayout completes normally', window._graphDebug.mode === 'family' && status() === 'Grouped by entity family: 3 groups.', status());
+    groupButtons.none.dispatch('click');
+    await tick();
+    check('None runs a real free layout (nothing cached early)', stabilizeCalls().length === 2 && stabilizeCalls()[1].args[0] === 400, stabilizeCalls());
+    emitDone();
+    await tick();
+  }
 
   if (mode === 'control') {
     let snap = controlSnapshot();
