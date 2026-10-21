@@ -29,6 +29,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "tests" / "js" / "workbench_dashboard_cdp.mjs"
 GLP1 = ROOT / "tests" / "corpora" / "06_glp1_landscape" / "output-v3"
 PICALM = ROOT / "tests" / "corpora" / "01_picalm_alzheimers" / "output"
+FDA = ROOT / "tests" / "corpora" / "08_fda_labels" / "output"
 GLP1_FILES = ("graph_data.json", "communities.json", "claims_layer.json")
 
 
@@ -116,6 +117,12 @@ def picalm_workbench_url(tmp_path_factory):
 
 
 @pytest.fixture(scope="module")
+def fda_workbench_url(tmp_path_factory):
+    with _serve(tmp_path_factory, FDA, "fda-wb") as url:
+        yield url
+
+
+@pytest.fixture(scope="module")
 def chromium_port(tmp_path_factory):
     profile = tmp_path_factory.mktemp("chromium-profile")
     log_path = tmp_path_factory.mktemp("chromium-log") / "chromium.log"
@@ -167,6 +174,8 @@ def _run(port: int, url: str, mode: str) -> dict:
     assert lines, f"no output from CDP script: {proc.stderr[-500:]}"
     result = json.loads(lines[-1])
     assert "failed" in result, f"no result line: {lines[-5:]}"
+    if result.get("skipped"):
+        pytest.skip(result["skipped"])
     if result["failed"]:
         detail = [ln for ln in lines if '"ok":false' in ln]
         pytest.fail(f"failed checks {result['failed']}: {detail}")
@@ -201,3 +210,20 @@ def test_dashboard_epistemic_legacy_picalm(chromium_port, picalm_workbench_url):
 def test_dashboard_documents_glp1(chromium_port, workbench_url):
     result = _run(chromium_port, workbench_url, "documents")
     assert result["passed"] >= 20, result
+
+
+def test_source_viewer_card_highlight_glp1(chromium_port, workbench_url):
+    result = _run(chromium_port, workbench_url, "card-highlight")
+    assert result["passed"] >= 8, result
+
+
+def test_chat_citation_opens_viewer_glp1(chromium_port, workbench_url):
+    # The reply is stubbed in the browser (Fetch.fulfillRequest), so no model is
+    # called. marked and DOMPurify come from a CDN; without them the run skips.
+    result = _run(chromium_port, workbench_url, "citations")
+    assert result["passed"] >= 8, result
+
+
+def test_source_viewer_fda_deep_highlight(chromium_port, fda_workbench_url):
+    result = _run(chromium_port, fda_workbench_url, "fda-highlight")
+    assert result["passed"] >= 8, result

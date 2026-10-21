@@ -7,6 +7,12 @@
 //         epistemic-early  Show in graph clicked before the graph has finished loading
 //         epistemic-legacy legacy PICALM claims layer renders the section
 //         documents        GLP-1 v3 Documents table and the in-workbench source viewer
+//         card-highlight   GLP-1 v3 Epistemic card document id opens the viewer on the cited passage
+//         citations        a stubbed chat reply with a document id becomes a link that opens the viewer
+//         fda-highlight    FDA labels: a passage deep in an 80,000-character document is centred
+//
+// A run that cannot be judged because a third-party script did not load ends with
+// a "skipped" reason in the final line instead of failures.
 //
 // Talks to an already running chromium over the DevTools protocol using only
 // Node built-ins. Prints one JSON line per check and a final
@@ -692,12 +698,194 @@ async function documents() {
   await s.done();
 }
 
+
+// --- Source highlight, chat citations ----------------------------------------
+
+const RIGHT = `getComputedStyle(document.getElementById('source-panel')).display === 'flex'`;
+const normalise = (t) => String(t).replace(/\s+/g, ' ').trim().toLowerCase();
+
+async function waitScrollSettled(s, expr, cap = 8000) {
+  const t0 = Date.now();
+  let last = null;
+  let stableSince = Date.now();
+  while (Date.now() - t0 < cap) {
+    const v = await s.ev(expr);
+    if (v !== last) { last = v; stableSince = Date.now(); }
+    else if (Date.now() - stableSince >= 300) return v;
+    await sleep(60);
+  }
+  return last;
+}
+
+async function cardHighlight() {
+  const s = await session();
+  await load(s);
+  check('dashboard opens with the epistemic section', await openEpistemic(s));
+
+  const api = await s.ev(`(async () => { const d = await (await fetch('/api/dashboard')).json();
+    return { docs: d.documents.map((x) => x.doc_id), statement: d.epistemic.sections[0].items[0].statements[0] }; })()`);
+  check('the first contradiction has a statement in a listed document', !!api.statement && api.docs.includes(api.statement.document), api.statement);
+
+  // Ids in the list are buttons; the others stay plain text.
+  const linkIds = await s.ev(`[...document.querySelectorAll('.epistemic-health button.epistemic-doc-link')].map((b) => b.getAttribute('data-doc-id'))`);
+  check('every card doc-id button is a listed document', linkIds.length > 0 && linkIds.every((id) => api.docs.includes(id)), linkIds.slice(0, 3));
+  const plain = await s.ev(`[...document.querySelectorAll('.epistemic-health span.epistemic-meta__doc')].map((n) => n.textContent)`);
+  check('plain doc ids are not in the documents list', plain.every((t) => !api.docs.includes(t)), plain.slice(0, 3));
+
+  const link = `document.querySelector('#epistemic-sec-contradictions').parentElement.querySelector('.epistemic-card button.epistemic-doc-link')`;
+  check('the first statement id is a button', (await s.ev(`!!${link} && ${link}.textContent`)) === api.statement.document, await s.ev(`${link} && ${link}.textContent`));
+  check('its aria-label mentions the highlighted passage', (await s.ev(`${link}.getAttribute('aria-label')`)) === `Read ${api.statement.document} with the cited passage highlighted`);
+
+  check('the id button is clicked', await clickEl(s, link));
+  check('source panel shown', await s.waitFor(RIGHT));
+  check('dashboard hidden', (await panelDisplay(s, '#dashboard-panel')) === 'none');
+  check('exactly one highlight mark', await s.waitFor(`document.querySelectorAll('#source-reader mark.source-highlight').length === 1`), await s.ev(`document.querySelectorAll('#source-reader mark').length`));
+  const bg = await s.ev(`getComputedStyle(document.querySelector('#source-reader mark.source-highlight')).backgroundColor`);
+  check('the mark is amber', bg === 'rgb(253, 230, 138)', bg);
+  const markText = await s.ev(`document.querySelector('#source-reader mark.source-highlight').textContent`);
+  check('the mark holds the statement text', normalise(markText) === normalise(api.statement.text) || normalise(api.statement.text).startsWith(normalise(markText)), [markText.slice(0, 60), api.statement.text.slice(0, 60)]);
+  await waitScrollSettled(s, `document.getElementById('source-reader').scrollTop`);
+  const inside = await s.ev(`(() => { const m = document.querySelector('#source-reader mark').getBoundingClientRect();
+    const r = document.getElementById('source-reader').getBoundingClientRect();
+    return m.top >= r.top - 1 && m.bottom <= r.bottom + 1 && m.left >= r.left - 1 && m.right <= r.right + 1; })()`);
+  check('the mark lies inside the reader', inside === true);
+  check('the status ends with the cited-passage sentence', (await s.ev(`document.getElementById('source-status').textContent`)).endsWith('Cited passage highlighted.'),
+    await s.ev(`document.getElementById('source-status').textContent`));
+  check('the reader still holds the whole document text', (await s.ev(`(async () => (await (await fetch('/api/sources/${api.statement.document}')).json()).text)()`))
+    === (await s.ev(`document.querySelector('#source-reader .source-text').textContent`)));
+  await s.shot('source-viewer-highlight.png');
+
+  await s.ev(`document.getElementById('source-back-btn').click()`);
+  check('Back returns to the Dashboard', await s.waitFor(`getComputedStyle(document.getElementById('dashboard-panel')).display === 'flex'`));
+
+  // A highlight that does not occur opens the document at the top without a mark.
+  await s.ev(`window.dispatchEvent(new CustomEvent('navigate-source', { detail: { docId: ${q(api.statement.document)}, highlight: 'this passage is not anywhere in the document 0xC0FFEE' } }))`);
+  check('a missing passage still opens the viewer', await s.waitFor(`${RIGHT} && !!document.querySelector('#source-reader .source-text')`));
+  check('a missing passage: no mark', (await s.ev(`document.querySelectorAll('#source-reader mark').length`)) === 0);
+  check('a missing passage: reader at the top', (await s.ev(`document.getElementById('source-reader').scrollTop`)) === 0);
+  check('a missing passage: no error state', (await s.ev(`document.querySelectorAll('#source-reader .source-state').length`)) === 0);
+  check('a missing passage: plain opened status', (await s.ev(`document.getElementById('source-status').textContent`)).indexOf('Cited passage') === -1);
+
+  check('no script exceptions from the workbench', s.errors.length === 0, s.errors.slice(0, 3));
+  await s.done();
+}
+
+const CHAT_REPLY = 'Semaglutide was approved (pmid_35650449). See [Nonexistent Thing] and `pmid_35650449`.';
+
+async function citations() {
+  const s = await session();
+  await load(s);
+  const cdn = await s.waitFor(`typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined'`, 15000);
+  if (!cdn) {
+    await s.done();
+    console.log(JSON.stringify({ passed: passedCount, failed: failures, skipped: 'marked/DOMPurify CDN unavailable' }));
+    process.exit(0);
+  }
+  check('marked and DOMPurify are loaded', cdn);
+
+  const chatCalls = [];
+  s.on('Fetch.requestPaused', (p) => {
+    chatCalls.push(p.request.url);
+    const body = `data: ${JSON.stringify({ type: 'text', content: CHAT_REPLY })}\n\ndata: ${JSON.stringify({ type: 'done' })}\n\n`;
+    s.send('Fetch.fulfillRequest', {
+      requestId: p.requestId,
+      responseCode: 200,
+      responseHeaders: [
+        { name: 'Content-Type', value: 'text/event-stream' },
+        { name: 'Cache-Control', value: 'no-cache' },
+      ],
+      body: Buffer.from(body).toString('base64'),
+    });
+  });
+  await s.send('Fetch.enable', { patterns: [{ urlPattern: '*/api/chat', requestStage: 'Request' }] });
+
+  // The Dashboard has loaded the document list; the chat resolves citations against it.
+  check('the document list reached the chat', await s.waitFor(`document.querySelectorAll('.documents-table .dashboard-doc-btn').length > 0`));
+  await s.ev(`document.querySelector('.nav-link[data-panel=chat]').click()`);
+  check('chat panel shown', await s.waitFor(`document.querySelector('.chat-panel').style.display === 'flex'`));
+  await s.ev(`(() => { document.getElementById('chat-input').value = 'What was approved?';
+    document.getElementById('chat-form').dispatchEvent(new Event('submit', { cancelable: true })); })()`);
+  const linkSel = `.chat-msg--assistant a.citation-link[data-doc="pmid_35650449"]`;
+  check('the reply contains a citation link', await s.waitFor(`document.querySelectorAll('${linkSel}').length > 0`), chatCalls);
+  check('the stubbed /api/chat was used (no real model call)', chatCalls.length === 1 && chatCalls[0].includes('/api/chat'), chatCalls);
+  check('exactly one link: the code-span copy is not linked', (await s.ev(`document.querySelectorAll('${linkSel}').length`)) === 1);
+  check('the link has a title and no onclick', (await s.ev(`document.querySelector('${linkSel}').getAttribute('title')`)) === 'Open pmid_35650449 in the source viewer'
+    && (await s.ev(`!document.querySelector('${linkSel}').hasAttribute('onclick')`)) === true);
+  check('no element in the assistant message has an onclick', (await s.ev(`[...document.querySelectorAll('.chat-msg--assistant *')].every((e) => !e.hasAttribute('onclick'))`)) === true);
+  check('the code span keeps the id as plain text', (await s.ev(`[...document.querySelectorAll('.chat-msg--assistant code')].some((c) => c.textContent === 'pmid_35650449' && !c.closest('a'))`)) === true);
+  check('[Nonexistent Thing] stays text, outside any link', (await s.ev(`document.querySelector('.chat-msg--assistant').textContent.includes('[Nonexistent Thing]')
+    && ![...document.querySelectorAll('.chat-msg--assistant a')].some((a) => a.textContent.includes('Nonexistent'))`)) === true);
+  await s.shot('chat-citation.png');
+  await s.send('Fetch.disable');
+
+  check('the link is clicked', await clickEl(s, `document.querySelector('${linkSel}')`));
+  check('the viewer is shown', await s.waitFor(RIGHT));
+  check('the viewer shows pmid_35650449', await s.waitFor(`document.getElementById('source-title').textContent === 'pmid_35650449' && !!document.querySelector('#source-reader .source-text')`));
+  check('Back says Back to Chat', (await s.ev(`document.getElementById('source-back-btn').textContent`)).includes('Back to Chat'));
+  check('the chat nav link stays active', (await s.ev(`document.querySelector('.nav-link[data-panel="chat"]').classList.contains('active')`)) === true);
+  await s.ev(`document.getElementById('source-back-btn').click()`);
+  check('Back returns to the chat', await s.waitFor(`document.querySelector('.chat-panel').style.display === 'flex'`));
+  check('the viewer is hidden again', (await panelDisplay(s, '#source-panel')) === 'none');
+  check('no script exceptions from the workbench', s.errors.length === 0, s.errors.slice(0, 3));
+  await s.done();
+}
+
+async function fdaHighlight() {
+  const s = await session();
+  await load(s);
+  check('dashboard opens with the documents table', await openDocuments(s));
+  check('FDA labels list 7 documents', (await s.ev(`${docRows}.length`)) === 7, await s.ev(`${docRows}.length`));
+  check('no Documents toggle for 7 documents', (await s.ev(`!document.querySelector('.documents-toggle')`)) === true);
+
+  const pick = await s.ev(`(async () => {
+    const text = (await (await fetch('/api/sources/semaglutide_wegovy')).json()).text;
+    const lower = text.toLowerCase();
+    const isSpace = (c) => /\\s/.test(c);
+    for (let start = Math.floor(text.length * 0.7); start < text.length - 200; start += 53) {
+      let i = start;
+      while (i < text.length && !isSpace(text[i])) i += 1;
+      while (i < text.length && isSpace(text[i])) i += 1;
+      let end = Math.min(i + 100, text.length);
+      while (end > i + 40 && !isSpace(text[end])) end -= 1;
+      const passage = text.slice(i, end).trim();
+      if (passage.length < 40) continue;
+      const at = lower.indexOf(passage.toLowerCase());
+      if (at === i && lower.indexOf(passage.toLowerCase(), at + 1) === -1) return { length: text.length, passage, at: i };
+    }
+    return { length: text.length, passage: null };
+  })()`);
+  check('semaglutide_wegovy is an 80 KB document (79,814 characters)', pick.length > 79000 && pick.length <= 80000, pick.length);
+  check('a unique deep passage was found', !!pick.passage && pick.at > 50000, pick);
+
+  await s.ev(`window.dispatchEvent(new CustomEvent('navigate-source', { detail: { docId: 'semaglutide_wegovy', highlight: ${JSON.stringify(pick.passage)} } }))`);
+  check('source panel shown', await s.waitFor(RIGHT));
+  check('one mark placed', await s.waitFor(`document.querySelectorAll('#source-reader mark.source-highlight').length === 1`));
+  const top = await waitScrollSettled(s, `document.getElementById('source-reader').scrollTop`);
+  check('the reader scrolled down', top > 0, top);
+  const off = await s.ev(`(() => { const m = document.querySelector('#source-reader mark').getBoundingClientRect();
+    const r = document.getElementById('source-reader').getBoundingClientRect();
+    return { mark: (m.top + m.bottom) / 2, reader: (r.top + r.bottom) / 2 }; })()`);
+  check('the mark is within one line of the reader middle', Math.abs(off.mark - off.reader) <= 24, off);
+  const style = await s.ev(`(() => { const cs = getComputedStyle(document.querySelector('#source-reader .source-text')); const r = document.getElementById('source-reader');
+    return { size: cs.fontSize, line: cs.lineHeight, ws: cs.whiteSpace, family: cs.fontFamily, overflow: r.scrollWidth - r.clientWidth }; })()`);
+  check('reading text is 15px with a 24px line', style.size === '15px' && style.line === '24px', style);
+  check('reading text keeps its line breaks', style.ws === 'pre-wrap', style.ws);
+  check('reading text is not monospace', !/mono/i.test(style.family), style.family);
+  check('the reader has no horizontal overflow', style.overflow <= 0, style.overflow);
+  await s.shot('source-viewer-fda.png');
+  check('no script exceptions from the workbench', s.errors.length === 0, s.errors.slice(0, 3));
+  await s.done();
+}
+
 try {
   if (MODE === 'early') await early();
   else if (MODE === 'epistemic') await epistemic();
   else if (MODE === 'epistemic-early') await epistemicEarly();
   else if (MODE === 'epistemic-legacy') await epistemicLegacy();
   else if (MODE === 'documents') await documents();
+  else if (MODE === 'card-highlight') await cardHighlight();
+  else if (MODE === 'citations') await citations();
+  else if (MODE === 'fda-highlight') await fdaHighlight();
   else await click();
 } catch (e) {
   check('script completed', false, String(e && e.stack || e));

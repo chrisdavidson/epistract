@@ -650,6 +650,116 @@ if (MODE === 'epistemic') {
   }
 }
 
+if (MODE === 'doc-links') {
+  const opened = [];
+  const ent = (id, name) => ({ id, name, entity_type: 'COMPOUND' });
+  const stm = (t, document, confidence) => ({ text: t, document, confidence });
+  const classesOf = (n) => String(n.className).split(/\s+/).filter(Boolean);
+  const payload = (documents, statements) => ({
+    available: true,
+    status_counts: [{ status: 'asserted', count: 3 }],
+    sections: [{
+      key: 'contradictions', label: 'Contradictions', description: 'd', count: 1,
+      items: [{
+        title: 'A vs B', kind: 'contradiction', entities: [ent('c:a', 'a')], statements,
+        documents, question: 'q',
+      }],
+    }],
+  });
+  const STATEMENTS = [
+    stm('Quote from the first doc', 'pmid_35650449', 0.5),
+    stm('Quote from an unknown doc', 'unlisted_doc', null),
+    stm('Third statement from src_one', 'src_one', 0.9),
+  ];
+  const DOC_IDS = ['pmid_35650449', 'unlisted_doc', 'src_one', 'src_two', 'src_three', 'src_four'];
+  const build = (documents) => dash.buildEpistemicHealth({
+    epistemic: payload(DOC_IDS, STATEMENTS),
+    documents,
+    onShowInGraph: () => {},
+    onAskInChat: () => {},
+    onOpenDocument: (docId, highlight, event) => opened.push({ docId, highlight, event }),
+  });
+  const known = [{ doc_id: 'pmid_35650449' }, { doc_id: 'src_one' }, { doc_id: 'src_three' }];
+  const links = (root) => find(root, (n) => n.matches('button.epistemic-doc-link'));
+  const metaLines = (root) => byClass(root, 'epistemic-meta');
+  const sourcesLine = (root) => metaLines(root).find((m) => textOf(m).startsWith('Sources:'));
+
+  {
+    const root = build(known);
+    const btns = links(root);
+    check('doc-links: known ids become buttons (statement id, plus two on the Sources line)', btns.length === 3, btns.map(textOf));
+    const first = btns[0];
+    check('doc-links: statement id button markup', textOf(first) === 'pmid_35650449' && first.getAttribute('type') === 'button'
+      && first.getAttribute('data-action') === 'open-doc' && first.getAttribute('title') === 'pmid_35650449'
+      && classesOf(first).includes('epistemic-meta__doc') && first.getAttribute('aria-label') === 'Read pmid_35650449 with the cited passage highlighted',
+    [first.className, first.getAttribute('aria-label')]);
+    const statementMeta = metaLines(root).find((m) => textOf(m).startsWith('pmid_35650449'));
+    check('doc-links: the statement meta text is unchanged', textOf(statementMeta) === 'pmid_35650449 · Confidence 50%', textOf(statementMeta));
+    const unlisted = find(root, (n) => n.matches('span.epistemic-meta__doc') && textOf(n) === 'unlisted_doc');
+    check('doc-links: an id not in the list stays a plain span with its title', unlisted.length === 1 && unlisted[0].getAttribute('title') === 'unlisted_doc'
+      && !find(root, (n) => n.matches('button') && textOf(n) === 'unlisted_doc').length);
+
+    root.dispatch('click', { target: first });
+    check('doc-links: statement click opens the document with that statement text', opened.length === 1 && opened[0].docId === 'pmid_35650449'
+      && opened[0].highlight === 'Quote from the first doc' && !!opened[0].event, opened.map((o) => [o.docId, o.highlight]));
+
+    const src = sourcesLine(root);
+    check('doc-links: Sources line text keeps ids, separators and the more tail', textOf(src) === 'Sources: src_one, src_two, src_three +1 more', textOf(src));
+    const srcBtns = byTag(src, 'button');
+    check('doc-links: only known Sources ids are buttons', srcBtns.length === 2 && textOf(srcBtns[0]) === 'src_one' && textOf(srcBtns[1]) === 'src_three');
+    const srcSpans = find(src, (n) => n.matches('span.epistemic-meta__doc'));
+    check('doc-links: unknown Sources ids stay plain spans', srcSpans.length === 1 && textOf(srcSpans[0]) === 'src_two');
+    check('doc-links: the Sources line keeps its full-list title', src.getAttribute('title') === DOC_IDS.join(', '), src.getAttribute('title'));
+
+    root.dispatch('click', { target: srcBtns[0] });
+    check('doc-links: Sources id highlights the first statement of that document (A-6)', opened.length === 2 && opened[1].docId === 'src_one'
+      && opened[1].highlight === 'Third statement from src_one' && srcBtns[0].getAttribute('aria-label') === 'Read src_one with the cited passage highlighted',
+    [opened[1], srcBtns[0].getAttribute('aria-label')]);
+    root.dispatch('click', { target: srcBtns[1] });
+    check('doc-links: Sources id with no statement opens without a highlight', opened.length === 3 && opened[2].docId === 'src_three'
+      && opened[2].highlight === undefined && srcBtns[1].getAttribute('aria-label') === 'Read src_three', [opened[2], srcBtns[1].getAttribute('aria-label')]);
+
+    srcBtns[0].setAttribute('data-doc-id', 'not_in_this_item');
+    root.dispatch('click', { target: srcBtns[0] });
+    check('doc-links: a tampered doc id attribute is ignored', opened.length === 3);
+    check('doc-links: opening never calls the other actions or throws on a missing handler', true);
+  }
+
+  {
+    const root = build(undefined);
+    check('doc-links: without documents no id is a button', links(root).length === 0);
+    const src = sourcesLine(root);
+    const spans = find(src, (n) => n.matches('span.epistemic-meta__doc'));
+    check('doc-links: without documents the Sources line is one span, as before', spans.length === 1 && textOf(spans[0]) === 'src_one, src_two, src_three' && textOf(src) === 'Sources: src_one, src_two, src_three +1 more', textOf(src));
+    const none = build([]);
+    check('doc-links: an empty documents list also leaves ids plain', links(none).length === 0);
+    const noHandler = dash.buildEpistemicHealth({ epistemic: payload(DOC_IDS, STATEMENTS), documents: known });
+    let threw = false;
+    try { noHandler.dispatch('click', { target: links(noHandler)[0] }); } catch { threw = true; }
+    check('doc-links: a click without onOpenDocument does not throw', !threw);
+  }
+
+  {
+    const hostile = '<img src=x onerror=1>';
+    createdTags.length = 0;
+    innerHtmlWrites.length = 0;
+    const before = opened.length;
+    const root = dash.buildEpistemicHealth({
+      epistemic: payload([hostile, 'other'], [stm('quote', hostile, 0.5)]),
+      documents: [{ doc_id: hostile }],
+      onOpenDocument: (docId, highlight) => opened.push({ docId, highlight }),
+    });
+    const btn = links(root)[0];
+    check('doc-links hostile: the id is button text and an attribute value', btn && textOf(btn) === hostile && btn.getAttribute('data-doc-id') === hostile);
+    check('doc-links hostile: no img or script element and no innerHTML write', !createdTags.includes('img') && !createdTags.includes('script') && innerHtmlWrites.length === 0, createdTags);
+    root.dispatch('click', { target: btn });
+    check('doc-links hostile: the raw id reaches the handler', opened.length === before + 1 && opened[before].docId === hostile && opened[before].highlight === 'quote');
+    let badClass = false;
+    walk(root, (n) => { if (/[<>"']|onerror|script/i.test(String(n.className || ''))) badClass = true; });
+    check('doc-links hostile: no data-derived class names', !badClass);
+  }
+}
+
 if (MODE === 'documents') {
   const EMPTY = 'No source documents were found in this output directory. Run /epistract:ingest to add documents, then reload the workbench.';
   if (typeof dash.buildDocuments !== 'function') {

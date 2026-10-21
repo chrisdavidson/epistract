@@ -68,6 +68,13 @@ def test_dashboard_epistemic_harness():
 
 
 @pytest.mark.unit
+def test_dashboard_doc_links_harness():
+    out = _run(DASHBOARD_HARNESS, "doc-links")
+    assert out["failed"] == [], out["failed"]
+    assert out["passed"], "harness ran no checks"
+
+
+@pytest.mark.unit
 @pytest.mark.parametrize("mode", SHOW_MODES)
 def test_graph_show_types(mode):
     out = _run(GRAPH_HARNESS, mode)
