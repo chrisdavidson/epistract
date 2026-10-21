@@ -234,26 +234,84 @@ def test_has_pdf_from_triage_path(tmp_path):
 
 def test_has_pdf_from_doc_id_file_next_to_corpus(tmp_path):
     out = _pdf_output(tmp_path, triage_pdf=False, pdf_name="other.pdf")
-    docs = {
-        d["doc_id"]: d
-        for d in TestClient(create_app(out, domain=None)).get("/api/sources").json()["documents"]
-    }
+    client = TestClient(create_app(out, domain=None))
+    docs = {d["doc_id"]: d for d in client.get("/api/sources").json()["documents"]}
     assert docs["other"]["has_pdf"] is True
     assert docs["foo_report"]["has_pdf"] is False
+    assert client.get("/api/sources/pdf/other").status_code == 200
+    assert client.get("/api/sources/pdf/foo_report").status_code == 404
 
 
-def test_has_pdf_does_not_walk_the_corpus_tree(tmp_path, monkeypatch):
+def _assert_flag_matches_endpoint(client):
+    """has_pdf is true exactly when /api/sources/pdf/{doc_id} serves a PDF."""
+    docs = client.get("/api/sources").json()["documents"]
+    assert docs, "no documents listed"
+    for doc in docs:
+        status = client.get(f"/api/sources/pdf/{doc['doc_id']}").status_code
+        assert (status == 200) is doc["has_pdf"], (doc["doc_id"], doc["has_pdf"], status)
+    return {d["doc_id"]: d for d in docs}
+
+
+def test_has_pdf_and_endpoint_agree_without_walking_the_tree(tmp_path, monkeypatch):
+    # A PDF one level below the corpus folder is neither flagged nor served:
+    # there is no recursive walk at load time or at request time.
     out = _pdf_output(tmp_path, triage_pdf=True, pdf_name="Foo Report.pdf")
     nested = tmp_path / "corpus" / "nested"
     nested.mkdir()
     (nested / "other.pdf").write_bytes(b"%PDF-1.4 stub")
 
     def boom(self, pattern):
-        raise AssertionError("rglob must not run at startup")
+        raise AssertionError("rglob must not run")
 
     monkeypatch.setattr(Path, "rglob", boom)
-    from examples.workbench.data_loader import WorkbenchData
-
-    docs = {d["doc_id"]: d for d in WorkbenchData(out).documents}
+    docs = _assert_flag_matches_endpoint(TestClient(create_app(out, domain=None)))
     assert docs["foo_report"]["has_pdf"] is True
     assert docs["other"]["has_pdf"] is False
+
+
+def test_has_pdf_and_endpoint_agree_for_unnormalised_names(tmp_path):
+    # "Acme (2024).pdf" gets the id acme__2024_; the triage path is the one
+    # resolver, so the flag and the endpoint both find it.
+    out = tmp_path / "out"
+    (out / "ingested").mkdir(parents=True)
+    corpus = tmp_path / "corpus"
+    (corpus / "sub").mkdir(parents=True)
+    (out / "graph_data.json").write_text(json.dumps({"nodes": [], "links": []}), encoding="utf-8")
+    (out / "ingested" / "acme__2024_.txt").write_text("Acme", encoding="utf-8")
+    (out / "ingested" / "my_doc.txt").write_text("Mine", encoding="utf-8")
+    (corpus / "Acme (2024).pdf").write_bytes(b"%PDF-1.4 stub")
+    (corpus / "sub" / "My_Doc.pdf").write_bytes(b"%PDF-1.4 stub")
+    triage = {
+        "documents": [
+            {"doc_id": "acme__2024_", "file_path": str(corpus / "Acme (2024).pdf")},
+            {"doc_id": "my_doc", "file_path": str(corpus / "sub" / "My_Doc.pdf")},
+        ]
+    }
+    (out / "triage.json").write_text(json.dumps(triage), encoding="utf-8")
+    docs = _assert_flag_matches_endpoint(TestClient(create_app(out, domain=None)))
+    assert docs["acme__2024_"]["has_pdf"] is True
+    assert docs["my_doc"]["has_pdf"] is True
+
+
+def test_relative_triage_paths_resolve_against_the_output_dir(tmp_path, monkeypatch):
+    out = tmp_path / "out"
+    (out / "ingested").mkdir(parents=True)
+    (out / "originals").mkdir()
+    (out / "graph_data.json").write_text(json.dumps({"nodes": [], "links": []}), encoding="utf-8")
+    (out / "ingested" / "rel_doc.txt").write_text("Rel", encoding="utf-8")
+    (out / "originals" / "Rel Doc.pdf").write_bytes(b"%PDF-1.4 stub")
+    triage = {"documents": [{"doc_id": "rel_doc", "file_path": "originals/Rel Doc.pdf"}]}
+    (out / "triage.json").write_text(json.dumps(triage), encoding="utf-8")
+
+    # A decoy at the same relative path under the process cwd must not be used.
+    elsewhere = tmp_path / "elsewhere"
+    (elsewhere / "originals").mkdir(parents=True)
+    monkeypatch.chdir(elsewhere)
+    docs = _assert_flag_matches_endpoint(TestClient(create_app(out, domain=None)))
+    assert docs["rel_doc"]["has_pdf"] is True
+
+    # And a relative path that only exists under the cwd is not a PDF of this output.
+    (out / "originals" / "Rel Doc.pdf").unlink()
+    (elsewhere / "originals" / "Rel Doc.pdf").write_bytes(b"%PDF-1.4 stub")
+    docs = _assert_flag_matches_endpoint(TestClient(create_app(out, domain=None)))
+    assert docs["rel_doc"]["has_pdf"] is False

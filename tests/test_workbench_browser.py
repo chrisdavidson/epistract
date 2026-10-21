@@ -50,7 +50,7 @@ def _serve(tmp_path_factory, corpus: Path, name: str):
     for fname in GLP1_FILES:
         shutil.copy2(corpus / fname, work / fname)
     # The Documents table needs the ingested texts; triage.json keeps the original
-    # file names (its relative paths resolve because the server runs with cwd=ROOT).
+    # file names (taken from the recorded paths' names; nothing depends on the cwd).
     if (corpus / "ingested").is_dir():
         shutil.copytree(corpus / "ingested", work / "ingested")
     if (corpus / "triage.json").is_file():
