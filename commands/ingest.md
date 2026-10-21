@@ -169,6 +169,8 @@ Rate-limit considerations:
 
 ### Step 6: Open Visualization
 
+Writes a self-contained `graph.html` (works offline, same graph look as the workbench) and opens it.
+
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/core/run_sift.py view <output_dir>
 ```

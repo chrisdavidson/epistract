@@ -2,6 +2,29 @@
 
 All notable changes to epistract are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
+## [Unreleased] — 2026-10-20
+
+**`/epistract:view` now writes the workbench graph as a single offline page.** `graph.html` is built from the workbench graph renderer instead of sift-kg/pyvis, so the standalone page and the workbench look and behave alike.
+
+### Added
+
+- Self-contained `graph.html` built from the workbench renderer (`examples/workbench/static_export.py`, payloads from `core/graph_payloads.py`); works offline from disk with no external scripts.
+- `--depth <d>` (hop radius for `--neighborhood`) and `--no-open` (write without opening a browser) flags.
+- Subset notice for `--neighborhood` / `--top` views and a metadata line on every page.
+- Readable error, empty and no-JavaScript states.
+
+### Changed
+
+- `/epistract:view` no longer uses sift-kg/pyvis to render. Node colors and shapes come from the same `domain.yaml` display hints as the workbench; grouping defaults to Topic cluster; sources are hidden until "Show sources".
+
+### Removed
+
+- sift-kg viewer controls: per-type color pickers, source-document dropdown, min-support-docs slider, community checkbox list, title text color options, and sift-kg's own search/detail panel. Replaced by domain.yaml display colors, Show sources, confidence and min-connections sliders (in Filters), Group by and the Groups list, and the workbench search and detail sidebar.
+
+### Security
+
+- No external scripts; all graph data lives in an escaped JSON island. sift-kg's unescaped sidebar is no longer on the view path.
+
 ## [3.2.2] — 2026-04-28
 
 **Workbench security hardening.** Closes all HIGH/MEDIUM vulnerabilities identified in the workbench example app, each proven by a failing-then-passing regression test. Contributed by Chris Davidson (PR #19) and ported as a controlled release.
