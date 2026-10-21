@@ -157,11 +157,28 @@ function wireSidebarCollapse() {
     btn.addEventListener('click', () => {
         collapsed = !collapsed;
         apply();
-        try {
-            localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0');
-        } catch (e) { /* storage unavailable */ }
+        if (presentRestore === null) {
+            try {
+                localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0');
+            } catch (e) { /* storage unavailable */ }
+        }
         // The graph canvas changed width; refit it to the new size.
         if (activePanel === 'graph') window.dispatchEvent(new CustomEvent('graph-panel-opened'));
+    });
+
+    // Present mode collapses the sidebar without saving that as the viewer's
+    // choice; leaving it restores the state from before. graph.js refits.
+    let presentRestore = null;
+    window.addEventListener('graph-present-changed', (event) => {
+        const on = Boolean(event.detail && event.detail.on);
+        if (on && presentRestore === null) {
+            presentRestore = collapsed;
+            collapsed = true;
+        } else if (!on && presentRestore !== null) {
+            collapsed = presentRestore;
+            presentRestore = null;
+        }
+        apply();
     });
     apply();
 }

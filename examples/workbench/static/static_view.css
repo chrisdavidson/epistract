@@ -342,3 +342,10 @@ body.static-view #graph-detail-sidebar.graph-detail-sidebar--closed {
     font-weight: 400;
     color: #666666;
 }
+
+/* Present mode keeps the legend strip at desktop size: larger chips wrap to
+   extra rows and take the height the enlarged graph needs. */
+body.static-view.present .legend-chips {
+  --size-label: 13px;
+  --size-data: 14px;
+}

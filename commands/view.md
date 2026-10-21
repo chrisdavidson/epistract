@@ -27,6 +27,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/core/run_sift.py view <output_dir> [--neighborhood
 - Focus mode: double-click a node to see its 1-hop (or 2-hop) neighborhood; Esc exits
 - A Filters popover (epistemic status, confidence, minimum connections, relation type)
 - A subset notice when `--neighborhood` or `--top` is used
+- A "Present" switch (or the P key) for projectors and shared screens: larger labels, group names and controls, fewer labels at once, solid edges. Open the file with `?present=1` to start in it; the browser remembers the last choice
 
 ## Changed from earlier versions
 
@@ -50,7 +51,8 @@ Options:
   --no-open                 Write graph.html without opening a browser
 
 Page features: Group by (Topic cluster default / Entity family / None), Show sources,
-legend filters, hover cards, edge key, focus mode (double-click a node), Filters popover.
+legend filters, hover cards, edge key, focus mode (double-click a node), Filters popover,
+Present switch (P) for projectors.
 
 Examples:
   /epistract:view

@@ -71,5 +71,35 @@ check('edge names: small node names all', S.namedEdgeIds([smallEdges], null).siz
 check('edge names: exactly cap names all', S.namedEdgeIds([hubEdges.slice(0, S.EDGE_NAME_MAX_EDGES)], null).size === S.EDGE_NAME_MAX_EDGES);
 check('edge names: cap constant', S.EDGE_NAME_MAX_EDGES === 12);
 
+// Present mode: text grows by the display factor, marks by half as much.
+check('display scale default', S.getDisplayScale() === 1 && S.markScale() === 1);
+check('desktop opacities', S.edgeBaseOpacity() === S.EDGE_BASE_OPACITY && S.edgeDimOpacity() === S.EDGE_DIM_OPACITY);
+check('desktop budget unchanged', S.labelBudget(15) === 15 && S.labelBudget(Infinity) === Infinity);
+const desk = {
+  font: S.labelFontSize(0.14),
+  node: S.nodeSize(30, 60, 0.14, false),
+  edge: S.edgeWidth(3, 0.14),
+  dash: S.edgeDashes('hypothesized', 0.14),
+};
+S.setDisplayScale(S.PRESENT_DISPLAY_SCALE);
+const k = S.PRESENT_DISPLAY_SCALE;
+const mk = 1 + (k - 1) / 2;
+check('present scale set', S.getDisplayScale() === k && Math.abs(S.markScale() - mk) < 1e-9);
+check('present label px', Math.abs(S.labelFontSize(0.14) - desk.font * k) < 1e-9);
+check('present label cap scales', S.labelFontSize(0.001) === 240 * k);
+check('present node size', Math.abs(S.nodeSize(30, 60, 0.14, false) - desk.node * mk) < 1e-9);
+check('present edge width', Math.abs(S.edgeWidth(3, 0.14) - desk.edge * mk) < 1e-9);
+check('present dashes', Math.abs(S.edgeDashes('hypothesized', 0.14)[0] - desk.dash[0] * mk) < 1e-9);
+check('present asserted solid', S.edgeDashes('asserted', 0.14) === false);
+check('present opacities', S.edgeBaseOpacity() === 1 && S.edgeDimOpacity() < S.EDGE_DIM_OPACITY);
+check('present budget shrinks', S.labelBudget(15) === Math.round(15 / (k * k)));
+check('present budget floor', S.labelBudget(2) === S.PRESENT_MIN_LABELS);
+check('present budget infinity', S.labelBudget(Infinity) === Infinity);
+for (const bad of [0, -1, NaN, 'x', undefined]) {
+  S.setDisplayScale(bad);
+  check(`display scale invalid ${bad}`, S.getDisplayScale() === 1);
+}
+S.setDisplayScale(1);
+
 process.stdout.write(JSON.stringify({ passed, failed }) + '\n');
 process.exit(failed.length ? 1 : 0);

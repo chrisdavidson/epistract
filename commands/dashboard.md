@@ -68,6 +68,7 @@ Then open `http://127.0.0.1:8000` in your browser.
 ## What You Can Do in the Workbench
 
 - **Explore the graph visually** — pan, zoom, and click nodes to see neighborhood context. Filter by entity type or community to isolate sub-graphs.
+- **Present on a projector** — press **Present** in the graph toolbar (or the P key) for larger labels, group names and controls, fewer labels at once and solid edges; the sidebar collapses to icons. Press it again to return to desktop sizes. Append `?present=1` to the workbench URL to start in it.
 - **Ask questions** — the chat panel uses the domain-specific persona prompt (defined in `domains/<name>/workbench/template.yaml`) and streams Claude's responses with inline citations.
 - **Drill to source** — every answer in the chat panel links to the specific documents, entities, and relations that support it. Click through to see the exact source text.
 - **Review epistemic layer** — if `/epistract:epistemic` has been run, contradictions, hypotheses, and prophetic claims are highlighted in the graph view.

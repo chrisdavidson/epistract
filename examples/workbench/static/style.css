@@ -2444,3 +2444,62 @@ body.graph-active.sidebar-collapsed .sidebar-collapse-btn {
     font-size: var(--size-body);
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Present mode -- graph.js setPresentMode() toggles body.present. The canvas
+   sizes come from the display factor in graph_style.js; this scales the
+   graph controls, hover card and detail panel to match.
+   --------------------------------------------------------------------------- */
+
+body.present .side-panel,
+body.present .graph-hover-card {
+  --size-body: 20px;
+  --size-label: 17px;
+  --size-data: 18px;
+}
+
+body.present .graph-hover-card {
+  width: 400px;
+}
+
+body.present #graph-detail-sidebar {
+  width: 420px;
+}
+
+/* Keep only what a presenter reaches for: search, grouping, fit, present. */
+body.present #graph-reset-pins-btn,
+body.present #edge-key-toggle,
+body.present #graph-groups-btn,
+body.present #edge-key,
+body.present #graph-groups {
+  display: none;
+}
+
+body.present .graph-toolbar .toggle-btn,
+body.present .graph-group button {
+  min-height: 36px;
+  padding: 6px 14px;
+  font-size: var(--size-label);
+}
+
+.toggle-btn.graph-present-btn {
+  opacity: 1;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.graph-present-btn:hover {
+  border-color: #9ca3af;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.graph-present-btn[aria-pressed="true"] {
+  border-color: var(--color-secondary);
+  background: var(--color-secondary);
+  color: #ffffff;
+}
+
+.graph-present-btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}

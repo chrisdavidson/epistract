@@ -220,7 +220,7 @@ async function layout() {
     if (d === 'legend-chip') break;
   }
   const want = ['skip', 'search', 'group-radio', 'graph-show-sources-btn', 'static-filters-btn',
-    'edge-key-toggle', 'graph-groups-btn', 'graph-fit-btn', 'graph-reset-pins-btn', 'legend-chip'];
+    'edge-key-toggle', 'graph-groups-btn', 'graph-fit-btn', 'graph-reset-pins-btn', 'graph-present-btn', 'legend-chip'];
   check('Tab order equals visual order', JSON.stringify(seen) === JSON.stringify(want), seen);
 
   // Narrower viewport.

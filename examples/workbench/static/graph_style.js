@@ -5,7 +5,9 @@
 //          constants (NODE_MIN_PX ... TRUNCATE_LABEL_CHARS), edgeDashes, edgeColorObject,
 //          EDGE_BASE_OPACITY, EDGE_DIM_OPACITY, EDGE_DASH_ON_PX, EDGE_DASH_OFF_PX,
 //          HOVER_TOP_RELATIONS, CARD_OFFSET_PX, CARD_MARGIN_PX, hoverCardModel, cardPosition,
-//          FOCUS_MAX_LABELS, EDGE_LABEL_SCALE, focusIds, focusDelta, edgeLabelFont
+//          FOCUS_MAX_LABELS, EDGE_LABEL_SCALE, focusIds, focusDelta, edgeLabelFont,
+//          PRESENT_DISPLAY_SCALE, setDisplayScale, getDisplayScale, edgeBaseOpacity,
+//          edgeDimOpacity, labelBudget, markScale
 
 // Screen-constant sizing. vis draws in world units, so at a fit scale of ~0.14
 // a world-unit size is a fraction of a pixel. These constants are pixel targets;
@@ -25,6 +27,47 @@ export const EDGE_DIM_OPACITY = 0.15;
 export const EDGE_DASH_ON_PX = 7;
 export const EDGE_DASH_OFF_PX = 5;
 
+// Present mode: every screen-px target above is multiplied by the display
+// factor so the graph reads on a projector or a shared screen. 1 = desktop.
+export const PRESENT_DISPLAY_SCALE = 1.6;
+export const PRESENT_EDGE_BASE_OPACITY = 1;
+export const PRESENT_EDGE_DIM_OPACITY = 0.08;
+export const PRESENT_MIN_LABELS = 3;
+let displayScale = 1;
+
+// Sets the display factor; anything that is not a positive number means 1.
+export function setDisplayScale(factor) {
+    const f = Number(factor);
+    displayScale = Number.isFinite(f) && f > 0 ? f : 1;
+}
+
+export function getDisplayScale() {
+    return displayScale;
+}
+
+// Nodes and edges grow half as much as text: labels must be read across a
+// room, but full-size marks merge clusters into blobs at projector resolution.
+export function markScale() {
+    return 1 + (displayScale - 1) / 2;
+}
+
+// Resting and dimmed edge opacity: solid edges and a deeper dim in present
+// mode, where faint lines wash out on a projector.
+export function edgeBaseOpacity() {
+    return displayScale > 1 ? PRESENT_EDGE_BASE_OPACITY : EDGE_BASE_OPACITY;
+}
+
+export function edgeDimOpacity() {
+    return displayScale > 1 ? PRESENT_EDGE_DIM_OPACITY : EDGE_DIM_OPACITY;
+}
+
+// Label budget for a zoom stop. Labels grow by the display factor in both
+// directions, so the budget shrinks by its square to keep the same clutter.
+export function labelBudget(maxLabels) {
+    if (!Number.isFinite(maxLabels) || displayScale <= 1) return maxLabels;
+    return Math.max(PRESENT_MIN_LABELS, Math.round(maxLabels / (displayScale * displayScale)));
+}
+
 // Integer bucket of the zoom level (half-octave steps); the label controller
 // only rewrites styles when this or the degree cutoff changes.
 export function scaleBucket(scale) {
@@ -34,7 +77,8 @@ export function scaleBucket(scale) {
 // World-unit font size that draws at about LABEL_SCREEN_PX on screen.
 export function labelFontSize(scale) {
     const s = Math.max(Number(scale) || 0, 0.01);
-    return Math.min(LABEL_MAX_WORLD, Math.max(LABEL_BASE_WORLD, LABEL_SCREEN_PX / s));
+    const k = displayScale;
+    return Math.min(LABEL_MAX_WORLD * k, Math.max(LABEL_BASE_WORLD * k, (LABEL_SCREEN_PX * k) / s));
 }
 
 // World-unit node size: never below the old degree formula, never below the
@@ -44,10 +88,11 @@ export function nodeSize(linkDeg, maxLinkDeg, scale, isSource) {
     const base = 8 + Math.round(ratio * 16);
     const floorPx = NODE_MIN_PX + (NODE_MAX_PX - NODE_MIN_PX) * Math.sqrt(ratio);
     const s = Math.max(Number(scale) || 0, 0.01);
+    const k = markScale();
     if (isSource) {
-        return Math.max(base * 0.6, Math.max(SOURCE_NODE_MIN_PX, floorPx * SOURCE_NODE_FACTOR) / s);
+        return k * Math.max(base * 0.6, Math.max(SOURCE_NODE_MIN_PX, floorPx * SOURCE_NODE_FACTOR) / s);
     }
-    return Math.max(base, floorPx / s);
+    return k * Math.max(base, floorPx / s);
 }
 
 // World-unit edge width that draws between EDGE_MIN_PX and EDGE_MAX_PX on
@@ -56,7 +101,7 @@ export function edgeWidth(supportCount, scale) {
     const sc = Math.max(Number(supportCount) || 1, 1);
     const px = Math.min(EDGE_MAX_PX, Math.max(EDGE_MIN_PX, 1 + 0.9 * Math.log2(Math.min(sc, 1e9))));
     const s = Math.max(Number(scale) || 0, 0.01);
-    return px / s;
+    return (px * markScale()) / s;
 }
 
 // Dash pattern that draws 7 px on / 5 px off at scale s for claims that are
@@ -64,7 +109,8 @@ export function edgeWidth(supportCount, scale) {
 export function edgeDashes(status, scale) {
     if (!isNonAsserted(status)) return false;
     const s = Math.max(Number(scale) || 0, 0.01);
-    return [EDGE_DASH_ON_PX / s, EDGE_DASH_OFF_PX / s];
+    const k = markScale();
+    return [(EDGE_DASH_ON_PX * k) / s, (EDGE_DASH_OFF_PX * k) / s];
 }
 
 // Complete vis edge color object; partial objects let vis drop the category color.

@@ -7,8 +7,9 @@ import {
 import {
     isSourceEdge, linkDegrees, scaleBucket, labelFontSize, nodeSize, edgeWidth,
     truncateLabel, labelCutoff, stableEdgeIds, LABEL_BASE_WORLD,
-    edgeDashes, edgeColorObject, namedEdgeIds, EDGE_BASE_OPACITY, EDGE_DIM_OPACITY, hoverCardModel,
+    edgeDashes, edgeColorObject, namedEdgeIds, edgeBaseOpacity, edgeDimOpacity, hoverCardModel,
     humanizeRelation, focusIds, focusDelta, edgeLabelFont,
+    PRESENT_DISPLAY_SCALE, setDisplayScale, getDisplayScale, labelBudget,
 } from './graph_style.js';
 import { initHoverCard, showHoverCard, hideHoverCard, isHoverCardVisible } from './hovercard.js';
 import {
@@ -51,6 +52,8 @@ const NODE_FONT_BASE = {              // non-size font properties — single sou
     color: '#1a1a1a',
     background: 'rgba(255, 255, 255, 0.85)',
 };
+const PRESENT_LABEL_BACKGROUND = '#ffffff';  // opaque label pills in present mode; edges behind a label blur it on a projector
+const PRESENT_STORAGE_KEY = 'epistract.presentMode';
 const NODE_BORDER = 'rgba(0,0,0,0.25)';       // neutral node outline; the type is carried by fill + shape
 const NODE_SELECTED_BORDER = '#1a1a2e';
 const EDGE_SMOOTH_MAX_EDGES = 400;              // above this edge count, render straight edges — curved edges are visual mud and a per-frame render cost at scale
@@ -206,6 +209,7 @@ function nodeColor(type) {
 export async function initGraph(opts) {
     callbacks = opts || {};
     initHoverCard();
+    initPresentMode();
 
     // Resolve type colors/shapes once, before the legend or nodes are built, so
     // every surface reads the same values regardless of build order.
@@ -359,7 +363,7 @@ function nodeLabelFont(id, scale, cutoff) {
     const visible = focusNodeIds.has(id)
         || focusLabelIds.has(id)
         || (restingOk && !sourceNodeIds.has(id) && (linkDegreeMap[id] || 0) >= cutoff);
-    return { ...NODE_FONT_BASE, size: visible ? labelFontSize(scale) : LABEL_HIDDEN_FONT_SIZE };
+    return { ...nodeFontBase(), size: visible ? labelFontSize(scale) : LABEL_HIDDEN_FONT_SIZE };
 }
 
 function applyScaleStyle() {
@@ -376,7 +380,7 @@ function applyScaleStyle() {
     let budget = Infinity;
     if (gated) {
         const stop = LABEL_ZOOM_STOPS.find(s => scale >= s.scale) || LABEL_ZOOM_STOPS[LABEL_ZOOM_STOPS.length - 1];
-        budget = stop.maxLabels;
+        budget = labelBudget(stop.maxLabels);
     }
     const cutoff = labelCutoff(sortedDegrees, budget);
     _lastCutoff = cutoff;
@@ -430,6 +434,95 @@ function applyScaleStyle() {
         labelled: labelled,
         totalNodes: allNodes.length,
     };
+}
+
+// ---------------------------------------------------------------------------
+// Present mode: one switch that scales labels, nodes, edges and group pills by
+// PRESENT_DISPLAY_SCALE for projectors and shared screens. Positions never
+// change, so the flip is instant and the map does not jump.
+// ---------------------------------------------------------------------------
+let _presentListenersAttached = false;
+
+function nodeFontBase() {
+    return getDisplayScale() > 1 ? { ...NODE_FONT_BASE, background: PRESENT_LABEL_BACKGROUND } : NODE_FONT_BASE;
+}
+
+function isPresentMode() {
+    return getDisplayScale() > 1;
+}
+
+// ?present=1 / ?present=0 in the URL wins, then the viewer's last choice.
+function initialPresentMode() {
+    try {
+        const param = new URLSearchParams(window.location.search).get('present');
+        if (param === '1' || param === 'true') return true;
+        if (param === '0' || param === 'false') return false;
+    } catch (e) { /* no usable URL */ }
+    try {
+        return localStorage.getItem(PRESENT_STORAGE_KEY) === '1';
+    } catch (e) {
+        return false;
+    }
+}
+
+// Rewrites every edge colour at the opacity the current mode uses, keeping
+// the selected node's neighbourhood highlight.
+function refreshEdgeOpacity() {
+    if (!network || !visEdges) return;
+    const keep = highlightedNodeId !== null ? new Set(network.getConnectedEdges(highlightedNodeId)) : null;
+    const updates = visEdges.getIds().filter(id => !isAnchorId(id)).map(id => ({
+        id,
+        color: edgeColorObject(edgeColorById.get(id), keep && !keep.has(id) ? edgeDimOpacity() : edgeBaseOpacity()),
+    }));
+    if (updates.length) visEdges.update(updates);
+}
+
+function syncPresentButton() {
+    const btn = document.getElementById('graph-present-btn');
+    if (!btn) return;
+    const on = isPresentMode();
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.title = on ? 'Back to desktop sizes (P)' : 'Larger labels, nodes and lines for projectors (P)';
+}
+
+function setPresentMode(on, persist = true) {
+    setDisplayScale(on ? PRESENT_DISPLAY_SCALE : 1);
+    document.body.classList.toggle('present', on);
+    syncPresentButton();
+    if (persist) {
+        try {
+            localStorage.setItem(PRESENT_STORAGE_KEY, on ? '1' : '0');
+        } catch (e) { /* storage unavailable */ }
+    }
+    const status = document.getElementById('graph-present-status');
+    if (status) status.textContent = on ? 'Present mode on.' : 'Present mode off.';
+    // The workbench collapses its sidebar while presenting (app.js).
+    window.dispatchEvent(new CustomEvent('graph-present-changed', { detail: { on } }));
+    if (!network) return;
+    _lastStyleKey = null;
+    refreshEdgeOpacity();
+    applyScaleStyle();
+    network.redraw();
+    // Present mode hides toolbar buttons and the sidebar, so the canvas
+    // changes size; refit once the layout has reflowed.
+    setTimeout(() => fitView(null, false), 100);
+}
+
+function initPresentMode() {
+    // Desktop is the default state, so only an initial present mode applies.
+    if (initialPresentMode()) setPresentMode(true, false);
+    else syncPresentButton();
+    if (_presentListenersAttached) return;
+    _presentListenersAttached = true;
+    const btn = document.getElementById('graph-present-btn');
+    if (btn) btn.addEventListener('click', () => setPresentMode(!isPresentMode()));
+    document.addEventListener('keydown', (event) => {
+        if (event.key !== 'p' && event.key !== 'P') return;
+        if (event.ctrlKey || event.metaKey || event.altKey) return;
+        if (!graphPanelActive || isEditableTarget(event.target)) return;
+        event.preventDefault();
+        setPresentMode(!isPresentMode());
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -626,10 +719,17 @@ function pillPath(ctx, box, radius) {
     ctx.closePath();
 }
 
+// Zoom scale for converting the region px constants to world units. Dividing
+// by the display factor grows rings and pills with present mode; it is used
+// only for those sizes, never for positions.
+function regionPxScale() {
+    return (network.getScale() || 1) / getDisplayScale();
+}
+
 function drawRegionCircles(ctx) {
     _frameRegions = currentRegions();
     if (_frameRegions.length === 0) return;
-    const scale = network.getScale() || 1;
+    const scale = regionPxScale();
     const emphasized = emphasizedRegionId !== null ? emphasizedRegionId : activeRegionId;
     ctx.save();
     for (const region of _frameRegions) {
@@ -651,7 +751,7 @@ function drawRegionLabels(ctx) {
     _frameRegions = null;
     _lastPlaced = [];
     if (regions.length === 0) return;
-    const scale = network.getScale() || 1;
+    const scale = regionPxScale();
     const container = document.getElementById('graph-container');
     const width = (container && container.clientWidth) || 0;
     const height = (container && container.clientHeight) || 0;
@@ -1359,7 +1459,7 @@ function buildGraph() {
             // positions them when they are first revealed.
             physics: !isSource || sourcesShown,
             size: nodeSize(linkDegreeMap[n.id] || 0, maxDegree, 1, isSource),
-            font: { ...NODE_FONT_BASE, size: isSource ? LABEL_HIDDEN_FONT_SIZE : LABEL_BASE_WORLD },
+            font: { ...nodeFontBase(), size: isSource ? LABEL_HIDDEN_FONT_SIZE : LABEL_BASE_WORLD },
             _data: n,
         };
     });
@@ -1384,7 +1484,7 @@ function buildGraph() {
     const edges = allEdges.map((e, i) => ({
         id: edgeIdByIndex[i],
         width: edgeWidth(e.support_count, 1),
-        color: edgeColorObject(edgeColorById.get(edgeIdByIndex[i]), EDGE_BASE_OPACITY),
+        color: edgeColorObject(edgeColorById.get(edgeIdByIndex[i]), edgeBaseOpacity()),
         dashes: edgeDashes(e.epistemic_status, 1),
         label: humanizeRelation(e.relation_type),
         font: edgeLabelFont(1, false),
@@ -1597,7 +1697,7 @@ function buildGraph() {
             // Dim non-neighbourhood edges to opacity 0.15
             const edgeDims = visEdges.getIds()
                 .filter(id => !isAnchorId(id) && !connectedEdgeIds.has(id))
-                .map(id => ({ id, color: edgeColorObject(edgeColorById.get(id), EDGE_DIM_OPACITY) }));
+                .map(id => ({ id, color: edgeColorObject(edgeColorById.get(id), edgeDimOpacity()) }));
             if (edgeDims.length) visEdges.update(edgeDims);
 
             // Open sidebar (Phase 09 unchanged)
@@ -2726,7 +2826,7 @@ function clearHighlight() {
     if (!visNodes || !visEdges) return;
     const nodeRestores = visNodes.getIds().filter(id => !isAnchorId(id)).map(id => ({ id, opacity: 1 }));
     const edgeRestores = visEdges.getIds().filter(id => !isAnchorId(id)).map(id => ({
-        id, color: edgeColorObject(edgeColorById.get(id), EDGE_BASE_OPACITY),
+        id, color: edgeColorObject(edgeColorById.get(id), edgeBaseOpacity()),
     }));
     visNodes.update(nodeRestores);
     visEdges.update(edgeRestores);
