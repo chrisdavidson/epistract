@@ -224,6 +224,93 @@ check('groupIterations(1738) = 150', G.groupIterations(1738) === 150);
         Math.abs((diag.x - 100) / (diag.y - 200) - (-600 / -700)) < 1e-9);
 }
 
+// --- focus helpers -------------------------------------------------------
+{
+    const edgeList = [
+        { source: 'c', target: 'a' }, { source: 'c', target: 'b' }, { source: 'a', target: 'x' },
+        { source: 'x', target: 'y' }, { source: 'b', target: 'z', blocked: true }, { source: 'y', target: 'w' },
+    ];
+    const adj = new Map();
+    for (const e of edgeList) {
+        for (const id of new Set([e.source, e.target])) {
+            if (!adj.has(id)) adj.set(id, []);
+            adj.get(id).push(e);
+        }
+    }
+    const sorted = (s) => [...s].sort().join();
+    const okEdge = (e) => !e.blocked;
+    const k1 = G.kHop(adj, 'c', 1, okEdge, () => true);
+    check('focus kHop returns a Set', k1 instanceof Set);
+    check('focus kHop 1 hop includes the centre', sorted(k1) === 'a,b,c');
+    check('focus kHop 2 hops', sorted(G.kHop(adj, 'c', 2, okEdge, () => true)) === 'a,b,c,x');
+    check('focus kHop ineligible edges are not traversed', !G.kHop(adj, 'b', 2, okEdge, () => true).has('z'));
+    check('focus kHop ineligible nodes are not entered or crossed',
+        sorted(G.kHop(adj, 'c', 3, okEdge, (id) => id !== 'a')) === 'b,c');
+    check('focus kHop ineligible centre is empty', G.kHop(adj, 'c', 1, okEdge, (id) => id !== 'c').size === 0);
+    check('focus kHop unknown centre is empty', G.kHop(adj, 'nope', 2, okEdge, () => true).size === 0);
+    check('focus kHop 3 hops reaches further', sorted(G.kHop(adj, 'c', 3, okEdge, () => true)) === 'a,b,c,x,y');
+    check('focus kHop handles a cycle', G.kHop(new Map([['p', [{ source: 'p', target: 'q' }]], ['q', [{ source: 'p', target: 'q' }, { source: 'q', target: 'p' }]]]),
+        'p', 5, () => true, () => true).size === 2);
+
+    const s0 = [];
+    const s1 = G.pushFocus(s0, { id: 'a', hops: 1 });
+    const s2 = G.pushFocus(s1, { id: 'b', hops: 2 });
+    check('focus pushFocus returns a new array', s1 !== s0 && s0.length === 0 && s1.length === 1 && s2.length === 2);
+    check('focus pushFocus clamps hops to 1 or 2',
+        G.pushFocus([], { id: 'a', hops: 9 })[0].hops === 1 && G.pushFocus([], { id: 'a', hops: 2 })[0].hops === 2);
+    check('focus popFocus drops the top', G.popFocus(s2).length === 1 && G.popFocus(s2)[0].id === 'a' && s2.length === 2);
+    check('focus popFocus of empty is empty', G.popFocus([]).length === 0);
+    const s3 = G.pushFocus(s2, { id: 'c', hops: 1 });
+    check('focus truncateFocus keeps up to the index', G.truncateFocus(s3, 0).length === 1 && G.truncateFocus(s3, 1).length === 2);
+    check('focus truncateFocus out of range keeps the stack', G.truncateFocus(s3, 9).length === 3);
+    const sh = G.setTopHops(s2, 1);
+    check('focus setTopHops rewrites only the top without mutation',
+        sh[1].hops === 1 && sh[0].hops === 1 && s2[1].hops === 2 && sh.length === 2);
+    check('focus setTopHops of empty is empty', G.setTopHops([], 2).length === 0);
+
+    const nameOf = (id) => `Name ${id}`;
+    const c2 = G.crumbsFor(s2, nameOf);
+    check('focus crumbs start with All nodes', c2.length === 3 && c2[0].kind === 'all' && c2[0].label === 'All nodes');
+    check('focus crumbs last is current', c2[2].current === true && c2[1].current === false && c2[2].label === 'Name b');
+    check('focus crumbs carry the stack index', c2[1].index === 0 && c2[2].index === 1);
+    const big = [];
+    let st = big;
+    for (let i = 0; i < 7; i++) st = G.pushFocus(st, { id: `n${i}`, hops: 1 });
+    const cb = G.crumbsFor(st, nameOf, 4);
+    check('focus crumbs cap at 4 entries', cb.length === 4);
+    check('focus crumbs collapse the oldest', cb[0].kind === 'all' && cb[1].kind === 'collapsed' && cb[1].label === '…');
+    check('focus collapsed title joins with a separator', cb[1].title === 'Name n0 › Name n1 › Name n2 › Name n3 › Name n4', cb[1].title);
+    check('focus crumbs keep the newest two', cb[2].label === 'Name n5' && cb[3].label === 'Name n6' && cb[3].current === true);
+    check('focus crumbs keep real stack indexes', cb[2].index === 5 && cb[3].index === 6);
+    check('focus crumbs exactly at the limit do not collapse', G.crumbsFor(st.slice(0, 3), nameOf, 4).every((c) => c.kind !== 'collapsed'));
+    check('focus crumbs empty stack', G.crumbsFor([], nameOf).length === 1);
+
+    check('focus constants', G.FOCUS_MODE_MAX_LABELS === 120 && G.FOCUS_TRUNCATE_CHARS === 40);
+    const set = new Set(['c', 'a', 'b', 'x', 'y', 'z']);
+    const deg = new Map([['x', 5], ['y', 1], ['z', 1], ['a', 0], ['b', 0], ['c', 0]]);
+    const labels = G.focusModeLabelIds('c', set, ['a', 'b'], deg, 4);
+    check('focus labels always include centre and 1-hop', labels.has('c') && labels.has('a') && labels.has('b'));
+    check('focus labels fill by degree desc then id asc', sorted(labels) === 'a,b,c,x', sorted(labels));
+    const tie = G.focusModeLabelIds('c', set, ['a', 'b'], deg, 5);
+    check('focus labels tie broken by id', sorted(tie) === 'a,b,c,x,y', sorted(tie));
+    const over = G.focusModeLabelIds('c', set, ['a', 'b'], deg, 2);
+    check('focus labels keep centre and 1-hop above the cap', sorted(over) === 'a,b,c', sorted(over));
+    const wide = G.focusModeLabelIds('c', new Set(['c', 'a']), ['a'], {}, 120);
+    check('focus labels accept a plain object and small sets', sorted(wide) === 'a,c');
+    check('focus labels ignore ids outside the set', !G.focusModeLabelIds('c', new Set(['c']), ['a'], deg, 9).has('a'));
+    let bigSet = new Set(['c']);
+    const bigDeg = new Map();
+    for (let i = 0; i < 500; i++) { bigSet.add(`m${i}`); bigDeg.set(`m${i}`, i % 7); }
+    check('focus labels cap the large set', G.focusModeLabelIds('c', bigSet, [], bigDeg, G.FOCUS_MODE_MAX_LABELS).size === 120);
+
+    check('radioTarget arrows wrap', G.radioTarget('ArrowRight', ['a', 'b', 'c'], 'c') === 'a'
+        && G.radioTarget('ArrowLeft', ['a', 'b', 'c'], 'a') === 'c');
+    check('radioTarget Home and End', G.radioTarget('Home', ['a', 'b'], 'b') === 'a' && G.radioTarget('End', ['a', 'b'], 'a') === 'b');
+    check('radioTarget space selects itself', G.radioTarget(' ', ['a', 'b'], 'b') === 'b' && G.radioTarget('Enter', ['a', 'b'], 'a') === 'a');
+    check('radioTarget ignores other keys and disabled current', G.radioTarget('x', ['a'], 'a') === undefined
+        && G.radioTarget(' ', ['a'], 'zz') === null);
+}
+
 // --- source hygiene ------------------------------------------------------
 const text = readFileSync(groupingPath, 'utf8');
 for (const token of ['document', 'window', 'Math.random', 'createElementNS', '.innerHTML =', 'PALETTE']) {

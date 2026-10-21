@@ -21,12 +21,16 @@
 // drive the Group by radiogroup: relayout lifecycle, fallback without topic
 // clusters, relayout failure recovery and group-aware source placement. In
 // "ok" (groups 404) the harness also reports the load-failure control state.
+// argv[2] = "focus" / "focus-filters" drive focus mode: double-click entry, the
+// breadcrumb bar, hop toggle, Esc chain, graph-focus-* events, composition with
+// Show sources, filters and grouping.
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const mode = process.argv[2] || 'ok';
 const isRegions = mode === 'regions';
 const isControl = mode.startsWith('control');
+const isFocus = mode.startsWith('focus');
 
 function makeEl(id = '') {
   const listeners = {};
@@ -70,16 +74,19 @@ function makeEl(id = '') {
 }
 
 const elements = new Map();
+const docListeners = {};
+const winListeners = {};
+const windowEvents = [];
 globalThis.document = {
   getElementById(id) {
     if (!elements.has(id)) elements.set(id, makeEl(id));
     return elements.get(id);
   },
-  createElement: () => makeEl(),
+  createElement: (tag) => { const el = makeEl(); el.tagName = String(tag).toLowerCase(); return el; },
   createElementNS: () => makeEl(),
   createDocumentFragment: () => makeEl(),
   createTextNode: (t) => ({ textContent: t }),
-  addEventListener() {},
+  addEventListener(type, fn) { (docListeners[type] = docListeners[type] || []).push(fn); },
   querySelector: () => null,
   querySelectorAll: () => [],
   body: makeEl('body'),
@@ -174,6 +181,9 @@ class Network {
         if (prop === 'fit') {
           return (opts) => { calls.push({ kind: 'fit', order: order++, opts }); };
         }
+        if (prop === 'setSize' || prop === 'redraw') {
+          return (...args) => { calls.push({ kind: String(prop), order: order++, args }); };
+        }
         if (prop === 'setOptions' || prop === 'moveTo' || prop === 'moveNode') {
           return (...args) => { networkCalls.push({ kind: String(prop), args }); };
         }
@@ -191,7 +201,7 @@ class Network {
             };
             return (ids) => Object.fromEntries((ids || []).filter((id) => table[id]).map((id) => [id, table[id]]));
           }
-          if (mode !== 'groups') return () => ({});
+          if (mode !== 'groups' && !isFocus) return () => ({});
           return (ids) => Object.fromEntries((ids || []).map((id, i) => [id, { x: i * 10, y: i * 5 }]));
         }
         if (prop === 'getSelectedNodes') return () => [];
@@ -206,13 +216,18 @@ const vis = { DataSet, Network };
 globalThis.vis = vis;
 globalThis.window = {
   vis,
-  addEventListener() {},
+  addEventListener(type, fn) { (winListeners[type] = winListeners[type] || []).push(fn); },
   removeEventListener() {},
+  dispatchEvent(ev) {
+    windowEvents.push({ type: ev.type, detail: ev.detail === undefined ? undefined : JSON.parse(JSON.stringify(ev.detail)) });
+    for (const fn of [...(winListeners[ev.type] || [])]) fn(ev);
+    return true;
+  },
   innerWidth: 1200,
   innerHeight: 800,
 };
 
-const isGroups = mode === 'groups' || isRegions || isControl;
+const isGroups = mode === 'groups' || isRegions || isControl || isFocus;
 const withSources = mode === 'sources' || isGroups;
 const FIT_NODES = [{ id: 'hub', name: 'Hub compound', entity_type: 'COMPOUND' }];
 const FIT_EDGES = [];
@@ -242,15 +257,36 @@ const EDGE_EDGES = [
   { source: 'a', target: 'c', relation_type: 'INHIBITS', relation_id: 'r2', epistemic_status: 'hypothesized' },
   { source: 'b', target: 'c', relation_type: 'NOT_IN_SCHEMA', relation_id: 'r3' },
 ];
-const NODES = isEdges ? EDGE_NODES : mode === 'fit' ? FIT_NODES : [
+const FOCUS_LONG = 'Gamma node with a very long descriptive name that keeps going and going';
+const FOCUS_NODES = [
+  { id: 'hub', name: 'Hub core', entity_type: 'COMPOUND' },
+  { id: 'n1', name: 'Alpha core', entity_type: 'COMPOUND' },
+  { id: 'n2', name: 'Beta core', entity_type: 'DISEASE' },
+  { id: 'n3', name: FOCUS_LONG, entity_type: 'COMPOUND' },
+  { id: 'x1', name: 'Xi core', entity_type: 'COMPOUND' },
+  { id: 'x2', name: 'Omega core', entity_type: 'COMPOUND' },
+  { id: 'h1', name: '<img src=x onerror=alert(1)>', entity_type: 'DISEASE' },
+  { id: 'lone', name: 'Lonely core', entity_type: 'COMPOUND' },
+  { id: 's1', name: 'Doc one', entity_type: 'DOCUMENT' },
+];
+const FOCUS_EDGES = [
+  { source: 'hub', target: 'n1', relation_type: 'TREATS' },
+  { source: 'hub', target: 'n2', relation_type: 'TREATS' },
+  { source: 'hub', target: 'n3', relation_type: 'TREATS' },
+  { source: 'n1', target: 'x1', relation_type: 'TREATS' },
+  { source: 'x1', target: 'x2', relation_type: 'TREATS' },
+  { source: 'n2', target: 'h1', relation_type: 'TREATS' },
+  { source: 'hub', target: 's1', relation_type: 'MENTIONED_IN' },
+];
+const NODES = isFocus ? FOCUS_NODES : isEdges ? EDGE_NODES : mode === 'fit' ? FIT_NODES : [
   { id: 'a', name: 'Aspirin', entity_type: 'COMPOUND' },
   { id: 'b', name: 'Diabetes', entity_type: 'DISEASE' },
   { id: 'c', name: 'Mystery', entity_type: null },
-  ...(isGroups ? [{ id: 'e', name: 'Empagliflozin', entity_type: 'COMPOUND' }] : []),
+  ...(isGroups && !isFocus ? [{ id: 'e', name: 'Empagliflozin', entity_type: 'COMPOUND' }] : []),
   ...(isRegions || isControl ? [{ id: 'f', name: 'Fenofibrate', entity_type: 'COMPOUND' }, { id: 'g', name: 'Gemfibrozil', entity_type: 'COMPOUND' }] : []),
   ...(withSources ? [{ id: 'd1', name: 'Doc one', entity_type: 'DOCUMENT' }] : []),
 ];
-const EDGES = isEdges ? EDGE_EDGES : mode === 'fit' ? FIT_EDGES : isGroups
+const EDGES = isFocus ? FOCUS_EDGES : isEdges ? EDGE_EDGES : mode === 'fit' ? FIT_EDGES : isGroups
   ? [
     { source: 'a', target: 'd1', relation_type: 'MENTIONED_IN' },
     { source: 'e', target: 'd1', relation_type: 'MENTIONED_IN' },
@@ -329,6 +365,30 @@ const GROUPS_PAYLOAD = {
   },
 };
 
+const FOCUS_PAYLOAD = {
+  default: 'cluster',
+  modes: {
+    cluster: {
+      available: true,
+      reason: null,
+      groups: [
+        { id: 'c1', label: 'Core', full_label: 'Core', size: 4 },
+        { id: 'c2', label: 'Outer', full_label: 'Outer', size: 3 },
+      ],
+      assignment: { hub: 'c1', n1: 'c1', n2: 'c1', n3: 'c1', x1: 'c2', x2: 'c2', h1: 'c2', lone: 'c2', s1: 'c1' },
+    },
+    family: {
+      available: true,
+      reason: null,
+      groups: [
+        { id: 'fam1', label: 'Interventions', full_label: 'Interventions', size: 5 },
+        { id: 'fam2', label: 'Conditions', full_label: 'Conditions', size: 2 },
+      ],
+      assignment: { hub: 'fam1', n1: 'fam1', n3: 'fam1', x1: 'fam1', x2: 'fam1', n2: 'fam2', h1: 'fam2', lone: 'fam1', s1: 'fam1' },
+    },
+  },
+};
+
 const controlPayload = (clusterAvailable) => ({
   default: clusterAvailable ? 'cluster' : 'family',
   modes: {
@@ -364,6 +424,7 @@ globalThis.fetch = async (url) => {
     return (mode === 'fail' || mode === 'edges-fail') ? respond(500, {}) : respond(200, DISPLAY);
   }
   if (url === '/api/graph') return respond(200, { nodes: NODES, edges: EDGES });
+  if (url === '/api/graph/groups' && isFocus) return respond(200, FOCUS_PAYLOAD);
   if (url === '/api/graph/groups' && isControl) return respond(200, controlPayload(mode !== 'control-nocomm'));
   if (url === '/api/graph/groups' && isRegions) return respond(200, REGIONS_PAYLOAD);
   if (url === '/api/graph/groups' && isGroups) return respond(200, GROUPS_PAYLOAD);
@@ -684,6 +745,287 @@ if (isControl) {
     check('source physics restored after settle', nodeSet().items.get('d1').physics === true);
     check('source stays visible', nodeSet().items.get('d1').hidden !== true);
     check('anchors never include sources', !anchorIds().some((id) => id.includes('d1')));
+  }
+
+  process.stdout.write(JSON.stringify({ passed, failed }) + '\n');
+  process.exit(failed.length ? 1 : 0);
+}
+
+
+if (isFocus) {
+  const passed = [];
+  const failed = [];
+  const check = (name, cond, detail = '') => {
+    if (cond) passed.push(name); else failed.push({ name, detail: JSON.stringify(detail) });
+  };
+  const nodeSet = () => [...datasets].reverse().find((d) => [...d.items.values()].some((i) => 'label' in i && !('from' in i)));
+  const dataNodes = () => [...nodeSet().items.values()].filter((n) => !n._anchor);
+  const anchorNodes = () => [...nodeSet().items.values()].filter((n) => n._anchor);
+  const visibleIds = () => dataNodes().filter((n) => n.hidden !== true).map((n) => n.id).sort();
+  const sorted = (ids) => [...ids].sort();
+  const same = (a, b) => JSON.stringify(sorted(a)) === JSON.stringify(sorted(b));
+  const textOf = (el) => (el.children && el.children.length
+    ? el.children.map((c) => textOf(c)).join('') : (el.textContent || ''));
+  const bar = document.getElementById('graph-focus-bar');
+  const crumbsEl = document.getElementById('graph-focus-crumbs');
+  const hop1 = document.getElementById('graph-focus-hop-1');
+  const hop2 = document.getElementById('graph-focus-hop-2');
+  const exitBtn = document.getElementById('graph-focus-exit');
+  const barShown = () => !bar.hasAttribute('hidden');
+  const crumbItems = () => crumbsEl.children.map((li) => (li.children && li.children[0]) || li);
+  const crumbTexts = () => crumbItems().map((c) => textOf(c));
+  const status = () => document.getElementById('graph-group-status').textContent;
+  const hint = () => document.getElementById('graph-group-hint').textContent;
+  const dbl = (id) => { for (const fn of handlers.get('doubleClick') || []) fn({ nodes: [id], edges: [] }); };
+  const winEvent = (type, detail) => window.dispatchEvent(new CustomEvent(type, { detail }));
+  const lastFit = () => [...calls].reverse().find((c) => c.kind === 'fit' && c.opts && Array.isArray(c.opts.nodes));
+  const changedEvents = () => windowEvents.filter((e) => e.type === 'graph-focus-changed');
+  const lastChanged = () => changedEvents()[changedEvents().length - 1];
+  const stackIds = () => window._graphDebug.focus().stack.map((s) => s.id);
+  const esc = (target) => { for (const fn of docListeners.keydown || []) fn({ key: 'Escape', target }); };
+  const tick = (ms = 30) => new Promise((r) => setTimeout(r, ms));
+  const settle = () => { for (const fn of [...(handlers.get('stabilizationIterationsDone') || [])]) fn(); };
+  const search = document.getElementById('graph-search');
+  const lenOf = (s) => Array.from(s).length;
+
+  settle();
+  await tick();
+  winEvent('graph-panel-opened');
+  check('starts unfocused with the bar hidden', !barShown() && window._graphDebug.focus().stack.length === 0);
+  check('all knowledge nodes visible at rest', same(visibleIds(), ['hub', 'n1', 'n2', 'n3', 'x1', 'x2', 'h1', 'lone']), visibleIds());
+  check('resting label is 22 characters', lenOf(nodeSet().items.get('n3').label) === 22, nodeSet().items.get('n3').label);
+
+  if (mode === 'focus') {
+    // --- enter 1-hop focus by double-click ---
+    calls.length = 0;
+    windowEvents.length = 0;
+    dbl('hub');
+    await tick();
+    check('dblclick hub shows only its 1-hop set', same(visibleIds(), ['hub', 'n1', 'n2', 'n3']), visibleIds());
+    check('anchors stay hidden and present', anchorNodes().length === 2 && anchorNodes().every((a) => a.hidden === true));
+    const fit1 = lastFit();
+    check('fit called with exactly the focus ids', fit1 && same(fit1.opts.nodes, ['hub', 'n1', 'n2', 'n3']), fit1 && fit1.opts.nodes);
+    check('focus fit is animated 250ms', fit1 && fit1.opts.animation && fit1.opts.animation.duration === 250, fit1 && fit1.opts.animation);
+    const sizeCall = calls.find((c) => c.kind === 'setSize');
+    check('canvas is resized after the bar appears, before the fit', Boolean(sizeCall) && sizeCall.order < fit1.order, calls.map((c) => c.kind));
+    check('focus bar shown', barShown());
+    check('crumbs are All nodes and the centre', JSON.stringify(crumbTexts()) === JSON.stringify(['All nodes', 'Hub core']), crumbTexts());
+    const items = crumbItems();
+    check('last crumb is current', items[1].getAttribute('aria-current') === 'location' && items[0].getAttribute('aria-current') === null);
+    check('last crumb is plain text and the others are buttons', items[1].tagName !== 'button' && items[0].tagName === 'button', [items[0].tagName, items[1].tagName]);
+    check('1 hop segment text', textOf(hop1) === '1 hop · 4 nodes', textOf(hop1));
+    check('2 hops segment text', textOf(hop2) === '2 hops · 6 nodes', textOf(hop2));
+    check('1 hop is checked', hop1.getAttribute('aria-checked') === 'true' && hop2.getAttribute('aria-checked') === 'false');
+    check('roving tabindex on hop radios', hop1.getAttribute('tabindex') === '0' && hop2.getAttribute('tabindex') === '-1');
+    check('status announces the focus', status() === 'Focus: Hub core, 1 hop, 4 nodes shown.', status());
+    check('graph-focus-changed carries id, hops and counts', lastChanged() && lastChanged().detail.id === 'hub'
+      && lastChanged().detail.hops === 1 && lastChanged().detail.counts[1] === 4 && lastChanged().detail.counts[2] === 6, lastChanged());
+    check('the centre is selected with its sidebar', window._graphDebug.focus().stack.length === 1);
+    check('focus bar node font is visible for every shown node', ['hub', 'n1', 'n2', 'n3'].every((id) => nodeSet().items.get(id).font.size > 0));
+    check('focus label truncates at 40 characters', lenOf(nodeSet().items.get('n3').label) === 40, nodeSet().items.get('n3').label);
+    check('focus label of a short name is untouched', nodeSet().items.get('hub').label === 'Hub core');
+
+    // --- 2 hops ---
+    calls.length = 0;
+    hop2.dispatch('click');
+    await tick();
+    check('2 hops shows the wider set', same(visibleIds(), ['hub', 'n1', 'n2', 'n3', 'x1', 'h1']), visibleIds());
+    check('2 hops refits to the wider set', lastFit() && same(lastFit().opts.nodes, ['hub', 'n1', 'n2', 'n3', 'x1', 'h1']));
+    check('2 hops checked', hop2.getAttribute('aria-checked') === 'true' && hop1.getAttribute('aria-checked') === 'false');
+    check('2 hops did not push a crumb', crumbTexts().length === 2);
+    check('2 hops announced', status() === 'Focus: Hub core, 2 hops, 6 nodes shown.', status());
+    check('the event reports hops 2', lastChanged().detail.hops === 2);
+    hop1.dispatch('keydown', { key: 'ArrowRight' });
+    await tick();
+    check('arrow key moves the hop radio', hop2.getAttribute('aria-checked') === 'true');
+    hop1.dispatch('click');
+    await tick();
+    hop2.dispatch('click');
+    await tick();
+
+    // --- push, truncate ---
+    dbl('n1');
+    await tick();
+    check('dblclick on a visible node pushes a crumb', JSON.stringify(crumbTexts()) === JSON.stringify(['All nodes', 'Hub core', 'Alpha core']), crumbTexts());
+    check('pushed focus shows the new 1-hop set', same(visibleIds(), ['hub', 'n1', 'x1']), visibleIds());
+    check('stack has two entries', JSON.stringify(stackIds()) === JSON.stringify(['hub', 'n1']));
+    check('double-click on the current centre does not push again', (dbl('n1'), stackIds().length === 2));
+    crumbItems()[1].dispatch('click');
+    await tick();
+    check('middle crumb truncates the stack', JSON.stringify(stackIds()) === JSON.stringify(['hub']) && crumbTexts().length === 2, crumbTexts());
+    check('truncate restores the hub focus with its hops', same(visibleIds(), ['hub', 'n1', 'n2', 'n3', 'x1', 'h1']), visibleIds());
+    check('truncate announces going back', status() === 'Focus: back to Hub core.', status());
+
+    // --- exit ---
+    calls.length = 0;
+    exitBtn.dispatch('click');
+    await tick();
+    check('Exit focus restores every filter-visible node', same(visibleIds(), ['hub', 'n1', 'n2', 'n3', 'x1', 'x2', 'h1', 'lone']), visibleIds());
+    check('Exit focus hides the bar', !barShown());
+    check('Exit focus refits to all visible nodes', lastFit() && same(lastFit().opts.nodes, ['hub', 'n1', 'n2', 'n3', 'x1', 'x2', 'h1', 'lone']));
+    check('Exit focus resizes the canvas', calls.some((c) => c.kind === 'setSize'));
+    check('Exit focus announces', status() === 'Focus ended.', status());
+    check('exit event has a null id', lastChanged().detail.id === null && window._graphDebug.focus().stack.length === 0, lastChanged());
+    check('resting 22-character label returns', lenOf(nodeSet().items.get('n3').label) === 22, nodeSet().items.get('n3').label);
+    check('anchors are still hidden after exit', anchorNodes().every((a) => a.hidden === true));
+
+    // --- All nodes crumb and Esc ---
+    dbl('hub');
+    await tick();
+    crumbItems()[0].dispatch('click');
+    await tick();
+    check('the All nodes crumb exits', !barShown() && visibleIds().length === 8);
+    dbl('hub');
+    await tick();
+    dbl('n2');
+    await tick();
+    check('two levels deep', JSON.stringify(stackIds()) === JSON.stringify(['hub', 'n2']));
+    esc({ tagName: 'DIV', closest: () => null });
+    await tick();
+    check('Esc pops one level', JSON.stringify(stackIds()) === JSON.stringify(['hub']) && barShown());
+    check('Esc back announces', status() === 'Focus: back to Hub core.', status());
+    esc({ tagName: 'DIV', closest: () => null });
+    await tick();
+    check('Esc at depth 1 exits', stackIds().length === 0 && !barShown() && visibleIds().length === 8);
+    check('Esc with nothing to do changes nothing', (esc(undefined), visibleIds().length === 8));
+    dbl('hub');
+    await tick();
+    esc({ tagName: 'INPUT', closest: () => null });
+    esc({ tagName: 'TEXTAREA', closest: () => null });
+    esc({ tagName: 'SELECT', closest: () => null });
+    esc({ tagName: 'DIV', isContentEditable: true, closest: () => null });
+    esc({ tagName: 'DIV', closest: (sel) => (sel.includes('chat-panel') ? {} : null) });
+    check('Esc in inputs, editable text and the chat panel does nothing', stackIds().length === 1);
+    winEvent('graph-panel-closed');
+    esc({ tagName: 'DIV', closest: () => null });
+    check('Esc with the Graph tab inactive does nothing', stackIds().length === 1);
+    winEvent('graph-panel-opened');
+    esc({ tagName: 'DIV', closest: () => null });
+    check('Esc works again when the tab returns', stackIds().length === 0);
+
+    // --- graph-focus-node / graph-focus-exit ---
+    windowEvents.length = 0;
+    winEvent('graph-focus-node', { id: 'hub', hops: 2 });
+    await tick();
+    check('graph-focus-node enters 2-hop focus', JSON.stringify(stackIds()) === JSON.stringify(['hub'])
+      && same(visibleIds(), ['hub', 'n1', 'n2', 'n3', 'x1', 'h1']), visibleIds());
+    check('graph-focus-node 2 hops checks the 2 hops radio', hop2.getAttribute('aria-checked') === 'true');
+    winEvent('graph-focus-node', { id: 'hub', hops: 1 });
+    await tick();
+    check('same id rewrites the top entry instead of pushing', JSON.stringify(stackIds()) === JSON.stringify(['hub'])
+      && window._graphDebug.focus().stack[0].hops === 1 && visibleIds().length === 4, window._graphDebug.focus());
+    check('rewriting hops announces and dispatches', lastChanged().detail.hops === 1);
+    const nBefore = changedEvents().length;
+    winEvent('graph-focus-node', { id: 'does-not-exist', hops: 1 });
+    winEvent('graph-focus-node', { id: 12, hops: 1 });
+    winEvent('graph-focus-node', {});
+    winEvent('graph-focus-node', undefined);
+    check('unknown or malformed ids are ignored', stackIds().length === 1 && changedEvents().length === nBefore);
+    winEvent('graph-focus-node', { id: 'n2', hops: 99 });
+    await tick();
+    check('hops outside 1 or 2 clamp to 1', stackIds().length === 2 && window._graphDebug.focus().stack[1].hops === 1);
+    check('anchor ids cannot be focused', (winEvent('graph-focus-node', { id: '__anchor:c1', hops: 1 }), stackIds().length === 2));
+    winEvent('graph-focus-exit');
+    await tick();
+    check('graph-focus-exit leaves focus', stackIds().length === 0 && !barShown() && visibleIds().length === 8);
+    winEvent('graph-focus-exit');
+    check('graph-focus-exit while unfocused is harmless', stackIds().length === 0);
+    check('every change dispatched graph-focus-changed', changedEvents().length >= 4);
+    check('source node cannot be focused while hidden', (winEvent('graph-focus-node', { id: 's1', hops: 1 }), stackIds().length === 0));
+    check('a node with no eligible neighbour is not focused by dblclick', (dbl('lone'), stackIds().length === 0 && !barShown()));
+
+    // --- hostile name stays literal ---
+    dbl('hub');
+    await tick();
+    dbl('n2');
+    await tick();
+    dbl('h1');
+    await tick();
+    const hostileCrumb = crumbTexts()[crumbTexts().length - 1];
+    check('hostile name renders literally in the crumb', hostileCrumb === '<img src=x onerror=alert(1)>', hostileCrumb);
+    check('crumb title carries the full name', crumbItems()[crumbItems().length - 1].getAttribute('title') === '<img src=x onerror=alert(1)>');
+    check('no crumb used innerHTML', crumbsEl.innerHTML === '' && crumbItems().every((c) => c.innerHTML === ''));
+    exitBtn.dispatch('click');
+    await tick();
+
+    // --- rebuild resets ---
+    dbl('hub');
+    await tick();
+    await graph.initGraph({});
+    for (let i = 0; i < 20; i++) await tick(0);
+    check('buildGraph resets the focus stack and bar', stackIds().length === 0 && !barShown());
+    check('rebuild shows every node again', visibleIds().length === 8, visibleIds());
+  }
+
+  if (mode === 'focus-filters') {
+    // --- sources only join with Show sources ---
+    const srcBtn = document.getElementById('graph-show-sources-btn');
+    dbl('hub');
+    await tick();
+    check('sources hidden: not in the focus set', !visibleIds().includes('s1') && visibleIds().length === 4, visibleIds());
+    srcBtn.dispatch('click');
+    await tick();
+    check('Show sources adds the source neighbour to the set', visibleIds().includes('s1') && visibleIds().length === 5, visibleIds());
+    check('the bar counts the source', textOf(hop1) === '1 hop · 5 nodes', textOf(hop1));
+    srcBtn.dispatch('click');
+    await tick();
+    check('Hide sources removes it again', !visibleIds().includes('s1') && visibleIds().length === 4, visibleIds());
+    check('focus info counts match', window._graphDebug.focusInfo('hub').counts[1] === 4 && window._graphDebug.focusInfo('hub').counts[2] === 6, window._graphDebug.focusInfo('hub'));
+    const info = window._graphDebug.focusInfo('n1');
+    check('focusInfo reports counts for any node with the current centre', info.centerId === 'hub' && info.hops === 1 && info.counts[1] === 3, info);
+
+    // --- a filter that removes a neighbour shrinks the set and counts ---
+    windowEvents.length = 0;
+    search.value = 'core';
+    search.dispatch('input');
+    await tick();
+    check('search shrinks the focus set', same(visibleIds(), ['hub', 'n1', 'n2']), visibleIds());
+    check('the 1 hop count shrinks', textOf(hop1) === '1 hop · 3 nodes', textOf(hop1));
+    check('the 2 hops count shrinks', textOf(hop2) === '2 hops · 4 nodes', textOf(hop2));
+    check('the change is dispatched with new counts', lastChanged() && lastChanged().detail.counts[1] === 3 && lastChanged().detail.counts[2] === 4, lastChanged());
+    check('focus survives a filter that keeps the centre', stackIds().length === 1 && barShown());
+    hop2.dispatch('click');
+    await tick();
+    check('2 hops respects the filter too', same(visibleIds(), ['hub', 'n1', 'n2', 'x1']), visibleIds());
+    search.value = '';
+    search.dispatch('input');
+    await tick();
+    check('clearing the filter restores the set', same(visibleIds(), ['hub', 'n1', 'n2', 'n3', 'x1', 'h1']), visibleIds());
+    hop1.dispatch('click');
+    await tick();
+
+    // --- the filter removes the centre ---
+    windowEvents.length = 0;
+    search.value = 'alpha';
+    search.dispatch('input');
+    await tick();
+    check('hiding the centre exits focus', stackIds().length === 0 && !barShown());
+    check('the filter ending is announced', status() === 'Focus ended: Hub core is hidden by the current filters.', status());
+    check('the hint slot shows the same text', hint() === 'Focus ended: Hub core is hidden by the current filters.', hint());
+    check('exit is dispatched', lastChanged() && lastChanged().detail.id === null, lastChanged());
+    check('filtered view is not forced back to a focus', same(visibleIds(), ['n1']), visibleIds());
+    search.value = '';
+    search.dispatch('input');
+    await tick();
+    check('all nodes return when the filter clears', visibleIds().length === 8, visibleIds());
+
+    // --- grouping change while focused ---
+    dbl('hub');
+    await tick();
+    calls.length = 0;
+    groupButtons.family.dispatch('click');
+    await tick();
+    check('relayout starts', stabilizeCalls().length > 0);
+    check('focus survives the relayout', stackIds().length === 1 && same(visibleIds(), ['hub', 'n1', 'n2', 'n3']), visibleIds());
+    settle();
+    await tick();
+    const fitAfter = lastFit();
+    check('relayout refits to the focus set', fitAfter && same(fitAfter.opts.nodes, ['hub', 'n1', 'n2', 'n3']), fitAfter && fitAfter.opts.nodes);
+    check('mode switched to family while focused', window._graphDebug.mode === 'family');
+    check('anchors never join the fit', fitAfter && fitAfter.opts.nodes.every((id) => !String(id).startsWith('__anchor')));
+    exitBtn.dispatch('click');
+    await tick();
+    check('exit after a grouping change restores the nodes', visibleIds().length === 8 && anchorNodes().every((a) => a.hidden === true));
   }
 
   process.stdout.write(JSON.stringify({ passed, failed }) + '\n');

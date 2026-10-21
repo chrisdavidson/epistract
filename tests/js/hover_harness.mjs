@@ -313,7 +313,14 @@ try {
         updateLog.push({ kind: this.kind, items: list.map((u) => ({ ...u })) });
         for (const u of list) this.items.set(u.id, { ...(this.items.get(u.id) || {}), ...u });
       }
-      get(id) { return id === undefined ? [...this.items.values()] : this.items.get(id); }
+      get(id) {
+        if (id === undefined) return [...this.items.values()];
+        if (id && typeof id === 'object') {
+          const all = [...this.items.values()];
+          return typeof id.filter === 'function' ? all.filter(id.filter) : all;
+        }
+        return this.items.get(id);
+      }
       getIds() { return [...this.items.keys()]; }
     }
     let edgeAdj = null;
@@ -604,6 +611,36 @@ try {
     container.dispatch('pointerleave');
     check('pointerleave keeps sidebar description', container.getAttribute('aria-describedby') === 'graph-detail-sidebar',
       container.getAttribute('aria-describedby'));
+
+    // Esc order: hover card, then one focus level, then the Groups-row region.
+    const emit = (type, detail) => { for (const fn of winListeners[type] || []) fn({ type, detail }); };
+    const depth = () => window._graphDebug.focus().stack.length;
+    const plain = { tagName: 'DIV', closest: () => null };
+    const escape = (t) => { for (const fn of docListeners.keydown || []) fn({ key: 'Escape', target: t }); };
+    emit('graph-panel-opened');
+    emit('graph-focus-node', { id: target, hops: 1 });
+    advance(20);
+    check('esc: focus entered through graph-focus-node', depth() === 1, depth());
+    fire('hoverNode', hoverParams);
+    advance(160);
+    check('esc: card visible while focused', visible());
+    escape(plain);
+    check('esc: first Escape closes the hover card', !visible());
+    check('esc: first Escape leaves focus intact', depth() === 1, depth());
+    escape(plain);
+    check('esc: second Escape pops focus', depth() === 0, depth());
+    emit('graph-focus-node', { id: target, hops: 1 });
+    advance(20);
+    escape({ tagName: 'INPUT', closest: () => null });
+    escape({ tagName: 'TEXTAREA', closest: () => null });
+    escape({ tagName: 'DIV', closest: (sel) => (sel.includes('chat-panel') ? {} : null) });
+    check('esc: ignored in inputs and the chat panel', depth() === 1, depth());
+    emit('graph-panel-closed');
+    escape(plain);
+    check('esc: ignored after graph-panel-closed', depth() === 1, depth());
+    emit('graph-panel-opened');
+    escape(plain);
+    check('esc: pops again once the panel is back', depth() === 0, depth());
   }
 } catch (e) {
   failed.push({ name: 'harness error', detail: String((e && e.stack) || e) });

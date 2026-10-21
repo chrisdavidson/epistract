@@ -108,3 +108,33 @@ def test_group_relayout_failure():
 
 def test_sources_join_assigned_group():
     _passed(_run("graph_filter_harness.mjs", "control-sources"), 8)
+
+
+def test_focus_pure_helpers():
+    out = _run("grouping_harness.mjs")
+    assert out["failed"] == [], out["failed"][:10]
+    assert out["passed"] > 100, out
+
+
+def test_focus_mode_flow():
+    _passed(_run("graph_filter_harness.mjs", "focus"), 70)
+
+
+def test_focus_filter_composition():
+    _passed(_run("graph_filter_harness.mjs", "focus-filters"), 25)
+
+
+def test_focus_escape_order(tmp_path):
+    from tests.test_graph_hover import GLP1, HARNESS, _display_payload
+
+    display = _display_payload(tmp_path)
+    proc = subprocess.run(
+        ["node", str(HARNESS), str(GLP1 / "graph_data.json"), str(display), "wiring"],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    report = json.loads(proc.stdout.strip().splitlines()[-1])
+    assert report["failed"] == [], report["failed"]
+    esc = [name for name in report["passed"] if name.startswith("esc: ")]
+    assert len(esc) >= 9, esc
