@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from core.document_stats import build_document_stats
 from core.domain_resolver import load_domain_schema
 from core.epistemic_health import build_epistemic_health
 from core.graph_display import entity_type_key, resolve_display
@@ -390,6 +391,9 @@ def create_app(output_dir: Path, domain: str | None = None) -> FastAPI:
                 }
             )
 
+        # Without any ingested text there is nothing to read: the Dashboard shows
+        # its "no source documents" copy instead of rows that cannot be opened.
+        documents = build_document_stats(data.documents, nodes, edges) if data.documents else []
         return {
             "html": None,
             "auto": True,
@@ -400,6 +404,7 @@ def create_app(output_dir: Path, domain: str | None = None) -> FastAPI:
             "total_edges": len(edges),
             "findings": finding_summary,
             "epistemic": build_epistemic_health(data.claims_layer, nodes),
+            "documents": documents,
         }
 
     @app.get("/api/health")

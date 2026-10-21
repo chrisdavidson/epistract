@@ -68,8 +68,35 @@ class WorkbenchData:
                         "original_size": triage_info.get(
                             "chars", txt_file.stat().st_size
                         ),
+                        # The ingested .txt exists by construction.
+                        "has_text": True,
+                        "has_pdf": self._has_pdf(doc_id, triage_info),
                     }
                 )
+
+    def _has_pdf(self, doc_id: str, triage_info: dict) -> bool:
+        """Whether the original PDF of a document is known to exist.
+
+        Checked without walking the corpus tree: the path recorded in
+        triage.json (``file_path``, else ``original_path``) must be a PDF that
+        exists, or ``<doc_id>.pdf`` must sit directly in the corpus directory.
+        """
+        for key in ("file_path", "original_path"):
+            recorded = triage_info.get(key)
+            if isinstance(recorded, str) and recorded.lower().endswith(".pdf"):
+                try:
+                    if Path(recorded).is_file():
+                        return True
+                except OSError:
+                    pass
+        if not doc_id or ".." in doc_id or "/" in doc_id or "\\" in doc_id:
+            return False
+        if self.corpus_dir is None:
+            return False
+        try:
+            return (self.corpus_dir / f"{doc_id}.pdf").is_file()
+        except OSError:
+            return False
 
     def get_nodes(self, entity_type: str | None = None) -> list[dict]:
         """Return graph nodes, optionally filtered by entity_type."""
