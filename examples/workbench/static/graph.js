@@ -10,11 +10,13 @@ import {
     edgeDashes, edgeColorObject, namedEdgeIds, EDGE_BASE_OPACITY, EDGE_DIM_OPACITY, hoverCardModel,
     humanizeRelation, focusIds, focusDelta, edgeLabelFont,
 } from './graph_style.js';
-import { initHoverCard, showHoverCard, hideHoverCard } from './hovercard.js';
+import { initHoverCard, showHoverCard, hideHoverCard, isHoverCardVisible } from './hovercard.js';
 import {
     packGroups, seedInside, anchorNodeSpecs, anchorEdgeSpecs, dataEdgeLengths,
     isAnchorId, groupIterations, FIT_MARGIN, regionGeometry, placeRegionLabels,
     REGION_COLORS, REGION_LABEL_PX, REGION_PILL_PAD_PX, clampIntoRegion,
+    kHop, pushFocus, popFocus, truncateFocus, setTopHops, crumbsFor, focusModeLabelIds,
+    radioTarget, FOCUS_MODE_MAX_LABELS, FOCUS_TRUNCATE_CHARS,
 } from './grouping.js';
 
 // graph.js - Graph panel: vis.js network, search, entity type toggles
@@ -144,6 +146,16 @@ let _relayoutTimer = null;                // fails a relayout that never complet
 let _hintOverride = null;                 // transient text shown in the group hint slot
 let _hintTimer = null;                    // clears the relayout failure message
 let _groupControlAttached = false;
+let focusStack = [];                      // focus mode path: [{id, hops}], the last entry is the centre
+let focusHops = 1;                        // neighbourhood size of the current focus (shared with the sidebar)
+let focusSet = null;                      // Set of node ids shown while focused; null when not focused
+let focusLabelIds = new Set();            // focus nodes drawn with full labels
+let focusCounts = { 1: 0, 2: 0 };         // node counts for 1 and 2 hops around the centre
+let focusBarShown = false;                // the focus bar is currently visible
+let focusEndedNote = null;                // name of a centre a filter just hid; set while filterGraph() runs
+let graphPanelActive = false;             // the Graph tab is the visible panel (guards Escape)
+let _lastFocusSig = null;                 // last graph-focus-changed payload, to dispatch only real changes
+let _focusListenersAttached = false;
 let activeRegionId = null;                // group whose Groups-list row was clicked (zoomed to)
 let emphasizedRegionId = null;            // group whose row is hovered or focused
 let groupRowEls = new Map();              // group id -> its Groups-list row button
@@ -252,7 +264,9 @@ export async function initGraph(opts) {
     }
 
     // Resize handler for when panel opens
+    window.addEventListener('graph-panel-closed', () => { graphPanelActive = false; });
     window.addEventListener('graph-panel-opened', () => {
+        graphPanelActive = true;
         if (network) {
             // A plain fit() emits neither `zoom` nor `animationFinished`, so
             // the scale-aware label/size controller must be run explicitly or
@@ -327,6 +341,7 @@ let _degreeSliderListenerAttached = false;   // WR-02: guard min-degree slider d
 // is a non-source hub at or above the degree cutoff. Always a complete object.
 function nodeLabelFont(id, scale, cutoff) {
     const visible = focusNodeIds.has(id)
+        || focusLabelIds.has(id)
         || (!sourceNodeIds.has(id) && (linkDegreeMap[id] || 0) >= cutoff);
     return { ...NODE_FONT_BASE, size: visible ? labelFontSize(scale) : LABEL_HIDDEN_FONT_SIZE };
 }
@@ -1042,31 +1057,8 @@ function attachGroupControl() {
         if (!GROUP_MODE_ORDER.includes(mode)) continue;
         btn.addEventListener('click', () => relayout(mode));
         btn.addEventListener('keydown', (event) => {
-            const enabled = enabledGroupModes();
-            const i = enabled.indexOf(mode);
-            let target = null;
-            switch (event.key) {
-                case 'ArrowLeft':
-                case 'ArrowUp':
-                    target = enabled[(i - 1 + enabled.length) % enabled.length];
-                    break;
-                case 'ArrowRight':
-                case 'ArrowDown':
-                    target = enabled[(i + 1) % enabled.length];
-                    break;
-                case 'Home':
-                    target = enabled[0];
-                    break;
-                case 'End':
-                    target = enabled[enabled.length - 1];
-                    break;
-                case ' ':
-                case 'Enter':
-                    target = enabled.includes(mode) ? mode : null;
-                    break;
-                default:
-                    return;
-            }
+            const target = radioTarget(event.key, enabledGroupModes(), mode);
+            if (target === undefined) return;
             event.preventDefault();
             if (relayoutBusy || !target) return;
             const targetBtn = buttons.find(b => b.getAttribute('data-mode') === target);
@@ -1115,6 +1107,7 @@ function buildGraph() {
     }
 
     freeLayoutPositions = null;
+    resetFocusState();
 
     // WR-04: Close sidebar before rebuilding so stale content is not shown
     // alongside newly rebuilt graph data.
@@ -1434,19 +1427,12 @@ function buildGraph() {
         }
     });
 
-    // Double-click -> recenter on neighborhood (D-17)
+    // Double-click -> focus mode on the node's 1-hop neighbourhood (R-01). This
+    // replaces the earlier recenter-and-fit on double-click (D-17): a focus fit
+    // does the same framing and also hides everything outside the set. A node
+    // without a visible neighbour is only selected by the clicks.
     network.on('doubleClick', (params) => {
-        if (params.nodes.length > 0) {
-            const nodeId = params.nodes[0];
-            // Neighbours come from the adjacency Map, not the network, so
-            // anchors never join the fit.
-            const near = new Set([nodeId]);
-            for (const e of adjacency.get(nodeId) || []) {
-                near.add(e.source);
-                near.add(e.target);
-            }
-            fitView(visibleDataNodeIds().filter(id => near.has(id)), fitAnimation(500));
-        }
+        if (params.nodes.length > 0) enterFocus(params.nodes[0], 1);
     });
 
     // Drag-to-pin: when user drops a node, pin it and apply the accent border.
@@ -1533,6 +1519,7 @@ function buildGraph() {
         _btnListenersAttached = true;
     }
 
+    attachFocusListeners();
     activeRegionId = null;
     emphasizedRegionId = null;
     _frameRegions = null;
@@ -1559,6 +1546,8 @@ function buildGraph() {
         anchorCount: () => visNodes.get().filter(n => n._anchor).length,
         regionGeometry: () => currentRegions(),
         placedLabels: () => _lastPlaced,
+        focus: () => ({ stack: focusStack.map(entry => ({ ...entry })), size: focusSet ? focusSet.size : 0 }),
+        focusInfo: id => focusInfo(id),
     };
 
     // Close sidebar on window resize so it does not float
@@ -1580,8 +1569,16 @@ function buildGraph() {
         window.addEventListener('graph-panel-closed', endHover);
         document.addEventListener('keydown', (event) => {
             if (event.key !== 'Escape') return;
+            if (!graphPanelActive || isEditableTarget(event.target)) return;
+            // One level per press: the hover card, then focus, then the zoomed-to group.
+            const cardOpen = isHoverCardVisible();
             pinnedCardNodeId = null;
             dismiss();
+            if (cardOpen) return;
+            if (focusStack.length > 0) {
+                popOneFocus();
+                return;
+            }
             clearActiveRegion();
         });
         _hoverListenersAttached = true;
@@ -1781,10 +1778,9 @@ function buildEdgeKey() {
     if (toggle.getAttribute('aria-expanded') !== 'true') panel.setAttribute('hidden', '');
 }
 
-function filterGraph() {
-    if (!visNodes) return;
-    clearHighlight();
-
+// The filter inputs read from the toolbar. `severityNodeIds` is null when no
+// severity filter is active.
+function filterContext() {
     const searchTerm = (document.getElementById('graph-search')?.value || '').toLowerCase();
     const severityFilter = document.getElementById('severity-filter')?.value || 'all';
 
@@ -1810,23 +1806,87 @@ function filterGraph() {
             }
         }
     }
+    return { searchTerm, severityNodeIds };
+}
 
-    // Update node visibility
-    const updates = allNodes.map(n => {
-        const typeVisible = typeFilterEnabled
-            ? activeTypes.has(typeKey(n.entity_type))
-            : !(sourceNodeIds.has(n.id) && !sourcesShown);
-        const searchMatch = !searchTerm || (n.name || '').toLowerCase().includes(searchTerm);
-        const severityMatch = !severityNodeIds || severityNodeIds.has(n.id);
-        // DEGREE-01: hide nodes whose linkDegree (linkDegreeMap, computed at build time
-        // across ALL non-source edges, not currently visible edges) is below the threshold.
-        // Source nodes have no non-source edges by definition (linkDegree 0), so the
-        // threshold does not apply to them: the Show sources toggle alone decides.
-        const degreeOk = sourceNodeIds.has(n.id)
-            || (linkDegreeMap[n.id] || 0) >= minDegreeThreshold;
-        const hidden = !(typeVisible && searchMatch && severityMatch && degreeOk);
-        return { id: n.id, hidden };
-    });
+// Does the node pass every node-level filter (type, search, severity, degree)?
+function nodePassesFilters(n, ctx) {
+    const typeVisible = typeFilterEnabled
+        ? activeTypes.has(typeKey(n.entity_type))
+        : !(sourceNodeIds.has(n.id) && !sourcesShown);
+    const searchMatch = !ctx.searchTerm || (n.name || '').toLowerCase().includes(ctx.searchTerm);
+    const severityMatch = !ctx.severityNodeIds || ctx.severityNodeIds.has(n.id);
+    // DEGREE-01: hide nodes whose linkDegree (linkDegreeMap, computed at build time
+    // across ALL non-source edges, not currently visible edges) is below the threshold.
+    // Source nodes have no non-source edges by definition (linkDegree 0), so the
+    // threshold does not apply to them: the Show sources toggle alone decides.
+    const degreeOk = sourceNodeIds.has(n.id)
+        || (linkDegreeMap[n.id] || 0) >= minDegreeThreshold;
+    return typeVisible && searchMatch && severityMatch && degreeOk;
+}
+
+// Is the edge hidden by the epistemic, confidence, relation or sources filters?
+function edgeFilterHidden(e) {
+    const status = e.epistemic_status;
+    const confidence = e.confidence;
+
+    // Epistemic filter:
+    // - Edge with no status: always visible from this dimension
+    // - Edge with status not in activeEpistemicStatuses: hidden (D-07: empty set hides all status-bearing edges)
+    const hasStatus = status != null && status !== '';
+    const epistemicHidden = hasStatus && !activeEpistemicStatuses.has(status);
+
+    // Confidence filter:
+    // - Scored edge (numeric confidence): hidden when confidence < threshold
+    // - Unscored edge (null/undefined): hidden when threshold > 0.5 (D-12)
+    const isScored = typeof confidence === 'number' && isFinite(confidence);
+    const confidenceHidden = isScored
+        ? confidence < confidenceThreshold
+        : confidenceThreshold > 0.5;
+
+    // RTYPE-03: hide edges whose relation_type is not in activeRelationTypes.
+    // Edges with no relation_type field remain visible from this dimension
+    // (mirrors the "hasStatus" guard for epistemic_status above).
+    const hasRelType = e.relation_type != null && e.relation_type !== '';
+    const relationHidden = hasRelType && !activeRelationTypes.has(e.relation_type);
+
+    const sourceRelHidden = !sourcesShown && isSourceRelation(e.relation_type);
+
+    return epistemicHidden || confidenceHidden || relationHidden || sourceRelHidden;
+}
+
+function eligibleNodeSet(ctx) {
+    const eligible = new Set();
+    for (const n of allNodes) if (nodePassesFilters(n, ctx)) eligible.add(n.id);
+    return eligible;
+}
+
+// Focus walks only edges that are drawn by the current filters; source edges
+// join only while sources are shown. The walk reads the adjacency Map, never
+// the vis hidden flags.
+function focusEdgeEligible(e) {
+    return !edgeFilterHidden(e) && (sourcesActive() || !isSourceEdgeRecord(e));
+}
+
+function focusNeighbourhood(centerId, hops, eligible) {
+    return kHop(adjacency, centerId, hops, focusEdgeEligible, id => eligible.has(id));
+}
+
+function filterGraph() {
+    if (!visNodes) return;
+    clearHighlight();
+
+    const ctx = filterContext();
+    const eligible = eligibleNodeSet(ctx);
+    const previousLabels = focusLabelIds;
+    resolveFocus(eligible);
+
+    // Update node visibility. Focus is a second mask over the filters: nodes
+    // outside the focus set are hidden, never moved.
+    const updates = allNodes.map(n => ({
+        id: n.id,
+        hidden: !eligible.has(n.id) || (focusSet !== null && !focusSet.has(n.id)),
+    }));
 
     visNodes.update(updates);
 
@@ -1841,36 +1901,7 @@ function filterGraph() {
             const record = visEdges.get(edgeId);
             const e = record?._data;
             if (!e) return { id: edgeId, hidden: false };
-
-            const status = e.epistemic_status;
-            const confidence = e.confidence;
-
-            // Epistemic filter:
-            // - Edge with no status: always visible from this dimension
-            // - Edge with status not in activeEpistemicStatuses: hidden (D-07: empty set hides all status-bearing edges)
-            const hasStatus = status != null && status !== '';
-            const epistemicHidden = hasStatus && !activeEpistemicStatuses.has(status);
-
-            // Confidence filter:
-            // - Scored edge (numeric confidence): hidden when confidence < threshold
-            // - Unscored edge (null/undefined): hidden when threshold > 0.5 (D-12)
-            const isScored = typeof confidence === 'number' && isFinite(confidence);
-            const confidenceHidden = isScored
-                ? confidence < confidenceThreshold
-                : confidenceThreshold > 0.5;
-
-            // RTYPE-03: hide edges whose relation_type is not in activeRelationTypes.
-            // Edges with no relation_type field remain visible from this dimension
-            // (mirrors the "hasStatus" guard for epistemic_status above).
-            const hasRelType = e.relation_type != null && e.relation_type !== '';
-            const relationHidden = hasRelType && !activeRelationTypes.has(e.relation_type);
-
-            const sourceRelHidden = !sourcesShown && isSourceRelation(e.relation_type);
-
-            return {
-                id: edgeId,
-                hidden: epistemicHidden || confidenceHidden || relationHidden || sourceRelHidden,
-            };
+            return { id: edgeId, hidden: edgeFilterHidden(e) };
         });
 
         visEdges.update(edgeUpdates);
@@ -1878,6 +1909,7 @@ function filterGraph() {
 
     buildEdgeKey();
     renderGroupsList();
+    finishFocusUpdate(previousLabels);
 
     // Show empty state if all hidden
     const visibleCount = updates.filter(u => !u.hidden).length;
@@ -1891,6 +1923,332 @@ function filterGraph() {
     } else if (visibleCount > 0 && emptyMsg) {
         emptyMsg.remove();
     }
+}
+
+// ---------------------------------------------------------------------------
+// Focus mode (R-01, R-02). A focus is a stack of centres; the top entry's 1- or
+// 2-hop neighbourhood over the filter-eligible graph is the only part of the
+// graph shown. It is a second mask inside filterGraph(): nodes outside the set
+// are hidden, nothing is dimmed and nothing is relaid out. The walk reads the
+// adjacency Map, never vis hidden flags or network.getConnected*.
+// ---------------------------------------------------------------------------
+const HOP_WORD = { 1: '1 hop', 2: '2 hops' };
+const FOCUS_ENDED_HINT_MS = 6000;
+
+function nodeName(id) {
+    const n = nodeById.get(id);
+    return String((n && n.name) || id);
+}
+
+function countText(n) {
+    return `${n.toLocaleString()} ${n === 1 ? 'node' : 'nodes'}`;
+}
+
+function resetFocusState() {
+    focusStack = [];
+    focusHops = 1;
+    focusSet = null;
+    focusLabelIds = new Set();
+    focusCounts = { 1: 0, 2: 0 };
+    focusEndedNote = null;
+    focusBarShown = false;
+    _lastFocusSig = JSON.stringify(focusDetail());
+    const bar = document.getElementById('graph-focus-bar');
+    if (bar) bar.setAttribute('hidden', '');
+}
+
+function focusDetail() {
+    const top = focusStack[focusStack.length - 1] || null;
+    return { id: top ? top.id : null, hops: focusHops, counts: { 1: focusCounts[1], 2: focusCounts[2] } };
+}
+
+// Recomputes the focus set, hop counts and label ids from the current filter
+// eligibility. A centre hidden by the filters ends focus.
+function resolveFocus(eligible) {
+    focusEndedNote = null;
+    if (focusStack.length > 0) {
+        const top = focusStack[focusStack.length - 1];
+        if (!eligible.has(top.id)) {
+            focusEndedNote = nodeName(top.id);
+            focusStack = [];
+        }
+    }
+    if (focusStack.length === 0) {
+        focusSet = null;
+        focusLabelIds = new Set();
+        focusCounts = { 1: 0, 2: 0 };
+        return;
+    }
+    const top = focusStack[focusStack.length - 1];
+    const one = focusNeighbourhood(top.id, 1, eligible);
+    const two = focusNeighbourhood(top.id, 2, eligible);
+    focusCounts = { 1: one.size, 2: two.size };
+    focusHops = top.hops;
+    focusSet = top.hops === 2 ? two : one;
+    // In-set degree: edges drawn between two focus nodes.
+    const inSetDegree = new Map();
+    for (const id of focusSet) {
+        let degree = 0;
+        for (const e of adjacency.get(id) || []) {
+            const other = e.source === id ? e.target : e.source;
+            if (focusSet.has(other) && focusEdgeEligible(e)) degree += 1;
+        }
+        inSetDegree.set(id, degree);
+    }
+    focusLabelIds = focusModeLabelIds(top.id, focusSet, one, inSetDegree, FOCUS_MODE_MAX_LABELS);
+}
+
+// Runs after filterGraph() wrote the visibility: labels, bar and event.
+function finishFocusUpdate(previousLabels) {
+    refreshFocusLabels(previousLabels);
+    syncFocusBar();
+    if (focusEndedNote !== null) {
+        const text = `Focus ended: ${focusEndedNote} is hidden by the current filters.`;
+        setHintOverride(text, FOCUS_ENDED_HINT_MS);
+        announceGroup(text);
+    }
+    emitFocusChanged();
+}
+
+// Focus nodes keep their full name up to FOCUS_TRUNCATE_CHARS; every other
+// node uses the resting truncation. Only ids that changed sides are written.
+function refreshFocusLabels(previousLabels) {
+    if (!visNodes) return;
+    const changed = [];
+    for (const id of focusLabelIds) if (!previousLabels.has(id)) changed.push(id);
+    for (const id of previousLabels) if (!focusLabelIds.has(id)) changed.push(id);
+    if (changed.length === 0) return;
+    visNodes.update(changed.filter(id => nodeById.has(id)).map(id => ({
+        id,
+        label: truncateLabel(nodeName(id), focusLabelIds.has(id) ? FOCUS_TRUNCATE_CHARS : undefined),
+    })));
+    // Fonts follow the label ids; force the scale controller to rewrite them.
+    _lastStyleKey = null;
+    applyScaleStyle();
+}
+
+function emitFocusChanged() {
+    const detail = focusDetail();
+    const sig = JSON.stringify(detail);
+    if (sig === _lastFocusSig) return;
+    _lastFocusSig = sig;
+    if (typeof window.dispatchEvent === 'function' && typeof CustomEvent === 'function') {
+        window.dispatchEvent(new CustomEvent('graph-focus-changed', { detail }));
+    }
+}
+
+// What the sidebar shows for node `id`: the current centre, hop setting and
+// the 1- and 2-hop sizes around `id` over the filter-eligible graph.
+function focusInfo(id) {
+    const top = focusStack[focusStack.length - 1] || null;
+    const eligible = eligibleNodeSet(filterContext());
+    const known = typeof id === 'string' && nodeById.has(id);
+    return {
+        centerId: top ? top.id : null,
+        hops: focusHops,
+        counts: {
+            1: known ? focusNeighbourhood(id, 1, eligible).size : 0,
+            2: known ? focusNeighbourhood(id, 2, eligible).size : 0,
+        },
+    };
+}
+
+function focusMessage() {
+    const top = focusStack[focusStack.length - 1];
+    return `Focus: ${nodeName(top.id)}, ${HOP_WORD[top.hops]}, ${countText(focusSet.size)} shown.`;
+}
+
+// Selects the centre like a click does (sidebar plus neighbourhood labels).
+function selectFocusCenter(id) {
+    pinnedCardNodeId = null;
+    hideCard();
+    highlightedNodeId = id;
+    selectCenterId = id;
+    selectFocus = focusIds(id, neighborsOf(id), linkDegreeMap);
+    scheduleFocus();
+    showNodeDetail(id, allNodes, allEdges, SIDEBAR_OPTS);
+    describeBySidebar();
+}
+
+// Applies the stack as it stands: filters, bar, selection, announcement and a
+// fit to what is shown. `kind` is 'enter' | 'back' | 'exit'.
+function applyFocusChange(kind) {
+    cancelHover();
+    hideCard();
+    filterGraph();
+    if (focusEndedNote === null) {
+        const top = focusStack[focusStack.length - 1];
+        if (kind === 'exit') announceGroup('Focus ended.');
+        else if (kind === 'back') announceGroup(`Focus: back to ${nodeName(top.id)}.`);
+        else announceGroup(focusMessage());
+        if (top) selectFocusCenter(top.id);
+    }
+    fitView(focusSet ? [...focusSet] : null, fitAnimation(250));
+}
+
+// Enters focus on `id` (or retargets the hops of the current centre). Returns
+// false for ids that are unknown, filtered out or have no visible neighbour.
+function enterFocus(id, hops = 1) {
+    if (!network || !visNodes || typeof id !== 'string' || isAnchorId(id) || !nodeById.has(id)) return false;
+    const size = hops === 2 ? 2 : 1;
+    const eligible = eligibleNodeSet(filterContext());
+    if (!eligible.has(id)) return false;
+    const top = focusStack[focusStack.length - 1];
+    if (top && top.id === id) {
+        if (top.hops === size) return true;
+        focusStack = setTopHops(focusStack, size);
+    } else {
+        if (focusNeighbourhood(id, 1, eligible).size < 2) return false;
+        clearActiveRegion();
+        focusStack = pushFocus(focusStack, { id, hops: size });
+    }
+    focusHops = size;
+    applyFocusChange('enter');
+    return true;
+}
+
+function exitFocus() {
+    if (focusStack.length === 0) return;
+    focusStack = [];
+    applyFocusChange('exit');
+}
+
+function popOneFocus() {
+    if (focusStack.length <= 1) {
+        exitFocus();
+        return;
+    }
+    focusStack = popFocus(focusStack);
+    focusHops = focusStack[focusStack.length - 1].hops;
+    applyFocusChange('back');
+}
+
+function truncateFocusTo(index) {
+    if (index < 0 || index >= focusStack.length - 1) return;
+    focusStack = truncateFocus(focusStack, index);
+    focusHops = focusStack[focusStack.length - 1].hops;
+    applyFocusChange('back');
+}
+
+function setFocusHops(hops) {
+    if (focusStack.length === 0) return;
+    const size = hops === 2 ? 2 : 1;
+    if (focusStack[focusStack.length - 1].hops === size) return;
+    focusStack = setTopHops(focusStack, size);
+    focusHops = size;
+    applyFocusChange('enter');
+}
+
+// Escape is ignored while the user types or works in the chat panel.
+function isEditableTarget(target) {
+    if (!target) return false;
+    const tag = String(target.tagName || '').toUpperCase();
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    if (target.isContentEditable === true) return true;
+    return typeof target.closest === 'function' && Boolean(target.closest('#chat-panel, .chat-panel'));
+}
+
+function crumbButton(crumb, onClick) {
+    const btn = document.createElement('button');
+    btn.setAttribute('type', 'button');
+    btn.className = 'graph-focus-bar__crumb';
+    btn.textContent = crumb.label;
+    btn.setAttribute('title', crumb.title);
+    btn.addEventListener('click', onClick);
+    return btn;
+}
+
+function renderFocusCrumbs() {
+    const list = document.getElementById('graph-focus-crumbs');
+    if (!list) return;
+    const items = crumbsFor(focusStack, nodeName).map(crumb => {
+        const li = document.createElement('li');
+        let el;
+        if (crumb.kind === 'all') {
+            el = crumbButton(crumb, () => exitFocus());
+        } else if (crumb.kind === 'node' && !crumb.current) {
+            el = crumbButton(crumb, () => truncateFocusTo(crumb.index));
+        } else {
+            el = document.createElement('span');
+            el.className = 'graph-focus-bar__crumb';
+            el.textContent = crumb.label;
+            el.setAttribute('title', crumb.title);
+            if (crumb.current) {
+                el.className += ' graph-focus-bar__crumb--current';
+                el.setAttribute('aria-current', 'location');
+            } else {
+                el.className += ' graph-focus-bar__crumb--collapsed';
+            }
+        }
+        li.appendChild(el);
+        return li;
+    });
+    list.replaceChildren(...items);
+}
+
+function renderFocusHops() {
+    for (const hops of [1, 2]) {
+        const btn = document.getElementById(`graph-focus-hop-${hops}`);
+        if (!btn) continue;
+        const count = document.createElement('span');
+        count.className = 'graph-focus-bar__count';
+        count.textContent = countText(focusCounts[hops]);
+        btn.replaceChildren(document.createTextNode(`${HOP_WORD[hops]} · `), count);
+        const checked = focusHops === hops;
+        btn.setAttribute('aria-checked', String(checked));
+        btn.setAttribute('tabindex', checked ? '0' : '-1');
+    }
+}
+
+// The bar sits in the page flow, so showing or hiding it changes the canvas
+// height by about 36px. vis only re-measures on its own timer, so the canvas
+// is resized right away, before the caller fits the view.
+function syncFocusBar() {
+    const bar = document.getElementById('graph-focus-bar');
+    if (!bar) return;
+    const focused = focusStack.length > 0;
+    if (focused) {
+        renderFocusCrumbs();
+        renderFocusHops();
+        bar.removeAttribute('hidden');
+    } else {
+        bar.setAttribute('hidden', '');
+    }
+    if (focused !== focusBarShown) {
+        focusBarShown = focused;
+        if (network) {
+            network.setSize('100%', '100%');
+            network.redraw();
+        }
+    }
+}
+
+function attachFocusListeners() {
+    if (_focusListenersAttached) return;
+    _focusListenersAttached = true;
+    const exitBtn = document.getElementById('graph-focus-exit');
+    if (exitBtn) exitBtn.addEventListener('click', () => exitFocus());
+    for (const hops of [1, 2]) {
+        const btn = document.getElementById(`graph-focus-hop-${hops}`);
+        if (!btn) continue;
+        btn.addEventListener('click', () => setFocusHops(hops));
+        btn.addEventListener('keydown', (event) => {
+            const target = radioTarget(event.key, [1, 2], hops);
+            if (target === undefined) return;
+            event.preventDefault();
+            if (!target) return;
+            const targetBtn = document.getElementById(`graph-focus-hop-${target}`);
+            if (targetBtn && typeof targetBtn.focus === 'function') targetBtn.focus();
+            setFocusHops(target);
+        });
+    }
+    // Entry points for other modules (the sidebar): ids and hops are validated
+    // here, whatever the sender put in the event.
+    window.addEventListener('graph-focus-node', (event) => {
+        const detail = (event && event.detail) || {};
+        enterFocus(detail.id, detail.hops);
+    });
+    window.addEventListener('graph-focus-exit', () => exitFocus());
 }
 
 // ---------------------------------------------------------------------------

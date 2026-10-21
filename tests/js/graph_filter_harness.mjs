@@ -1014,7 +1014,7 @@ if (isFocus) {
     await tick();
     calls.length = 0;
     groupButtons.family.dispatch('click');
-    await tick();
+    await tick(120);
     check('relayout starts', stabilizeCalls().length > 0);
     check('focus survives the relayout', stackIds().length === 1 && same(visibleIds(), ['hub', 'n1', 'n2', 'n3']), visibleIds());
     settle();

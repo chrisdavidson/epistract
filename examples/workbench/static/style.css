@@ -1936,7 +1936,101 @@ body {
   color: #666666;
 }
 
+/* Focus bar: breadcrumb, neighborhood size and Exit focus. */
+.graph-focus-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 4px 16px;
+  background: rgba(26, 26, 46, 0.04);
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.graph-focus-bar[hidden] {
+  display: none;
+}
+
+.graph-focus-bar__crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-body);
+  font-size: var(--size-label);
+}
+
+.graph-focus-bar__crumbs li {
+  display: inline-flex;
+  align-items: center;
+  max-width: 24ch;
+}
+
+.graph-focus-bar__crumbs li + li::before {
+  content: "\203A";
+  margin: 0 6px;
+  color: #666666;
+}
+
+.graph-focus-bar__crumb {
+  max-width: 24ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--size-label);
+  font-weight: 400;
+  color: #1a1a1a;
+}
+
+button.graph-focus-bar__crumb {
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font-family: var(--font-body);
+  cursor: pointer;
+}
+
+button.graph-focus-bar__crumb:hover {
+  text-decoration: underline;
+}
+
+button.graph-focus-bar__crumb:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.graph-focus-bar__crumb--current {
+  font-weight: 600;
+}
+
+.graph-focus-bar__crumb--collapsed {
+  color: #666666;
+}
+
+.graph-focus-bar__count {
+  font-family: var(--font-data);
+}
+
+.graph-focus-bar__exit {
+  margin-left: auto;
+  min-height: 28px;
+  padding: 4px 12px;
+  border: 1px solid #1a1a2e;
+  font-size: var(--size-label);
+  font-weight: 600;
+}
+
+.graph-focus-bar__exit:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .graph-focus-bar button,
   .graph-group button,
   .toggle-btn,
   .graph-edge-key-btn,

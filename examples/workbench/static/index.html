@@ -163,6 +163,15 @@
         <div id="graph-groups" class="graph-groups" hidden></div>
       </div>
 
+      <nav id="graph-focus-bar" class="graph-focus-bar" aria-label="Focus path" hidden>
+        <ol id="graph-focus-crumbs" class="graph-focus-bar__crumbs"></ol>
+        <div class="graph-group graph-focus-bar__hops" role="radiogroup" aria-label="Neighborhood size">
+          <button type="button" id="graph-focus-hop-1" role="radio" aria-checked="true" tabindex="0" data-hops="1">1 hop</button>
+          <button type="button" id="graph-focus-hop-2" role="radio" aria-checked="false" tabindex="-1" data-hops="2">2 hops</button>
+        </div>
+        <button type="button" id="graph-focus-exit" class="toggle-btn graph-focus-bar__exit" title="Exit focus (Esc)">Exit focus</button>
+      </nav>
+
       <div id="graph-container" class="graph-container" tabindex="0" aria-label="Knowledge graph. Use search and filters to find nodes; selected node details appear in the side panel.">
         <p class="graph-placeholder">Building graph visualization...</p>
       </div>

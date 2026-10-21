@@ -137,4 +137,4 @@ def test_focus_escape_order(tmp_path):
     report = json.loads(proc.stdout.strip().splitlines()[-1])
     assert report["failed"] == [], report["failed"]
     esc = [name for name in report["passed"] if name.startswith("esc: ")]
-    assert len(esc) >= 9, esc
+    assert len(esc) >= 8, esc

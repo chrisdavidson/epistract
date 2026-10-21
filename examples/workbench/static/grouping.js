@@ -265,3 +265,128 @@ export function clampIntoRegion(point, region) {
     const k = (region.r * SOURCE_INSET) / dist;
     return { x: region.cx + dx * k, y: region.cy + dy * k };
 }
+
+// ---------------------------------------------------------------------------
+// Focus mode: k-hop neighbourhoods, the breadcrumb stack and focus labels.
+// Everything here is pure (Map/Set/array in, new value out).
+// ---------------------------------------------------------------------------
+export const FOCUS_MODE_MAX_LABELS = 120;
+export const FOCUS_TRUNCATE_CHARS = 40;
+export const FOCUS_MAX_CRUMBS = 4;
+
+function clampHops(hops) {
+    return hops === 2 ? 2 : 1;
+}
+
+// Breadth-first set of node ids within `hops` of `centerId`, centre included.
+// `adjacency` maps id -> incident edge records ({source, target}). Only
+// eligible edges are walked and only eligible nodes are entered, so a filtered
+// out node never carries the walk across it. An unknown or ineligible centre
+// gives an empty Set.
+export function kHop(adjacency, centerId, hops, isEligibleEdge, isEligibleNode) {
+    const reached = new Set();
+    if (!adjacency.has(centerId) || !isEligibleNode(centerId)) return reached;
+    reached.add(centerId);
+    let frontier = [centerId];
+    for (let depth = 0; depth < hops && frontier.length > 0; depth++) {
+        const next = [];
+        for (const id of frontier) {
+            for (const edge of adjacency.get(id) || []) {
+                if (!isEligibleEdge(edge)) continue;
+                const other = edge.source === id ? edge.target : edge.source;
+                if (reached.has(other) || !isEligibleNode(other)) continue;
+                reached.add(other);
+                next.push(other);
+            }
+        }
+        frontier = next;
+    }
+    return reached;
+}
+
+export function pushFocus(stack, entry) {
+    return [...stack, { id: entry.id, hops: clampHops(entry.hops) }];
+}
+
+export function popFocus(stack) {
+    return stack.slice(0, -1);
+}
+
+// Keeps the entries up to and including `index`.
+export function truncateFocus(stack, index) {
+    return stack.slice(0, index + 1);
+}
+
+export function setTopHops(stack, hops) {
+    if (stack.length === 0) return [];
+    const next = stack.slice();
+    next[next.length - 1] = { ...next[next.length - 1], hops: clampHops(hops) };
+    return next;
+}
+
+// Breadcrumb model: "All nodes" first, then one crumb per stack entry. With
+// more than `maxCrumbs` crumbs the oldest entries collapse into one inert
+// ellipsis crumb whose title lists the hidden names.
+// Each crumb: {kind: 'all' | 'node' | 'collapsed', label, title, index, current}.
+export function crumbsFor(stack, nameOf, maxCrumbs = FOCUS_MAX_CRUMBS) {
+    const crumbs = [{ kind: 'all', label: 'All nodes', title: 'All nodes', index: -1, current: false }];
+    const entries = stack.map((entry, index) => ({
+        kind: 'node',
+        label: nameOf(entry.id),
+        title: nameOf(entry.id),
+        index,
+        current: index === stack.length - 1,
+    }));
+    if (entries.length + 1 <= maxCrumbs) return crumbs.concat(entries);
+    const keep = Math.max(1, maxCrumbs - 2);
+    const hidden = entries.slice(0, entries.length - keep);
+    crumbs.push({
+        kind: 'collapsed',
+        label: '…',
+        title: hidden.map(entry => entry.label).join(' › '),
+        index: -1,
+        current: false,
+    });
+    return crumbs.concat(entries.slice(entries.length - keep));
+}
+
+// Ids labelled while focused. The centre and every 1-hop id always get a
+// label; the remaining slots up to `cap` go to the highest in-set degree, ties
+// broken by id. `inSetDegree` is a Map or a plain object.
+export function focusModeLabelIds(centerId, focusSet, oneHopIds, inSetDegree, cap = FOCUS_MODE_MAX_LABELS) {
+    const degreeOf = id => (inSetDegree instanceof Map ? inSetDegree.get(id) : inSetDegree[id]) || 0;
+    const labelled = new Set();
+    if (focusSet.has(centerId)) labelled.add(centerId);
+    for (const id of oneHopIds) if (focusSet.has(id)) labelled.add(id);
+    const rest = [...focusSet].filter(id => !labelled.has(id));
+    rest.sort((a, b) => degreeOf(b) - degreeOf(a) || (a < b ? -1 : a > b ? 1 : 0));
+    for (const id of rest) {
+        if (labelled.size >= cap) break;
+        labelled.add(id);
+    }
+    return labelled;
+}
+
+// Keyboard handling shared by the radiogroups. Returns the value to select
+// for `key`, undefined when the key is not handled, null when there is
+// nothing to select. `values` are the enabled options in order.
+export function radioTarget(key, values, current) {
+    const i = values.indexOf(current);
+    switch (key) {
+        case 'ArrowLeft':
+        case 'ArrowUp':
+            return values.length ? values[(i - 1 + values.length) % values.length] : null;
+        case 'ArrowRight':
+        case 'ArrowDown':
+            return values.length ? values[(i + 1) % values.length] : null;
+        case 'Home':
+            return values.length ? values[0] : null;
+        case 'End':
+            return values.length ? values[values.length - 1] : null;
+        case ' ':
+        case 'Enter':
+            return i >= 0 ? current : null;
+        default:
+            return undefined;
+    }
+}
