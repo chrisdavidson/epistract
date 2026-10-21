@@ -447,3 +447,14 @@ def test_cli_non_integer_flag_reports_integer_error(tmp_path, flag):
     assert "Pass the exact entity id" not in proc.stderr
     assert "Traceback" not in proc.stderr
     assert not (work / "graph.html").exists()
+
+
+def test_workbench_index_does_not_load_standalone_glue():
+    index = (ROOT / "examples" / "workbench" / "static" / "index.html").read_text(encoding="utf-8")
+    assert "static_view" not in index
+
+
+def test_skip_link_is_first_element_in_body(glp1_page):
+    _work, page = glp1_page
+    body = page.split("<body", 1)[1].split(">", 1)[1].lstrip()
+    assert body.startswith('<a class="static-skip" href="#graph-container">Skip to graph</a>'), body[:120]
