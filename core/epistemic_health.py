@@ -310,17 +310,58 @@ def _hypothesis_item(raw: object, index: dict[str, dict]) -> dict | None:
     }
 
 
+def _evidence_side(side: object) -> str:
+    """Describe one side of a contracts conflict's evidence dict.
+
+    Contracts sides look like ``{"clause"|"entity": name, "contract": doc}``,
+    optionally with ``date`` or ``amount`` (domains/contracts/epistemic.py).
+    """
+    if not isinstance(side, dict):
+        return ""
+    name = _text(side.get("clause")) or _text(side.get("entity"))
+    detail = _text(side.get("date")) or _text(side.get("amount"))
+    label = f"{name}: {detail}" if name and detail else (name or detail)
+    contract = _text(side.get("contract"))
+    if label and contract:
+        return f"{label} ({contract})"
+    return label or contract
+
+
+def _evidence_statement(evidence: object, confidence: object) -> dict | None:
+    """One statement summarising the sides of a dict-shaped conflict evidence."""
+    if not isinstance(evidence, dict):
+        return None
+    sides = [s for s in (_evidence_side(v) for v in evidence.values()) if s]
+    if not sides:
+        return None
+    return {
+        "text": _truncate("Sources disagree: " + " vs ".join(sides), MAX_TITLE_TEXT),
+        "document": "",
+        "confidence": _confidence(confidence),
+    }
+
+
 def _conflict_item(raw: object, index: dict[str, dict]) -> dict | None:
+    """Pharmacovigilance/FDA conflicts (``evidence`` str, ``terms``, ``entity_a/b``)
+    and contracts conflicts (``description``, ``evidence`` dict,
+    ``entities_involved``, ``contracts_involved``, ``suggested_action``)."""
     if not isinstance(raw, dict):
         return None
     title = _title(
-        _text(raw.get("evidence")) or _humanize_relation(raw.get("type") or "") or "Conflict"
+        _text(raw.get("description"))
+        or _text(raw.get("evidence"))
+        or _humanize_relation(raw.get("type") or "")
+        or "Conflict"
     )
     ids: list[object] = [raw.get("entity_a"), raw.get("entity_b")]
-    affected = raw.get("affected_entities")
-    if isinstance(affected, list):
-        ids += affected
+    for key in ("affected_entities", "entities_involved"):
+        listed = raw.get(key)
+        if isinstance(listed, list):
+            ids += listed
     statements: list[dict] = []
+    sides = _evidence_statement(raw.get("evidence"), raw.get("confidence"))
+    if sides is not None:
+        statements.append(sides)
     terms = raw.get("terms")
     if isinstance(terms, list):
         words = [t for t in (_text(v) for v in terms) if t]
@@ -332,12 +373,17 @@ def _conflict_item(raw: object, index: dict[str, dict]) -> dict | None:
                     "confidence": None,
                 }
             )
+    action = _text(raw.get("suggested_action"))
+    if action:
+        statements.append(
+            {"text": f"Suggested action: {action}", "document": "", "confidence": None}
+        )
     return {
         "title": title,
         "kind": "conflict",
         "entities": _entities(ids, index),
         "statements": statements,
-        "documents": [],
+        "documents": _dedupe(_strings(raw.get("contracts_involved"))),
         "question": _question("What is behind this conflict: {}?", title),
     }
 

@@ -40,6 +40,136 @@ def _name(nodes: list[dict], node_id: str) -> str:
     return next(n for n in nodes if n["id"] == node_id)["name"]
 
 
+def _contracts_producer():
+    """Load domains/contracts/epistemic.py (the real contracts claims producer)."""
+    import importlib.util
+
+    path = ROOT / "domains" / "contracts" / "epistemic.py"
+    spec = importlib.util.spec_from_file_location("contracts_epistemic_eh", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+# A small contracts graph: two contracts claim the same hall exclusively and
+# quote different prices for the same AV package.
+CONTRACT_NODES = [
+    {
+        "id": "clause:hilton_excl",
+        "name": "Hilton exclusivity clause",
+        "entity_type": "CLAUSE",
+        "source_document": "hilton.pdf",
+        "attributes": {"clause_type": "exclusivity"},
+    },
+    {
+        "id": "clause:avco_excl",
+        "name": "AVCo exclusivity clause",
+        "entity_type": "CLAUSE",
+        "source_document": "avco.pdf",
+        "attributes": {"clause_type": "exclusivity"},
+    },
+    {
+        "id": "venue:grand_ballroom",
+        "name": "Grand Ballroom",
+        "entity_type": "VENUE",
+        "source_document": "hilton.pdf",
+    },
+    {
+        "id": "cost:hilton_av",
+        "name": "Hilton AV package",
+        "entity_type": "COST",
+        "source_document": "hilton.pdf",
+        "attributes": {"covers": "audio visual package ballroom", "amount": "$5,000"},
+    },
+    {
+        "id": "cost:avco_av",
+        "name": "AVCo AV package",
+        "entity_type": "COST",
+        "source_document": "avco.pdf",
+        "attributes": {"covers": "audio visual package ballroom", "amount": "$7,500"},
+    },
+]
+CONTRACT_LINKS = [
+    {
+        "source": "clause:hilton_excl",
+        "target": "venue:grand_ballroom",
+        "relation_type": "RESTRICTS",
+    },
+    {"source": "clause:avco_excl", "target": "venue:grand_ballroom", "relation_type": "RESTRICTS"},
+]
+CONTRACT_RULES = {
+    "exclusive_use": {
+        "severity": "CRITICAL",
+        "suggested_action_template": "Ask {source} and {conflict} who controls {space}",
+    },
+    "cost_budget_mismatch": {
+        "severity": "WARNING",
+        "suggested_action_template": "Confirm the price of {cost_entity} ({amount})",
+    },
+}
+
+
+def _contracts_claims(tmp_path: Path) -> dict:
+    """Build super_domain the way analyze_contract_epistemic does."""
+    producer = _contracts_producer()
+    conflicts = producer.detect_conflicts(CONTRACT_NODES, CONTRACT_LINKS, CONTRACT_RULES)
+    master = tmp_path / "master.md"
+    master.write_text("- Ensure emergency medical staff on site\n")
+    ref_nodes, _ = producer.import_master_doc(master, {"nodes": CONTRACT_NODES})
+    gaps = producer.find_coverage_gaps(ref_nodes, CONTRACT_NODES, CONTRACT_LINKS)
+    risks = producer.score_risks(conflicts, gaps)
+    return {
+        "super_domain": {"conflicts": conflicts, "coverage_gaps": gaps, "risks": risks},
+    }
+
+
+def test_contracts_conflicts_from_producer(tmp_path):
+    from core.epistemic_health import build_epistemic_health
+
+    claims = _contracts_claims(tmp_path)
+    raw = claims["super_domain"]["conflicts"]
+    assert [c["type"] for c in raw] == ["exclusive_use", "cost_budget_mismatch"]
+    assert isinstance(raw[0]["evidence"], dict)
+
+    result = build_epistemic_health(claims, CONTRACT_NODES)
+    conflicts = _section(result, "conflicts")
+    assert conflicts["count"] == 2
+    excl, cost = conflicts["items"]
+
+    assert excl["title"] == "Multiple contracts claim exclusive use of Grand Ballroom"
+    assert excl["question"] == (
+        "What is behind this conflict: Multiple contracts claim exclusive use of Grand Ballroom?"
+    )
+    assert [e["id"] for e in excl["entities"]] == [
+        "clause:hilton_excl",
+        "clause:avco_excl",
+        "venue:grand_ballroom",
+    ]
+    assert excl["documents"] == ["avco.pdf", "hilton.pdf"]
+    assert excl["statements"] == [
+        {
+            "text": "Sources disagree: Hilton exclusivity clause (hilton.pdf)"
+            " vs AVCo exclusivity clause (avco.pdf)",
+            "document": "",
+            "confidence": 0.9,
+        },
+        {
+            "text": "Suggested action: Ask Hilton exclusivity clause and AVCo exclusivity"
+            " clause who controls Grand Ballroom",
+            "document": "",
+            "confidence": None,
+        },
+    ]
+
+    assert cost["title"] == "Cost mismatch for similar services: $5,000 vs $7,500"
+    assert [e["id"] for e in cost["entities"]] == ["cost:hilton_av", "cost:avco_av"]
+    assert cost["statements"][0]["text"] == (
+        "Sources disagree: Hilton AV package: $5,000 (hilton.pdf)"
+        " vs AVCo AV package: $7,500 (avco.pdf)"
+    )
+    assert cost["statements"][1]["text"].startswith("Suggested action: Confirm the price of")
+
+
 def test_glp1_v3_sections_and_status_counts():
     result = _build(GLP1)
     assert result["available"] is True
