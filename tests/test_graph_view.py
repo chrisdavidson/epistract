@@ -520,8 +520,14 @@ def test_graph_html_is_written_atomically(tmp_path, monkeypatch):
     assert sorted(p.name for p in tmp_path.iterdir()) == ["graph.html", "graph_data.json"]
 
     monkeypatch.undo()
+    reference = tmp_path / "reference.txt"
+    reference.write_text("x", encoding="utf-8")
+    expected_mode = reference.stat().st_mode & 0o777
+    reference.unlink()
+    dest.unlink()
     static_export.write_static_graph(tmp_path)
     assert dest.read_text(encoding="utf-8").startswith("<!DOCTYPE html>")
+    assert dest.stat().st_mode & 0o777 == expected_mode, "graph.html must keep umask permissions"
     assert sorted(p.name for p in tmp_path.iterdir()) == ["graph.html", "graph_data.json"]
 
 
