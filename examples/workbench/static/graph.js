@@ -11,6 +11,10 @@ import {
     humanizeRelation, focusIds, focusDelta, edgeLabelFont,
 } from './graph_style.js';
 import { initHoverCard, showHoverCard, hideHoverCard } from './hovercard.js';
+import {
+    packGroups, seedInside, anchorNodeSpecs, anchorEdgeSpecs, dataEdgeLengths,
+    isAnchorId, groupIterations, FIT_MARGIN,
+} from './grouping.js';
 
 // graph.js - Graph panel: vis.js network, search, entity type toggles
 
@@ -125,6 +129,11 @@ let hoveredEdgeId = null;
 let _focusRaf = null;                     // pending applyFocus() handle
 let _focusCancel = null;                  // matching cancel function
 let _lastCutoff = 0;                      // degree cutoff last applied by applyScaleStyle()
+let groupsPayload = null;                 // /api/graph/groups response; null when the endpoint failed
+let groupMode = 'none';                   // 'cluster' | 'family' | 'none' for the current build
+let groupAssignment = new Map();          // non-source node id -> group id for the current build
+let groupLayout = new Map();              // group id -> {x, y, r} circle the group is packed into
+let _fitShrink = null;                    // pending post-animation fit margin handler
 
 // vis-network color object: type fill with a neutral border.
 function nodeColor(type) {
@@ -213,10 +222,7 @@ export async function initGraph(opts) {
             // A plain fit() emits neither `zoom` nor `animationFinished`, so
             // the scale-aware label/size controller must be run explicitly or
             // it keeps the styles computed while the panel was hidden.
-            setTimeout(() => {
-                network.fit({ animation: false });
-                applyScaleStyle();
-            }, 100);
+            setTimeout(() => fitView(null, false), 100);
         }
     });
 }
@@ -240,6 +246,17 @@ async function loadGraphData() {
             window._claimsData = await claimsResp.json();
         } catch (e) {
             window._claimsData = null;
+        }
+
+        // Group assignment never blocks the graph: any failure builds it ungrouped.
+        try {
+            const groupsResp = await fetch('/api/graph/groups');
+            if (!groupsResp.ok) {
+                throw new Error(`Groups API returned ${groupsResp.status} ${groupsResp.statusText}`);
+            }
+            groupsPayload = await groupsResp.json();
+        } catch (e) {
+            groupsPayload = null;
         }
 
         buildGraph();
@@ -310,7 +327,7 @@ function applyScaleStyle() {
     // visibility (hidden), or the pinned-node border (color/borderWidth/fixed).
     const fontWorld = labelFontSize(scale);
     let labelled = 0;
-    const nodeUpdates = visNodes.getIds().map(id => {
+    const nodeUpdates = visNodes.getIds().filter(id => !isAnchorId(id)).map(id => {
         const degree = linkDegreeMap[id] || 0;
         const isSource = sourceNodeIds.has(id);
         const font = nodeLabelFont(id, scale, cutoff);
@@ -349,6 +366,70 @@ function applyScaleStyle() {
     };
 }
 
+// ---------------------------------------------------------------------------
+// Grouped layout. The payload comes from /api/graph/groups; the pure geometry
+// lives in grouping.js. A group is a hidden fixed anchor node plus hidden
+// spring edges to its members, so anchors and anchor edges exist only inside
+// the DataSets: every loop over a DataSet must skip them (isAnchorId).
+// ---------------------------------------------------------------------------
+// The mode this build lays out by: the payload default when that mode is
+// available, otherwise 'none' (the free layout).
+function resolveGroupMode(payload) {
+    if (!payload || typeof payload !== 'object') return 'none';
+    const mode = payload.default;
+    if (mode !== 'cluster' && mode !== 'family') return 'none';
+    const entry = payload.modes && payload.modes[mode];
+    const usable = entry && entry.available === true
+        && entry.assignment && typeof entry.assignment === 'object';
+    return usable ? mode : 'none';
+}
+
+// Non-source node id -> group id for `mode`. Ids are read with Object.hasOwn so
+// data keys cannot reach the prototype.
+function buildGroupAssignment(payload, mode) {
+    const assignment = new Map();
+    if (mode === 'none') return assignment;
+    const source = payload.modes[mode].assignment;
+    for (const n of allNodes) {
+        if (sourceNodeIds.has(n.id) || !Object.hasOwn(source, n.id)) continue;
+        const gid = source[n.id];
+        if (typeof gid === 'string') assignment.set(n.id, gid);
+    }
+    return assignment;
+}
+
+// Ids of the data nodes currently drawn (anchors and hidden nodes excluded).
+function visibleDataNodeIds() {
+    if (!visNodes) return [];
+    return visNodes.get({ filter: n => !n._anchor && n.hidden !== true }).map(n => n.id);
+}
+
+// Fit the view to `ids` (default: every drawn data node) and leave FIT_MARGIN
+// of breathing room. Animated fits apply the margin once the animation ends.
+function fitView(ids, animation = false) {
+    if (!network || !visNodes) return;
+    const fitIds = ids || visibleDataNodeIds();
+    if (fitIds.length === 0) return;
+    if (_fitShrink) {
+        network.off('animationFinished', _fitShrink);
+        _fitShrink = null;
+    }
+    network.fit({ nodes: fitIds, animation });
+    const shrink = () => {
+        network.moveTo({ scale: network.getScale() * (1 - FIT_MARGIN), animation: false });
+    };
+    if (animation === false) {
+        shrink();
+        applyScaleStyle();
+    } else {
+        _fitShrink = () => {
+            _fitShrink = null;
+            shrink();
+        };
+        network.once('animationFinished', _fitShrink);
+    }
+}
+
 function buildGraph() {
     const container = document.getElementById('graph-container');
     if (!container || !window.vis) return;
@@ -366,6 +447,7 @@ function buildGraph() {
         }
         _lastStyleKey = null;
         _lastCutoff = 0;
+        _fitShrink = null;
         cancelFocus();
         highlightedNodeId = null;
         hoverFocus = new Set();
@@ -441,6 +523,18 @@ function buildGraph() {
         .map(n => linkDegreeMap[n.id] || 0)
         .sort((a, b) => b - a);
 
+    // Grouped layout (default topic cluster): members start inside their
+    // group's circle; anchors and anchor edges are added to the DataSets below.
+    groupMode = resolveGroupMode(groupsPayload);
+    groupAssignment = buildGroupAssignment(groupsPayload, groupMode);
+    if (groupAssignment.size === 0) groupMode = 'none';
+    groupLayout = new Map();
+    if (groupMode !== 'none') {
+        const counts = new Map();
+        for (const gid of groupAssignment.values()) counts.set(gid, (counts.get(gid) || 0) + 1);
+        groupLayout = packGroups([...counts].map(([id, size]) => ({ id, size })));
+    }
+
     const nodes = allNodes.map(n => {
         const d = typeDisplay(n.entity_type);
         const isSource = sourceNodeIds.has(n.id);
@@ -460,6 +554,16 @@ function buildGraph() {
             _data: n,
         };
     });
+    if (groupMode !== 'none') {
+        for (const node of nodes) {
+            const gid = groupAssignment.get(node.id);
+            if (gid === undefined || pinnedNodes.has(node.id)) continue;
+            const seed = seedInside(groupLayout.get(gid), node.id);
+            node.x = seed.x;
+            node.y = seed.y;
+        }
+        nodes.push(...anchorNodeSpecs(groupLayout));
+    }
 
     // Edges carry their relation name as the label string but rest at font
     // size 0 (nothing drawn); applyFocus() raises the size for edges of the
@@ -483,6 +587,16 @@ function buildGraph() {
         _data: e,
     }));
     sourcePhysicsOn = sourcesShown;
+    if (groupMode !== 'none') {
+        // Short rest length inside a group, the distance between the two
+        // group circles across groups; then the hidden member-to-anchor edges.
+        const lengths = new Map(dataEdgeLengths(edges, groupAssignment, groupLayout)
+            .map(l => [l.id, l.length]));
+        for (const edge of edges) {
+            if (lengths.has(edge.id)) edge.length = lengths.get(edge.id);
+        }
+        edges.push(...anchorEdgeSpecs(groupAssignment, groupLayout));
+    }
 
     visNodes = new vis.DataSet(nodes);
     visEdges = new vis.DataSet(edges);
@@ -494,6 +608,7 @@ function buildGraph() {
     // global, so the per-edge `smooth` property must stay removed above.
     const edgeSmoothing = allEdges.length > EDGE_SMOOTH_MAX_EDGES ? false : { type: 'continuous' };
 
+    const knowledgeCount = allNodes.length - sourceNodeIds.size;
     const options = {
         physics: {
             solver: 'forceAtlas2Based',
@@ -516,9 +631,11 @@ function buildGraph() {
             // lower PHYSICS_STABILIZATION_ITERATIONS — one line, at the top.
             stabilization: {
                 enabled: true,
-                iterations: PHYSICS_STABILIZATION_ITERATIONS,
+                iterations: groupMode === 'none'
+                    ? PHYSICS_STABILIZATION_ITERATIONS
+                    : groupIterations(knowledgeCount),
                 updateInterval: PHYSICS_STABILIZATION_UPDATE_INTERVAL,
-                fit: true,
+                fit: groupMode === 'none', // grouped builds fit the drawn nodes in settle() instead
             },
             minVelocity: 0.75, // reach the stabilized event promptly once motion drops below this threshold
         },
@@ -575,7 +692,7 @@ function buildGraph() {
         network.setOptions({ physics: false });
         // Fit first so the controller reads the real fit scale, not the
         // pre-fit one (stabilization fit is animated and lags the event).
-        network.fit({ animation: false });
+        fitView(null, false);
         applyScaleStyle();
     };
     network.once('stabilizationIterationsDone', settle);
@@ -642,13 +759,13 @@ function buildGraph() {
 
             // Dim non-neighbourhood nodes to opacity 0.15
             const nodeDims = visNodes.getIds()
-                .filter(id => !neighbourIds.has(id))
+                .filter(id => !isAnchorId(id) && !neighbourIds.has(id))
                 .map(id => ({ id, opacity: 0.15 }));
             if (nodeDims.length) visNodes.update(nodeDims);
 
             // Dim non-neighbourhood edges to opacity 0.15
             const edgeDims = visEdges.getIds()
-                .filter(id => !connectedEdgeIds.has(id))
+                .filter(id => !isAnchorId(id) && !connectedEdgeIds.has(id))
                 .map(id => ({ id, color: edgeColorObject(edgeColorById.get(id), EDGE_DIM_OPACITY) }));
             if (edgeDims.length) visEdges.update(edgeDims);
 
@@ -672,8 +789,14 @@ function buildGraph() {
     network.on('doubleClick', (params) => {
         if (params.nodes.length > 0) {
             const nodeId = params.nodes[0];
-            const connectedNodes = network.getConnectedNodes(nodeId);
-            network.fit({ nodes: [nodeId, ...connectedNodes], animation: fitAnimation(500) });
+            // Neighbours come from the adjacency Map, not the network, so
+            // anchors never join the fit.
+            const near = new Set([nodeId]);
+            for (const e of adjacency.get(nodeId) || []) {
+                near.add(e.source);
+                near.add(e.target);
+            }
+            fitView(visibleDataNodeIds().filter(id => near.has(id)), fitAnimation(500));
         }
     });
 
@@ -702,7 +825,7 @@ function buildGraph() {
         const fitBtn = document.getElementById('graph-fit-btn');
         if (fitBtn) {
             fitBtn.addEventListener('click', () => {
-                network.fit({ animation: fitAnimation(400) });
+                fitView(null, fitAnimation(400));
             });
         }
 
@@ -748,7 +871,16 @@ function buildGraph() {
 
     syncSourcesButton();
     buildEdgeKey();
-    window._graphDebug = { network, visNodes, visEdges };
+    window._graphDebug = {
+        network,
+        visNodes,
+        visEdges,
+        get mode() { return groupMode; },
+        get groupCount() { return groupLayout.size; },
+        dataNodes: () => visNodes.get().filter(n => !n._anchor),
+        dataEdges: () => visEdges.get().filter(e => !e._anchor),
+        anchorCount: () => visNodes.get().filter(n => n._anchor).length,
+    };
 
     // Close sidebar on window resize so it does not float
     // in a stale DOM position (RESEARCH Pitfall 4).
@@ -784,6 +916,7 @@ function buildGraph() {
 // vis skips an edge whose endpoint node is hidden even though the edge itself
 // keeps hidden: false, so an edge is drawn only when it and both ends are shown.
 function edgeDrawn(edgeId) {
+    if (isAnchorId(edgeId)) return false;
     const rec = visEdges.get(edgeId);
     if (!rec || rec.hidden === true) return false;
     const a = visNodes.get(rec.from);
@@ -794,6 +927,7 @@ function edgeDrawn(edgeId) {
 function neighborsOf(id) {
     if (!network || !visNodes) return [];
     return (network.getConnectedNodes(id) || []).filter(nid => {
+        if (isAnchorId(nid)) return false;
         const rec = visNodes.get(nid);
         return rec && rec.hidden !== true;
     });
@@ -1023,7 +1157,7 @@ function filterGraph() {
         // rather than correlating by positional index. vis.DataSet.getIds() does not
         // guarantee insertion order, so index-based correlation can silently apply
         // the wrong filter to the wrong edge after any DataSet mutation.
-        const edgeUpdates = visEdges.getIds().map(edgeId => {
+        const edgeUpdates = visEdges.getIds().filter(id => !isAnchorId(id)).map(edgeId => {
             const record = visEdges.get(edgeId);
             const e = record?._data;
             if (!e) return { id: edgeId, hidden: false };
@@ -1187,8 +1321,8 @@ function setSourcesShown(on) {
 
 function clearHighlight() {
     if (!visNodes || !visEdges) return;
-    const nodeRestores = visNodes.getIds().map(id => ({ id, opacity: 1 }));
-    const edgeRestores = visEdges.getIds().map(id => ({
+    const nodeRestores = visNodes.getIds().filter(id => !isAnchorId(id)).map(id => ({ id, opacity: 1 }));
+    const edgeRestores = visEdges.getIds().filter(id => !isAnchorId(id)).map(id => ({
         id, color: edgeColorObject(edgeColorById.get(id), EDGE_BASE_OPACITY),
     }));
     visNodes.update(nodeRestores);
