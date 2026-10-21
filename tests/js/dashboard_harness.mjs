@@ -438,10 +438,10 @@ if (MODE === 'epistemic') {
       const rest = restList(s);
       check('show-all: rest list hidden with 28 cards', rest && rest.getAttribute('id') === 'epistemic-rest-contested_claims'
         && rest.hasAttribute('hidden') && cardsOf(rest).length === 28, rest && cardsOf(rest).length);
-      tg.dispatch('click');
+      root.dispatch('click', { target: tg });
       check('show-all: expanded', tg.getAttribute('aria-expanded') === 'true' && !rest.hasAttribute('hidden') && tg.textContent === 'Show first 5'
         && tg.getAttribute('aria-label') === 'Show only the first 5 contested claims', [tg.textContent, tg.getAttribute('aria-label')]);
-      tg.dispatch('click');
+      root.dispatch('click', { target: tg });
       check('show-all: collapsed again', tg.getAttribute('aria-expanded') === 'false' && rest.hasAttribute('hidden') && tg.textContent === 'Show all 33');
       check('show-all: small sections have no toggle', !toggleOf(sectionOf(root, 'contradictions')) && !restList(sectionOf(root, 'hypotheses')));
       check('show-all: toggle never calls the actions', shown.length === 0 && asked.length === 0);
@@ -536,7 +536,7 @@ if (MODE === 'epistemic') {
       root.dispatch('click', { target: later[0] });
       check('dispatch: a later card resolves its own item', shown.length === 2 && shown[1].id === 'c:e2', shown[1]);
       sectionOf(root, 'contested_claims');
-      toggleOf(sectionOf(root, 'contested_claims')).dispatch('click');
+      root.dispatch('click', { target: toggleOf(sectionOf(root, 'contested_claims')) });
       const revealed = byClass(cardsOf(restList(sectionOf(root, 'contested_claims')))[0], 'epistemic-btn');
       root.dispatch('click', { target: revealed[1] });
       check('dispatch: revealed cards work too', asked.length === 2 && asked[1].question === 'Question 5?', asked[1]);
