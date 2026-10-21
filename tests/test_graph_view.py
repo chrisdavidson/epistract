@@ -188,7 +188,9 @@ def test_hostile_values_cannot_break_out_of_script_blocks(tmp_path):
     page = _view(tmp_path)
 
     assert "<script>window.PWN" not in page, "hostile script tag appears raw in the page"
-    assert page.count("</script") == len(re.findall(r"<script\b", page)), (
+    # Our blocks open at line start; vis-network also holds the text "<script>"
+    # inside a JS string literal, which is not a tag.
+    assert page.count("</script") == len(re.findall(r"^<script\b", page, re.M)), (
         "script open/close counts differ, so a block was broken out of"
     )
     island = json.dumps(_island(page))

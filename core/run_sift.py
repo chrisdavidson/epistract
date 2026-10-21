@@ -4,7 +4,7 @@
 Usage:
     python run_sift.py --list-domains
     python run_sift.py build <output_dir> [--domain <name>]
-    python run_sift.py view <output_dir> [--neighborhood <entity>] [--top <n>]
+    python run_sift.py view <output_dir> [--neighborhood <entity>] [--top <n>] [--no-open]
     python run_sift.py export <output_dir> <format>
     python run_sift.py info <output_dir>
     python run_sift.py search <output_dir> <query> [--type TYPE]
@@ -14,8 +14,8 @@ not a file path. Use --list-domains to see available domains.
 """
 
 import json
-import re
 import sys
+import webbrowser
 from pathlib import Path
 
 # Allow running as a plain script (python3 core/run_sift.py ...) in addition to
@@ -33,6 +33,7 @@ from core.domain_resolver import (  # noqa: E402
     load_domain_schema,
     resolve_domain,
 )
+from core.graph_payloads import json_for_script  # noqa: E402
 
 
 def resolve_domain_arg(value: str) -> str:
@@ -233,23 +234,8 @@ def cmd_build(output_dir: str, domain_name: str | None = None):
     }))
 
 
-def _json_for_script(value: object) -> str:
-    """Serialize value as JSON that is safe to embed inside an HTML <script> block.
-
-    ``json.dumps`` leaves ``<``, ``>`` and ``&`` intact, so a string such as
-    ``</script><script>...`` (an LLM-extracted entity type, for example) would
-    close the script element. Escaping them as ``\\u`` sequences keeps the
-    value identical once parsed by JavaScript. U+2028/U+2029 are escaped too,
-    since older JavaScript engines treat them as line terminators.
-    """
-    return (
-        json.dumps(value)
-        .replace("<", "\\u003c")
-        .replace(">", "\\u003e")
-        .replace("&", "\\u0026")
-        .replace("\u2028", "\\u2028")
-        .replace("\u2029", "\\u2029")
-    )
+# Kept under its old name for callers and tests that import it from here.
+_json_for_script = json_for_script
 
 
 def _resolved_entity_display(
@@ -290,137 +276,45 @@ def _resolved_entity_colors(
     return {name: info["color"] for name, info in display.items()}
 
 
-def _display_overlay_script(entity_display: dict[str, dict[str, str]]) -> str:
-    """Return the <script> block that applies the resolved display to graph.html.
+def cmd_view(
+    output_dir: str,
+    neighborhood: str | None = None,
+    top_n: int | None = None,
+    depth: int = 1,
+    open_browser: bool = True,
+    **_unused,
+) -> None:
+    """Write a self-contained graph.html and open it in the browser.
 
-    sift-kg colors nodes and its sidebar legend from its own palette. This script
-    runs after the page loads and rewrites, for every node whose type is in
-    ``entity_display``, the background color and the shape, then updates the
-    matching sidebar color swatches (``input[data-etype-color]``) so the legend
-    agrees with the canvas. Node borders (community colors) are left alone.
+    The page runs the same graph modules as the workbench, so entity colors,
+    shapes, legend, hover cards, edge categories and grouping match it.
+
+    Args:
+        output_dir: Directory holding graph_data.json (graph.html is written here).
+        neighborhood: Entity to center a subset view on.
+        top_n: Show only the N most connected entities and their neighbors.
+        depth: Hop radius for ``neighborhood``.
+        open_browser: Open the written file in the default browser.
+
+    Raises:
+        NotImplementedError: When a subset filter is requested.
+        FileNotFoundError: When graph_data.json is missing.
     """
-    # CR-01: keys are graph-derived (untrusted); escape for the script context.
-    display_js = _json_for_script(entity_display)
-    return (
-        "<script>\n"
-        "// FIDL-06 D-05: resolved entity display overlay injected by cmd_view.\n"
-        "(function() {\n"
-        f"  var display = {display_js};\n"
-        "  var has = Object.prototype.hasOwnProperty;\n"
-        "  function applyDisplay() {\n"
-        "    if (typeof nodes !== \"undefined\" && nodes && nodes.forEach) {\n"
-        "      var updates = [];\n"
-        "      nodes.forEach(function(n) {\n"
-        "        var et = n.entity_type;\n"
-        "        if (!et || !has.call(display, et)) return;\n"
-        "        var spec = display[et];\n"
-        "        var border = (n.color && n.color.border) || spec.color;\n"
-        "        updates.push({id: n.id, shape: spec.shape, color: {\n"
-        "          background: spec.color,\n"
-        "          border: border,\n"
-        "          highlight: {background: spec.color, border: border}\n"
-        "        }});\n"
-        "      });\n"
-        "      if (updates.length) nodes.update(updates);\n"
-        "    }\n"
-        "    var swatches = document.querySelectorAll(\"input[data-etype-color]\");\n"
-        "    for (var i = 0; i < swatches.length; i++) {\n"
-        "      var t = swatches[i].getAttribute(\"data-etype-color\");\n"
-        "      if (has.call(display, t)) swatches[i].value = display[t].color;\n"
-        "    }\n"
-        "  }\n"
-        "  if (document.readyState === \"loading\") {\n"
-        "    document.addEventListener(\"DOMContentLoaded\", applyDisplay);\n"
-        "  } else {\n"
-        "    setTimeout(applyDisplay, 100);\n"
-        "  }\n"
-        "})();\n"
-        "</script>"
-    )
+    if neighborhood is not None:
+        raise NotImplementedError("view --neighborhood is not supported yet")
+    if top_n is not None:
+        raise NotImplementedError("view --top is not supported yet")
 
+    # core/ must not import examples/ at module load; add the project root so the
+    # lazy import works regardless of caller cwd.
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+    from examples.workbench.static_export import write_static_graph
 
-def cmd_view(output_dir: str, **kwargs):
-    """Generate graph.html; post-process it to inject domain-aware title + entity colors (FIDL-06)."""
-    (run_view,) = _import_sift(["run_view"])
-    run_view(Path(output_dir), **{k: v for k, v in kwargs.items() if v is not None})
-
-    # FIDL-06 D-04 + D-05: post-process the pyvis-generated graph.html to
-    # inject domain-specific title into the empty <h1></h1> and override
-    # entity colors from the domain's template.yaml. Both are additive —
-    # pyvis's HTML structure and vis.js initialization are not touched.
-    graph_html = Path(output_dir) / "graph.html"
-    if not graph_html.exists():
-        # run_view didn't produce the file; nothing to post-process.
-        return
-
-    # Resolve domain from graph metadata (reuses Plan 17-01's precedence).
-    # We add the project root to sys.path so `examples.workbench.*` imports
-    # work regardless of caller cwd.
-    project_root = Path(__file__).parent.parent
-    if str(project_root) not in sys.path:
-        sys.path.insert(0, str(project_root))
-    try:
-        from examples.workbench.template_loader import (
-            load_template,
-            resolve_domain,
-        )
-    except ImportError as e:
-        print(
-            f"Warning: could not import workbench helpers for graph.html "
-            f"post-process: {e}. Skipping FIDL-06 title/color injection.",
-            file=sys.stderr,
-        )
-        return
-
-    resolved_domain, _source = resolve_domain(Path(output_dir), None)
-    template = load_template(resolved_domain)
-    title_text = template.get("title") or "Knowledge Graph"
-    entity_display = _resolved_entity_display(Path(output_dir), resolved_domain, template)
-
-    try:
-        html = graph_html.read_text(encoding="utf-8")
-    except OSError as e:
-        print(
-            f"Warning: could not read {graph_html} for post-process: {e}",
-            file=sys.stderr,
-        )
-        return
-
-    # FIDL-06 D-04: replace pyvis's empty <h1></h1> with our domain-aware title.
-    # pyvis emits <h1></h1> twice — both inside <center> blocks, and rendering
-    # both produces the title visibly twice. Fill the first occurrence with
-    # the domain title; strip the second centered empty block so the visible
-    # page shows the title exactly once.
-    new_h1 = f"<h1>{title_text}</h1>"
-    html = html.replace("<h1></h1>", new_h1, 1)
-    html = re.sub(
-        r"[\t ]*<center>\s*<h1>\s*</h1>\s*</center>[\t ]*\n?",
-        "",
-        html,
-        count=1,
-    )
-    # Safety net: any remaining <h1></h1> (unusual pyvis versions) — drop them.
-    html = html.replace("<h1></h1>", "")
-
-    # FIDL-06 D-05: resolved display overlay - append a <script> block right
-    # before </body> that recolors and reshapes nodes in the vis.js `nodes`
-    # DataSet and syncs _inject_ui's legend swatches to the same colors.
-    if entity_display:
-        overlay_script = _display_overlay_script(entity_display)
-        # Inject BEFORE </body> so _inject_ui's sidebar is already in place;
-        # if </body> is missing (highly unusual), append at the end instead.
-        if "</body>" in html:
-            html = html.replace("</body>", overlay_script + "\n</body>")
-        else:
-            html = html + "\n" + overlay_script
-
-    try:
-        graph_html.write_text(html, encoding="utf-8")
-    except OSError as e:
-        print(
-            f"Warning: could not write {graph_html} after post-process: {e}",
-            file=sys.stderr,
-        )
+    dest = write_static_graph(Path(output_dir))
+    print(f"Wrote {dest}")
+    if open_browser:
+        webbrowser.open(dest.resolve().as_uri())
 
 
 def cmd_export(output_dir: str, fmt: str):
@@ -485,6 +379,8 @@ if __name__ == "__main__":
             kwargs["neighborhood"] = sys.argv[sys.argv.index("--neighborhood") + 1]
         if "--top" in sys.argv:
             kwargs["top_n"] = int(sys.argv[sys.argv.index("--top") + 1])
+        if "--no-open" in sys.argv:
+            kwargs["open_browser"] = False
         cmd_view(sys.argv[2], **kwargs)
     elif cmd == "export":
         cmd_export(sys.argv[2], sys.argv[3])

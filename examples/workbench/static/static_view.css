@@ -1,0 +1,70 @@
+/* Full-window layout for the standalone graph.html. Every rule is scoped to
+   body.static-view or a .static-* class so the workbench page is unaffected. */
+
+html,
+body.static-view {
+  height: 100%;
+  margin: 0;
+}
+
+body.static-view {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.static-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 8px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.static-header h1 {
+  margin: 0;
+  max-width: 100%;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.static-meta {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 400;
+  color: #666666;
+}
+
+.static-main {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  display: flex;
+}
+
+body.static-view .side-panel {
+  display: flex;
+  flex: 1;
+  position: relative;
+  width: auto;
+  min-width: 0;
+  transform: none;
+}
+
+body.static-view #graph-panel {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+body.static-view .graph-detail-sidebar__ask-btn {
+  display: none;
+}
