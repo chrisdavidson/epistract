@@ -341,6 +341,23 @@ def _evidence_statement(evidence: object, confidence: object) -> dict | None:
     }
 
 
+def _finding_entity_ids(raw: dict) -> list[object]:
+    """Entity ids a conflict or gap finding refers to (every known shape)."""
+    ids: list[object] = [raw.get("entity_a"), raw.get("entity_b"), raw.get("reference_entity")]
+    for key in ("affected_entities", "entities_involved"):
+        listed = raw.get(key)
+        if isinstance(listed, list):
+            ids += listed
+    return ids
+
+
+def _action_statement(raw: dict) -> list[dict]:
+    action = _text(raw.get("suggested_action"))
+    if not action:
+        return []
+    return [{"text": f"Suggested action: {action}", "document": "", "confidence": None}]
+
+
 def _conflict_item(raw: object, index: dict[str, dict]) -> dict | None:
     """Pharmacovigilance/FDA conflicts (``evidence`` str, ``terms``, ``entity_a/b``)
     and contracts conflicts (``description``, ``evidence`` dict,
@@ -353,11 +370,6 @@ def _conflict_item(raw: object, index: dict[str, dict]) -> dict | None:
         or _humanize_relation(raw.get("type") or "")
         or "Conflict"
     )
-    ids: list[object] = [raw.get("entity_a"), raw.get("entity_b")]
-    for key in ("affected_entities", "entities_involved"):
-        listed = raw.get(key)
-        if isinstance(listed, list):
-            ids += listed
     statements: list[dict] = []
     sides = _evidence_statement(raw.get("evidence"), raw.get("confidence"))
     if sides is not None:
@@ -373,36 +385,42 @@ def _conflict_item(raw: object, index: dict[str, dict]) -> dict | None:
                     "confidence": None,
                 }
             )
-    action = _text(raw.get("suggested_action"))
-    if action:
-        statements.append(
-            {"text": f"Suggested action: {action}", "document": "", "confidence": None}
-        )
+    statements += _action_statement(raw)
     return {
         "title": title,
         "kind": "conflict",
-        "entities": _entities(ids, index),
+        "entities": _entities(_finding_entity_ids(raw), index),
         "statements": statements,
         "documents": _dedupe(_strings(raw.get("contracts_involved"))),
         "question": _question("What is behind this conflict: {}?", title),
     }
 
 
-def _risk_item(raw: object, index: dict[str, dict]) -> dict | None:
+def _risk_item(
+    raw: object, index: dict[str, dict], findings: dict[str, tuple[dict, bool]] | None = None
+) -> dict | None:
+    """A contracts risk. ``findings`` maps conflict/gap ids to ``(raw, listed)``.
+
+    Contracts risks repeat one conflict or gap each (``source_id`` is the
+    finding id, not a graph node). A risk whose finding is already listed is
+    skipped so the finding is shown and counted once; otherwise its entities
+    are resolved through that finding.
+    """
     if not isinstance(raw, dict):
         return None
+    source_id = raw.get("source_id")
+    source = (findings or {}).get(source_id) if isinstance(source_id, str) else None
+    if source is not None and source[1]:
+        return None
+    ids: list[object] = [source_id]
+    if source is not None:
+        ids += _finding_entity_ids(source[0])
     title = _title(_text(raw.get("description")) or "Risk")
-    action = _text(raw.get("suggested_action"))
-    statements = (
-        [{"text": f"Suggested action: {action}", "document": "", "confidence": None}]
-        if action
-        else []
-    )
     return {
         "title": title,
         "kind": "risk",
-        "entities": _entities([raw.get("source_id")], index),
-        "statements": statements,
+        "entities": _entities(ids, index),
+        "statements": _action_statement(raw),
         "documents": _dedupe(_strings(raw.get("contracts_affected"))),
         "question": _question("What should I do about this risk: {}?", title),
     }
@@ -421,11 +439,40 @@ def _gap_item(raw: object, index: dict[str, dict]) -> dict | None:
     return {
         "title": title,
         "kind": "coverage_gap",
-        "entities": [],
-        "statements": [],
+        "entities": _entities(_finding_entity_ids(raw), index),
+        "statements": _action_statement(raw),
         "documents": [],
         "question": _question("What is missing: {}?", title),
     }
+
+
+def _build(key: str, raw: object, index: dict[str, dict]) -> dict | None:
+    try:
+        return _BUILDERS[key](raw, index)
+    except (TypeError, ValueError, AttributeError, KeyError):
+        return None
+
+
+def _build_risk(
+    raw: object, index: dict[str, dict], findings: dict[str, tuple[dict, bool]]
+) -> dict | None:
+    try:
+        return _risk_item(raw, index, findings)
+    except (TypeError, ValueError, AttributeError, KeyError):
+        return None
+
+
+def _findings_by_id(super_domain: dict, index: dict[str, dict]) -> dict[str, tuple[dict, bool]]:
+    """Map conflict/gap ids to ``(raw finding, listed as its own item)``."""
+    out: dict[str, tuple[dict, bool]] = {}
+    for key in ("conflicts", "coverage_gaps"):
+        raw_items = super_domain.get(key)
+        if not isinstance(raw_items, list):
+            continue
+        for raw in raw_items:
+            if isinstance(raw, dict) and isinstance(raw.get("id"), str) and raw["id"]:
+                out[raw["id"]] = (raw, _build(key, raw, index) is not None)
+    return out
 
 
 _BUILDERS = {
@@ -461,6 +508,7 @@ def build_epistemic_health(claims_layer: object, nodes: list[dict] | None) -> di
     if not isinstance(super_domain, dict):
         super_domain = {}
 
+    findings = _findings_by_id(super_domain, index)
     sections: list[dict] = []
     for key, label, description in SECTIONS:
         raw_items = super_domain.get(key)
@@ -468,10 +516,7 @@ def build_epistemic_health(claims_layer: object, nodes: list[dict] | None) -> di
             continue
         items: list[dict] = []
         for raw in raw_items:
-            try:
-                item = _BUILDERS[key](raw, index)
-            except (TypeError, ValueError, AttributeError, KeyError):
-                item = None
+            item = _build_risk(raw, index, findings) if key == "risks" else _build(key, raw, index)
             if item is not None:
                 items.append(item)
         if items:

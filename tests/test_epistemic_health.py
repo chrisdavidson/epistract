@@ -292,37 +292,69 @@ def test_fda_labels_zero_counts_dropped_and_gaps_capped():
     assert len(gaps["items"]) == MAX_ITEMS_PER_SECTION == 50
 
 
-def test_contracts_risks_synthetic():
+def test_contracts_risks_repeat_their_finding_once(tmp_path):
+    """Each contracts risk restates one conflict or gap: show and count it once."""
     from core.epistemic_health import build_epistemic_health
 
-    claims = {
-        "super_domain": {
-            "risks": [
-                {
-                    "id": "R1",
-                    "severity": "high",
-                    "source_type": "conflict",
-                    "source_id": "party:acme",
-                    "description": "Overlapping exclusivity",
-                    "suggested_action": "Review clause 4",
-                    "contracts_affected": ["c1.pdf", "c2.pdf"],
-                }
-            ]
-        }
+    claims = _contracts_claims(tmp_path)
+    sd = claims["super_domain"]
+    assert len(sd["risks"]) == len(sd["conflicts"]) + len(sd["coverage_gaps"]) == 3
+    assert {r["source_id"] for r in sd["risks"]} == {
+        f["id"] for f in sd["conflicts"] + sd["coverage_gaps"]
     }
-    nodes = [{"id": "party:acme", "name": "Acme", "entity_type": "PARTY"}]
-    result = build_epistemic_health(claims, nodes)
-    assert result["available"] is True
+
+    result = build_epistemic_health(claims, CONTRACT_NODES)
+    assert [(s["key"], s["count"]) for s in result["sections"]] == [
+        ("conflicts", 2),
+        ("coverage_gaps", 1),
+    ]
+    gap = _section(result, "coverage_gaps")["items"][0]
+    assert gap["title"] == (
+        "Master doc expects 'Ensure emergency medical staff on site', no contract covers it"
+    )
+    # The risk's suggested action is not lost with the risk card.
+    assert gap["statements"] == [
+        {
+            "text": "Suggested action: Add contract coverage for:"
+            " Ensure emergency medical staff on site",
+            "document": "",
+            "confidence": None,
+        }
+    ]
+
+
+def test_contracts_risk_without_its_finding_is_kept(tmp_path):
+    """A risk whose conflict is not in the layer stays, titled by its description."""
+    from core.epistemic_health import build_epistemic_health
+
+    sd = _contracts_claims(tmp_path)["super_domain"]
+    claims = {"super_domain": {"risks": sd["risks"][:1]}}
+    result = build_epistemic_health(claims, CONTRACT_NODES)
     assert [s["key"] for s in result["sections"]] == ["risks"]
     item = result["sections"][0]["items"][0]
-    assert item["title"] == "Overlapping exclusivity"
     assert item["kind"] == "risk"
-    assert item["entities"] == [{"id": "party:acme", "name": "Acme", "entity_type": "PARTY"}]
-    assert item["statements"] == [
-        {"text": "Suggested action: Review clause 4", "document": "", "confidence": None}
-    ]
-    assert item["documents"] == ["c1.pdf", "c2.pdf"]
-    assert item["question"] == "What should I do about this risk: Overlapping exclusivity?"
+    assert item["title"] == "Multiple contracts claim exclusive use of Grand Ballroom"
+    # source_id is a finding id ("conflict:exclusive_use:001"), not a graph node.
+    assert item["entities"] == []
+    assert item["documents"] == ["avco.pdf", "hilton.pdf"]
+    assert item["statements"][0]["text"].startswith("Suggested action: Ask Hilton")
+    assert item["question"] == (
+        "What should I do about this risk: Multiple contracts claim exclusive use of Grand Ballroom?"
+    )
+
+
+def test_contracts_risk_resolves_entities_through_an_unlisted_finding(tmp_path):
+    """If the finding a risk repeats cannot be listed, the risk carries its entities."""
+    from core.epistemic_health import build_epistemic_health
+
+    sd = _contracts_claims(tmp_path)["super_domain"]
+    gap = dict(sd["coverage_gaps"][0], description="", reference_entity="venue:grand_ballroom")
+    gap_risk = next(r for r in sd["risks"] if r["source_id"] == gap["id"])
+    claims = {"super_domain": {"coverage_gaps": [gap], "risks": [gap_risk]}}
+    result = build_epistemic_health(claims, CONTRACT_NODES)
+    assert [s["key"] for s in result["sections"]] == ["risks"]
+    item = result["sections"][0]["items"][0]
+    assert [e["id"] for e in item["entities"]] == ["venue:grand_ballroom"]
 
 
 @pytest.mark.parametrize(
