@@ -16,7 +16,7 @@ import {
     isAnchorId, groupIterations, FIT_MARGIN, regionGeometry, placeRegionLabels,
     REGION_COLORS, REGION_LABEL_PX, REGION_PILL_PAD_PX, clampIntoRegion,
     kHop, pushFocus, popFocus, truncateFocus, setTopHops, crumbsFor, focusModeLabelIds,
-    radioTarget, FOCUS_MODE_MAX_LABELS, FOCUS_TRUNCATE_CHARS, separateRegions, focusLayout, fnv1a,
+    radioTarget, FOCUS_MODE_MAX_LABELS, FOCUS_OUTER_RING_LABELS, FOCUS_TRUNCATE_CHARS, separateRegions, REGION_SEPARATION_GAP, focusLayout, fnv1a,
 } from './grouping.js';
 
 // graph.js - Graph panel: vis.js network, search, entity type toggles
@@ -343,9 +343,12 @@ let _degreeSliderListenerAttached = false;   // WR-02: guard min-degree slider d
 // Font for one node: labelled when it is in the hover/selection focus set or
 // is a non-source hub at or above the degree cutoff. Always a complete object.
 function nodeLabelFont(id, scale, cutoff) {
+    // While focused, nodes outside the labelled focus set stay unlabelled at
+    // rest (hover and selection still label them through focusNodeIds).
+    const restingOk = focusSet === null || FOCUS_OUTER_RING_LABELS || focusLabelIds.has(id);
     const visible = focusNodeIds.has(id)
         || focusLabelIds.has(id)
-        || (!sourceNodeIds.has(id) && (linkDegreeMap[id] || 0) >= cutoff);
+        || (restingOk && !sourceNodeIds.has(id) && (linkDegreeMap[id] || 0) >= cutoff);
     return { ...NODE_FONT_BASE, size: visible ? labelFontSize(scale) : LABEL_HIDDEN_FONT_SIZE };
 }
 
@@ -911,30 +914,65 @@ function captureDataPositions() {
     return new Map(ids.filter(id => positions[id]).map(id => [id, { x: positions[id].x, y: positions[id].y }]));
 }
 
-// After a force layout, moves whole groups apart until no two region circles
-// overlap. Members keep their relative positions, so every radius is unchanged.
-function separateGroupRegions() {
-    if (groupMode === 'none' || !network || !visNodes) return;
-    // Geometry comes from every member, shown or not, so a focus view or a
-    // filter does not change where the groups end up.
-    const ids = [...groupAssignment.keys()].filter(id => visNodes.get(id));
-    const regions = regionGeometry(currentGroups(), network.getPositions(ids) || {}, new Set(ids), groupAssignment);
+// Geometry of the region circles as drawn (visible members); a focus view,
+// which draws none, uses every member.
+function separationRegions() {
+    if (groupMode === 'none' || !network || !visNodes) return [];
+    if (focusStack.length === 0) return currentRegions();
+    const all = [...groupAssignment.keys()].filter(id => visNodes.get(id));
+    return regionGeometry(currentGroups(), network.getPositions(all) || {}, new Set(all), groupAssignment);
+}
+
+// After a force layout, moves whole groups apart until no two drawn region
+// circles are closer than REGION_GAP_SCREEN_PX on screen. Members keep their
+// relative positions, so every radius is unchanged. The margin in world units
+// depends on the fit scale, which depends on the spread, so the separation is
+// iterated on the circles alone (cheap) until the estimated margin holds, and
+// the nodes are moved once at the end.
+function separateGroupRegionsForView() {
+    const regions = separationRegions();
     if (regions.length < 2) return;
-    const offsets = separateRegions(regions);
+    const container = document.getElementById('graph-container');
+    const cw = ((container && container.clientWidth) || 0) - sidebarCoverPx();
+    const ch = (container && container.clientHeight) || 0;
+    const moved = regions.map(r => ({ ...r }));
+    const total = new Map(regions.map(r => [r.id, { dx: 0, dy: 0 }]));
+    let gap = REGION_SEPARATION_GAP;
+    for (let pass = 0; pass < REGION_GAP_PASSES; pass++) {
+        const offsets = separateRegions(moved, gap);
+        for (const r of moved) {
+            const off = offsets.get(r.id);
+            r.cx += off.dx;
+            r.cy += off.dy;
+            total.get(r.id).dx += off.dx;
+            total.get(r.id).dy += off.dy;
+        }
+        const spanX = Math.max(...moved.map(r => r.cx + r.r)) - Math.min(...moved.map(r => r.cx - r.r));
+        const spanY = Math.max(...moved.map(r => r.cy + r.r)) - Math.min(...moved.map(r => r.cy - r.r));
+        const scale = cw > 0 && ch > 0 && spanX > 0 && spanY > 0
+            ? Math.min((cw - 2 * FIT_EDGE_PAD_PX) / spanX, (ch - 2 * FIT_EDGE_PAD_PX) / spanY, FIT_MAX_SCALE) * (1 - FIT_MARGIN)
+            : 1;
+        const needed = REGION_GAP_SCREEN_PX / Math.max(scale, 1e-6);
+        if (needed <= gap * 1.02) break;
+        gap = needed;
+    }
     const byGroup = new Map();
     for (const [id, gid] of groupAssignment) {
         if (!byGroup.has(gid)) byGroup.set(gid, []);
         byGroup.get(gid).push(id);
     }
-    for (const [gid, off] of offsets) {
+    // One batched DataSet write; per-node network.moveNode calls were far slower on large graphs.
+    const updates = [];
+    for (const [gid, off] of total) {
         if (Math.abs(off.dx) < 1e-6 && Math.abs(off.dy) < 1e-6) continue;
         const ids = (byGroup.get(gid) || []).filter(id => visNodes.get(id));
         const positions = network.getPositions(ids);
         for (const id of ids) {
             const p = positions[id];
-            if (p) network.moveNode(id, p.x + off.dx, p.y + off.dy);
+            if (p) updates.push({ id, x: p.x + off.dx, y: p.y + off.dy });
         }
     }
+    if (updates.length > 0) visNodes.update(updates);
 }
 
 function removeAnchors() {
@@ -991,7 +1029,7 @@ function completeRelayout(mode) {
     }
     network.setOptions({ physics: false });
     if (mode === 'none' && !freeLayoutPositions) freeLayoutPositions = captureDataPositions();
-    separateGroupRegions();
+    separateGroupRegionsForView();
     // The positions a focus view would restore are stale after a relayout.
     focusPre = null;
     _focusLayoutKey = null;
@@ -1415,7 +1453,7 @@ function buildGraph() {
         network.setOptions({ physics: false });
         // Fit first so the controller reads the real fit scale, not the
         // pre-fit one (stabilization fit is animated and lags the event).
-        separateGroupRegions();
+        separateGroupRegionsForView();
         fitView(null, false);
         applyScaleStyle();
         if (groupMode === 'none') freeLayoutPositions = captureDataPositions();
@@ -2022,6 +2060,8 @@ function filterGraph() {
 // ---------------------------------------------------------------------------
 const HOP_WORD = { 1: '1 hop', 2: '2 hops' };
 const FOCUS_ENDED_HINT_MS = 6000;
+const REGION_GAP_SCREEN_PX = 16;         // clear screen px kept between two drawn region circles
+const REGION_GAP_PASSES = 4;             // separation passes while the fit scale settles
 const SIDEBAR_FALLBACK_PX = 320;         // sidebar width when it cannot be measured
 const FIT_EDGE_PAD_PX = 30;              // clear px kept between fitted nodes and the uncovered area's edge
 const FIT_MAX_SCALE = 1;                 // a fit never zooms in past 1:1
@@ -2094,7 +2134,7 @@ function resolveFocus(eligible) {
         }
         inSetDegree.set(id, degree);
     }
-    focusLabelIds = focusModeLabelIds(top.id, focusSet, one, inSetDegree, FOCUS_MODE_MAX_LABELS);
+    focusLabelIds = focusModeLabelIds(top.id, focusSet, one, inSetDegree, FOCUS_OUTER_RING_LABELS ? FOCUS_MODE_MAX_LABELS : 0);
 }
 
 // Width in px of `text` at the focus label size.
@@ -2151,13 +2191,14 @@ function syncFocusLayout() {
     });
     const boxes = new Map();
     for (const id of focusSet) {
-        // Every focus node may show a label at the fit scale: the full name for
-        // the labelled set, the resting truncation for the rest.
-        const text = truncateLabel(nodeName(id), focusLabelIds.has(id) ? FOCUS_TRUNCATE_CHARS : undefined);
+        // Labelled focus nodes reserve their full name; the rest (2-hop nodes
+        // when FOCUS_OUTER_RING_LABELS is off) are bare markers.
+        const labelled = focusLabelIds.has(id) || FOCUS_OUTER_RING_LABELS;
+        const text = labelled ? truncateLabel(nodeName(id), focusLabelIds.has(id) ? FOCUS_TRUNCATE_CHARS : undefined) : '';
         boxes.set(id, {
-            w: Math.max(labelWidthPx(text), 2 * FOCUS_NODE_HALF_PX) + 4,
-            h: 2 * FOCUS_NODE_HALF_PX + FOCUS_LABEL_LINE_PX,
-            dy: FOCUS_LABEL_LINE_PX / 2,
+            w: Math.max(text ? labelWidthPx(text) : 0, 2 * FOCUS_NODE_HALF_PX) + 4,
+            h: 2 * FOCUS_NODE_HALF_PX + (labelled ? FOCUS_LABEL_LINE_PX : 0),
+            dy: labelled ? FOCUS_LABEL_LINE_PX / 2 : 0,
         });
     }
     // The centre is drawn larger (bigger marker, bigger label) than its neighbours.
@@ -2221,7 +2262,7 @@ function refreshFocusLabels(previousLabels) {
     const changed = [];
     for (const id of focusLabelIds) if (!previousLabels.has(id)) changed.push(id);
     for (const id of previousLabels) if (!focusLabelIds.has(id)) changed.push(id);
-    if (changed.length === 0) return;
+    if (changed.length === 0 && focusSet === null) return;
     visNodes.update(changed.filter(id => nodeById.has(id)).map(id => ({
         id,
         label: truncateLabel(nodeName(id), focusLabelIds.has(id) ? FOCUS_TRUNCATE_CHARS : undefined),

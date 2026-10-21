@@ -270,6 +270,7 @@ export function clampIntoRegion(point, region) {
 // Focus mode: k-hop neighbourhoods, the breadcrumb stack and focus labels.
 // Everything here is pure (Map/Set/array in, new value out).
 // ---------------------------------------------------------------------------
+export const FOCUS_OUTER_RING_LABELS = false;       // label 2-hop nodes at rest in focus (false: only hover/selection labels them)
 export const FOCUS_MODE_MAX_LABELS = 120;
 export const FOCUS_TRUNCATE_CHARS = 40;
 export const FOCUS_MAX_CRUMBS = 4;
@@ -461,16 +462,13 @@ export function focusLayout({ centerId, ring1, ring2 = [], boxes, aspect = 1.6, 
 
     const cBox = boxOf(centerId);
     const all = [{ id: centerId }, ...first, ...second];
-    const maxH = all.reduce((m, it) => Math.max(m, boxOf(it.id).h), 0);
-    const pitch = maxH + gap / 2;
-    const area = all.reduce((sum, it) => sum + (boxOf(it.id).w + gap) * pitch, 0);
+    const area = all.reduce((sum, it) => sum + (boxOf(it.id).w + gap) * (boxOf(it.id).h + gap / 2), 0);
     const maxW = all.reduce((m, it) => Math.max(m, boxOf(it.id).w + gap), 0);
     const rowWidth = Math.max(maxW, Math.sqrt(area * Math.max(aspect, 0.5) * FOCUS_ROW_FILL));
 
-    // Row k sits at y = rowY(k): 0, +1, -1, +2, -2, ... times the pitch.
-    const rowY = k => (k === 0 ? 0 : (k % 2 === 1 ? (k + 1) / 2 : -k / 2)) * pitch;
-    let row = 0;
-    const place = (items, withCentre) => {
+    // Split the sequence into rows first, then stack them by their own heights.
+    const rows = [];
+    const split = (items, withCentre) => {
         let i = 0;
         while (i < items.length || withCentre) {
             const line = [];
@@ -479,41 +477,53 @@ export function focusLayout({ centerId, ring1, ring2 = [], boxes, aspect = 1.6, 
                 withCentre = false;
                 width = cBox.w + gap;
             }
-            while (i < items.length && (line.length === 0 && width === 0 || width + boxOf(items[i].id).w + gap <= rowWidth)) {
+            while (i < items.length && ((line.length === 0 && width === 0) || width + boxOf(items[i].id).w + gap <= rowWidth)) {
                 width += boxOf(items[i].id).w + gap;
                 line.push(items[i]);
                 i += 1;
             }
-            if (row === 0) {
-                // The centre node stays at x = 0; the row's items split around it.
-                const half = Math.ceil(line.length / 2);
-                const left = line.slice(0, half);
-                const right = line.slice(half);
-                let x = -(cBox.w / 2 + gap);
-                for (let j = left.length - 1; j >= 0; j--) {
-                    const b = boxOf(left[j].id);
-                    out.set(left[j].id, { x: x - b.w / 2, y: 0 });
-                    x -= b.w + gap;
-                }
-                x = cBox.w / 2 + gap;
-                for (const it of right) {
-                    const b = boxOf(it.id);
-                    out.set(it.id, { x: x + b.w / 2, y: 0 });
-                    x += b.w + gap;
-                }
-            } else {
-                let x = -(width - gap) / 2;
-                for (const it of line) {
-                    const b = boxOf(it.id);
-                    out.set(it.id, { x: x + b.w / 2, y: rowY(row) });
-                    x += b.w + gap;
-                }
-            }
-            row += 1;
+            rows.push({ line, width, centre: rows.length === 0 });
         }
     };
+    split(first, true);
+    if (second.length > 0) split(second, false);
+
+    // Row 0 holds the centre; later rows alternate below (+) and above (-), each
+    // as tall as its tallest box, so rows of bare markers take little room.
+    const rowH = r => Math.max(r.centre ? cBox.h : 0, ...r.line.map(it => boxOf(it.id).h)) + gap / 2;
+    const reach = { 1: rowH(rows[0]) / 2, '-1': rowH(rows[0]) / 2 };
+    rows.forEach((r, k) => {
+        const h = rowH(r);
+        let centreY = cBox.dy;
+        if (k > 0) {
+            const side = k % 2 === 1 ? 1 : -1;
+            centreY = cBox.dy + side * (reach[side] + h / 2);
+            reach[side] += h;
+        }
+        if (r.centre) {
+            // The centre node stays at x = 0; the row's items split around it.
+            const half = Math.ceil(r.line.length / 2);
+            let x = -(cBox.w / 2 + gap);
+            for (let j = half - 1; j >= 0; j--) {
+                const b = boxOf(r.line[j].id);
+                out.set(r.line[j].id, { x: x - b.w / 2, y: centreY - b.dy });
+                x -= b.w + gap;
+            }
+            x = cBox.w / 2 + gap;
+            for (const it of r.line.slice(half)) {
+                const b = boxOf(it.id);
+                out.set(it.id, { x: x + b.w / 2, y: centreY - b.dy });
+                x += b.w + gap;
+            }
+        } else {
+            let x = -(r.width - gap) / 2;
+            for (const it of r.line) {
+                const b = boxOf(it.id);
+                out.set(it.id, { x: x + b.w / 2, y: centreY - b.dy });
+                x += b.w + gap;
+            }
+        }
+    });
     out.set(centerId, { x: 0, y: 0 });
-    place(first, true);
-    if (second.length > 0) place(second, false);
     return out;
 }
