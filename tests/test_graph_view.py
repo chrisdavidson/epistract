@@ -281,3 +281,166 @@ def test_malformed_domain_yaml_does_not_crash_consumers(monkeypatch, tmp_path, c
     _write_graph(out, ["COMPOUND"])
     display = run_sift._resolved_entity_display(out, "broken", {})
     assert set(display) == {"COMPOUND"}
+
+
+# ---------------------------------------------------------------------------
+# Subset views, notice, metadata line and CLI errors
+# ---------------------------------------------------------------------------
+
+import sys  # noqa: E402
+
+NOTICE_RE = re.compile(r'<p class="static-notice" role="note">(.*?)</p>', re.DOTALL)
+META_RE = re.compile(r'<p class="static-meta">(.*?)</p>', re.DOTALL)
+FILTER_HINT = "Run /epistract:view without filters to see the whole graph."
+
+
+def _text(fragment: str) -> str:
+    return html_lib.unescape(re.sub(r"<[^>]+>", "", fragment))
+
+
+def _subset_view(output_dir: Path, **kwargs) -> str:
+    run_sift.cmd_view(str(output_dir), open_browser=False, **kwargs)
+    return (output_dir / "graph.html").read_text(encoding="utf-8")
+
+
+def _cli(*args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [sys.executable, "core/run_sift.py", *args],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+
+
+def test_neighborhood_page_has_notice_and_consistent_payloads(tmp_path):
+    work = _glp1_copy(tmp_path)
+    page = _subset_view(work, neighborhood="semaglutide")
+    notices = NOTICE_RE.findall(page)
+    assert len(notices) == 1
+    assert _text(notices[0]) == f"Showing 120 of 278 nodes around semaglutide. {FILTER_HINT}"
+    island = _island(page)
+    graph = island["/api/graph"]
+    kept = {n["id"] for n in graph["nodes"]}
+    assert len(kept) == 120
+    for e in graph["edges"]:
+        assert e["source"] in kept and e["target"] in kept
+    assert set(island["/api/graph/groups"]["modes"]["cluster"]["assignment"]) <= kept
+    sub_types = island["/api/graph/entity-types"]["types"]
+
+    full_work = tmp_path / "full"
+    full_work.mkdir()
+    for name in GLP1_FILES:
+        shutil.copy2(GLP1 / name, full_work / name)
+    full_types = _island(_subset_view(full_work))["/api/graph/entity-types"]["types"]
+    full_color = {t["type"]: t["color"] for t in full_types}
+    assert sub_types
+    for t in sub_types:
+        assert t["color"] == full_color[t["type"]], f"{t['type']} recoloured in the subset"
+
+
+def test_neighborhood_keeps_sources_for_show_sources(tmp_path):
+    work = _glp1_copy(tmp_path)
+    island = _island(_subset_view(work, neighborhood="semaglutide"))
+    types = {t["type"]: t for t in island["/api/graph/entity-types"]["types"]}
+    assert any(t.get("is_source") for t in types.values()), "kept sources must be present"
+
+
+def test_top_page_notice_copy(tmp_path):
+    work = _glp1_copy(tmp_path)
+    page = _subset_view(work, top_n=10)
+    (notice,) = NOTICE_RE.findall(page)
+    assert _text(notice) == (
+        "Showing 224 of 278 nodes: the 10 most connected entities and their neighbors. "
+        + FILTER_HINT
+    )
+    assert len(_island(page)["/api/graph"]["nodes"]) == 224
+
+
+def test_neighborhood_depth_two_notice_copy(tmp_path):
+    work = _glp1_copy(tmp_path)
+    page = _subset_view(work, neighborhood="semaglutide", depth=2)
+    (notice,) = NOTICE_RE.findall(page)
+    assert "within 2 hops of semaglutide." in _text(notice)
+
+
+def test_full_graph_has_metadata_line_and_no_notice(tmp_path):
+    work = _glp1_copy(tmp_path)
+    page = _subset_view(work)
+    assert "static-notice" not in page.split("<main", 1)[0]
+    (meta,) = META_RE.findall(page)
+    text = _text(meta)
+    assert re.fullmatch(
+        r"218 entities · \d+ relations · 60 sources hidden · Generated \d{4}-\d{2}-\d{2}", text
+    ), text
+    graph = _island(page)["/api/graph"]
+    from core.graph_display import entity_type_key, is_source_edge, resolve_display
+
+    display = resolve_display(
+        None, {entity_type_key(n.get("entity_type")) for n in graph["nodes"]}, None
+    )
+    sources = {
+        n["id"] for n in graph["nodes"] if display["types"][entity_type_key(n["entity_type"])]["is_source"]
+    }
+    expected = sum(1 for e in graph["edges"] if not is_source_edge(e, sources, display["relations"]))
+    assert f" {expected:,} relations" in text or f" {expected} relations" in text
+
+
+def test_graph_without_sources_omits_sources_hidden(tmp_path):
+    _write_graph(tmp_path, ["COMPOUND", "DISEASE"])
+    page = _subset_view(tmp_path)
+    (meta,) = META_RE.findall(page)
+    assert "sources hidden" not in _text(meta)
+    assert _text(meta).startswith("2 entities · 0 relations · Generated ")
+
+
+def test_hostile_neighborhood_name_is_escaped_and_capped(tmp_path):
+    hostile = "<img src=x onerror=alert(1)>" + "A" * 60
+    nodes = [
+        {"id": "n0", "name": hostile, "entity_type": "COMPOUND"},
+        {"id": "n1", "name": "Other", "entity_type": "DISEASE"},
+        {"id": "n2", "name": "Third", "entity_type": "DISEASE"},
+    ]
+    links = [
+        {"source": "n0", "target": "n1", "relation_type": "TREATS"},
+        {"source": "n1", "target": "n2", "relation_type": "TREATS"},
+    ]
+    (tmp_path / "graph_data.json").write_text(
+        json.dumps({"metadata": {}, "nodes": nodes, "links": links}), encoding="utf-8"
+    )
+    page = _subset_view(tmp_path, neighborhood="n0")
+    (notice,) = NOTICE_RE.findall(page)
+    assert "<img" not in notice
+    assert "&lt;img" in notice
+    capped = hostile[:39] + "…"
+    assert html_lib.escape(capped) in notice
+    assert f'title="{html_lib.escape(hostile, quote=True)}"' in notice
+
+
+def test_cli_unknown_neighborhood_exits_1_without_writing(tmp_path):
+    work = _glp1_copy(tmp_path)
+    proc = _cli("view", str(work), "--neighborhood", "no-such-entity", "--no-open")
+    assert proc.returncode == 1
+    assert proc.stderr.strip().endswith("Pass the exact entity id or name.")
+    assert "Traceback" not in proc.stderr
+    assert not (work / "graph.html").exists()
+
+
+def test_cli_top_and_depth_succeed(tmp_path):
+    work = _glp1_copy(tmp_path)
+    assert _cli("view", str(work), "--top", "10", "--no-open").returncode == 0
+    assert _cli(
+        "view", str(work), "--neighborhood", "semaglutide", "--depth", "2", "--no-open"
+    ).returncode == 0
+
+
+@pytest.mark.parametrize("flag", ["--top", "--depth"])
+def test_cli_non_integer_flag_reports_integer_error(tmp_path, flag):
+    work = _glp1_copy(tmp_path)
+    args = ["view", str(work), "--neighborhood", "semaglutide", flag, "abc", "--no-open"]
+    proc = _cli(*args)
+    assert proc.returncode == 1
+    assert f"Error: {flag} expects an integer" in proc.stderr
+    assert "Pass the exact entity id" not in proc.stderr
+    assert "Traceback" not in proc.stderr
+    assert not (work / "graph.html").exists()
