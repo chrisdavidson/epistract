@@ -3006,14 +3006,23 @@ function applyShowTypes(detail) {
     // Entering focus fits the focus set itself; every other arrival fits the view.
     if (!focused) fitView(null, false);
     const focusFailed = focusId !== null && !focused;
-    if (focusFailed) selectAndCenter(focusId);
+    // A target the current view does not draw (its type has no chip without
+    // display data, say) is neither selected nor centred: it is not visible.
+    const focusHidden = focusFailed && !eligibleNodeSet(filterContext()).has(focusId);
+    if (focusFailed && !focusHidden) selectAndCenter(focusId);
+    // A well-formed focus id that is not a node of this graph.
+    const focusUnknown = focusRequest !== null && focusId === null;
 
     // Written last: the helpers above also write to this live region.
     let message;
     if (focused) {
         message = `Focused on ${nodeName(focusId)} and its direct connections.`;
+    } else if (focusHidden) {
+        message = `${nodeName(focusId)} is not visible in the graph. Showing the default graph.`;
     } else if (focusFailed) {
         message = `Couldn't focus on ${nodeName(focusId)}: it has too few visible connections.`;
+    } else if (focusUnknown) {
+        message = `The selected item is not in this graph. Showing the default graph: ${visibleDataNodeIds().length.toLocaleString()} entities.`;
     } else if (chosen.length > 0) {
         const count = allNodes.filter(n => chosen.includes(typeKey(n.entity_type))).length;
         const labels = entries.filter(entry => chosen.includes(entry.type)).map(entry => entry.label);

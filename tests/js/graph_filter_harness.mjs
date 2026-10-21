@@ -1182,7 +1182,11 @@ if (isShow) {
       const label = JSON.stringify(focus);
       check(`focus ${label} shows the default view`, same(visibleIds(), NON_SOURCE), visibleIds());
       check(`focus ${label} leaves no focus`, focusStackIds().length === 0, focusStackIds());
-      check(`focus ${label} announces the default view`, status() === DEFAULT_STATUS, status());
+      // IN-05: a well-formed id that is not in the graph is reported as such.
+      const expected = focus && focus.id === 'nope'
+        ? `The selected item is not in this graph. Showing the default graph: ${NON_SOURCE.length} entities.`
+        : DEFAULT_STATUS;
+      check(`focus ${label} announces the default view`, status() === expected, status());
     }
   }
 
@@ -1217,8 +1221,10 @@ if (isShow) {
   }
 
   if (mode === 'show-focus-isolated') {
+    networkCalls.length = 0;
     show({ reset: true, focus: { id: 'lone', hops: 1 } });
     await tick();
+    check('the visible target is centred', networkCalls.some((c) => c.kind === 'moveTo'), networkCalls.map((c) => c.kind));
     check('the default view is kept', same(visibleIds(), NON_SOURCE), visibleIds());
     check('no focus is entered', focusStackIds().length === 0, focusStackIds());
     check('the failure is announced', status() === "Couldn't focus on Lonely core: it has too few visible connections.", status());
@@ -1237,6 +1243,14 @@ if (isShow) {
     check('the default view is shown', same(visibleIds(), NON_SOURCE), visibleIds());
     check('sources stay hidden', !visibleIds().includes('s1'), visibleIds());
     check('the default view is announced', status() === DEFAULT_STATUS, status());
+    // IN-05: a focus target this view does not draw is reported, not selected.
+    networkCalls.length = 0;
+    show({ reset: true, focus: { id: 's1', hops: 1 } });
+    await tick();
+    check('hidden target: no focus', focusStackIds().length === 0, focusStackIds());
+    check('hidden target: it stays hidden', !visibleIds().includes('s1'), visibleIds());
+    check('hidden target: not centred', !networkCalls.some((c) => c.kind === 'moveTo'), networkCalls.map((c) => c.kind));
+    check('hidden target: announced as not visible', status() === 'Doc one is not visible in the graph. Showing the default graph.', status());
   }
 
   if (mode === 'show-during-relayout') {
