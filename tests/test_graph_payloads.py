@@ -282,3 +282,12 @@ def test_subset_neighborhood_rejects_source_documents_by_name_or_id():
     for query in ("Doc Near", "doc_near"):
         with pytest.raises(graph_payloads.EntityLookupError, match="source document"):
             subset_graph(nodes, links, display, neighborhood=query)
+
+
+def test_json_for_script_line_separator_escapes_are_visible_in_source():
+    # Literal U+2028/U+2029 in the source look like spaces and can be lost to a
+    # reformat; the replace() calls must use escape sequences.
+    source = Path(graph_payloads.__file__).read_text(encoding="utf-8")
+    assert " " not in source and " " not in source
+    out = graph_payloads.json_for_script({"k": "a b c d"})
+    assert out == '{"k": "a b\\u2028c\\u2029d"}', out
