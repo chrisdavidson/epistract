@@ -107,6 +107,7 @@ let _panelListenersAttached = false;      // graph-panel-opened/closed window li
 let highlightedNodeId = null;             // currently highlighted node; null = no highlight active
 let activeEpistemicStatuses = new Set();  // populated by buildEpistemicChips() (plan 03)
 let confidenceThreshold = 0;             // populated by initConfidenceSlider() (plan 03)
+let confidenceDefault = 0;               // the slider's initial value; a focus arrival restores it
 let activeRelationTypes = new Set();      // populated by buildRelationTypeDropdown() (Phase 11)
 let minDegreeThreshold = 0;               // populated by initMinDegreeSlider() (Phase 11)
 let maxDegree = 0;                        // highest linkDegree (edges without a Sources endpoint); read by initMinDegreeSlider() (Phase 11 D-10)
@@ -2884,9 +2885,52 @@ function requestShowTypes(detail) {
     applyShowTypes(detail);
 }
 
+// The focus a graph-show-types detail asks for, or null. The payload comes
+// from another module: only a plain object with a non-empty string id counts.
+function parseShowFocus(detail) {
+    const focus = detail && typeof detail === 'object' ? detail.focus : null;
+    if (!focus || typeof focus !== 'object' || Array.isArray(focus)) return null;
+    if (typeof focus.id !== 'string' || focus.id === '') return null;
+    return { id: focus.id, hops: focus.hops === 2 ? 2 : 1 };
+}
+
+// Restores the edge-only filters (epistemic status chips, confidence slider,
+// relation types) to their load-time state so a focus arrival shows its item.
+function resetEdgeFilters() {
+    const chips = document.querySelectorAll('.epistemic-chip[data-status]');
+    chips.forEach(chip => {
+        activeEpistemicStatuses.add(chip.dataset.status);
+        chip.classList.add('active');
+    });
+    const slider = document.getElementById('confidence-slider');
+    const readout = document.getElementById('confidence-value');
+    confidenceThreshold = confidenceDefault;
+    if (slider) slider.value = String(confidenceDefault);
+    if (readout) readout.textContent = confidenceDefault.toFixed(2);   // textContent only (SEC-01)
+    const panel = document.getElementById('relation-type-panel');
+    if (panel) {
+        panel.querySelectorAll('input[type="checkbox"][data-relation-type]').forEach(box => {
+            box.checked = true;
+            activeRelationTypes.add(box.dataset.relationType);
+        });
+    }
+}
+
+function announceShowWaiting(isFocus) {
+    const waiting = document.getElementById('graph-sources-status');
+    if (!waiting) return;
+    waiting.textContent = isFocus
+        ? 'The graph is arranging; the selected item will be shown when it finishes.'
+        : 'The graph is arranging; the selected type will be shown when it finishes.';
+}
+
 function flushPendingShowTypes() {
     if (pendingShowTypes === null || !visNodes) return;
-    if (focusStack.length > 0 && relayoutBusy) return;
+    const heldFocus = parseShowFocus(pendingShowTypes);
+    if ((focusStack.length > 0 || heldFocus) && relayoutBusy) {
+        if (heldFocus) announceShowWaiting(true);
+        return;
+    }
     const detail = pendingShowTypes;
     pendingShowTypes = null;
     try {
@@ -2896,20 +2940,32 @@ function flushPendingShowTypes() {
     }
 }
 
+// Selects a node like a click does and centres the view on it.
+function selectAndCenter(id) {
+    selectFocusCenter(id);
+    const positions = network.getPositions([id]);
+    const position = positions && positions[id];
+    if (position) network.moveTo({ position: { x: position.x, y: position.y }, scale: network.getScale(), animation: false });
+}
+
 function applyShowTypes(detail) {
     if (!visNodes) return;
     // Leaving focus needs an idle layout (exitFocus does nothing while one
     // runs): keep the request and apply it when the relayout ends.
-    if (focusStack.length > 0 && relayoutBusy) {
+    const focusRequest = parseShowFocus(detail);
+    if ((focusStack.length > 0 || focusRequest) && relayoutBusy) {
         pendingShowTypes = detail || {};
-        const waiting = document.getElementById('graph-sources-status');
-        if (waiting) waiting.textContent = 'The graph is arranging; the selected type will be shown when it finishes.';
+        announceShowWaiting(focusRequest !== null);
         return;
     }
     pendingShowTypes = null;
 
     const request = detail && typeof detail === 'object' ? detail : {};
-    const requested = Array.isArray(request.types)
+    // A focus request starts from the default view: its types are ignored.
+    const focusId = focusRequest && nodeById.has(focusRequest.id) && !isAnchorId(focusRequest.id)
+        ? focusRequest.id
+        : null;
+    const requested = !focusRequest && Array.isArray(request.types)
         ? request.types.filter(t => typeof t === 'string')
         : [];
     const entries = legendEntries();
@@ -2920,6 +2976,7 @@ function applyShowTypes(detail) {
         : [];
 
     resetNodeFilters();
+    if (focusId !== null) resetEdgeFilters();
 
     activeTypes.clear();
     if (chosen.length > 0) {
@@ -2929,6 +2986,8 @@ function applyShowTypes(detail) {
             if (!isSourceType(entry.type)) activeTypes.add(entry.type);
         }
     }
+    // The item's own type must be shown (a document, say) for it to be focusable.
+    if (focusId !== null && typeFilterEnabled) activeTypes.add(typeKey(nodeById.get(focusId).entity_type));
     sourcesShown = typeFilterEnabled ? sourceTypes().some(t => activeTypes.has(t)) : false;
     if (sourcesShown) placeSources();
     document.querySelectorAll('.legend-chip[data-type]').forEach(chip => {
@@ -2937,11 +2996,19 @@ function applyShowTypes(detail) {
     syncSourcePhysics();
     syncSourcesButton();
     filterGraph();
-    fitView(null, false);
+    const focused = focusId !== null && enterFocus(focusId, focusRequest.hops);
+    // Entering focus fits the focus set itself; every other arrival fits the view.
+    if (!focused) fitView(null, false);
+    const focusFailed = focusId !== null && !focused;
+    if (focusFailed) selectAndCenter(focusId);
 
     // Written last: the helpers above also write to this live region.
     let message;
-    if (chosen.length > 0) {
+    if (focused) {
+        message = `Focused on ${nodeName(focusId)} and its direct connections.`;
+    } else if (focusFailed) {
+        message = `Couldn't focus on ${nodeName(focusId)}: it has too few visible connections.`;
+    } else if (chosen.length > 0) {
         const count = allNodes.filter(n => chosen.includes(typeKey(n.entity_type))).length;
         const labels = entries.filter(entry => chosen.includes(entry.type)).map(entry => entry.label);
         message = `Showing ${count.toLocaleString()} ${labels.join(', ')} ${count === 1 ? 'node' : 'nodes'}. Use the legend to show other types.`;
@@ -3051,6 +3118,7 @@ function initConfidenceSlider() {
     }
 
     confidenceThreshold = domainMin;
+    confidenceDefault = domainMin;
     slider.value = String(domainMin);
     readout.textContent = domainMin.toFixed(2);
 
