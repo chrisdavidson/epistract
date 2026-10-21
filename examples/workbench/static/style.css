@@ -1760,9 +1760,123 @@ body {
   color: #666666;
 }
 
+.graph-groups-btn {
+  opacity: 1;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.graph-groups-btn[aria-expanded="true"] {
+  border-color: var(--color-secondary);
+}
+
+.graph-groups-btn:disabled {
+  border-style: dashed;
+  border-color: #e5e7eb;
+  background: #ffffff;
+  color: #666666;
+  cursor: default;
+}
+
+.graph-groups-btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.graph-groups {
+  padding: var(--space-sm);
+  max-height: 128px;
+  overflow-y: auto;
+}
+
+.graph-groups[hidden] {
+  display: none;
+}
+
+.graph-groups ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 4px 8px;
+}
+
+.graph-group-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  min-height: 28px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
+  font-size: var(--size-label);
+  text-align: left;
+  cursor: pointer;
+}
+
+.graph-group-row:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.graph-group-row[aria-current="true"] {
+  border-color: #1a1a2e;
+}
+
+.graph-group-row[aria-disabled="true"] {
+  color: #666666;
+  cursor: default;
+}
+
+.graph-group-row:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.graph-group-row__marker {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(26, 26, 46, 0.28);
+}
+
+.graph-group-row__marker--other {
+  background: transparent;
+  border: 1px dashed rgba(26, 26, 46, 0.6);
+  box-sizing: border-box;
+}
+
+.graph-group-row__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-group-row__count {
+  flex: none;
+  font-family: var(--font-data);
+  font-size: var(--size-data);
+  font-variant-numeric: tabular-nums;
+  color: #666666;
+}
+
+.graph-groups__more {
+  grid-column: 1 / -1;
+  padding: 4px 8px;
+  font-size: var(--size-label);
+  color: #666666;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .toggle-btn,
   .graph-edge-key-btn,
+  .graph-group-row,
   .legend-chip {
     transition: none;
   }

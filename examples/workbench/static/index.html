@@ -149,8 +149,11 @@
           <button class="toggle-btn active" id="graph-fit-btn" title="Fit all nodes in view">Fit View</button>
           <button class="toggle-btn active" id="graph-reset-pins-btn" title="Unpin all dragged nodes">Reset Pins</button>
           <button type="button" class="toggle-btn graph-edge-key-btn" id="edge-key-toggle" aria-expanded="false" aria-controls="edge-key" title="Edge colors by relation category">Edge key</button>
+          <button type="button" class="toggle-btn graph-groups-btn" id="graph-groups-btn" aria-expanded="false" aria-controls="graph-groups">Groups <span class="count">0</span></button>
+          <span id="graph-group-status" class="visually-hidden" role="status" aria-live="polite"></span>
         </div>
         <div id="edge-key" class="edge-key" hidden></div>
+        <div id="graph-groups" class="graph-groups" hidden></div>
       </div>
 
       <div id="graph-container" class="graph-container" tabindex="0" aria-label="Knowledge graph. Use search and filters to find nodes; selected node details appear in the side panel.">

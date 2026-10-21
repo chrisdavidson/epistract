@@ -13,7 +13,8 @@ import {
 import { initHoverCard, showHoverCard, hideHoverCard } from './hovercard.js';
 import {
     packGroups, seedInside, anchorNodeSpecs, anchorEdgeSpecs, dataEdgeLengths,
-    isAnchorId, groupIterations, FIT_MARGIN,
+    isAnchorId, groupIterations, FIT_MARGIN, regionGeometry, placeRegionLabels,
+    REGION_COLORS, REGION_LABEL_PX, REGION_PILL_PAD_PX,
 } from './grouping.js';
 
 // graph.js - Graph panel: vis.js network, search, entity type toggles
@@ -134,6 +135,19 @@ let groupMode = 'none';                   // 'cluster' | 'family' | 'none' for t
 let groupAssignment = new Map();          // non-source node id -> group id for the current build
 let groupLayout = new Map();              // group id -> {x, y, r} circle the group is packed into
 let _fitShrink = null;                    // pending post-animation fit margin handler
+let activeRegionId = null;                // group whose Groups-list row was clicked (zoomed to)
+let emphasizedRegionId = null;            // group whose row is hovered or focused
+let groupRowEls = new Map();              // group id -> its Groups-list row button
+let _groupListenersAttached = false;
+let _frameRegions = null;                 // regions computed by beforeDrawing, reused by afterDrawing
+let _lastPlaced = [];                     // pill boxes drawn in the last frame
+let _regionFont = null;                   // --font-body stack, read once
+const GROUP_LIST_MAX_ROWS = 40;           // Groups list rows before the "+N more groups" line
+const GROUPS_DISABLED_TITLE = 'Choose a grouping to list its groups.';
+const REGION_DASH_PX = [6, 4];            // Unclustered ring dash pattern, screen px
+const REGION_STROKE_PX = 1;               // region ring width, screen px
+const REGION_STROKE_EMPH_PX = 2;          // emphasized ring width, screen px
+const REGION_PILL_RADIUS_PX = 4;          // pill corner radius, screen px
 
 // vis-network color object: type fill with a neutral border.
 function nodeColor(type) {
@@ -430,6 +444,223 @@ function fitView(ids, animation = false) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Group regions (canvas) and the Groups list (DOM twin). Regions are drawn
+// from vis beforeDrawing/afterDrawing and write nothing to the DataSets.
+// ---------------------------------------------------------------------------
+function currentGroups() {
+    if (groupMode === 'none' || !groupsPayload) return [];
+    const entry = groupsPayload.modes && groupsPayload.modes[groupMode];
+    return entry && Array.isArray(entry.groups) ? entry.groups : [];
+}
+
+// Group id -> ids of its currently drawn data nodes.
+function visibleMembersByGroup() {
+    const byGroup = new Map();
+    if (!visNodes) return byGroup;
+    for (const [id, gid] of groupAssignment) {
+        const rec = visNodes.get(id);
+        if (!rec || rec.hidden === true) continue;
+        if (!byGroup.has(gid)) byGroup.set(gid, []);
+        byGroup.get(gid).push(id);
+    }
+    return byGroup;
+}
+
+function currentRegions() {
+    if (groupMode === 'none' || !network || !visNodes) return [];
+    const ids = [];
+    for (const list of visibleMembersByGroup().values()) ids.push(...list);
+    const positions = network.getPositions(ids) || {};
+    return regionGeometry(currentGroups(), positions, new Set(ids), groupAssignment);
+}
+
+function regionBodyFont() {
+    if (_regionFont === null) {
+        const style = window.getComputedStyle ? window.getComputedStyle(document.body) : null;
+        _regionFont = (style && style.fontFamily) || 'sans-serif';
+    }
+    return _regionFont;
+}
+
+function pillPath(ctx, box, radius) {
+    const { x, y, w, h } = box;
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.arcTo(x + w, y, x + w, y + h, radius);
+    ctx.arcTo(x + w, y + h, x, y + h, radius);
+    ctx.arcTo(x, y + h, x, y, radius);
+    ctx.arcTo(x, y, x + w, y, radius);
+    ctx.closePath();
+}
+
+function drawRegionCircles(ctx) {
+    _frameRegions = currentRegions();
+    if (_frameRegions.length === 0) return;
+    const scale = network.getScale() || 1;
+    const emphasized = emphasizedRegionId !== null ? emphasizedRegionId : activeRegionId;
+    ctx.save();
+    for (const region of _frameRegions) {
+        const isEmph = region.id === emphasized;
+        ctx.beginPath();
+        ctx.arc(region.cx, region.cy, region.r, 0, 2 * Math.PI);
+        ctx.fillStyle = isEmph ? REGION_COLORS.fillEmph : region.other ? REGION_COLORS.fillOther : REGION_COLORS.fill;
+        ctx.fill();
+        ctx.lineWidth = (isEmph ? REGION_STROKE_EMPH_PX : REGION_STROKE_PX) / scale;
+        ctx.strokeStyle = isEmph ? REGION_COLORS.strokeEmph : REGION_COLORS.stroke;
+        ctx.setLineDash(region.other && !isEmph ? REGION_DASH_PX.map(d => d / scale) : []);
+        ctx.stroke();
+    }
+    ctx.restore();
+}
+
+function drawRegionLabels(ctx) {
+    const regions = _frameRegions || currentRegions();
+    _frameRegions = null;
+    _lastPlaced = [];
+    if (regions.length === 0) return;
+    const scale = network.getScale() || 1;
+    const container = document.getElementById('graph-container');
+    const width = (container && container.clientWidth) || 0;
+    const height = (container && container.clientHeight) || 0;
+    const topLeft = network.DOMtoCanvas({ x: 0, y: 0 });
+    const bottomRight = network.DOMtoCanvas({ x: width, y: height });
+    const viewRect = { left: topLeft.x, top: topLeft.y, right: bottomRight.x, bottom: bottomRight.y };
+    ctx.save();
+    ctx.font = `600 ${REGION_LABEL_PX / scale}px ${regionBodyFont()}`;
+    const emphasized = emphasizedRegionId !== null ? emphasizedRegionId : activeRegionId;
+    _lastPlaced = placeRegionLabels(regions, text => ctx.measureText(text).width, scale, emphasized, viewRect);
+    const pad = REGION_PILL_PAD_PX / scale;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    for (const box of _lastPlaced) {
+        pillPath(ctx, box, REGION_PILL_RADIUS_PX / scale);
+        ctx.fillStyle = REGION_COLORS.pillFill;
+        ctx.fill();
+        ctx.lineWidth = REGION_STROKE_PX / scale;
+        ctx.strokeStyle = REGION_COLORS.pillStroke;
+        ctx.setLineDash([]);
+        ctx.stroke();
+        ctx.fillStyle = REGION_COLORS.ink;
+        ctx.fillText(box.label, box.x + pad, box.y + box.h / 2);
+    }
+    ctx.restore();
+}
+
+function announceGroup(text) {
+    const status = document.getElementById('graph-group-status');
+    if (status) status.textContent = text;
+}
+
+function syncGroupRows() {
+    for (const [gid, row] of groupRowEls) {
+        if (gid === activeRegionId) row.setAttribute('aria-current', 'true');
+        else row.removeAttribute('aria-current');
+    }
+}
+
+// Clears the zoomed-to group (second row click, Fit View, Esc).
+function clearActiveRegion() {
+    if (activeRegionId === null) return;
+    activeRegionId = null;
+    syncGroupRows();
+    if (network) network.redraw();
+}
+
+function setEmphasizedRegion(gid) {
+    if (emphasizedRegionId === gid) return;
+    emphasizedRegionId = gid;
+    if (network) network.redraw();
+}
+
+function toggleActiveRegion(group, visibleIds) {
+    if (visibleIds.length === 0) return;
+    if (activeRegionId === group.id) {
+        clearActiveRegion();
+        return;
+    }
+    activeRegionId = group.id;
+    syncGroupRows();
+    fitView(visibleIds, fitAnimation(250));
+    announceGroup(`Zoomed to ${group.full_label}: ${visibleIds.length.toLocaleString()} nodes.`);
+    if (network) network.redraw();
+}
+
+// Rebuilds the Groups button and list from the current build and filters.
+function renderGroupsList() {
+    const btn = document.getElementById('graph-groups-btn');
+    const panel = document.getElementById('graph-groups');
+    if (!btn || !panel) return;
+    groupRowEls = new Map();
+    const groups = currentGroups();
+    const label = document.createTextNode('Groups ');
+    const count = document.createElement('span');
+    count.className = 'count';
+    count.textContent = String(groups.length);
+    btn.replaceChildren(label, count);
+    if (groupMode === 'none' || groups.length === 0) {
+        activeRegionId = null;
+        emphasizedRegionId = null;
+        btn.setAttribute('disabled', '');
+        btn.setAttribute('title', GROUPS_DISABLED_TITLE);
+        btn.setAttribute('aria-expanded', 'false');
+        panel.setAttribute('hidden', '');
+        panel.replaceChildren();
+        return;
+    }
+    btn.removeAttribute('disabled');
+    btn.removeAttribute('title');
+    const visible = visibleMembersByGroup();
+    const totals = new Map();
+    for (const gid of groupAssignment.values()) totals.set(gid, (totals.get(gid) || 0) + 1);
+    const list = document.createElement('ul');
+    list.setAttribute('role', 'list');
+    for (const group of groups.slice(0, GROUP_LIST_MAX_ROWS)) {
+        const ids = visible.get(group.id) || [];
+        const total = totals.get(group.id) || 0;
+        const item = document.createElement('li');
+        const row = document.createElement('button');
+        row.setAttribute('type', 'button');
+        row.className = 'graph-group-row';
+        row.setAttribute('data-group', group.id);
+        row.setAttribute('title', ids.length < total
+            ? `${group.full_label} (${ids.length.toLocaleString()} of ${total.toLocaleString()} shown)`
+            : group.full_label);
+        if (ids.length === 0) row.setAttribute('aria-disabled', 'true');
+        const marker = document.createElement('span');
+        marker.className = group.id === 'other'
+            ? 'graph-group-row__marker graph-group-row__marker--other'
+            : 'graph-group-row__marker';
+        const name = document.createElement('span');
+        name.className = 'graph-group-row__label';
+        name.textContent = group.label;
+        const num = document.createElement('span');
+        num.className = 'graph-group-row__count';
+        num.textContent = ids.length.toLocaleString();
+        row.append(marker, name, num);
+        row.addEventListener('mouseenter', () => setEmphasizedRegion(group.id));
+        row.addEventListener('focus', () => setEmphasizedRegion(group.id));
+        row.addEventListener('mouseleave', () => setEmphasizedRegion(null));
+        row.addEventListener('blur', () => setEmphasizedRegion(null));
+        row.addEventListener('click', () => toggleActiveRegion(group, visibleMembersByGroup().get(group.id) || []));
+        item.appendChild(row);
+        list.appendChild(item);
+        groupRowEls.set(group.id, row);
+    }
+    if (groups.length > GROUP_LIST_MAX_ROWS) {
+        const more = document.createElement('li');
+        more.className = 'graph-groups__more';
+        more.textContent = `+${(groups.length - GROUP_LIST_MAX_ROWS).toLocaleString()} more groups`;
+        list.appendChild(more);
+    }
+    panel.replaceChildren(list);
+    const open = btn.getAttribute('aria-expanded') === 'true';
+    btn.setAttribute('aria-expanded', String(open));
+    if (open) panel.removeAttribute('hidden');
+    else panel.setAttribute('hidden', '');
+    syncGroupRows();
+}
+
 function buildGraph() {
     const container = document.getElementById('graph-container');
     if (!container || !window.vis) return;
@@ -669,6 +900,8 @@ function buildGraph() {
     };
     network.on('zoom', scheduleLabelUpdate);
     network.on('animationFinished', scheduleLabelUpdate);
+    network.on('beforeDrawing', drawRegionCircles);
+    network.on('afterDrawing', drawRegionLabels);
 
     // Disable physics after stabilization (research pitfall 4) and prime the
     // initial label-visibility state.
@@ -825,6 +1058,7 @@ function buildGraph() {
         const fitBtn = document.getElementById('graph-fit-btn');
         if (fitBtn) {
             fitBtn.addEventListener('click', () => {
+                clearActiveRegion();
                 fitView(null, fitAnimation(400));
             });
         }
@@ -866,11 +1100,29 @@ function buildGraph() {
             });
         }
 
+        const groupsBtn = document.getElementById('graph-groups-btn');
+        if (groupsBtn) {
+            groupsBtn.addEventListener('click', () => {
+                if (groupsBtn.hasAttribute('disabled')) return;
+                const open = groupsBtn.getAttribute('aria-expanded') !== 'true';
+                groupsBtn.setAttribute('aria-expanded', String(open));
+                const panel = document.getElementById('graph-groups');
+                if (!panel) return;
+                if (open) panel.removeAttribute('hidden');
+                else panel.setAttribute('hidden', '');
+            });
+        }
+
         _btnListenersAttached = true;
     }
 
+    activeRegionId = null;
+    emphasizedRegionId = null;
+    _frameRegions = null;
+    _lastPlaced = [];
     syncSourcesButton();
     buildEdgeKey();
+    renderGroupsList();
     window._graphDebug = {
         network,
         visNodes,
@@ -880,6 +1132,8 @@ function buildGraph() {
         dataNodes: () => visNodes.get().filter(n => !n._anchor),
         dataEdges: () => visEdges.get().filter(e => !e._anchor),
         anchorCount: () => visNodes.get().filter(n => n._anchor).length,
+        regionGeometry: () => currentRegions(),
+        placedLabels: () => _lastPlaced,
     };
 
     // Close sidebar on window resize so it does not float
@@ -903,6 +1157,7 @@ function buildGraph() {
             if (event.key !== 'Escape') return;
             pinnedCardNodeId = null;
             dismiss();
+            clearActiveRegion();
         });
         _hoverListenersAttached = true;
     }
@@ -1197,6 +1452,7 @@ function filterGraph() {
     }
 
     buildEdgeKey();
+    renderGroupsList();
 
     // Show empty state if all hidden
     const visibleCount = updates.filter(u => !u.hidden).length;

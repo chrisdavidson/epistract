@@ -181,13 +181,19 @@ check('groupIterations(1738) = 150', G.groupIterations(1738) === 150);
     check('placeRegionLabels box width = text + padding', Math.abs(placed[0].w - (measure(placed[0].label) + 8)) < 1e-9);
     const scaled = G.placeRegionLabels(regs, (t) => measure(t) / 0.5, 0.5, null, view);
     check('placeRegionLabels scales box height with 1/scale', Math.abs(scaled[0].h - (13 + 8) / 0.5) < 1e-9);
-    // Crowded: two regions at the same spot -> the smaller is skipped, emphasized wins.
+    // Crowded: regions at one spot fall back to the other candidate spots, then are skipped.
     const crowd = [
         { id: 'big', label: 'Big', cx: 0, cy: 0, r: 80, count: 50 },
+        { id: 'mid', label: 'Mid', cx: 5, cy: 5, r: 80, count: 20 },
+        { id: 'low', label: 'Low', cx: 5, cy: 5, r: 80, count: 10 },
         { id: 'small', label: 'Small', cx: 5, cy: 5, r: 80, count: 5 },
     ];
     const c1 = G.placeRegionLabels(crowd, measure, 1, null, view);
-    check('placeRegionLabels skips a colliding pill', c1.length === 1 && c1[0].id === 'big');
+    check('placeRegionLabels falls back to another spot', c1.length === 3 && c1[1].id === 'mid' && c1[2].id === 'low');
+    check('placeRegionLabels skips when every spot collides', !c1.some((b) => b.id === 'small'));
+    let crowdOverlap = false;
+    for (let i = 0; i < c1.length; i++) for (let j = i + 1; j < c1.length; j++) if (hit(c1[i], c1[j])) crowdOverlap = true;
+    check('placeRegionLabels fallback boxes never overlap', !crowdOverlap);
     const c2 = G.placeRegionLabels(crowd, measure, 1, 'small', view);
     check('placeRegionLabels emphasized always drawn', c2.some((b) => b.id === 'small' && b.emphasized === true));
     check('placeRegionLabels emphasized placed first', c2[0].id === 'small');
