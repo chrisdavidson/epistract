@@ -138,7 +138,9 @@ def subset_graph(
         links: Graph links (``source``, ``target``, ``relation_type``).
         display: Result of ``core.graph_display.resolve_display`` over the
             full graph (decides which nodes are sources).
-        neighborhood: Node id, or case-insensitive name, to center on.
+        neighborhood: Entity id, or case-insensitive entity name, to center
+            on. Source nodes are never matched (a document that shares an
+            entity's name does not make it ambiguous).
         top_n: Keep the N nodes of highest knowledge degree and their neighbors
             (must be >= 1).
         depth: Hop radius for ``neighborhood`` (must be >= 1).
@@ -149,7 +151,8 @@ def subset_graph(
         "total"}`` where shown/total count all nodes including sources.
 
     Raises:
-        EntityLookupError: When ``neighborhood`` matches no node or several nodes.
+        EntityLookupError: When ``neighborhood`` matches no entity, several
+            entities, or only a source node.
         ValueError: When ``top_n`` or ``depth`` is below 1.
     """
     # depth 0 would be the start node alone, which is not a neighbourhood.
@@ -180,12 +183,23 @@ def subset_graph(
     by_id = {n["id"]: n for n in nodes}
     name: str | None = None
     if neighborhood is not None:
+        # Only knowledge (non-source) nodes can be a centre: knowledge adjacency
+        # skips provenance edges, so a document centre would show itself alone.
+        not_entity = EntityLookupError(
+            f"{neighborhood!r} is a source document, not an entity. "
+            "Center the view on an entity id or name."
+        )
         start = neighborhood
+        if start in source_ids:
+            raise not_entity
         if start not in by_id:
             query = neighborhood.lower()
-            matches = [n["id"] for n in nodes if str(n.get("name") or "").lower() == query]
+            named = [n["id"] for n in nodes if str(n.get("name") or "").lower() == query]
+            matches = [i for i in named if i not in source_ids]
             if len(matches) == 1:
                 start = matches[0]
+            elif named and not matches:
+                raise not_entity
             elif matches:
                 raise EntityLookupError(
                     f"Multiple entities match {neighborhood!r}: {', '.join(matches)}. "

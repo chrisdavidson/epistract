@@ -263,3 +263,22 @@ def test_subset_rejects_non_positive_depth(depth):
     nodes, links, display = _synthetic()
     with pytest.raises(ValueError, match="depth must be >= 1"):
         subset_graph(nodes, links, display, neighborhood="h1", depth=depth)
+
+
+def test_subset_neighborhood_name_ignores_source_document_with_same_name():
+    nodes, links, display = _synthetic()
+    # A document whose name equals an entity name (case-insensitively) must not
+    # make the entity ambiguous; sources still ride along with kept nodes.
+    nodes = nodes + [{"id": "doc_hub", "name": "HUB ONE", "entity_type": "DOCUMENT"}]
+    links = links + [{"source": "b", "target": "doc_hub", "relation_type": "MENTIONED_IN"}]
+    kept, _l, info = subset_graph(nodes, links, display, neighborhood="hub one")
+    ids = {n["id"] for n in kept}
+    assert info["name"] == "Hub One"
+    assert ids == {"h1", "a", "b", "c1", "doc_near", "doc_hub"}, ids
+
+
+def test_subset_neighborhood_rejects_source_documents_by_name_or_id():
+    nodes, links, display = _synthetic()
+    for query in ("Doc Near", "doc_near"):
+        with pytest.raises(graph_payloads.EntityLookupError, match="source document"):
+            subset_graph(nodes, links, display, neighborhood=query)
