@@ -390,6 +390,19 @@ if __name__ == "__main__":
                     sys.exit(1)
         if "--no-open" in sys.argv:
             kwargs["open_browser"] = False
+        value_flags = {"--neighborhood", "--top", "--depth"}
+        unknown = []
+        rest = iter(sys.argv[3:])
+        for arg in rest:
+            if arg in value_flags:
+                next(rest, None)
+            elif arg != "--no-open":
+                unknown.append(arg)
+        if unknown:
+            print(
+                f"Warning: ignoring unknown view argument(s): {' '.join(unknown)}",
+                file=sys.stderr,
+            )
         try:
             cmd_view(sys.argv[2], **kwargs)
         except EntityLookupError as e:

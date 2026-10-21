@@ -523,3 +523,15 @@ def test_graph_html_is_written_atomically(tmp_path, monkeypatch):
     static_export.write_static_graph(tmp_path)
     assert dest.read_text(encoding="utf-8").startswith("<!DOCTYPE html>")
     assert sorted(p.name for p in tmp_path.iterdir()) == ["graph.html", "graph_data.json"]
+
+
+def test_cli_warns_on_unknown_view_arguments(tmp_path):
+    _write_graph(tmp_path, ["COMPOUND", "DISEASE"])
+    proc = _cli("view", str(tmp_path), "--nieghborhood", "n0", "--top", "1", "--no-open")
+    assert proc.returncode == 0, proc.stderr
+    assert "Warning: ignoring unknown view argument(s): --nieghborhood n0" in proc.stderr, (
+        proc.stderr
+    )
+    assert (tmp_path / "graph.html").exists()
+    clean = _cli("view", str(tmp_path), "--neighborhood", "n0", "--depth", "2", "--no-open")
+    assert clean.returncode == 0 and "unknown view argument" not in clean.stderr
