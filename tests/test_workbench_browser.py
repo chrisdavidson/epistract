@@ -135,4 +135,4 @@ def test_dashboard_click_through_glp1(chromium_port, workbench_url):
 
 def test_dashboard_click_before_graph_ready(chromium_port, workbench_url):
     result = _run(chromium_port, workbench_url, "early")
-    assert result["passed"] >= 4, result
+    assert result["passed"] >= 8, result

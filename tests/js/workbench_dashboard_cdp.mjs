@@ -32,10 +32,13 @@ async function session() {
   let id = 0;
   const pend = {};
   const errors = [];
+  const handlers = {};
+  const on = (method, fn) => { handlers[method] = fn; };
   ws.onmessage = (e) => {
     const m = JSON.parse(e.data);
     if (m.id && pend[m.id]) pend[m.id](m.result ?? m.error);
-    else if (m.method === 'Runtime.exceptionThrown') {
+    else if (m.method && handlers[m.method]) handlers[m.method](m.params);
+    if (m.method === 'Runtime.exceptionThrown') {
       const d = m.params.exceptionDetails;
       // CDN script failures (offline runs) are not product errors; only
       // exceptions raised by scripts served from the workbench count.
@@ -99,7 +102,7 @@ async function session() {
     try { await fetch(`http://127.0.0.1:${PORT}/json/close/${list.id}`); } catch { /* already gone */ }
     ws.close();
   };
-  return { send, ev, shot, click, key, viewport, waitFor, errors, done };
+  return { send, on, ev, shot, click, key, viewport, waitFor, errors, done };
 }
 
 const q = (sel) => JSON.stringify(sel);
@@ -261,6 +264,17 @@ async function click() {
 async function early() {
   const s = await session();
   await s.viewport(1440, 1000);
+  // Hold the /api/graph response until the Dashboard click has fired, so the
+  // click always lands before the graph exists and must take the queue path
+  // (requestShowTypes -> flushPendingShowTypes), whatever the machine speed.
+  // Only the exact /api/graph URL is paused; claims and groups load normally.
+  const held = [];
+  let released = false;
+  s.on('Fetch.requestPaused', (p) => {
+    if (released) s.send('Fetch.continueRequest', { requestId: p.requestId });
+    else held.push(p.requestId);
+  });
+  await s.send('Fetch.enable', { patterns: [{ urlPattern: '*/api/graph', requestStage: 'Request' }] });
   // Click the COMPOUND row as soon as the Dashboard renders it, recording
   // whether the graph had finished loading at that moment.
   await s.send('Page.addScriptToEvaluateOnNewDocument', { source: `
@@ -275,6 +289,13 @@ async function early() {
     });` });
   await s.send('Page.navigate', { url: URL_ });
   check('early click fired', await s.waitFor(`!!window.__early`, 30000), await s.ev(`window.__early`));
+  const early = await s.ev(`window.__early`);
+  check('early click: made before the graph loaded', early && early.graphReady === false, early);
+  check('early click: /api/graph was held until the click', held.length > 0, held.length);
+  check('early click: graph not built while held', (await s.ev(`!window._graphDebug`)) === true);
+  released = true;
+  for (const requestId of held.splice(0)) await s.send('Fetch.continueRequest', { requestId });
+  await s.send('Fetch.disable');
   await s.waitFor(`!!window._graphDebug && window._graphDebug.settled`, 30000);
   const sets = await expectedSets(s);
   check('early click: COMPOUND solo visible set', await waitVisible(s, sets.COMPOUND), (await s.ev(visibleIds)).length);
