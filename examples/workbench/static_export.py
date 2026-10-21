@@ -218,7 +218,8 @@ def build_view_data(
         None for the full graph.
 
     Raises:
-        ValueError: When ``neighborhood`` matches no node or several nodes.
+        EntityLookupError: When ``neighborhood`` matches no node or several nodes.
+        json.JSONDecodeError: When an output JSON file is corrupt.
     """
     output_dir = Path(output_dir)
     resolved_domain, _source = resolve_domain(output_dir, None)
@@ -386,8 +387,9 @@ def write_static_graph(
 
     Raises:
         FileNotFoundError: When ``graph_data.json`` is missing from ``output_dir``.
-        ValueError: When ``neighborhood`` is unknown or ambiguous; nothing is
-            written in that case.
+        EntityLookupError: When ``neighborhood`` is unknown or ambiguous;
+            nothing is written in that case.
+        ValueError: When the page cannot be assembled (bundler, panel markers).
     """
     output_dir = Path(output_dir)
     if not (output_dir / "graph_data.json").is_file():

@@ -458,3 +458,33 @@ def test_skip_link_is_first_element_in_body(glp1_page):
     _work, page = glp1_page
     body = page.split("<body", 1)[1].split(">", 1)[1].lstrip()
     assert body.startswith('<a class="static-skip" href="#graph-container">Skip to graph</a>'), body[:120]
+
+
+def test_cli_corrupt_graph_json_reports_read_error_not_entity_hint(tmp_path):
+    (tmp_path / "graph_data.json").write_text("{bad", encoding="utf-8")
+    proc = _cli("view", str(tmp_path), "--no-open")
+    assert proc.returncode == 1
+    assert "Error: could not read the graph files in" in proc.stderr, proc.stderr
+    assert "Pass the exact entity id" not in proc.stderr, proc.stderr
+    assert "Traceback" not in proc.stderr
+    assert not (tmp_path / "graph.html").exists()
+
+
+def test_cli_bundler_error_reports_build_error_not_entity_hint(tmp_path, monkeypatch, capsys):
+    import runpy
+
+    from examples.workbench import static_export
+
+    def broken(*_a, **_k):
+        raise ValueError("static bundle: import cycle through x.js")
+
+    _write_graph(tmp_path, ["COMPOUND"])
+    monkeypatch.setattr(static_export, "bundle_modules", broken)
+    monkeypatch.setattr(sys, "argv", ["run_sift.py", "view", str(tmp_path), "--no-open"])
+    with pytest.raises(SystemExit) as exc:
+        runpy.run_path(str(ROOT / "core" / "run_sift.py"), run_name="__main__")
+    assert exc.value.code == 1
+    err = capsys.readouterr().err
+    assert "Error: could not build graph.html: static bundle: import cycle" in err, err
+    assert "Pass the exact entity id" not in err, err
+    assert not (tmp_path / "graph.html").exists()

@@ -34,7 +34,7 @@ from core.domain_resolver import (  # noqa: E402
     load_domain_schema,
     resolve_domain,
 )
-from core.graph_payloads import json_for_script  # noqa: E402
+from core.graph_payloads import EntityLookupError, json_for_script  # noqa: E402
 
 
 def resolve_domain_arg(value: str) -> str:
@@ -299,7 +299,9 @@ def cmd_view(
 
     Raises:
         FileNotFoundError: When graph_data.json is missing.
-        ValueError: When ``neighborhood`` matches no entity or several.
+        EntityLookupError: When ``neighborhood`` matches no entity or several.
+        json.JSONDecodeError: When an output JSON file is corrupt.
+        ValueError: When the page cannot be assembled (bundler, panel markers).
     """
     # core/ must not import examples/ at module load; add the project root so the
     # lazy import works regardless of caller cwd.
@@ -386,11 +388,17 @@ if __name__ == "__main__":
             kwargs["open_browser"] = False
         try:
             cmd_view(sys.argv[2], **kwargs)
-        except ValueError as e:
+        except EntityLookupError as e:
             print(f"{e} Pass the exact entity id or name.", file=sys.stderr)
             sys.exit(1)
         except FileNotFoundError as e:
             print(e, file=sys.stderr)
+            sys.exit(1)
+        except (json.JSONDecodeError, UnicodeDecodeError, OSError) as e:
+            print(f"Error: could not read the graph files in {sys.argv[2]}: {e}", file=sys.stderr)
+            sys.exit(1)
+        except ValueError as e:
+            print(f"Error: could not build graph.html: {e}", file=sys.stderr)
             sys.exit(1)
     elif cmd == "export":
         cmd_export(sys.argv[2], sys.argv[3])

@@ -11,6 +11,10 @@ import json
 from core.graph_display import entity_type_key, is_source_edge
 
 
+class EntityLookupError(ValueError):
+    """A ``--neighborhood`` query matched no node or several nodes."""
+
+
 def json_for_script(value: object) -> str:
     """Serialize value as JSON that is safe to embed inside an HTML <script> block.
 
@@ -144,7 +148,7 @@ def subset_graph(
         "total"}`` where shown/total count all nodes including sources.
 
     Raises:
-        ValueError: When ``neighborhood`` matches no node or several nodes.
+        EntityLookupError: When ``neighborhood`` matches no node or several nodes.
     """
     if neighborhood is None and top_n is None:
         return nodes, links, None
@@ -176,12 +180,12 @@ def subset_graph(
             if len(matches) == 1:
                 start = matches[0]
             elif matches:
-                raise ValueError(
+                raise EntityLookupError(
                     f"Multiple entities match {neighborhood!r}: {', '.join(matches)}. "
                     "Use the full entity ID instead."
                 )
             else:
-                raise ValueError(
+                raise EntityLookupError(
                     f"Entity {neighborhood!r} not found in graph. "
                     "Use entity ID (e.g. 'person:alice') or display name."
                 )
