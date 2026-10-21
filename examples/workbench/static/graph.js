@@ -2859,6 +2859,8 @@ function resetNodeFilters() {
     minDegreeThreshold = 0;
     if (readout) readout.textContent = '0';   // textContent only (SEC-01)
     if (focusStack.length > 0) exitFocus();
+    // The arrival frames a new node set: the zoomed-to group no longer applies.
+    clearActiveRegion();
 }
 
 // A node filter the user changes directly is newer than a Dashboard request
