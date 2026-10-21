@@ -321,6 +321,30 @@ def test_distinct_communities_with_equal_labels_stay_distinct():
 
 
 @pytest.mark.unit
+def test_family_case_variants_are_one_family_upstream():
+    from core.graph_display import resolve_display
+    from core.graph_groups import build_groups
+
+    schema = {
+        "entity_types": {
+            "ALPHA": {"description": "", "display": {"family": "Chem"}},
+            "BETA": {"description": "", "display": {"family": "chem"}},
+            "GAMMA": {"description": "", "display": {"family": "Bio"}},
+        }
+    }
+    display = resolve_display(schema, ["ALPHA", "BETA", "GAMMA"])
+    assert display["types"]["ALPHA"]["family"] == display["types"]["BETA"]["family"] == "Chem"
+    nodes = [
+        {"id": "a", "entity_type": "ALPHA"},
+        {"id": "b", "entity_type": "BETA"},
+        {"id": "g", "entity_type": "GAMMA"},
+    ]
+    family = build_groups(nodes, [], None, display)["modes"]["family"]
+    assert family["assignment"]["a"] == family["assignment"]["b"] != family["assignment"]["g"]
+    assert sorted(g["full_label"] for g in family["groups"]) == ["Bio", "Chem"], family["groups"]
+
+
+@pytest.mark.unit
 def test_availability_survives_garbage_input():
     from core.graph_groups import build_groups
 

@@ -322,6 +322,11 @@ def _family_mode(knowledge: list[dict], display: dict | None) -> dict:
         family = _collapse(spec.get("family")) if isinstance(spec, dict) else ""
         if not family or family == SOURCES_FAMILY:
             family = OTHER_FAMILY
+        # Lower-casing never merges two distinct families: the Phase 2
+        # resolver (core.graph_display.resolve_display) already groups family
+        # names case-insensitively and gives every member one canonical
+        # spelling, so "Chem" and "chem" are one family upstream as well. The
+        # lower-case id only keeps ids stable for raw display dicts.
         gid = FAMILY_ID_PREFIX + family.lower()
         group = groups.setdefault(
             gid, {"id": gid, "label": "", "full_label": _full_label(family), "size": 0}
