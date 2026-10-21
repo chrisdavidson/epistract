@@ -456,6 +456,25 @@ async function epistemic() {
   check('no /api/chat request was made', !urls.some((u) => u.includes('/api/chat')), urls.filter((u) => u.includes('/api/')));
   await s.shot('chat-prefilled.png');
 
+  // (12b) a draft in the chat box is replaced as an edit that Undo restores
+  const draft = 'my own unsent draft';
+  await s.ev(`(() => { const i = document.getElementById('chat-input'); i.focus(); i.select(); })()`);
+  await s.send('Input.insertText', { text: draft });
+  check('setup: the draft is typed', (await s.ev(`document.getElementById('chat-input').value`)) === draft,
+    await s.ev(`document.getElementById('chat-input').value`));
+  const secondQ = await s.ev(`(async () => { const d = await (await fetch('/api/dashboard')).json();
+    return d.epistemic.sections[0].items[1].question; })()`);
+  check('open the dashboard with a draft', await openEpistemic(s));
+  urls.length = 0;
+  check('Ask in chat clicked over a draft', await clickEl(s, secBtn('contradictions', 'ask-chat', 1)));
+  check('chat panel shown again', await s.waitFor(`document.querySelector('.chat-panel').style.display === 'flex'`));
+  check('the question replaces the draft', (await s.ev(`document.getElementById('chat-input').value`)) === secondQ,
+    await s.ev(`document.getElementById('chat-input').value`));
+  const undone = await s.ev(`(() => { const i = document.getElementById('chat-input'); i.focus();
+    document.execCommand('undo'); return i.value; })()`);
+  check('Undo brings the draft back', undone === draft, undone);
+  check('no /api/chat request was made for the draft case', !urls.some((u) => u.includes('/api/chat')), urls.filter((u) => u.includes('/api/')));
+
   // (13)
   check('no script exceptions from the workbench', s.errors.length === 0, s.errors.slice(0, 3));
   await s.done();

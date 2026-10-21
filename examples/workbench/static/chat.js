@@ -47,10 +47,28 @@ export function initChat(opts) {
     });
 
     // Listen for "ask question" events from graph panel (D-16 "Ask about this")
+    // and the Dashboard. Prefill only: the question is never sent from here.
     window.addEventListener('ask-question', (e) => {
         const question = e.detail.question;
-        input.value = question;
         input.focus();
+        if (!input.value.trim()) {
+            input.value = question;
+            return;
+        }
+        // A draft is already there: replace it as an edit, so the browser's
+        // Undo (Ctrl/Cmd+Z) brings the draft back.
+        input.select();
+        let replaced = false;
+        try {
+            replaced = document.execCommand('insertText', false, question) && input.value === question;
+        } catch {
+            replaced = false;
+        }
+        // No editing command available: keep the draft and add the question below it.
+        if (!replaced && input.value !== question) {
+            const draft = input.value.replace(/\s+$/, '');
+            input.value = draft === question ? question : `${draft}\n${question}`;
+        }
     });
 }
 
