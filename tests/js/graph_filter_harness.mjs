@@ -29,6 +29,12 @@
 // argv[2] = "focus" / "focus-filters" drive focus mode: double-click entry, the
 // breadcrumb bar, hop toggle, Esc chain, graph-focus-* events, composition with
 // Show sources, filters and grouping.
+// argv[2] = "show-solo" / "show-repeat" / "show-source" / "show-reset" /
+// "show-unknown" / "show-resets" / "show-queued" / "show-nodisplay" /
+// "show-during-relayout" drive the graph-show-types window event on the focus
+// fixture: solo one entity type, restore the default view, malformed payloads,
+// node-filter and focus clearing, a request made before the graph loaded, a
+// graph without display data, and a request that waits for a running relayout.
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -36,6 +42,9 @@ const mode = process.argv[2] || 'ok';
 const isRegions = mode === 'regions';
 const isControl = mode.startsWith('control');
 const isFocus = mode.startsWith('focus');
+const isShow = mode.startsWith('show-');
+// The focus fixture (nodes, edges, groups, positions) also backs the show-* modes.
+const usesFocusFixture = isFocus || isShow;
 
 function makeEl(id = '') {
   const listeners = {};
@@ -96,6 +105,13 @@ globalThis.document = {
   querySelectorAll: () => [],
   body: makeEl('body'),
 };
+
+if (isShow) {
+  // The legend chips live in #entity-toggles; the show-* modes read them back.
+  document.querySelectorAll = (sel) => (sel === '.legend-chip[data-type]'
+    ? document.getElementById('entity-toggles').children.filter((c) => c.getAttribute && c.getAttribute('data-type') !== null)
+    : []);
+}
 
 const GROUP_MODES = ['cluster', 'family', 'none'];
 const groupButtons = {};
@@ -219,7 +235,7 @@ class Network {
             };
             return (ids) => Object.fromEntries((ids || []).filter((id) => table[id]).map((id) => [id, table[id]]));
           }
-          if (mode !== 'groups' && !isFocus) return () => ({});
+          if (mode !== 'groups' && !usesFocusFixture) return () => ({});
           return (ids) => Object.fromEntries((ids || []).map((id, i) => [id, { x: i * 10, y: i * 5 }]));
         }
         if (prop === 'getSelectedNodes') return () => [];
@@ -245,7 +261,7 @@ globalThis.window = {
   innerHeight: 800,
 };
 
-const isGroups = mode === 'groups' || isRegions || isControl || isFocus;
+const isGroups = mode === 'groups' || isRegions || isControl || usesFocusFixture;
 const withSources = mode === 'sources' || isGroups;
 const FIT_NODES = [{ id: 'hub', name: 'Hub compound', entity_type: 'COMPOUND' }];
 const FIT_EDGES = [];
@@ -296,15 +312,15 @@ const FOCUS_EDGES = [
   { source: 'n2', target: 'h1', relation_type: 'TREATS' },
   { source: 'hub', target: 's1', relation_type: 'MENTIONED_IN' },
 ];
-const NODES = isFocus ? FOCUS_NODES : isEdges ? EDGE_NODES : mode === 'fit' ? FIT_NODES : [
+const NODES = usesFocusFixture ? FOCUS_NODES : isEdges ? EDGE_NODES : mode === 'fit' ? FIT_NODES : [
   { id: 'a', name: 'Aspirin', entity_type: 'COMPOUND' },
   { id: 'b', name: 'Diabetes', entity_type: 'DISEASE' },
   { id: 'c', name: 'Mystery', entity_type: null },
-  ...(isGroups && !isFocus ? [{ id: 'e', name: 'Empagliflozin', entity_type: 'COMPOUND' }] : []),
+  ...(isGroups && !usesFocusFixture ? [{ id: 'e', name: 'Empagliflozin', entity_type: 'COMPOUND' }] : []),
   ...(isRegions || isControl ? [{ id: 'f', name: 'Fenofibrate', entity_type: 'COMPOUND' }, { id: 'g', name: 'Gemfibrozil', entity_type: 'COMPOUND' }] : []),
   ...(withSources ? [{ id: 'd1', name: 'Doc one', entity_type: 'DOCUMENT' }] : []),
 ];
-const EDGES = isFocus ? FOCUS_EDGES : isEdges ? EDGE_EDGES : mode === 'fit' ? FIT_EDGES : isGroups
+const EDGES = usesFocusFixture ? FOCUS_EDGES : isEdges ? EDGE_EDGES : mode === 'fit' ? FIT_EDGES : isGroups
   ? [
     { source: 'a', target: 'd1', relation_type: 'MENTIONED_IN' },
     { source: 'e', target: 'd1', relation_type: 'MENTIONED_IN' },
@@ -439,10 +455,14 @@ function respond(status, body) {
 }
 globalThis.fetch = async (url) => {
   if (url === '/api/graph/entity-types') {
-    return (mode === 'fail' || mode === 'edges-fail') ? respond(500, {}) : respond(200, DISPLAY);
+    return (mode === 'fail' || mode === 'edges-fail' || mode === 'show-nodisplay') ? respond(500, {}) : respond(200, DISPLAY);
   }
-  if (url === '/api/graph') return respond(200, { nodes: NODES, edges: EDGES });
-  if (url === '/api/graph/groups' && isFocus) return respond(200, FOCUS_PAYLOAD);
+  if (url === '/api/graph') {
+    // show-queued: the graph arrives late so a request can be made before it loads.
+    if (mode === 'show-queued') await new Promise((r) => setTimeout(r, 120));
+    return respond(200, { nodes: NODES, edges: EDGES });
+  }
+  if (url === '/api/graph/groups' && usesFocusFixture) return respond(200, FOCUS_PAYLOAD);
   if (url === '/api/graph/groups' && isControl) return respond(200, controlPayload(mode !== 'control-nocomm'));
   if (url === '/api/graph/groups' && isRegions) return respond(200, REGIONS_PAYLOAD);
   if (url === '/api/graph/groups' && isGroups) return respond(200, GROUPS_PAYLOAD);
@@ -462,6 +482,13 @@ const graph = await import(pathToFileURL(graphJs).href);
 
 // argv[3], when given, is passed as opts.groupLoadFailure (standalone page override).
 await graph.initGraph(process.argv[3] ? { groupLoadFailure: process.argv[3] } : {});
+// show-queued: requests made while the graph is still loading (two, last wins).
+let debugAtDispatch = 'n/a';
+if (mode === 'show-queued') {
+  debugAtDispatch = window._graphDebug;
+  window.dispatchEvent(new CustomEvent('graph-show-types', { detail: { types: ['COMPOUND'] } }));
+  window.dispatchEvent(new CustomEvent('graph-show-types', { detail: { types: ['DISEASE'] } }));
+}
 // Let loadGraphData's fetches and buildGraph settle.
 for (let i = 0; i < 20; i++) await new Promise((r) => setTimeout(r, 0));
 // The real vis always reports the initial layout done; modes that do not
@@ -923,6 +950,200 @@ if (isControl) {
   process.exit(failed.length ? 1 : 0);
 }
 
+
+if (isShow) {
+  const passed = [];
+  const failed = [];
+  const check = (name, cond, detail = '') => {
+    if (cond) passed.push(name); else failed.push({ name, detail: JSON.stringify(detail) });
+  };
+  const nodeSet = () => [...datasets].reverse().find((d) => [...d.items.values()].some((i) => 'label' in i && !('from' in i)));
+  const dataNodes = () => [...nodeSet().items.values()].filter((n) => !n._anchor);
+  const visibleIds = () => dataNodes().filter((n) => n.hidden !== true).map((n) => n.id).sort();
+  const sorted = (ids) => [...ids].sort();
+  const same = (a, b) => JSON.stringify(sorted(a)) === JSON.stringify(sorted(b));
+  const idsOfType = (type) => FOCUS_NODES.filter((n) => n.entity_type === type).map((n) => n.id);
+  const NON_SOURCE = FOCUS_NODES.filter((n) => n.entity_type !== 'DOCUMENT').map((n) => n.id);
+  const winEvent = (type, detail) => window.dispatchEvent(new CustomEvent(type, { detail }));
+  const show = (detail) => winEvent('graph-show-types', detail);
+  const status = () => document.getElementById('graph-sources-status').textContent;
+  const sourcesBtn = document.getElementById('graph-show-sources-btn');
+  const chips = () => document.getElementById('entity-toggles').children
+    .filter((c) => c.getAttribute && c.getAttribute('data-type') !== null);
+  const pressedTypes = () => chips().filter((c) => c.getAttribute('aria-pressed') === 'true').map((c) => c.getAttribute('data-type')).sort();
+  const lastFit = () => [...calls].reverse().find((c) => c.kind === 'fit' && c.opts && Array.isArray(c.opts.nodes));
+  const settle = () => { for (const fn of [...(handlers.get('stabilizationIterationsDone') || [])]) fn(); };
+  const NON_SOURCE_TYPES = ['COMPOUND', 'DISEASE', 'UNKNOWN'];
+  const DEFAULT_STATUS = `Showing the default graph: ${NON_SOURCE.length} entities.`;
+  const dbl = (id) => { for (const fn of handlers.get('doubleClick') || []) fn({ nodes: [id], edges: [] }); };
+
+  if (mode === 'show-queued') {
+    check('the graph had not loaded when the requests were made', debugAtDispatch === undefined, typeof debugAtDispatch);
+    await tick(250);
+  }
+  settle();
+  await tick();
+  winEvent('graph-panel-opened');
+
+  if (mode === 'show-solo') {
+    calls.length = 0;
+    show({ types: ['DISEASE'] });
+    await tick();
+    check('only the chosen type is visible', same(visibleIds(), idsOfType('DISEASE')), visibleIds());
+    check('only its chip is pressed', JSON.stringify(pressedTypes()) === JSON.stringify(['DISEASE']), pressedTypes());
+    check('Show sources is not pressed', sourcesBtn.getAttribute('aria-pressed') === 'false', sourcesBtn.getAttribute('aria-pressed'));
+    check('the arrival is announced', status() === 'Showing 2 Disease nodes. Use the legend to show other types.', status());
+    check('the view is fitted to the visible nodes', lastFit() && same(lastFit().opts.nodes, idsOfType('DISEASE')), lastFit());
+  }
+
+  if (mode === 'show-repeat') {
+    show({ types: ['DISEASE'] });
+    await tick();
+    show({ types: ['COMPOUND'] });
+    await tick();
+    check('the second request replaces the first', same(visibleIds(), idsOfType('COMPOUND')), visibleIds());
+    check('only the second chip is pressed', JSON.stringify(pressedTypes()) === JSON.stringify(['COMPOUND']), pressedTypes());
+    show({ types: ['COMPOUND'] });
+    await tick();
+    check('repeating a request does not accumulate', same(visibleIds(), idsOfType('COMPOUND')) && JSON.stringify(pressedTypes()) === JSON.stringify(['COMPOUND']));
+  }
+
+  if (mode === 'show-source') {
+    show({ types: ['DOCUMENT'] });
+    await tick();
+    check('only the source nodes are visible', same(visibleIds(), ['s1']), visibleIds());
+    check('Show sources is pressed', sourcesBtn.getAttribute('aria-pressed') === 'true', sourcesBtn.getAttribute('aria-pressed'));
+    check('only the source chip is pressed', JSON.stringify(pressedTypes()) === JSON.stringify(['DOCUMENT']), pressedTypes());
+    check('a single node is announced in the singular', status() === 'Showing 1 Document node. Use the legend to show other types.', status());
+  }
+
+  if (mode === 'show-reset') {
+    show({ types: ['DISEASE'] });
+    await tick();
+    show({ reset: true });
+    await tick();
+    check('every non-source node is visible', same(visibleIds(), NON_SOURCE), visibleIds());
+    check('sources are hidden', !visibleIds().includes('s1') && sourcesBtn.getAttribute('aria-pressed') === 'false');
+    check('every non-source chip is pressed and the source chip is not', JSON.stringify(pressedTypes()) === JSON.stringify(NON_SOURCE_TYPES), pressedTypes());
+    check('the default view is announced', status() === DEFAULT_STATUS, status());
+    check('the view is fitted to the visible nodes', lastFit() && same(lastFit().opts.nodes, NON_SOURCE), lastFit());
+    show({ types: ['DOCUMENT'] });
+    await tick();
+    show({ reset: true });
+    await tick();
+    check('reset after a source solo hides sources again', same(visibleIds(), NON_SOURCE), visibleIds());
+  }
+
+  if (mode === 'show-unknown') {
+    show({ types: ['NOPE'] });
+    await tick();
+    check('an unknown type shows the default view', same(visibleIds(), NON_SOURCE), visibleIds());
+    check('the fallback is announced', status() === 'No NOPE nodes found. Showing the default graph.', status());
+    show({ types: ['DISEASE'] });
+    await tick();
+    show({ types: 'DISEASE' });
+    await tick();
+    check('a non-array types value shows the default view', same(visibleIds(), NON_SOURCE), visibleIds());
+    show({ types: ['DISEASE'] });
+    await tick();
+    show({});
+    await tick();
+    check('an empty detail shows the default view', same(visibleIds(), NON_SOURCE), visibleIds());
+    show({ types: ['DISEASE'] });
+    await tick();
+    show(null);
+    await tick();
+    check('a missing detail shows the default view', same(visibleIds(), NON_SOURCE), visibleIds());
+    show({ types: [{ evil: true }, 7, null] });
+    await tick();
+    check('non-string entries show the default view', visibleIds().length > 0 && same(visibleIds(), NON_SOURCE), visibleIds());
+    show({ types: ['UNKNOWN'] });
+    await tick();
+    check('a legend type with no nodes shows the default view, never an empty graph', visibleIds().length > 0, visibleIds());
+    show({ types: ['NOPE', 'DISEASE'] });
+    await tick();
+    check('unknown entries are ignored when a known type is present', same(visibleIds(), idsOfType('DISEASE')), visibleIds());
+  }
+
+  if (mode === 'show-resets') {
+    const search = document.getElementById('graph-search');
+    const severity = document.getElementById('severity-filter');
+    const slider = document.getElementById('min-degree-slider');
+    const readout = document.getElementById('min-degree-value');
+    dbl('hub');
+    await tick();
+    search.value = 'core';
+    search.dispatch('input');
+    severity.value = 'critical';
+    severity.dispatch('change');
+    slider.value = '1';
+    slider.dispatch('input');
+    await tick();
+    check('setup: focus, search and min-degree are active', window._graphDebug.focus().size > 0 && readout.textContent === '1'
+      && same(visibleIds(), ['hub', 'n1', 'n2']), { focus: window._graphDebug.focus(), visible: visibleIds() });
+    show({ types: ['DISEASE'] });
+    await tick();
+    check('search is cleared', search.value === '', search.value);
+    check('severity is back to all', severity.value === 'all', severity.value);
+    check('min-degree slider is back to 0', slider.value === '0' && readout.textContent === '0', [slider.value, readout.textContent]);
+    check('focus is exited', window._graphDebug.focus().size === 0 && window._graphDebug.focus().stack.length === 0, window._graphDebug.focus());
+    check('exactly the chosen type is visible', same(visibleIds(), idsOfType('DISEASE')), visibleIds());
+    check('the arrival is announced last', status() === 'Showing 2 Disease nodes. Use the legend to show other types.', status());
+    // Edge-only filters and grouping stay as the user set them.
+    check('grouping is unchanged', window._graphDebug.mode === 'cluster', window._graphDebug.mode);
+  }
+
+  if (mode === 'show-queued') {
+    check('the last queued request wins', same(visibleIds(), idsOfType('DISEASE')), visibleIds());
+    check('its chip is the only one pressed', JSON.stringify(pressedTypes()) === JSON.stringify(['DISEASE']), pressedTypes());
+    check('the queued arrival is announced', status() === 'Showing 2 Disease nodes. Use the legend to show other types.', status());
+  }
+
+  if (mode === 'show-nodisplay') {
+    check('setup: no legend chips without display data', chips().length === 0, chips().length);
+    let threw = null;
+    try {
+      show({ types: ['DISEASE'] });
+      await tick();
+    } catch (e) {
+      threw = String(e);
+    }
+    check('the request does not throw', threw === null, threw);
+    check('the default view is shown', same(visibleIds(), NON_SOURCE), visibleIds());
+    check('sources stay hidden', !visibleIds().includes('s1'), visibleIds());
+    check('the default view is announced', status() === DEFAULT_STATUS, status());
+  }
+
+  if (mode === 'show-during-relayout') {
+    dbl('hub');
+    await tick();
+    const depth = () => window._graphDebug.focus().stack.length;
+    check('setup: focused on the hub', depth() === 1 && same(visibleIds(), ['hub', 'n1', 'n2', 'n3']), visibleIds());
+    const emitDone = () => {
+      const fns = [...(handlers.get('stabilizationIterationsDone') || [])];
+      for (const fn of fns) {
+        if (onceFns.has(fn)) handlers.set('stabilizationIterationsDone', handlers.get('stabilizationIterationsDone').filter((h) => h !== fn));
+        fn();
+      }
+    };
+    groupButtons.family.dispatch('click');
+    await tick();
+    check('setup: a relayout is running', window._graphDebug.busy === true);
+    show({ types: ['DISEASE'] });
+    await tick();
+    check('the request waits: focus is kept', depth() === 1, depth());
+    check('the request waits: nothing changed', same(visibleIds(), ['hub', 'n1', 'n2', 'n3']) && !pressedTypes().every((t) => t === 'DISEASE'), { visible: visibleIds(), pressed: pressedTypes() });
+    emitDone();
+    await tick(120);
+    check('the relayout completed', window._graphDebug.busy === false && window._graphDebug.mode === 'family', window._graphDebug.mode);
+    check('the request is applied once the relayout ends', depth() === 0 && same(visibleIds(), idsOfType('DISEASE')), { depth: depth(), visible: visibleIds() });
+    check('its chip is the only one pressed', JSON.stringify(pressedTypes()) === JSON.stringify(['DISEASE']), pressedTypes());
+    check('the deferred arrival is announced', status() === 'Showing 2 Disease nodes. Use the legend to show other types.', status());
+  }
+
+  process.stdout.write(JSON.stringify({ passed, failed }) + '\n');
+  process.exit(failed.length ? 1 : 0);
+}
 
 if (isFocus) {
   const passed = [];
