@@ -8,8 +8,11 @@ Each source document of a graph becomes one row::
 document in ``source_documents`` (entities linked to ``doc:<id>`` by a
 ``MENTIONED_IN`` edge count as well). ``relation_count`` is the number of
 distinct knowledge relations attributed to the document through
-``source_document``, ``support_documents`` or ``mentions[].source_document``;
-provenance edges never count. A document that the graph references but that has
+``source_document``, ``support_documents`` or ``mentions[].source_document``.
+Provenance never counts: ``MENTIONED_IN`` and ``PUBLISHED_IN`` edges are
+skipped, and so is any link whose source or target is a source node (a
+``doc:<id>`` node or a DOCUMENT/PUBLICATION node), matching the entity rule.
+A document that the graph references but that has
 no ingested text is still listed, with ``has_text`` false.
 
 This module is pure: no FastAPI, no file or network access. It never raises;
@@ -146,6 +149,10 @@ def build_document_stats(
                     entities.setdefault(doc_id, set()).add(entity)
             continue
         if rtype in EXCLUDED_RELATIONS:
+            continue
+        ends = (_endpoint(link.get("source")), _endpoint(link.get("target")))
+        if any(end in source_ids or end.startswith(DOC_PREFIX) for end in ends):
+            # A link that touches a source node is provenance, not knowledge.
             continue
         key = _relation_key(link, rtype)
         if not key:

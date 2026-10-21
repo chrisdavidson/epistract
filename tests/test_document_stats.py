@@ -63,13 +63,20 @@ def _recount(corpus: Path) -> dict[str, tuple[int, int]]:
     graph = json.loads((corpus / "graph_data.json").read_text())
     entities: dict[str, set] = {}
     relations: dict[str, set] = {}
+    sources = {
+        n["id"]
+        for n in graph["nodes"]
+        if n.get("entity_type") in ("DOCUMENT", "PUBLICATION") or n["id"].startswith("doc:")
+    }
     for node in graph["nodes"]:
-        if node.get("entity_type") in ("DOCUMENT", "PUBLICATION"):
+        if node["id"] in sources:
             continue
         for doc in node.get("source_documents") or []:
             entities.setdefault(doc, set()).add(node["id"])
     for link in graph["links"]:
         if link["relation_type"] in ("MENTIONED_IN", "PUBLISHED_IN"):
+            continue
+        if link["source"] in sources or link["target"] in sources:
             continue
         docs = set(link.get("support_documents") or [])
         if link.get("source_document"):
@@ -93,6 +100,28 @@ def test_glp1_v3_matches_independent_recount():
         assert (row["entity_count"], row["relation_count"]) == want, row["doc_id"]
     assert max(r["entity_count"] for r in rows) > 0
     assert sum(r["relation_count"] for r in rows) > 0
+
+
+def test_glp1_v3_links_touching_source_nodes_are_not_counted():
+    """GLP-1 v3 has 10 knowledge-typed links to a document/publication node
+    (9 DEVELOPES, 1 ASSOCIATED_WITH); none of them adds to relation_count."""
+    graph = json.loads((GLP1 / "graph_data.json").read_text())
+    sources = {
+        n["id"]
+        for n in graph["nodes"]
+        if n.get("entity_type") in ("DOCUMENT", "PUBLICATION") or n["id"].startswith("doc:")
+    }
+    touching = [
+        link
+        for link in graph["links"]
+        if link["relation_type"] not in ("MENTIONED_IN", "PUBLISHED_IN")
+        and (link["source"] in sources or link["target"] in sources)
+    ]
+    assert len(touching) == 10, len(touching)
+    data, nodes, links = _loaded(GLP1)
+    rows = _build(data.documents, nodes, links)
+    kept = _build(data.documents, nodes, [link for link in links if link not in touching])
+    assert [r["relation_count"] for r in rows] == [r["relation_count"] for r in kept]
 
 
 def test_glp1_v3_sorted_by_entities_then_name_then_id():
@@ -199,6 +228,39 @@ def test_published_in_and_mentioned_in_never_count_as_relations():
         {"source": "e1", "target": "e2", "relation_type": "TREATS", "source_document": "a"},
     ]
     assert _by_id(_build([_doc("a")], [], links))["a"]["relation_count"] == 1
+
+
+def test_links_touching_source_nodes_never_count_as_relations():
+    nodes = [
+        {"id": "doc:a", "entity_type": "DOCUMENT"},
+        {"id": "publication:p", "entity_type": "PUBLICATION"},
+        {"id": "e1", "entity_type": "DRUG", "source_documents": ["a"]},
+        {"id": "e2", "entity_type": "DISEASE", "source_documents": ["a"]},
+    ]
+    links = [
+        {"source": "e1", "target": "doc:a", "relation_type": "DEVELOPES", "source_document": "a"},
+        {
+            "source": "publication:p",
+            "target": "e1",
+            "relation_type": "ASSOCIATED_WITH",
+            "source_document": "a",
+        },
+        {
+            "source": "doc:unlisted",
+            "target": "e2",
+            "relation_type": "TREATS",
+            "source_document": "a",
+        },
+        {
+            "source": {"id": "e1"},
+            "target": {"id": "doc:a"},
+            "relation_type": "CITES",
+            "source_document": "a",
+        },
+        {"source": "e1", "target": "e2", "relation_type": "TREATS", "source_document": "a"},
+    ]
+    row = _by_id(_build([_doc("a")], nodes, links))["a"]
+    assert (row["entity_count"], row["relation_count"]) == (2, 1)
 
 
 def test_source_nodes_and_doc_prefixed_ids_never_count_as_entities():
