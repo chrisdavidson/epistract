@@ -2861,6 +2861,11 @@ function resetNodeFilters() {
     if (focusStack.length > 0) exitFocus();
     // The arrival frames a new node set: the zoomed-to group no longer applies.
     clearActiveRegion();
+    // Nor does the selection detail: the sidebar node (or pinned card) may now
+    // be filtered out, and an open sidebar would also squeeze the caller's fit.
+    pinnedCardNodeId = null;
+    hideCard();
+    hideSidebar();
 }
 
 // A node filter the user changes directly is newer than a Dashboard request
