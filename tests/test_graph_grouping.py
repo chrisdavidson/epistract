@@ -110,6 +110,18 @@ def test_group_control_load_failure():
     assert ctl["after"]["none"] == "true", ctl
 
 
+def test_group_load_failure_reason_override():
+    """The standalone page may replace the failure reason; the default is unchanged."""
+    custom = "Grouping data is missing from this file. Run /epistract:view again."
+    out = _run("graph_filter_harness.mjs", "ok", custom)
+    ctl = out["groupControl"]
+    assert ctl["titles"]["cluster"] == custom and ctl["titles"]["family"] == custom, ctl
+    assert "Reload the page" not in ctl["hint"], ctl
+    assert ctl["hint"] == f"Topic cluster: {custom} Entity family: {custom}", ctl
+    default = _run("graph_filter_harness.mjs", "ok")["groupControl"]
+    assert default["titles"]["cluster"] == "Grouping data didn't load. Reload the page to try again."
+
+
 def test_group_relayout_failure():
     _passed(_run("graph_filter_harness.mjs", "control-fail"), 12)
 

@@ -333,3 +333,26 @@ def test_source_highlight_no_unbounded_spread():
         "spreading buildHighlightedNodes() into replaceChildren() throws "
         "RangeError on large documents -- append via a fragment loop"
     )
+
+
+# -- Standalone graph.html scripts ------------------------------------------
+# The classic scripts emitted from Python and the standalone entry module must
+# not contain any markup-writing or code-evaluating construct.
+
+
+@pytest.mark.unit
+def test_static_page_scripts_have_no_dangerous_sinks():
+    from examples.workbench import static_export
+
+    sources = {
+        "FETCH_SHIM": static_export.FETCH_SHIM,
+        "FAILURE_FALLBACK": static_export.FAILURE_FALLBACK,
+        "static_view.js": (WORKBENCH_STATIC / "static_view.js").read_text(encoding="utf-8"),
+    }
+    banned = re.compile(
+        r"innerHTML|outerHTML|insertAdjacentHTML|\beval\s*\(|new\s+Function|document\.write"
+        r"|javascript:|\.on[a-z]+\s*=|\bon[a-z]+\s*=\s*[\"']"
+    )
+    for name, text in sources.items():
+        hits = banned.findall(text)
+        assert not hits, f"{name} contains a banned construct: {hits}"

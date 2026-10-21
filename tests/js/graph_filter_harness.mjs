@@ -460,7 +460,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const graphJs = path.resolve(here, '..', '..', 'examples', 'workbench', 'static', 'graph.js');
 const graph = await import(pathToFileURL(graphJs).href);
 
-await graph.initGraph({});
+// argv[3], when given, is passed as opts.groupLoadFailure (standalone page override).
+await graph.initGraph(process.argv[3] ? { groupLoadFailure: process.argv[3] } : {});
 // Let loadGraphData's fetches and buildGraph settle.
 for (let i = 0; i < 20; i++) await new Promise((r) => setTimeout(r, 0));
 // The real vis always reports the initial layout done; modes that do not

@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from core import run_sift
+from examples.workbench import static_export
 
 NODE = shutil.which("node")
 CHROMIUM = shutil.which("chromium") or shutil.which("chromium-browser")
@@ -91,3 +92,88 @@ def test_compact_layout_filters_tab_order_print_and_motion(chromium_port, glp1_h
     shots.mkdir()
     result = _run(chromium_port, glp1_html.as_uri(), "layout", shots)
     assert result["passed"] >= 20, result
+
+
+# ---------------------------------------------------------------------------
+# Failure, partial-data and empty states
+# ---------------------------------------------------------------------------
+
+NO_JS_TITLE = "JavaScript is required"
+NO_JS_BODY = (
+    "This graph viewer draws the graph in your browser. Turn on JavaScript for "
+    "this file and reload. Nothing is sent over the network."
+)
+
+
+def _doctored_page(glp1_dir: Path, mode: str) -> str:
+    view = static_export.build_view_data(glp1_dir)
+    payload = dict(view["payload"])
+    kwargs = {"title": view["title"], "stats": view["stats"], "subset": view["subset"]}
+    if mode == "no-graph":
+        del payload["/api/graph"]
+    elif mode == "no-groups":
+        del payload["/api/graph/groups"]
+    elif mode == "no-display":
+        del payload["/api/graph/entity-types"]
+    page = static_export.build_static_html(payload=payload, **kwargs)
+    if mode == "bad-json":
+        start = page.index('id="epistract-data">') + len('id="epistract-data">')
+        end = page.index("</script>", start)
+        page = page[:start] + "{not json" + page[end:]
+    elif mode == "script-error":
+        marker = '<script type="module">\n'
+        assert marker in page
+        page = page.replace(marker, marker + "throw new Error('x');\n", 1)
+    return page
+
+
+@pytest.fixture(scope="module")
+def glp1_dir(tmp_path_factory):
+    work = tmp_path_factory.mktemp("glp1-doctored")
+    for name in GLP1_FILES:
+        shutil.copy2(GLP1 / name, work / name)
+    return work
+
+
+@pytest.mark.parametrize("mode", ["no-graph", "bad-json", "no-groups", "no-display", "script-error"])
+def test_standalone_failure_and_partial_data_states(chromium_port, glp1_dir, tmp_path, mode):
+    page = tmp_path / f"{mode}.html"
+    page.write_text(_doctored_page(glp1_dir, mode), encoding="utf-8")
+    shots = tmp_path / "shots"
+    shots.mkdir()
+    result = _run(chromium_port, page.as_uri(), mode, shots)
+    assert result["passed"] >= 3, result
+
+
+def test_standalone_empty_graph_state(chromium_port, tmp_path):
+    (tmp_path / "graph_data.json").write_text(
+        json.dumps({"nodes": [], "links": []}), encoding="utf-8"
+    )
+    run_sift.cmd_view(str(tmp_path), open_browser=False)
+    shots = tmp_path / "shots"
+    shots.mkdir()
+    result = _run(chromium_port, (tmp_path / "graph.html").as_uri(), "empty", shots)
+    assert result["passed"] >= 3, result
+
+
+def test_noscript_card_shows_with_javascript_off(glp1_html):
+    text = glp1_html.read_text(encoding="utf-8")
+    assert "<noscript>" in text
+    proc = subprocess.run(
+        [
+            CHROMIUM,
+            "--headless=new",
+            "--no-sandbox",
+            "--disable-gpu",
+            "--blink-settings=scriptEnabled=false",
+            "--dump-dom",
+            glp1_html.as_uri(),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    dom = proc.stdout
+    assert "<h1" in dom, dom[:300]
+    assert NO_JS_TITLE in dom and NO_JS_BODY in dom
+    assert "Failed to load" not in dom

@@ -273,9 +273,120 @@ async function layout() {
   await s.done();
 }
 
+const CARD_TITLE = "This graph couldn't be loaded";
+const CARD_DAMAGED = 'The data in this file is missing or damaged. Run /epistract:view again to regenerate graph.html.';
+const CARD_SCRIPT = 'Your browser could not run the graph script. Try a current version of Chrome, Edge, Firefox or Safari, or regenerate the file with /epistract:view.';
+const EMPTY_BODY = 'This graph has no nodes yet. Run /epistract:ingest to add documents, then run /epistract:view again.';
+const GROUP_MISSING = 'Grouping data is missing from this file. Run /epistract:view again.';
+const DISPLAY_MISSING = 'Some display data is missing from this file. Run /epistract:view again to regenerate it.';
+
+async function open(mode) {
+  const s = await session();
+  await s.viewport(1440, 1000);
+  await s.send('Page.navigate', { url: URL_ });
+  if (mode === 'no-groups' || mode === 'no-display') await s.waitSettled();
+  else await sleep(3000);
+  return s;
+}
+
+const cardState = `(() => { const a = document.querySelector('[role="alert"]');
+  const vis = (sel) => { const e = document.querySelector(sel);
+    if (!e) return 'absent'; const r = e.getBoundingClientRect();
+    return (r.width > 0 && r.height > 0 && getComputedStyle(e).display !== 'none') ? 'shown' : 'hidden'; };
+  return { text: a ? a.textContent : null, count: document.querySelectorAll('[role="alert"]').length,
+    heading: a ? (a.querySelector('h2') || {}).textContent : null,
+    filters: vis('#static-filters-btn'), toolbar: vis('.graph-toolbar'), legend: vis('#entity-toggles'),
+    h1: (document.querySelector('.static-header h1') || {}).textContent }; })()`;
+
+async function brokenPayload(mode) {
+  const s = await open(mode);
+  const st = await s.ev(cardState);
+  check(`${mode}: alert card with heading`, st.text && st.heading === CARD_TITLE && st.count === 1, st);
+  check(`${mode}: damaged-file body and regenerate hint`, st.text && st.text.includes(CARD_DAMAGED), st.text);
+  check(`${mode}: no Filters button, toolbar or legend`,
+    st.filters === 'absent' && st.toolbar !== 'shown' && st.legend !== 'shown', st);
+  check(`${mode}: header still shows`, Boolean(st.h1), st.h1);
+  const exc = s.errors.filter((e) => e.startsWith('EXC') || e.startsWith('eval'));
+  const logged = s.errors.filter((e) => e.startsWith('console.error'));
+  check(`${mode}: no exception loop`, exc.length === 0, exc.slice(0, 3));
+  check(`${mode}: a single console.error`, logged.length <= 1, logged);
+  await s.shot(`phase5-${mode}.png`);
+  await s.done();
+}
+
+async function scriptError() {
+  const s = await open('script-error');
+  const st = await s.ev(cardState);
+  check('script-error: alert card with heading', st.text && st.heading === CARD_TITLE && st.count === 1, st);
+  check('script-error: script-failure body', st.text && st.text.includes(CARD_SCRIPT), st.text);
+  check('script-error: no Filters button', st.filters === 'absent', st);
+  const exc = s.errors.filter((e) => e.startsWith('EXC'));
+  check('script-error: only the one thrown error', exc.length <= 1, exc);
+  await s.shot('phase5-script-error.png');
+  await s.done();
+}
+
+async function noGroups() {
+  const s = await open('no-groups');
+  const st = await s.ev(`(() => { const r = (m) => document.querySelector('#graph-group [data-mode="' + m + '"]');
+    return { mode: window._graphDebug.mode,
+      cluster: r('cluster').getAttribute('aria-disabled'), family: r('family').getAttribute('aria-disabled'),
+      none: r('none').getAttribute('aria-checked'),
+      title: r('cluster').getAttribute('title'),
+      hint: document.getElementById('graph-group-hint').textContent }; })()`);
+  check('no-groups: mode None selected', st.mode === 'none' && st.none === 'true', st);
+  check('no-groups: cluster and family disabled', st.cluster === 'true' && st.family === 'true', st);
+  check('no-groups: standalone hint', st.hint.includes(GROUP_MISSING) && !st.hint.includes('Reload the page'), st.hint);
+  check('no-groups: standalone title', st.title === GROUP_MISSING, st.title);
+  check('no-groups: no alert and no errors', (await s.ev(`document.querySelectorAll('[role="alert"]').length`)) === 0 && s.errors.length === 0, s.errors.slice(0, 3));
+  await s.done();
+}
+
+async function noDisplay() {
+  const s = await open('no-display');
+  const st = await s.ev(`(() => { const status = document.querySelector('.static-header [role="status"]');
+    const legend = document.getElementById('entity-toggles');
+    return { status: status ? status.textContent : null, legend: legend ? legend.textContent : null,
+      alert: document.querySelectorAll('[role="alert"]').length }; })()`);
+  check('no-display: header status line', st.status === DISPLAY_MISSING, st.status);
+  check('no-display: legend shows an error message', st.legend && /entity types?/i.test(st.legend) && st.legend.length > 20, st.legend);
+  check('no-display: no graph-failure card', st.alert === 0, st);
+  const hidden0 = await s.ev(`window._graphDebug.dataNodes().filter((n) => n.hidden).length`);
+  await s.ev(`document.getElementById('graph-show-sources-btn').click()`);
+  await sleep(800);
+  const hidden1 = await s.ev(`window._graphDebug.dataNodes().filter((n) => n.hidden).length`);
+  check('no-display: Show sources still toggles', hidden1 !== hidden0 || (await s.ev(`document.getElementById('graph-show-sources-btn').getAttribute('aria-pressed')`)) === 'true', [hidden0, hidden1]);
+  const exc = s.errors.filter((e) => e.startsWith('EXC') || e.startsWith('eval'));
+  check('no-display: no exceptions', exc.length === 0, exc.slice(0, 3));
+  await s.done();
+}
+
+async function emptyGraph() {
+  const s = await open('empty');
+  const st = await s.ev(`(() => { const c = document.getElementById('graph-container');
+    const h = c && c.querySelector('h2'); const p = c && c.querySelector('p');
+    return { heading: h ? h.textContent : null, body: p ? p.textContent : null,
+      filters: !!document.getElementById('static-filters-btn') }; })()`);
+  check('empty: heading', st.heading === 'No nodes to show', st);
+  check('empty: ingest next step', st.body === EMPTY_BODY, st.body);
+  check('empty: Filters button exists', st.filters, st);
+  const exc = s.errors.filter((e) => e.startsWith('EXC') || e.startsWith('eval'));
+  check('empty: no exceptions', exc.length === 0, exc.slice(0, 3));
+  await s.shot('phase5-empty.png');
+  await s.done();
+}
+
 if (MODE === 'layout') {
   try {
     await layout();
+  } catch (err) {
+    check('script ran to completion', false, String(err && err.message).slice(0, 200));
+  }
+} else if (['no-graph', 'bad-json', 'script-error', 'no-groups', 'no-display', 'empty'].includes(MODE)) {
+  try {
+    const run = { 'no-graph': brokenPayload, 'bad-json': brokenPayload, 'script-error': scriptError,
+      'no-groups': noGroups, 'no-display': noDisplay, empty: emptyGraph }[MODE];
+    await run(MODE);
   } catch (err) {
     check('script ran to completion', false, String(err && err.message).slice(0, 200));
   }
