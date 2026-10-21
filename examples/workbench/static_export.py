@@ -52,6 +52,13 @@ EXPORT_DECL = re.compile(
 )
 MODULE_STMT = re.compile(r"^[ \t]*(?:import|export)(?![\w$])", re.M)
 IDENT = re.compile(r"[A-Za-z_$][\w$]*")
+# A top-level declaration: column 0 (the modules indent nested code), optionally
+# exported. Group 1 is the declared name, or None for destructuring.
+TOP_DECL = re.compile(
+    r"^(?:export[ \t]+)?(?:async[ \t]+function\*?|function\*?|const|let|var|class)"
+    r"[ \t]*(?:([A-Za-z_$][\w$]*)|[\[{])",
+    re.M,
+)
 SCRIPT_CLOSE = re.compile(r"</(script)", re.I)
 STYLE_CLOSE = re.compile(r"</(style)", re.I)
 
@@ -198,6 +205,25 @@ def _parse_module(source: str, name: str) -> tuple[str, list[str]]:
     return "".join(out), deps
 
 
+def _top_level_names(source: str, name: str) -> list[tuple[str, int]]:
+    """Return ``(identifier, line)`` for each top-level declaration in a module.
+
+    Raises:
+        ValueError: On a top-level destructuring declaration, whose names this
+            check cannot see.
+    """
+    found = []
+    for m in TOP_DECL.finditer(source):
+        line_no = source.count("\n", 0, m.start()) + 1
+        if m.group(1) is None:
+            raise ValueError(
+                f"static bundle: {name}:{line_no}: top-level destructuring is not "
+                "supported (names cannot be checked for collisions)"
+            )
+        found.append((m.group(1), line_no))
+    return found
+
+
 def bundle_modules(static_dir: Path, entry: str = "graph.js") -> str:
     """Concatenate ``entry`` and its relative imports into one module body.
 
@@ -215,8 +241,8 @@ def bundle_modules(static_dir: Path, entry: str = "graph.js") -> str:
         ``</script`` escaped so it can sit inside an inline module script.
 
     Raises:
-        ValueError: On an import cycle or import/export syntax this bundler
-            does not understand.
+        ValueError: On an import cycle, import/export syntax this bundler
+            does not understand, or a top-level name declared in two modules.
     """
     order: list[str] = []
     visiting: list[str] = []
@@ -230,13 +256,26 @@ def bundle_modules(static_dir: Path, entry: str = "graph.js") -> str:
         source = (static_dir / name).read_text(encoding="utf-8")
         body, deps = _parse_module(source, name)
         bodies[name] = body
+        names[name] = _top_level_names(source, name)
         for dep in deps:
             visit(dep)
         visiting.pop()
         order.append(name)
 
     bodies: dict[str, str] = {}
+    names: dict[str, list[tuple[str, int]]] = {}
     visit(entry)
+    # All modules share one scope in the bundle, so a name declared twice would
+    # be a SyntaxError at page load; fail here with both locations instead.
+    declared: dict[str, str] = {}
+    for module in order:
+        for ident, line_no in names[module]:
+            where = f"{module}:{line_no}"
+            if ident in declared:
+                raise ValueError(
+                    f"static bundle: {ident!r} declared in {declared[ident]} and {where}"
+                )
+            declared[ident] = where
     bundle = "\n".join(f"// ---- {name} ----\n" + bodies[name] for name in order)
     return SCRIPT_CLOSE.sub(r"<\\/\1", bundle)
 

@@ -101,3 +101,33 @@ def test_workbench_static_bundle_still_builds():
         "static_view.js",
     ):
         assert f"// ---- {name} ----" in bundle, name
+
+
+@pytest.mark.parametrize(
+    "dep,entry_decl",
+    [
+        ("export function a() {}\nfunction byId(x) { return x; }\n", "function byId(y) {}"),
+        ("export function a() {}\nconst DEBOUNCE_MS = 100;\n", "let DEBOUNCE_MS = 5;"),
+        ("export function a() {}\nexport class Box {}\n", "async function Box() {}"),
+    ],
+)
+def test_duplicate_top_level_names_across_modules_raise_with_both_locations(
+    tmp_path, dep, entry_decl
+):
+    source = f"import {{ a }} from './a.js';\n\n{entry_decl}\n"
+    with pytest.raises(ValueError, match=r"declared in a\.js:2 and entry\.js:3"):
+        _bundle(tmp_path, source, dep=dep)
+
+
+def test_nested_declarations_with_same_name_are_allowed(tmp_path):
+    source = (
+        "import { a } from './a.js';\n"
+        "function outer() {\n    const b = 3;\n    function a2() {}\n    return b + a2;\n}\n"
+    )
+    assert "function outer()" in _bundle(tmp_path, source)
+
+
+def test_top_level_destructuring_is_rejected(tmp_path):
+    source = "import { a } from './a.js';\nconst { x, y } = a();\n"
+    with pytest.raises(ValueError, match=r"entry\.js:2"):
+        _bundle(tmp_path, source)
