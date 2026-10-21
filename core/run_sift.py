@@ -4,7 +4,8 @@
 Usage:
     python run_sift.py --list-domains
     python run_sift.py build <output_dir> [--domain <name>]
-    python run_sift.py view <output_dir> [--neighborhood <entity>] [--top <n>] [--no-open]
+    python run_sift.py view <output_dir> [--neighborhood <entity>] [--top <n>]
+                              [--depth <d>] [--no-open]
     python run_sift.py export <output_dir> <format>
     python run_sift.py info <output_dir>
     python run_sift.py search <output_dir> <query> [--type TYPE]
@@ -297,21 +298,18 @@ def cmd_view(
         open_browser: Open the written file in the default browser.
 
     Raises:
-        NotImplementedError: When a subset filter is requested.
         FileNotFoundError: When graph_data.json is missing.
+        ValueError: When ``neighborhood`` matches no entity or several.
     """
-    if neighborhood is not None:
-        raise NotImplementedError("view --neighborhood is not supported yet")
-    if top_n is not None:
-        raise NotImplementedError("view --top is not supported yet")
-
     # core/ must not import examples/ at module load; add the project root so the
     # lazy import works regardless of caller cwd.
     if str(_PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(_PROJECT_ROOT))
     from examples.workbench.static_export import write_static_graph
 
-    dest = write_static_graph(Path(output_dir))
+    dest = write_static_graph(
+        Path(output_dir), neighborhood=neighborhood, top_n=top_n, depth=depth
+    )
     print(f"Wrote {dest}")
     if open_browser:
         webbrowser.open(dest.resolve().as_uri())
@@ -377,11 +375,23 @@ if __name__ == "__main__":
         kwargs = {}
         if "--neighborhood" in sys.argv:
             kwargs["neighborhood"] = sys.argv[sys.argv.index("--neighborhood") + 1]
-        if "--top" in sys.argv:
-            kwargs["top_n"] = int(sys.argv[sys.argv.index("--top") + 1])
+        for flag, key in (("--top", "top_n"), ("--depth", "depth")):
+            if flag in sys.argv:
+                try:
+                    kwargs[key] = int(sys.argv[sys.argv.index(flag) + 1])
+                except (ValueError, IndexError):
+                    print(f"Error: {flag} expects an integer", file=sys.stderr)
+                    sys.exit(1)
         if "--no-open" in sys.argv:
             kwargs["open_browser"] = False
-        cmd_view(sys.argv[2], **kwargs)
+        try:
+            cmd_view(sys.argv[2], **kwargs)
+        except ValueError as e:
+            print(f"{e} Pass the exact entity id or name.", file=sys.stderr)
+            sys.exit(1)
+        except FileNotFoundError as e:
+            print(e, file=sys.stderr)
+            sys.exit(1)
     elif cmd == "export":
         cmd_export(sys.argv[2], sys.argv[3])
     elif cmd == "info":

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 
-from core.graph_display import entity_type_key
+from core.graph_display import entity_type_key, is_source_edge
 
 
 def json_for_script(value: object) -> str:
@@ -109,3 +109,116 @@ def claims_payload(claims_layer: dict) -> dict:
         "custom_findings": custom_findings,
         "findings": flattened,
     }
+
+
+def subset_graph(
+    nodes: list[dict],
+    links: list[dict],
+    display: dict,
+    *,
+    neighborhood: str | None = None,
+    top_n: int | None = None,
+    depth: int = 1,
+) -> tuple[list[dict], list[dict], dict | None]:
+    """Reduce a graph to a neighbourhood or its best-connected entities.
+
+    Mirrors sift-kg's ``filter_graph`` matching and ranking rules, with two
+    deliberate differences: degree and adjacency use knowledge edges only
+    (provenance edges to source nodes never rank a hub or bridge two entities),
+    and every source node attached to a kept node is kept so Show sources still
+    works on the subset. Links whose endpoints are not both kept are dropped.
+    When both filters are given, ``neighborhood`` wins.
+
+    Args:
+        nodes: Graph nodes (``id``, ``name``, ``entity_type``).
+        links: Graph links (``source``, ``target``, ``relation_type``).
+        display: Result of ``core.graph_display.resolve_display`` over the
+            full graph (decides which nodes are sources).
+        neighborhood: Node id, or case-insensitive name, to center on.
+        top_n: Keep the N nodes of highest knowledge degree and their neighbors.
+        depth: Hop radius for ``neighborhood``.
+
+    Returns:
+        ``(kept_nodes, kept_links, info)`` in input order. ``info`` is None
+        without filters, else ``{"mode", "name", "depth", "top_n", "shown",
+        "total"}`` where shown/total count all nodes including sources.
+
+    Raises:
+        ValueError: When ``neighborhood`` matches no node or several nodes.
+    """
+    if neighborhood is None and top_n is None:
+        return nodes, links, None
+
+    types = display.get("types", {})
+    source_ids = {
+        n["id"]
+        for n in nodes
+        if types.get(entity_type_key(n.get("entity_type")), {}).get("is_source")
+    }
+    relations = display.get("relations", {})
+    adjacency: dict[str, set[str]] = {n["id"]: set() for n in nodes}
+    for link in links:
+        src, tgt = link.get("source"), link.get("target")
+        if src not in adjacency or tgt not in adjacency:
+            continue
+        if is_source_edge(link, source_ids, relations):
+            continue
+        adjacency[src].add(tgt)
+        adjacency[tgt].add(src)
+
+    by_id = {n["id"]: n for n in nodes}
+    name: str | None = None
+    if neighborhood is not None:
+        start = neighborhood
+        if start not in by_id:
+            query = neighborhood.lower()
+            matches = [n["id"] for n in nodes if str(n.get("name") or "").lower() == query]
+            if len(matches) == 1:
+                start = matches[0]
+            elif matches:
+                raise ValueError(
+                    f"Multiple entities match {neighborhood!r}: {', '.join(matches)}. "
+                    "Use the full entity ID instead."
+                )
+            else:
+                raise ValueError(
+                    f"Entity {neighborhood!r} not found in graph. "
+                    "Use entity ID (e.g. 'person:alice') or display name."
+                )
+        name = by_id[start].get("name") or start
+        keep = {start}
+        frontier = {start}
+        for _ in range(depth):
+            frontier = {nb for node in frontier for nb in adjacency[node]} - keep
+            keep |= frontier
+        mode = "neighborhood"
+    else:
+        ranked = sorted(
+            (i for i in adjacency if i not in source_ids),
+            key=lambda i: (-len(adjacency[i]), i),
+        )
+        hubs = set(ranked[:top_n])
+        keep = set(hubs)
+        for hub in hubs:
+            keep |= adjacency[hub]
+        mode = "top"
+
+    # Sources attached to any kept node ride along.
+    for link in links:
+        src, tgt = link.get("source"), link.get("target")
+        if src in keep and tgt in source_ids:
+            keep.add(tgt)
+        if tgt in keep and src in source_ids:
+            keep.add(src)
+
+    kept_nodes = [n for n in nodes if n["id"] in keep]
+    kept_links = [lk for lk in links if lk.get("source") in keep and lk.get("target") in keep]
+    info = {
+        "mode": mode,
+        "name": name,
+        "depth": depth,
+        "top_n": top_n if mode == "top" else None,
+        "shown": len(kept_nodes),
+        "total": len(nodes),
+    }
+    return kept_nodes, kept_links, info

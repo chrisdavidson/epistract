@@ -350,11 +350,14 @@ def test_top_page_notice_copy(tmp_path):
     work = _glp1_copy(tmp_path)
     page = _subset_view(work, top_n=10)
     (notice,) = NOTICE_RE.findall(page)
+    shown = len(_island(page)["/api/graph"]["nodes"])
+    # The count itself is pinned against an independent computation in
+    # test_graph_payloads; here the notice must agree with the embedded data.
+    assert 10 < shown < 278
     assert _text(notice) == (
-        "Showing 224 of 278 nodes: the 10 most connected entities and their neighbors. "
+        f"Showing {shown} of 278 nodes: the 10 most connected entities and their neighbors. "
         + FILTER_HINT
     )
-    assert len(_island(page)["/api/graph"]["nodes"]) == 224
 
 
 def test_neighborhood_depth_two_notice_copy(tmp_path):

@@ -18,7 +18,12 @@ from pathlib import Path
 from core.domain_resolver import load_domain_schema
 from core.graph_display import entity_type_key, is_source_edge, resolve_display
 from core.graph_groups import build_groups
-from core.graph_payloads import claims_payload, entity_types_payload, json_for_script
+from core.graph_payloads import (
+    claims_payload,
+    entity_types_payload,
+    json_for_script,
+    subset_graph,
+)
 from examples.workbench.data_loader import WorkbenchData
 from examples.workbench.template_loader import load_template, resolve_domain
 
@@ -30,6 +35,8 @@ STATIC_DIR = Path(__file__).parent / "static"
 PANEL_START = "<!-- graph-panel:start -->"
 PANEL_END = "<!-- graph-panel:end -->"
 FALLBACK_TITLE = "Knowledge graph"
+NAME_CAP = 40
+FILTER_HINT = "Run /epistract:view without filters to see the whole graph."
 
 # `import ... from './x.js';` (possibly multi-line), capturing the module path.
 IMPORT = re.compile(r"^import\s[\s\S]*?\sfrom\s+'(\./[^']+\.js)';[ \t]*\n", re.M)
@@ -143,14 +150,32 @@ def slice_graph_panel(index_html: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def build_view_data(output_dir: Path) -> dict:
+def build_view_data(
+    output_dir: Path,
+    *,
+    neighborhood: str | None = None,
+    top_n: int | None = None,
+    depth: int = 1,
+) -> dict:
     """Assemble the four payloads the graph modules fetch, from ``output_dir``.
 
     Mirrors ``examples.workbench.server.create_app`` so the static page and the
-    workbench resolve domain, display and groups identically.
+    workbench resolve domain, display and groups identically. Display (colors,
+    shapes) is resolved over the full graph; a subset filter is applied after,
+    so a subset keeps the workbench colors, and groups are built on the subset.
+
+    Args:
+        output_dir: Directory holding graph_data.json.
+        neighborhood: Entity id or name to center a subset on.
+        top_n: Keep the N best-connected entities and their neighbors.
+        depth: Hop radius for ``neighborhood``.
 
     Returns:
-        ``{"title": str, "payload": {url: obj}, "stats": {...}}``.
+        ``{"title", "payload": {url: obj}, "stats", "subset"}``; ``subset`` is
+        None for the full graph.
+
+    Raises:
+        ValueError: When ``neighborhood`` matches no node or several nodes.
     """
     output_dir = Path(output_dir)
     resolved_domain, _source = resolve_domain(output_dir, None)
@@ -167,6 +192,10 @@ def build_view_data(output_dir: Path) -> dict:
     )
     for warning in display["warnings"]:
         print(f"Warning: display: {warning}", file=sys.stderr)
+
+    nodes, edges, subset = subset_graph(
+        nodes, edges, display, neighborhood=neighborhood, top_n=top_n, depth=depth
+    )
 
     source_ids = {
         n.get("id")
@@ -185,7 +214,12 @@ def build_view_data(output_dir: Path) -> dict:
         "/api/graph/groups": build_groups(nodes, edges, data.communities, display),
         "/api/graph/entity-types": entity_types_payload(nodes, display),
     }
-    return {"title": template.get("title") or FALLBACK_TITLE, "payload": payload, "stats": stats}
+    return {
+        "title": template.get("title") or FALLBACK_TITLE,
+        "payload": payload,
+        "stats": stats,
+        "subset": subset,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -199,16 +233,46 @@ def _inline_css() -> str:
     return STYLE_CLOSE.sub(r"<\\/\1", css)
 
 
+def _num(value: int) -> str:
+    return f'<span class="static-num">{int(value):,}</span>'
+
+
 def _meta_line(stats: dict | None, generated: str) -> str:
-    """Return the metadata paragraph (counts are ints, so nothing to escape)."""
+    """Return the metadata paragraph (counts are ints, the date is escaped)."""
     parts = []
     if stats:
-        parts.append(f"{int(stats['entities']):,} entities")
-        parts.append(f"{int(stats['relations']):,} relations")
+        parts.append(f"{_num(stats['entities'])} entities")
+        parts.append(f"{_num(stats['relations'])} relations")
         if int(stats["sources"]) > 0:
-            parts.append(f"{int(stats['sources']):,} sources hidden")
+            parts.append(f"{_num(stats['sources'])} sources hidden")
     parts.append(f"Generated {html.escape(generated, quote=True)}")
     return f'<p class="static-meta">{" · ".join(parts)}</p>'
+
+
+def _notice(subset: dict | None) -> str:
+    """Return the subset notice paragraph, or "" for a full-graph page."""
+    if not subset or subset["shown"] >= subset["total"]:
+        return ""
+    counts = f"Showing {_num(subset['shown'])} of {_num(subset['total'])} nodes"
+    if subset["mode"] == "neighborhood":
+        full = str(subset["name"])
+        shown_name = full if len(full) <= NAME_CAP else full[: NAME_CAP - 1] + "…"
+        name = (
+            f'<strong title="{html.escape(full, quote=True)}">'
+            f"{html.escape(shown_name, quote=False)}</strong>"
+        )
+        depth = int(subset["depth"])
+        where = f"around {name}" if depth <= 1 else f"within {_num(depth)} hops of {name}"
+        lead = f"{counts} {where}."
+    else:
+        lead = (
+            f"{counts}: the {_num(subset['top_n'])} most connected entities "
+            "and their neighbors."
+        )
+    return (
+        f'<p class="static-notice" role="note">{lead}'
+        f' <span class="static-notice__hint">{html.escape(FILTER_HINT)}</span></p>\n'
+    )
 
 
 def build_static_html(
@@ -217,6 +281,7 @@ def build_static_html(
     payload: dict,
     stats: dict | None = None,
     generated: str | None = None,
+    subset: dict | None = None,
 ) -> str:
     """Return the complete self-contained page.
 
@@ -225,6 +290,8 @@ def build_static_html(
         payload: ``{url: object}`` for the four ``/api/...`` URLs.
         stats: Optional ``{"entities", "relations", "sources"}`` for the header.
         generated: ``YYYY-MM-DD`` date; defaults to today (UTC).
+        subset: ``info`` from ``subset_graph``; renders the notice when it
+            shows fewer nodes than the full graph.
 
     Returns:
         The HTML document text.
@@ -251,6 +318,7 @@ def build_static_html(
         '<header class="static-header">'
         f'<h1 title="{safe_title}">{safe_title}</h1>'
         f"{_meta_line(stats, generated)}</header>\n"
+        f"{_notice(subset)}"
         '<main id="static-main" class="static-main">\n'
         f'<aside class="side-panel open" id="side-panel">{panel}</aside>\n'
         "</main>\n"
@@ -263,18 +331,29 @@ def build_static_html(
     )
 
 
-def write_static_graph(output_dir: Path) -> Path:
+def write_static_graph(
+    output_dir: Path,
+    *,
+    neighborhood: str | None = None,
+    top_n: int | None = None,
+    depth: int = 1,
+) -> Path:
     """Write ``output_dir/graph.html`` and return its path.
 
     Raises:
         FileNotFoundError: When ``graph_data.json`` is missing from ``output_dir``.
+        ValueError: When ``neighborhood`` is unknown or ambiguous; nothing is
+            written in that case.
     """
     output_dir = Path(output_dir)
     if not (output_dir / "graph_data.json").is_file():
         raise FileNotFoundError(f"No graph found: {output_dir / 'graph_data.json'} does not exist")
-    view = build_view_data(output_dir)
+    view = build_view_data(output_dir, neighborhood=neighborhood, top_n=top_n, depth=depth)
     page = build_static_html(
-        title=view["title"], payload=view["payload"], stats=view["stats"]
+        title=view["title"],
+        payload=view["payload"],
+        stats=view["stats"],
+        subset=view["subset"],
     )
     dest = output_dir / "graph.html"
     dest.write_text(page, encoding="utf-8")
