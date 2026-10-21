@@ -424,20 +424,27 @@ async function epistemic() {
   check('Show in graph clicked', await clickEl(s, firstGraph));
   check('graph panel shown', await s.waitFor(`document.getElementById('graph-panel').style.display === 'flex'`));
   check('graph focused on semaglutide', await s.waitFor(`(${focusTop}) === 'compound:semaglutide'`), await s.ev(focusTop));
-  await s.waitFor(`!window._graphDebug.busy`);
+  check('the focus layout settles', await s.waitFor(`!window._graphDebug.busy`));
   const fsize = await s.ev(`window._graphDebug.focus().size`);
   check('focus set has at least two nodes', fsize >= 2, fsize);
   check('graph search is empty', (await s.ev(`document.getElementById('graph-search').value`)) === '');
   await s.ev(`new Promise((r) => setTimeout(r, 600))`);
   await s.shot('graph-focus-semaglutide.png');
 
-  // (11) keyboard activation moves focus to the graph
+  // (11) keyboard activation moves focus to the graph. Restore the default
+  // view first so the focus check below can only pass if Enter dispatched it.
+  await s.ev(`window.dispatchEvent(new CustomEvent('graph-show-types', { detail: { reset: true } }))`);
+  check('setup: the reset leaves focus mode', await s.waitFor(`(${focusTop}) === null`), await s.ev(focusTop));
+  check('setup: the reset layout settles', await s.waitFor(`!window._graphDebug.busy`));
   check('open the dashboard again', await openEpistemic(s));
+  check('setup: still no focus before Enter', (await s.ev(focusTop)) === null, await s.ev(focusTop));
   await s.ev(`${firstGraph}.scrollIntoView({ block: 'center', behavior: 'instant' }); ${firstGraph}.focus()`);
+  check('setup: the Show in graph button has keyboard focus', (await s.ev(`document.activeElement === ${firstGraph}`)) === true);
   await s.key('Enter');
   check('Enter focuses the graph container', await s.waitFor(`document.activeElement && document.activeElement.id === 'graph-container'`));
-  await s.waitFor(`!window._graphDebug.busy`);
-  check('keyboard focus centre is semaglutide', (await s.ev(focusTop)) === 'compound:semaglutide', await s.ev(focusTop));
+  check('Enter enters focus on semaglutide', await s.waitFor(`(${focusTop}) === 'compound:semaglutide'`), await s.ev(focusTop));
+  check('the keyboard focus layout settles', await s.waitFor(`!window._graphDebug.busy`));
+  check('keyboard focus centre is still semaglutide', (await s.ev(focusTop)) === 'compound:semaglutide', await s.ev(focusTop));
 
   // (12) Ask in chat only prefills
   const urls = [];
