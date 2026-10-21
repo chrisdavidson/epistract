@@ -180,14 +180,40 @@ async function click() {
   check('focus moved to graph container', (await s.ev(`document.activeElement && document.activeElement.id`)) === 'graph-container');
   await s.shot('graph-solo.png');
 
-  // (d) stale state, then a real mouse click on the count cell
-  const compoundId = sets.COMPOUND[0];
+  // (d) stale state, then a real mouse click on the count cell. Focus is entered
+  // first, from the default view (a solo COMPOUND view has no node with a visible
+  // neighbour), and must survive the dirty filters, so the arrival really has to
+  // leave focus through the live vis-network.
+  await s.ev(`window.dispatchEvent(new CustomEvent('graph-show-types', { detail: { reset: true } }))`);
+  await s.waitFor(`!window._graphDebug.busy`);
+  const centre = await s.ev(`(() => {
+    for (const n of window._graphDebug.dataNodes().filter((d) => !d.hidden)) {
+      window.dispatchEvent(new CustomEvent('graph-focus-node', { detail: { id: n.id, hops: 1 } }));
+      if (window._graphDebug.focus().stack.length > 0) return { id: n.id };
+    }
+    return null;
+  })()`);
+  check('setup: a focus centre was found', !!centre, centre);
+  await s.waitFor(`!window._graphDebug.busy`);
+  const before = await s.ev(`({ size: window._graphDebug.focus().size,
+    sidebarOpen: !document.getElementById('graph-detail-sidebar').classList.contains('graph-detail-sidebar--closed') })`);
+  check('setup: focus active', before.size > 0, before);
+  check('setup: focus opened the sidebar', before.sidebarOpen, before);
+  // The search term is the centre's own name, so the centre stays eligible and
+  // focus is kept while the search and min-degree filters are dirty.
+  const centreName = await s.ev(`(async () => {
+    const g = await (await fetch('/api/graph')).json();
+    const n = g.nodes.find((x) => x.id === ${q(centre ? centre.id : '')});
+    return n ? String(n.name || '') : '';
+  })()`);
   await s.ev(`(() => {
-    const se = document.getElementById('graph-search'); se.value = 'zzz'; se.dispatchEvent(new Event('input', { bubbles: true }));
-    const sl = document.getElementById('min-degree-slider'); sl.value = '3'; sl.dispatchEvent(new Event('input', { bubbles: true }));
-    window.dispatchEvent(new CustomEvent('graph-focus-node', { detail: { id: ${q(compoundId)}, hops: 1 } }));
+    const se = document.getElementById('graph-search'); se.value = ${q(centreName)}; se.dispatchEvent(new Event('input', { bubbles: true }));
+    const sl = document.getElementById('min-degree-slider'); sl.value = '1'; sl.dispatchEvent(new Event('input', { bubbles: true }));
   })()`);
   await sleep(800);
+  const dirty = await s.ev(`({ stack: window._graphDebug.focus().stack.length, search: document.getElementById('graph-search').value,
+    slider: document.getElementById('min-degree-slider').value })`);
+  check('setup: focus survives the dirty filters', dirty.stack > 0 && dirty.search !== '' && dirty.slider === '1', dirty);
   check('open dashboard again', await openDashboard(s));
   check('dashboard still lists 13 rows', (await s.ev(`document.querySelectorAll('.dashboard-link-btn').length`)) === 13);
   const pt = await s.ev(`(() => { const r = document.querySelector('tr.dashboard-link-row[data-entity-type="DISEASE"] td.dashboard-count').getBoundingClientRect();
@@ -198,10 +224,12 @@ async function click() {
   const reset = await s.ev(`({ search: document.getElementById('graph-search').value,
     slider: document.getElementById('min-degree-slider').value,
     readout: document.getElementById('min-degree-value').textContent,
-    focus: window._graphDebug.focus().size })`);
+    focus: window._graphDebug.focus().size, stack: window._graphDebug.focus().stack.length,
+    sidebarClosed: document.getElementById('graph-detail-sidebar').classList.contains('graph-detail-sidebar--closed') })`);
   check('search cleared', reset.search === '', reset);
   check('min-degree reset', reset.slider === '0' && reset.readout === '0', reset);
-  check('focus cleared', reset.focus === 0, reset);
+  check('focus cleared', reset.focus === 0 && reset.stack === 0, reset);
+  check('sidebar closed on arrival', reset.sidebarClosed, reset);
   check('only DISEASE chip pressed', JSON.stringify(await s.ev(pressedChips)) === '["DISEASE"]', await s.ev(pressedChips));
 
   // (e) source type
