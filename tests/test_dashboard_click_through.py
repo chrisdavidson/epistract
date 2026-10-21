@@ -23,6 +23,13 @@ SHOW_MODES = [
     "show-queued",
     "show-nodisplay",
     "show-during-relayout",
+    "show-focus",
+    "show-focus-stale",
+    "show-focus-unknown",
+    "show-focus-queued",
+    "show-focus-source",
+    "show-focus-edge-filter",
+    "show-focus-isolated",
 ]
 
 
