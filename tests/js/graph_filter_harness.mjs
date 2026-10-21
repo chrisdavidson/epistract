@@ -601,6 +601,11 @@ if (isControl) {
     await tick();
     check('clicks before settle are ignored', stabilizeCalls().length === 0 && window._graphDebug.mode === 'cluster'
       && controlSnapshot().checked.family === 'false', { n: stabilizeCalls().length, mode: window._graphDebug.mode });
+    // WR-03: Show sources during the initial layout is deferred to settle.
+    const d1Writes = () => calls.filter((c) => c.kind === 'update' && c.u.id === 'd1' && 'x' in c.u).length;
+    document.getElementById('graph-show-sources-btn').dispatch('click');
+    check('WR-03: Show sources before settle keeps source physics off', nodeSet().items.get('d1').physics === false
+      && d1Writes() === 0 && nodeSet().items.get('d1').hidden !== true, { physics: nodeSet().items.get('d1').physics, writes: d1Writes() });
     const staleDone = [...(handlers.get('stabilizationIterationsDone') || [])];
     const staleStab = [...(handlers.get('stabilized') || [])];
     // vis's safety-net event settles the initial layout.
@@ -610,6 +615,8 @@ if (isControl) {
     check('settle enables the control', GROUP_MODES.every((m) => snap1.disabled[m] === null) && window._graphDebug.settled === true, snap1.disabled);
     check('settle restores the option titles', snap1.titles.family === 'Group nodes by entity family', snap1.titles);
     check('settle clears the arranging text and busy state', snap1.hint === '' && container.getAttribute('aria-busy') === null, snap1.hint);
+    check('WR-03: settle places the source and lets it join physics', nodeSet().items.get('d1').physics === true && d1Writes() === 1,
+      { physics: nodeSet().items.get('d1').physics, writes: d1Writes() });
     check('settle removes both of its handlers', !(handlers.get('stabilizationIterationsDone') || []).some((h) => staleDone.includes(h))
       && !(handlers.get('stabilized') || []).some((h) => staleStab.includes(h)));
     groupButtons.family.dispatch('click');
@@ -768,6 +775,24 @@ if (isControl) {
     esc();
     await tick();
     check('WR-01: Esc works again after the relayout', depth() === 0, depth());
+
+    // WR-03: Show sources mid-relayout waits for the layout to finish.
+    const d1 = () => nodeSet().items.get('d1');
+    const d1Writes = () => calls.filter((c) => c.kind === 'update' && c.u.id === 'd1' && 'x' in c.u).length;
+    const srcEdges = () => dataEdges().filter((e) => e._data && e._data.relation_type === 'MENTIONED_IN');
+    groupButtons.family.dispatch('click');
+    await tick();
+    const w0 = d1Writes();
+    document.getElementById('graph-show-sources-btn').dispatch('click');
+    check('WR-03: Show sources mid-relayout keeps source physics off', d1().physics === false
+      && srcEdges().every((e) => e.physics === false), { node: d1().physics, edges: srcEdges().map((e) => e.physics) });
+    check('WR-03: Show sources mid-relayout does not place the source yet', d1Writes() === w0 && d1().hidden !== true, d1Writes() - w0);
+    emitDone();
+    await tick();
+    check('WR-03: completion places the source and restores its physics', d1Writes() === w0 + 1 && d1().physics === true
+      && srcEdges().every((e) => e.physics === true), { writes: d1Writes() - w0, node: d1().physics });
+    document.getElementById('graph-show-sources-btn').dispatch('click');
+    await tick();
 
     // WR-02: focus entry/exit and the instant None restore are one batched
     // write each (no per-node moveNode, so no per-node redraw), and exact.

@@ -1097,12 +1097,15 @@ function failRelayout(token) {
     try {
         if (typeof network.stopSimulation === 'function') network.stopSimulation();
         network.setOptions({ physics: false });
+        // Physics is off: the deferred follow-ups (sources) may run again.
+        setGroupBusy(false);
         groupMode = prev.mode;
         groupAssignment = prev.assignment;
         sourceGroup = prev.sourceGroup;
         groupLayout = prev.layout;
         installAnchors();
         writePositions(prev.positions);
+        if (sourcesActive()) placeSources();
         syncSourcePhysics();
         fitView(null, false);
         applyScaleStyle();
@@ -1506,6 +1509,9 @@ function buildGraph() {
         fitView(null, false);
         applyScaleStyle();
         if (groupMode === 'none') freeLayoutPositions = captureDataPositions();
+        // WR-03: a Show sources toggle made while the layout ran is applied now.
+        if (sourcesActive()) placeSources();
+        syncSourcePhysics();
         setHintOverride(null);
         syncGroupControl();
     };
@@ -2608,7 +2614,9 @@ function syncSourcesButton() {
 // First reveal: place each source node at the centroid of its non-source
 // neighbours (plus deterministic jitter) so it appears next to what it cites.
 function placeSources() {
-    if (sourcesPlaced || !network) return;
+    // WR-03: neighbour positions are in flux while a layout runs; placement is
+    // deferred to the end of the layout (sourcesPlaced stays false).
+    if (sourcesPlaced || !network || relayoutBusy) return;
     sourcesPlaced = true;
     const ids = [...sourceNodeIds].sort();
     // Region circles of the grouped layout; sources are not members, so placing
@@ -2652,6 +2660,9 @@ function placeSources() {
 // layout). Writes only id + physics.
 function syncSourcePhysics(force = false, onOverride = null) {
     if (!visNodes || !visEdges) return;
+    // WR-03: while a layout runs, sources stay out of the simulation; settle(),
+    // completeRelayout() and failRelayout() apply the toggle once it is final.
+    if (relayoutBusy && onOverride === null) return;
     const on = onOverride === null ? sourcesActive() : onOverride;
     if (!force && on === sourcePhysicsOn) return;
     sourcePhysicsOn = on;
