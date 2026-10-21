@@ -240,6 +240,9 @@ async function populateDashboard(template) {
     if (!dashContent) return;
     try {
         const dashResp = await fetch('/api/dashboard');
+        // An error reply ({"detail": ...}) has no html or entity_counts and would
+        // otherwise render the "No entities yet" empty state: show the failure.
+        if (!dashResp.ok) throw new Error(`/api/dashboard returned ${dashResp.status}`);
         const dashData = await dashResp.json();
         if (dashData.html) {
             // SEC-01 / VUL-03: dashData.html may be a domain-supplied dashboard.html
