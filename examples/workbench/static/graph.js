@@ -1036,6 +1036,9 @@ function completeRelayout(mode) {
         _relayoutTimer = null;
     }
     network.setOptions({ physics: false });
+    // The layout is final from here on; the follow-ups below (focus layout,
+    // source placement) are held while a layout is in flight, so release first.
+    setGroupBusy(false);
     if (mode === 'none' && !freeLayoutPositions) freeLayoutPositions = captureDataPositions();
     separateGroupRegionsForView();
     // The positions a focus view would restore are stale after a relayout.
@@ -1049,7 +1052,6 @@ function completeRelayout(mode) {
     applyScaleStyle();
     relayoutPrev = null;
     renderGroupsList();
-    setGroupBusy(false);
     setHintOverride(null);
     syncGroupControl();
     announceGroup(groupCountText(mode));
@@ -1715,6 +1717,7 @@ function buildGraph() {
             if (event.key !== 'Escape') return;
             if (!graphPanelActive || isEditableTarget(event.target)) return;
             // One level per press: the hover card, then focus, then the zoomed-to group.
+            // While a layout runs, the focus level is held (popOneFocus is a no-op).
             const cardOpen = isHoverCardVisible();
             pinnedCardNodeId = null;
             dismiss();
@@ -2078,6 +2081,7 @@ function filterGraph() {
 // adjacency Map, never vis hidden flags or network.getConnected*.
 // ---------------------------------------------------------------------------
 const HOP_WORD = { 1: '1 hop', 2: '2 hops' };
+const FOCUS_BUSY_TEXT = 'Focus is unavailable while the layout is arranging. Try again when it finishes.';
 const FOCUS_ENDED_HINT_MS = 6000;
 const REGION_GAP_SCREEN_PX = 16;         // clear screen px kept between two drawn region circles
 const REGION_GAP_PASSES = 4;             // separation passes while the fit scale settles
@@ -2178,7 +2182,9 @@ function focusSortKey(id) {
 // centre (see focusLayout); the positions from before the first focus are kept and put
 // back exactly when focus ends. Physics is already off after any layout.
 function syncFocusLayout() {
-    if (!network || !visNodes) return;
+    // WR-01: positions are in flux while a layout runs; completeRelayout() and
+    // settle() lay the focus out once it is final.
+    if (!network || !visNodes || relayoutBusy) return;
     if (focusStack.length === 0 || focusSet === null) {
         restoreFocusLayout();
         return;
@@ -2350,10 +2356,21 @@ function applyFocusChange(kind) {
     fitView(focusSet ? [...focusSet] : null, fitAnimation(250));
 }
 
+// WR-01: focus changes wait while a layout (initial or relayout) is in flight,
+// so the saved pre-focus positions and the focus layout never mix with a
+// running simulation. The request is dropped and the reason announced.
+function focusBlocked() {
+    if (!relayoutBusy) return false;
+    announceGroup(FOCUS_BUSY_TEXT);
+    return true;
+}
+
 // Enters focus on `id` (or retargets the hops of the current centre). Returns
-// false for ids that are unknown, filtered out or have no visible neighbour.
+// false for ids that are unknown, filtered out or have no visible neighbour,
+// and while a layout is in flight.
 function enterFocus(id, hops = 1) {
     if (!network || !visNodes || typeof id !== 'string' || isAnchorId(id) || !nodeById.has(id)) return false;
+    if (focusBlocked()) return false;
     const size = hops === 2 ? 2 : 1;
     const eligible = eligibleNodeSet(filterContext());
     if (!eligible.has(id)) return false;
@@ -2372,13 +2389,14 @@ function enterFocus(id, hops = 1) {
 }
 
 function exitFocus() {
-    if (focusStack.length === 0) return;
+    if (focusStack.length === 0 || focusBlocked()) return;
     focusStack = [];
     applyFocusChange('exit');
 }
 
 function popOneFocus() {
-    if (focusStack.length <= 1) {
+    if (focusStack.length === 0 || focusBlocked()) return;
+    if (focusStack.length === 1) {
         exitFocus();
         return;
     }
@@ -2388,7 +2406,7 @@ function popOneFocus() {
 }
 
 function truncateFocusTo(index) {
-    if (index < 0 || index >= focusStack.length - 1) return;
+    if (index < 0 || index >= focusStack.length - 1 || focusBlocked()) return;
     focusStack = truncateFocus(focusStack, index);
     focusHops = focusStack[focusStack.length - 1].hops;
     applyFocusChange('back');
@@ -2397,7 +2415,7 @@ function truncateFocusTo(index) {
 function setFocusHops(hops) {
     if (focusStack.length === 0) return;
     const size = hops === 2 ? 2 : 1;
-    if (focusStack[focusStack.length - 1].hops === size) return;
+    if (focusStack[focusStack.length - 1].hops === size || focusBlocked()) return;
     focusStack = setTopHops(focusStack, size);
     focusHops = size;
     applyFocusChange('enter');

@@ -24,6 +24,8 @@
 // argv[2] = "control-early" clicks the Group by control before the initial
 // layout settles (CR-01): the control is disabled and a stale initial-settle
 // handler cannot stop a later relayout.
+// argv[2] = "control-busy" checks what waits while a relayout runs: focus
+// entry, exit, hops and Esc (WR-01).
 // argv[2] = "focus" / "focus-filters" drive focus mode: double-click entry, the
 // breadcrumb bar, hop toggle, Esc chain, graph-focus-* events, composition with
 // Show sources, filters and grouping.
@@ -703,6 +705,56 @@ if (isControl) {
     groupButtons.family.dispatch('click');
     await tick();
     check('re-selecting the current mode does nothing', stabilizeCalls().length === nBefore);
+  }
+
+  if (mode === 'control-busy') {
+    const BUSY_TEXT = 'Focus is unavailable while the layout is arranging. Try again when it finishes.';
+    const dbl = (id) => { for (const fn of handlers.get('doubleClick') || []) fn({ nodes: [id], edges: [] }); };
+    const winEvent = (type, detail) => window.dispatchEvent({ type, detail });
+    const esc = () => { for (const fn of docListeners.keydown || []) fn({ key: 'Escape', target: { tagName: 'DIV', closest: () => null } }); };
+    const depth = () => window._graphDebug.focus().stack.length;
+    const hop2 = document.getElementById('graph-focus-hop-2');
+    winEvent('graph-panel-opened');
+    await tick(150);
+
+    // Focus entry is held during a relayout.
+    groupButtons.family.dispatch('click');
+    await tick();
+    dbl('a');
+    check('WR-01: double-click during a relayout does not focus', depth() === 0, depth());
+    check('WR-01: the reason is announced', status() === BUSY_TEXT, status());
+    winEvent('graph-focus-node', { id: 'a', hops: 1 });
+    check('WR-01: graph-focus-node during a relayout does not focus', depth() === 0);
+    emitDone();
+    await tick();
+    check('WR-01: relayout completes', window._graphDebug.mode === 'family' && window._graphDebug.busy === false);
+
+    // Focused, then a relayout: exit, Esc, hops and crumbs wait for it.
+    dbl('a');
+    await tick();
+    check('WR-01: focus works once the layout is idle', depth() === 1 && window._graphDebug.focus().size === 3, window._graphDebug.focus());
+    groupButtons.cluster.dispatch('click');
+    await tick();
+    const during = worldCopy();
+    const writes = () => calls.filter((c) => c.kind === 'update' && ('x' in c.u || 'y' in c.u)).length;
+    const writesBefore = writes();
+    const movesBefore = networkCalls.filter((c) => c.kind === 'moveNode').length;
+    esc();
+    check('WR-01: Esc during a relayout keeps focus', depth() === 1, depth());
+    winEvent('graph-focus-exit');
+    document.getElementById('graph-focus-exit').dispatch('click');
+    check('WR-01: Exit focus during a relayout is held', depth() === 1);
+    hop2.dispatch('click');
+    check('WR-01: hop change during a relayout is held', (window._graphDebug.focus().stack[0] || {}).hops === 1);
+    check('WR-01: nothing moved a node while held', writes() === writesBefore
+      && networkCalls.filter((c) => c.kind === 'moveNode').length === movesBefore
+      && JSON.stringify(worldCopy()) === JSON.stringify(during), { writes: writes() - writesBefore });
+    emitDone();
+    await tick();
+    check('WR-01: focus survives and is laid out again', depth() === 1 && window._graphDebug.mode === 'cluster');
+    esc();
+    await tick();
+    check('WR-01: Esc works again after the relayout', depth() === 0, depth());
   }
 
   if (mode === 'control-nocomm') {
