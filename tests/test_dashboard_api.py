@@ -59,8 +59,6 @@ def test_domain_dashboard_html_path_unchanged(tmp_path, monkeypatch):
     monkeypatch.setattr(server_module, "DOMAINS_DIR", domains)
     out = tmp_path / "out"
     out.mkdir()
-    (out / "graph_data.json").write_text(
-        json.dumps({"nodes": [], "links": []}), encoding="utf-8"
-    )
+    (out / "graph_data.json").write_text(json.dumps({"nodes": [], "links": []}), encoding="utf-8")
     app = create_app(out, domain="fakedomain")
     assert TestClient(app).get("/api/dashboard").json() == {"html": page}
