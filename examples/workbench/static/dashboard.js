@@ -439,21 +439,25 @@ function buildSection(section, itemsByKey, toggles) {
         const lower = section.label.toLowerCase();
         const restId = `epistemic-rest-${key}`;
         const total = section.items.length;
+        // A capped section (count > items sent) cannot show "all": say how many of the total.
+        const show = total < section.count
+            ? `Show ${total.toLocaleString()} of ${section.count.toLocaleString()}`
+            : `Show all ${total}`;
         const toggle = el('button', 'epistemic-toggle');
         toggle.setAttribute('type', 'button');
         toggle.setAttribute('data-action', 'toggle');
         toggle.setAttribute('data-section', key);
         toggle.setAttribute('aria-expanded', 'false');
         toggle.setAttribute('aria-controls', restId);
-        toggle.setAttribute('aria-label', `Show all ${total} ${lower}`);
-        toggle.textContent = `Show all ${total}`;
+        toggle.setAttribute('aria-label', `${show} ${lower}`);
+        toggle.textContent = show;
         const rest = el('ul', 'epistemic-items epistemic-items--rest');
         rest.setAttribute('id', restId);
         rest.setAttribute('hidden', '');
         rest.setAttribute('aria-labelledby', `epistemic-sec-${key}`);
         section.items.slice(VISIBLE_CARDS).forEach((item, i) => rest.appendChild(buildCard(section, i + VISIBLE_CARDS, item)));
         block.append(toggle, rest);
-        toggles.set(key, { toggle, rest, lower, total });
+        toggles.set(key, { toggle, rest, lower, show });
     }
     if (section.items.length < section.count) {
         block.appendChild(text('p', 'epistemic-section__desc', `Showing ${section.items.length} of ${section.count}.`));
@@ -466,10 +470,10 @@ function flipToggle(state) {
     state.toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
     if (open) state.rest.removeAttribute('hidden');
     else state.rest.setAttribute('hidden', '');
-    state.toggle.textContent = open ? `Show first ${VISIBLE_CARDS}` : `Show all ${state.total}`;
+    state.toggle.textContent = open ? `Show first ${VISIBLE_CARDS}` : state.show;
     state.toggle.setAttribute(
         'aria-label',
-        open ? `Show only the first ${VISIBLE_CARDS} ${state.lower}` : `Show all ${state.total} ${state.lower}`,
+        open ? `Show only the first ${VISIBLE_CARDS} ${state.lower}` : `${state.show} ${state.lower}`,
     );
 }
 

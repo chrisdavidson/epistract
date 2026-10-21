@@ -457,7 +457,12 @@ if (MODE === 'epistemic') {
       const s = sectionOf(root, 'coverage_gaps');
       const notes = byClass(s, 'epistemic-section__desc').map((n) => n.textContent);
       check('truncated: heading counts the full 417', byTag(s, 'h4')[0].textContent === 'Coverage gaps (417)', byTag(s, 'h4')[0].textContent);
-      check('truncated: toggle counts the shown 50', toggleOf(s).textContent === 'Show all 50', toggleOf(s).textContent);
+      check('truncated: toggle says 50 of 417, not all', toggleOf(s).textContent === 'Show 50 of 417'
+        && toggleOf(s).getAttribute('aria-label') === 'Show 50 of 417 coverage gaps', [toggleOf(s).textContent, toggleOf(s).getAttribute('aria-label')]);
+      root.dispatch('click', { target: toggleOf(s) });
+      check('truncated: expanded label', toggleOf(s).textContent === 'Show first 5', toggleOf(s).textContent);
+      root.dispatch('click', { target: toggleOf(s) });
+      check('truncated: collapsed label returns', toggleOf(s).textContent === 'Show 50 of 417', toggleOf(s).textContent);
       check('truncated: states Showing 50 of 417.', notes[notes.length - 1] === 'Showing 50 of 417.', notes);
       const lastKid = s.children[s.children.length - 1];
       check('truncated: the note follows the lists', lastKid && lastKid.textContent === 'Showing 50 of 417.');
