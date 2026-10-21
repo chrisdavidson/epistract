@@ -3,7 +3,8 @@
 // every created tag and every innerHTML assignment, then checks row order and
 // markup, hostile type strings (SEC-01), click delegation, the totals button,
 // the hint and the empty state. The `epistemic` mode covers
-// buildEpistemicHealth (run: node dashboard_harness.mjs epistemic).
+// buildEpistemicHealth (run: node dashboard_harness.mjs epistemic) and the
+// `documents` mode covers buildDocuments (run: node dashboard_harness.mjs documents).
 // Prints one JSON line {"passed": [...], "failed": [...]} and exits 1 on failure.
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -11,6 +12,7 @@ import path from 'node:path';
 const MODE = process.argv[2] || 'summary';
 const createdTags = [];
 const innerHtmlWrites = [];
+const focusLog = [];
 
 function parseSelector(sel) {
   const m = /^([a-z0-9]*)((?:\.[\w-]+)*)(?:\[([\w-]+)(?:="([^"]*)")?\])?$/i.exec(sel);
@@ -52,6 +54,7 @@ function makeEl(tag) {
       for (const fn of [...(listeners[type] || [])]) fn(event);
     },
     listenerCount: (type) => (listeners[type] || []).length,
+    focus(options) { focusLog.push({ el, options }); },
     matches(sel) {
       const p = parseSelector(sel);
       if (!p) return false;
@@ -643,6 +646,212 @@ if (MODE === 'epistemic') {
       check('sections-only: no bar or chips', byClass(only, 'epistemic-bar').length === 0 && chipsOf(only).length === 0
         && byClass(only, 'epistemic-hint').length === 0, byClass(only, 'epistemic-hint').length);
       check('sections-only: counts line and sections', byClass(only, 'epistemic-counts').length === 1 && sections(only).length === 3);
+    }
+  }
+}
+
+if (MODE === 'documents') {
+  const EMPTY = 'No source documents were found in this output directory. Run /epistract:ingest to add documents, then reload the workbench.';
+  if (typeof dash.buildDocuments !== 'function') {
+    check('buildDocuments is exported by dashboard.js', false, typeof dash.buildDocuments);
+  } else {
+    const opened = [];
+    const buildDocs = (documents) => dash.buildDocuments({ documents, onOpen: (doc, event) => opened.push({ doc, event }) });
+    const mk = (i, extra = {}) => ({
+      doc_id: `doc_${i}`, display_name: `Doc ${i}`, filename: `Doc ${i}.txt`,
+      entity_count: 100 - i, relation_count: 50 - i, has_text: true, has_pdf: false, ...extra,
+    });
+    const many = (n) => Array.from({ length: n }, (_, i) => mk(i + 1));
+    const bodies = (root) => byTag(root, 'tbody');
+    const docRowsOf = (root) => byClass(root, 'dashboard-doc-row');
+    const rowBtn = (row) => byClass(row, 'dashboard-doc-btn')[0];
+    const toggleBtn = (root) => byClass(root, 'documents-toggle')[0];
+    const statusOf = (root) => byClass(root, 'visually-hidden')[0];
+    const hasAttr = (n, k) => n.hasAttribute(k);
+
+    // --- structure for 34 documents ---
+    {
+      createdTags.length = 0;
+      innerHtmlWrites.length = 0;
+      const root = buildDocs(many(34));
+      check('documents: section element and class', root && root.tagName === 'section' && root.className === 'documents-section'
+        && root.getAttribute('aria-labelledby') === 'documents-heading', root && root.className);
+      const h3 = byTag(root, 'h3')[0];
+      check('documents: heading Documents (34)', h3 && h3.textContent === 'Documents (34)' && h3.getAttribute('id') === 'documents-heading', h3 && h3.textContent);
+      const hint = byClass(root, 'dashboard-hint')[0];
+      check('documents: hint copy', hint && hint.textContent === 'Entities and relations extracted from each document. Select a document to read it.', hint && hint.textContent);
+      const table = byTag(root, 'table')[0];
+      check('documents: table classes and label', table && table.className === 'dashboard-table documents-table'
+        && table.getAttribute('aria-labelledby') === 'documents-heading', table && table.className);
+      check('documents: three columns in a colgroup', byTag(root, 'colgroup').length === 1 && byTag(root, 'col').length === 3);
+      const heads = byTag(root, 'th').map((t) => t.textContent);
+      check('documents: headers', JSON.stringify(heads) === JSON.stringify(['Document', 'Entities', 'Relations']), heads);
+      const [first, rest] = bodies(root);
+      check('documents: two tbody elements', bodies(root).length === 2);
+      check('documents: first tbody has 10 rows', byClass(first, 'dashboard-doc-row').length === 10, byClass(first, 'dashboard-doc-row').length);
+      check('documents: rest tbody has 24 rows and is hidden', byClass(rest, 'dashboard-doc-row').length === 24
+        && hasAttr(rest, 'hidden') && rest.getAttribute('id') === 'documents-rest');
+      const t = toggleBtn(root);
+      check('documents: toggle collapsed state', t && t.tagName === 'button' && t.getAttribute('type') === 'button'
+        && t.textContent === 'Show all 34' && t.getAttribute('aria-expanded') === 'false'
+        && t.getAttribute('aria-controls') === 'documents-rest' && t.getAttribute('aria-label') === 'Show all 34 documents', t && t.textContent);
+      const st = statusOf(root);
+      check('documents: status region', st && st.tagName === 'span' && st.getAttribute('role') === 'status'
+        && st.getAttribute('aria-live') === 'polite' && st.getAttribute('id') === 'documents-status');
+      check('documents: toggle sits after the table and before the status', root.children.indexOf(t) > 0
+        && root.children.findIndex((c) => c.className === 'dashboard-table-wrap') < root.children.indexOf(t)
+        && root.children.indexOf(t) < root.children.indexOf(st));
+      check('documents: no img or script, no innerHTML', !createdTags.includes('img') && !createdTags.includes('script') && innerHtmlWrites.length === 0, createdTags);
+    }
+
+    // --- row markup ---
+    {
+      const docs = [
+        mk(1, { entity_count: 1234, relation_count: 1 }),
+        mk(2, { entity_count: 1, relation_count: 0 }),
+        { doc_id: 'x', display_name: 'Some Report', filename: 'Some Report.pdf', entity_count: 0, relation_count: 0, has_text: false, has_pdf: true },
+        { doc_id: 'y', display_name: 'y', filename: 'y', entity_count: 0, relation_count: 0, has_text: false, has_pdf: false },
+      ];
+      const root = buildDocs(docs);
+      const rows = docRowsOf(root);
+      check('row: tr carries both class sets and the data attributes', rows.every((r, i) => r.tagName === 'tr'
+        && r.matches('tr.dashboard-link-row') && r.matches('tr.dashboard-doc-row')
+        && r.getAttribute('data-index') === String(i) && r.getAttribute('data-doc-id') === docs[i].doc_id));
+      check('row: exactly one button per row with both class sets', rows.every((r) => byTag(r, 'button').length === 1
+        && rowBtn(r).matches('button.dashboard-link-btn') && rowBtn(r).getAttribute('type') === 'button'
+        && rowBtn(r).getAttribute('data-doc-id') !== null));
+      const aria = rows.map((r) => rowBtn(r).getAttribute('aria-label'));
+      check('row: plural aria-label with locale counts', aria[0] === 'Read Doc 1: 1,234 entities, 1 relation', aria[0]);
+      check('row: singular entity, zero relations', aria[1] === 'Read Doc 2: 1 entity, 0 relations', aria[1]);
+      check('row: PDF only suffix', aria[2] === 'Read Some Report: 0 entities, 0 relations (PDF only)', aria[2]);
+      check('row: no-text suffix', aria[3] === 'Read y: 0 entities, 0 relations (text not available)', aria[3]);
+      const flags = rows.map((r) => byClass(r, 'documents-flag').map((f) => f.textContent));
+      check('row: flags', JSON.stringify(flags) === JSON.stringify([[], [], ['PDF only'], ['No text']]), flags);
+      const ids = rows.map((r) => byClass(r, 'documents-name__id').map((f) => f.textContent));
+      check('row: id line only when the slugs differ', JSON.stringify(ids) === JSON.stringify([[], [], ['x'], []]), ids);
+      check('row: titles carry the full name and, with an id line, the id',
+        rowBtn(rows[0]).getAttribute('title') === 'Doc 1' && rowBtn(rows[2]).getAttribute('title') === 'Some Report\nx',
+        [rowBtn(rows[0]).getAttribute('title'), rowBtn(rows[2]).getAttribute('title')]);
+      const name = byClass(rows[0], 'documents-name')[0];
+      check('row: name stack holds the text span', name && name.tagName === 'span' && byClass(name, 'documents-name__text')[0].textContent === 'Doc 1');
+      const chevron = byClass(rows[0], 'dashboard-link-chevron')[0];
+      check('row: decorative chevron', chevron && chevron.getAttribute('aria-hidden') === 'true' && chevron.textContent === '›');
+      const counts = rows.map((r) => byClass(r, 'dashboard-count').map((c) => c.textContent));
+      check('row: count cells use locale formatting', JSON.stringify(counts[0]) === JSON.stringify(['1,234', '1']) && JSON.stringify(counts[1]) === JSON.stringify(['1', '0']), counts);
+      check('row: zero counts get the muted class', byClass(rows[1], 'dashboard-count--zero').length === 1 && byClass(rows[0], 'dashboard-count--zero').length === 0
+        && byClass(rows[2], 'dashboard-count--zero').length === 2);
+      const fallback = buildDocs([{ doc_id: 'only_id' }, { doc_id: 'with_file', filename: 'With File.txt' }]);
+      const names = docRowsOf(fallback).map((r) => byClass(r, 'documents-name__text')[0].textContent);
+      check('row: name falls back to filename then doc id', JSON.stringify(names) === JSON.stringify(['only_id', 'With File.txt']), names);
+      const dirty = buildDocs([null, 5, 'x', {}, { doc_id: '' }, { doc_id: 'ok', entity_count: 'many', relation_count: -3 }]);
+      const dirtyRows = docRowsOf(dirty);
+      check('row: malformed entries are dropped and counts coerced', dirtyRows.length === 1
+        && JSON.stringify(byClass(dirtyRows[0], 'dashboard-count').map((c) => c.textContent)) === JSON.stringify(['0', '0']), dirtyRows.length);
+    }
+
+    // --- toggle ---
+    {
+      focusLog.length = 0;
+      const root = buildDocs(many(34));
+      const t = toggleBtn(root);
+      const [first, rest] = bodies(root);
+      t.dispatch('click', { detail: 1 });
+      check('toggle: expands', t.getAttribute('aria-expanded') === 'true' && !hasAttr(rest, 'hidden') && t.textContent === 'Show first 10'
+        && t.getAttribute('aria-label') === 'Show only the first 10 documents', [t.textContent, t.getAttribute('aria-label')]);
+      check('toggle: status announces all documents', statusOf(root).textContent === 'Showing all 34 documents.', statusOf(root).textContent);
+      const target = rowBtn(byClass(rest, 'dashboard-doc-row')[0]);
+      check('toggle: focus moves to the first revealed row button with preventScroll',
+        focusLog.length === 1 && focusLog[0].el === target && focusLog[0].options && focusLog[0].options.preventScroll === true, focusLog.map((f) => f.options));
+      t.dispatch('click', { detail: 1 });
+      check('toggle: collapses', t.getAttribute('aria-expanded') === 'false' && hasAttr(rest, 'hidden') && t.textContent === 'Show all 34'
+        && t.getAttribute('aria-label') === 'Show all 34 documents');
+      check('toggle: collapsed status', statusOf(root).textContent === 'Showing the first 10 of 34 documents.', statusOf(root).textContent);
+      check('toggle: focus returns to the toggle', focusLog.length === 2 && focusLog[1].el === t, focusLog.length);
+      check('toggle: the first tbody is untouched', byClass(first, 'dashboard-doc-row').length === 10);
+    }
+
+    // --- sizes around the limit ---
+    {
+      for (const n of [7, 10]) {
+        const root = buildDocs(many(n));
+        check(`size ${n}: all rows, no toggle`, docRowsOf(root).length === n && !toggleBtn(root) && bodies(root).length === 1
+          && byTag(root, 'h3')[0].textContent === `Documents (${n})`, docRowsOf(root).length);
+      }
+      const eleven = buildDocs(many(11));
+      check('size 11: toggle appears with one hidden row', !!toggleBtn(eleven) && toggleBtn(eleven).textContent === 'Show all 11'
+        && byClass(bodies(eleven)[1], 'dashboard-doc-row').length === 1);
+      const big = buildDocs(many(1200));
+      check('size 1200: heading uses locale formatting', byTag(big, 'h3')[0].textContent === 'Documents (1,200)', byTag(big, 'h3')[0].textContent);
+      check('size 1200: toggle label', toggleBtn(big).textContent === 'Show all 1,200', toggleBtn(big).textContent);
+    }
+
+    // --- empty and missing ---
+    {
+      const empty = buildDocs([]);
+      check('empty: heading has no count', byTag(empty, 'h3')[0].textContent === 'Documents');
+      const body = byClass(empty, 'dashboard-empty__body');
+      check('empty: only the empty copy', body.length === 1 && body[0].textContent === EMPTY
+        && byTag(empty, 'table').length === 0 && byTag(empty, 'button').length === 0 && byClass(empty, 'dashboard-hint').length === 0, body.map((b) => b.textContent));
+      for (const bad of [undefined, null, 'x', 7, {}]) {
+        check(`missing: ${JSON.stringify(bad)} returns null`, buildDocs(bad) === null);
+      }
+      check('missing: an array of only malformed entries is the empty state', byClass(buildDocs([null, 3]), 'dashboard-empty__body').length === 1);
+    }
+
+    // --- click delegation ---
+    {
+      opened.length = 0;
+      const docs = many(14);
+      const root = buildDocs(docs);
+      const table = byTag(root, 'table')[0];
+      const rows = docRowsOf(root);
+      table.dispatch('click', { target: rowBtn(rows[2]), detail: 1 });
+      check('click: the button opens the row document once', opened.length === 1 && opened[0].doc.doc_id === 'doc_3'
+        && opened[0].event && opened[0].event.detail === 1, opened.map((o) => o.doc.doc_id));
+      table.dispatch('click', { target: byClass(rows[12], 'dashboard-count')[0], detail: 1 });
+      check('click: a count cell in the hidden-then-revealed tbody opens its row', opened.length === 2 && opened[1].doc.doc_id === 'doc_13', opened.map((o) => o.doc.doc_id));
+      table.dispatch('click', { target: byClass(rows[0], 'documents-name__text')[0] });
+      check('click: a nested span resolves to its row', opened.length === 3 && opened[2].doc.doc_id === 'doc_1');
+      table.dispatch('click', { target: byTag(root, 'thead')[0] });
+      table.dispatch('click', { target: byTag(root, 'th')[0] });
+      table.dispatch('click', { target: table });
+      check('click: header and table do nothing', opened.length === 3, opened.length);
+      check('click: delegation, no row or button listeners', rows.every((r) => r.listenerCount('click') === 0 && rowBtn(r).listenerCount('click') === 0));
+      check('click: a tampered data-index opens nothing', (() => {
+        rows[3].setAttribute('data-index', '999');
+        table.dispatch('click', { target: rowBtn(rows[3]) });
+        rows[3].setAttribute('data-index', 'abc');
+        table.dispatch('click', { target: rowBtn(rows[3]) });
+        return opened.length === 3;
+      })(), opened.length);
+      const noHandler = dash.buildDocuments({ documents: docs });
+      let threw = false;
+      try { byTag(noHandler, 'table')[0].dispatch('click', { target: rowBtn(docRowsOf(noHandler)[0]) }); } catch { threw = true; }
+      check('click: a missing onOpen is tolerated', !threw);
+    }
+
+    // --- hostile ---
+    {
+      const hostile = ['<img src=x onerror=1>', '"><script>alert(1)</script>'];
+      createdTags.length = 0;
+      innerHtmlWrites.length = 0;
+      opened.length = 0;
+      const root = buildDocs([
+        mk(1, { doc_id: hostile[0], display_name: hostile[1], filename: hostile[1] }),
+        mk(2, { doc_id: hostile[1], display_name: hostile[0], filename: hostile[0] }),
+      ]);
+      check('hostile: no img or script element is created', !createdTags.includes('img') && !createdTags.includes('script'), createdTags);
+      check('hostile: innerHTML is never assigned', innerHtmlWrites.length === 0);
+      check('hostile: the tree holds no img or script element', find(root, (n) => n.tagName === 'img' || n.tagName === 'script').length === 0);
+      const names = docRowsOf(root).map((r) => byClass(r, 'documents-name__text')[0].textContent);
+      check('hostile: names are text', JSON.stringify(names) === JSON.stringify([hostile[1], hostile[0]]), names);
+      const ids = docRowsOf(root).map((r) => r.getAttribute('data-doc-id'));
+      check('hostile: ids are attribute values', JSON.stringify(ids) === JSON.stringify(hostile), ids);
+      let badClass = false;
+      walk(root, (n) => { if (/[<>"']|onerror|script/i.test(String(n.className || ''))) badClass = true; });
+      check('hostile: no data-derived class names', !badClass);
+      byTag(root, 'table')[0].dispatch('click', { target: rowBtn(docRowsOf(root)[0]) });
+      check('hostile: the raw id reaches onOpen as a string', opened.length === 1 && opened[0].doc.doc_id === hostile[0], opened.map((o) => o.doc.doc_id));
     }
   }
 }

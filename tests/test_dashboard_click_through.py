@@ -54,6 +54,13 @@ def test_dashboard_harness():
 
 
 @pytest.mark.unit
+def test_dashboard_documents_harness():
+    out = _run(DASHBOARD_HARNESS, "documents")
+    assert out["failed"] == [], out["failed"]
+    assert out["passed"], "harness ran no checks"
+
+
+@pytest.mark.unit
 def test_dashboard_epistemic_harness():
     out = _run(DASHBOARD_HARNESS, "epistemic")
     assert out["failed"] == [], out["failed"]
