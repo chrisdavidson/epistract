@@ -155,7 +155,7 @@ async function layout() {
 
   // Badge counts non-default filters.
   const base = await s.ev(`(() => { const sl = document.getElementById('confidence-slider');
-    return { def: sl.value, hidden: window._graphDebug.dataNodes().filter((n) => n.hidden).length }; })()`);
+    return { def: sl.value, hidden: window._graphDebug.dataEdges().filter((e) => e.hidden).length }; })()`);
   await s.ev(`(() => { const sl = document.getElementById('confidence-slider'); sl.value = '0.5';
     sl.dispatchEvent(new Event('input', { bubbles: true })); })()`);
   await sleep(500);
@@ -163,9 +163,9 @@ async function layout() {
     const c = b.querySelector('.count');
     return { text: c.textContent, shown: !c.hidden && c.getBoundingClientRect().width > 0,
       label: b.getAttribute('aria-label'),
-      hidden: window._graphDebug.dataNodes().filter((n) => n.hidden).length }; })()`);
+      hidden: window._graphDebug.dataEdges().filter((e) => e.hidden).length }; })()`);
   check('badge shows 1 with aria-label', badge.text === '1' && badge.shown && badge.label === 'Filters, 1 active', badge);
-  check('hidden node count increases', badge.hidden > base.hidden, [base.hidden, badge.hidden]);
+  check('hidden edge count increases', badge.hidden > base.hidden, [base.hidden, badge.hidden]);
   await s.ev(`(() => { const sl = document.getElementById('confidence-slider'); sl.value = ${JSON.stringify(base.def)};
     sl.dispatchEvent(new Event('input', { bubbles: true })); })()`);
   await sleep(500);
@@ -203,7 +203,9 @@ async function layout() {
   await sleep(1500);
 
   // Tab order from the document start.
-  await s.ev(`(() => { document.activeElement && document.activeElement.blur(); window.scrollTo(0, 0); })()`);
+  // Reset the sequential-focus starting point to the top of the document.
+  await s.ev(`(() => { document.activeElement && document.activeElement.blur(); window.scrollTo(0, 0);
+    document.body.setAttribute('tabindex', '-1'); document.body.focus(); document.body.removeAttribute('tabindex'); })()`);
   const seen = [];
   const describe = `(() => { const a = document.activeElement; if (!a) return '';
     if (a.classList.contains('static-skip')) return 'skip';
