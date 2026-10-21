@@ -41,7 +41,8 @@
 // default view then focus on the entity, stale node and edge filters cleared,
 // malformed focus payloads, a request held until the graph loads and its first
 // layout ends, a source-type target, and a target with too few visible
-// connections.
+// connections. "show-focus-queued-edit" changes an edge filter while the focus
+// request is held: the user's newer input wins and the request is dropped.
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -466,7 +467,7 @@ globalThis.fetch = async (url) => {
   }
   if (url === '/api/graph') {
     // show-queued: the graph arrives late so a request can be made before it loads.
-    if (mode === 'show-queued' || mode === 'show-focus-queued') await new Promise((r) => setTimeout(r, 120));
+    if (mode === 'show-queued' || mode.startsWith('show-focus-queued')) await new Promise((r) => setTimeout(r, 120));
     return respond(200, { nodes: NODES, edges: EDGES });
   }
   if (url === '/api/graph/groups' && usesFocusFixture) return respond(200, FOCUS_PAYLOAD);
@@ -497,7 +498,7 @@ if (mode === 'show-queued') {
   window.dispatchEvent(new CustomEvent('graph-show-types', { detail: { types: ['DISEASE'] } }));
 }
 // show-focus-queued: a focus request made while the graph is still loading.
-if (mode === 'show-focus-queued') {
+if (mode.startsWith('show-focus-queued')) {
   debugAtDispatch = window._graphDebug;
   window.dispatchEvent(new CustomEvent('graph-show-types', { detail: { reset: true, focus: { id: 'hub', hops: 1 } } }));
 }
@@ -1005,6 +1006,20 @@ if (isShow) {
     winEvent('graph-panel-opened');
     check('the focus is applied when the layout ends', JSON.stringify(focusStackIds()) === JSON.stringify([{ id: 'hub', hops: 1 }]), focusStackIds());
     check('only the hub and its neighbours are visible', same(visibleIds(), ['hub', 'n1', 'n2', 'n3']), visibleIds());
+  } else if (mode === 'show-focus-queued-edit') {
+    // WR-01: the user moves the confidence slider while the focus request waits.
+    check('the graph had not loaded when the request was made', debugAtDispatch === undefined, typeof debugAtDispatch);
+    await tick(250);
+    check('the request is held while the initial layout runs', window._graphDebug.busy === true && focusStackIds().length === 0, { busy: window._graphDebug.busy, stack: focusStackIds() });
+    const slider = document.getElementById('confidence-slider');
+    slider.value = '0.9';
+    slider.dispatch('input');
+    settle();
+    await tick();
+    winEvent('graph-panel-opened');
+    check('the slider value the user set survives the layout end', slider.value === '0.9', slider.value);
+    check('the stale focus request is dropped', focusStackIds().length === 0, focusStackIds());
+    check('the layout ended', window._graphDebug.busy === false, window._graphDebug.busy);
   } else {
     settle();
     await tick();

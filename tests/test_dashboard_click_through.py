@@ -27,6 +27,7 @@ SHOW_MODES = [
     "show-focus-stale",
     "show-focus-unknown",
     "show-focus-queued",
+    "show-focus-queued-edit",
     "show-focus-source",
     "show-focus-edge-filter",
     "show-focus-isolated",

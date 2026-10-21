@@ -2876,6 +2876,12 @@ function dropPendingShowTypes() {
     pendingShowTypes = null;
 }
 
+// The same rule for the edge filters (epistemic chips, confidence, relation
+// types): only a held focus request resets them, so only that one is dropped.
+function dropPendingShowFocus() {
+    if (pendingShowTypes !== null && parseShowFocus(pendingShowTypes)) pendingShowTypes = null;
+}
+
 function requestShowTypes(detail) {
     // No graph yet: keep the newest request and apply it when the graph loads.
     if (!visNodes) {
@@ -3086,6 +3092,7 @@ function buildEpistemicChips() {
         btn.textContent = label;
 
         btn.addEventListener('click', () => {
+            dropPendingShowFocus();
             if (activeEpistemicStatuses.has(status)) {
                 activeEpistemicStatuses.delete(status);
                 btn.classList.remove('active');
@@ -3126,6 +3133,7 @@ function initConfidenceSlider() {
     // WR-02: guard against duplicate registration on repeated initConfidenceSlider() calls.
     if (!_sliderListenerAttached) {
         slider.addEventListener('input', () => {
+            dropPendingShowFocus();
             confidenceThreshold = parseFloat(slider.value);
             readout.textContent = confidenceThreshold.toFixed(2);  // textContent only (SEC-01)
             filterGraph();
@@ -3189,6 +3197,7 @@ function buildRelationTypeDropdown() {
         container.appendChild(row);
 
         cb.addEventListener('change', () => {
+            dropPendingShowFocus();
             if (cb.checked) {
                 activeRelationTypes.add(relType);
             } else {
@@ -3203,6 +3212,7 @@ function buildRelationTypeDropdown() {
     // correct after any subsequent buildRelationTypeDropdown() rebuild.
     if (!_relationFilterListenerAttached && selectAllBtn && clearAllBtn) {
         selectAllBtn.addEventListener('click', () => {
+            dropPendingShowFocus();
             const panel = document.getElementById('relation-type-panel');
             if (!panel) return;
             const boxes = panel.querySelectorAll('input[type="checkbox"][data-relation-type]');
@@ -3215,6 +3225,7 @@ function buildRelationTypeDropdown() {
         });
 
         clearAllBtn.addEventListener('click', () => {
+            dropPendingShowFocus();
             // D-05: empty set hides all relation-type edges
             const panel = document.getElementById('relation-type-panel');
             if (!panel) return;
