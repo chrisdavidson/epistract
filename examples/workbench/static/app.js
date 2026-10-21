@@ -3,6 +3,7 @@ import { initChat, loadModelSelector } from './chat.js';
 import { initGraph } from './graph.js';
 import { loadDisplay, legendEntries, makeSwatch } from './display.js';
 import { buildDocuments, buildEntitySummary, buildEpistemicHealth } from './dashboard.js';
+import { getOrigin, initSourceViewer, setDocuments } from './source_viewer.js';
 // sources.js removed -- source docs now accessed via dashboard links
 
 // SEC-01 / VUL-03: local escapeHtml helper. We intentionally do NOT import the
@@ -18,19 +19,27 @@ function escapeHtml(text) {
 // ---------------------------------------------------------------------------
 // Panel State -- only one panel visible at a time
 // ---------------------------------------------------------------------------
-let activePanel = 'chat'; // 'dashboard' | 'chat' | 'graph' | 'sources'
+let activePanel = 'chat'; // 'dashboard' | 'chat' | 'graph' | 'source'
 
-function switchPanel(panel) {
+function getActivePanel() {
+    return activePanel;
+}
+
+function switchPanel(requested) {
+    // 'sources' is the old name of the document viewer panel.
+    const panel = requested === 'sources' ? 'source' : requested;
     activePanel = panel;
 
     const dashboardPanel = document.getElementById('dashboard-panel');
     const chatPanel = document.querySelector('.chat-panel');
     const sidePanel = document.getElementById('side-panel');
     const graphPanel = document.getElementById('graph-panel');
+    const sourcePanel = document.getElementById('source-panel');
     // Hide all panels
     dashboardPanel.style.display = 'none';
     chatPanel.style.display = 'none';
     sidePanel.style.display = 'none';
+    if (sourcePanel) sourcePanel.style.display = 'none';
     // Shows the graph filter rail (and hides the entity legend) in the sidebar.
     document.body.classList.toggle('graph-active', panel === 'graph');
 
@@ -38,13 +47,16 @@ function switchPanel(panel) {
         dashboardPanel.style.display = 'flex';
     } else if (panel === 'chat') {
         chatPanel.style.display = 'flex';
+    } else if (panel === 'source') {
+        if (sourcePanel) sourcePanel.style.display = 'flex';
     } else if (panel === 'graph') {
         sidePanel.style.display = 'flex';
         sidePanel.classList.add('open');
         graphPanel.style.display = 'flex';
     }
 
-    updateNavLinks(panel);
+    // The viewer is opened from the Dashboard or Chat: that nav link stays marked.
+    updateNavLinks(panel === 'source' ? getOrigin() : panel);
     updatePanelTabs(panel);
 
     // Notify graph panel when shown (vis.js needs resize) or hidden (the
@@ -297,6 +309,7 @@ async function populateDashboard(template) {
                 ),
             });
             if (docsSection) dashContent.appendChild(docsSection);
+            setDocuments(dashData.documents);
             // Custom rule findings — per-domain CUSTOM_RULES and cross-domain
             // rules both land in claims_layer.super_domain.custom_findings.
             // Purely additive: domains that ship no custom rules get an empty
@@ -441,10 +454,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     configureSeverityVisibility();
 
     // Initialize panels with template
-    initChat({ template, openSources: (docId, section) => {
-        switchPanel('sources');
-        window.dispatchEvent(new CustomEvent('navigate-source', { detail: { docId, section } }));
-    }});
+    // The viewer registers the 'navigate-source' listener, so it starts first.
+    initSourceViewer({ switchPanel, getActivePanel, openGraphWith });
+    initChat({ template });
     loadModelSelector();
     arrangeGraphRail();
     wireSidebarCollapse();
@@ -479,4 +491,4 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // Export for use by other modules
-export { switchPanel };
+export { switchPanel, getActivePanel };

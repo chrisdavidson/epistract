@@ -226,7 +226,7 @@ const loaded = async (env, docId, body = { doc_id: docId, text: 'Hello\nworld' }
   check('init: a second call adds no listeners', env.winListeners['navigate-source'].length === 1 && doc.listenerCount('keydown') === 1);
   const seed = env.calls.filter((c) => c.url === '/api/sources');
   check('init: the document list is fetched once from /api/sources', seed.length === 1, env.calls.map((c) => c.url));
-  check('init: the panel interior is built', !!env.q.title() && !!env.q.back() && !!env.q.graphBtn() && !!env.q.reader() && !!env.q.status());
+  check('init: the panel interior is built', !!env.q.title() && !!env.q.back() && !!env.q.graphBtn() && !!env.q.reader() && !!env.q.status(), [!!env.q.title(), !!env.q.back(), !!env.q.graphBtn(), !!env.q.reader(), !!env.q.status()]);
   const reader = env.q.reader();
   check('init: reader is a focusable labelled region', reader.getAttribute('role') === 'region' && reader.getAttribute('tabindex') === '0');
   const title = env.q.title();
