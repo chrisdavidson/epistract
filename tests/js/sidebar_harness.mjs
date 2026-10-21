@@ -52,6 +52,7 @@ function makeEl(id = '', tagName = '', namespaceURI = null) {
     getAttribute(name) { return name in attrs ? attrs[name] : null; },
     removeAttribute(name) { delete attrs[name]; },
     addEventListener(type, fn) { (listeners[type] ||= []).push(fn); },
+    _fire(type, ev = {}) { (listeners[type] || []).forEach((fn) => fn({ preventDefault() {}, ...ev })); },
   };
   return el;
 }
@@ -104,6 +105,11 @@ globalThis.document = {
   querySelectorAll: () => [],
 };
 globalThis.window = makeEl('window');
+if (typeof globalThis.CustomEvent === 'undefined') {
+  globalThis.CustomEvent = class CustomEvent { constructor(type, init = {}) { this.type = type; this.detail = init.detail; } };
+}
+const dispatched = [];
+window.dispatchEvent = (ev) => { dispatched.push(ev); window._fire(ev.type, ev); return true; };
 globalThis.console.warn = () => {};
 
 function textOf(el) {
@@ -267,6 +273,104 @@ try {
   check('e: fallback rows exclude MENTIONED_IN', relationRows().map(textOf).every((t) => !/mentioned in/.test(t)), relationRows().map(textOf));
   check('e: fallback Links equals rows', attrRow('Links:') && attrRow('Links:').children[1].textContent === String(relationRows().length));
   check('e: self-loop counted once', JSON.stringify(style.linkDegrees([{ source: 'q', target: 'q' }], () => false)) === '{"q":1}');
+
+  // (f) Focus row in the node sidebar
+  try {
+  const sema = 'compound:semaglutide';
+  const fstate = { centerId: null, hops: 1, counts: { 1: 60, 2: 150 } };
+  const fopts = { ...optsFor(nodes, display.isSourceRelation), focusInfo: () => ({ ...fstate, counts: { ...fstate.counts } }) };
+  const focusRow = () => (body.children[0] && body.children[0].className === 'graph-detail-sidebar__focus' ? body.children[0] : null);
+  const focusBtn = () => focusRow() && findAll(focusRow(), (n) => n.tagName === 'button' && n.getAttribute('role') !== 'radio')[0];
+  const hopBtns = () => (focusRow() ? findAll(focusRow(), (n) => n.getAttribute('role') === 'radio') : []);
+  const eventsOf = (type) => dispatched.filter((e) => e.type === type);
+  const resetEvents = () => { dispatched.length = 0; };
+
+  display.setDisplayData({
+    types: [
+      { type: 'DOCUMENT', color: '#6b7280', shape: 'dot', family: 'Sources', is_source: true, label: 'Document', count: 1 },
+      { type: 'COMPOUND', color: '#1f77b4', shape: 'dot', family: 'Interventions', label: 'Compound', count: 1 },
+    ],
+    families: [],
+  });
+  side.showNodeDetail(sema, nodes, edges, fopts);
+  check('f: focus row is first body block', Boolean(focusRow()));
+  check('f: button text', focusBtn() && focusBtn().textContent === 'Focus on this node', focusBtn() && focusBtn().textContent);
+  check('f: button title', focusBtn() && focusBtn().title === 'Show only this node and its neighbors (or double-click the node)', focusBtn() && focusBtn().title);
+  check('f: radiogroup label', focusRow() && findAll(focusRow(), (n) => n.getAttribute('role') === 'radiogroup' && n.getAttribute('aria-label') === 'Neighborhood size').length === 1);
+  check('f: segment texts', hopBtns().map(textOf).join('|') === '1 hop \u00b7 60 nodes|2 hops \u00b7 150 nodes', hopBtns().map(textOf).join('|'));
+  check('f: 1 hop checked', hopBtns()[0] && hopBtns()[0].getAttribute('aria-checked') === 'true' && hopBtns()[1].getAttribute('aria-checked') === 'false');
+  check('f: roving tabindex', hopBtns()[0] && hopBtns()[0].getAttribute('tabindex') === '0' && hopBtns()[1].getAttribute('tabindex') === '-1');
+  check('f: button enabled', focusBtn() && !focusBtn().disabled);
+  check('f: Attributes section follows the focus row', body.children[1] && textOf(body.children[1]).startsWith('Attributes'));
+  resetEvents();
+  focusBtn()._fire('click');
+  check('f: click dispatches graph-focus-node', eventsOf('graph-focus-node').length === 1 && eventsOf('graph-focus-node')[0].detail.id === sema && eventsOf('graph-focus-node')[0].detail.hops === 1, JSON.stringify(eventsOf('graph-focus-node').map((e) => e.detail)));
+  resetEvents();
+  hopBtns()[1]._fire('click');
+  check('f: non-center segment dispatches graph-focus-hops', eventsOf('graph-focus-hops').length === 1 && eventsOf('graph-focus-hops')[0].detail.hops === 2 && eventsOf('graph-focus-node').length === 0, JSON.stringify(dispatched.map((e) => e.type)));
+  check('f: segment 2 now checked', hopBtns()[1].getAttribute('aria-checked') === 'true' && hopBtns()[0].getAttribute('aria-checked') === 'false');
+  resetEvents();
+  focusBtn()._fire('click');
+  check('f: later click carries hops 2', eventsOf('graph-focus-node').length === 1 && eventsOf('graph-focus-node')[0].detail.hops === 2);
+  resetEvents();
+  hopBtns()[1]._fire('keydown', { key: 'ArrowLeft' });
+  check('f: arrow key moves the segment', eventsOf('graph-focus-hops').length === 1 && eventsOf('graph-focus-hops')[0].detail.hops === 1 && hopBtns()[0].getAttribute('aria-checked') === 'true', JSON.stringify(dispatched.map((e) => e.detail)));
+  check('f: no Focus row in edge detail', (() => {
+    const ve = { get: () => ({ _data: edges[0] }) };
+    side.showEdgeDetail('e', ve, nodes);
+    return findAll(body, (n) => n.className === 'graph-detail-sidebar__focus').length === 0;
+  })());
+
+  // center state
+  fstate.centerId = sema; fstate.hops = 1;
+  side.showNodeDetail(sema, nodes, edges, fopts);
+  check('f: center button reads Exit focus', focusBtn() && focusBtn().textContent === 'Exit focus', focusBtn() && focusBtn().textContent);
+  resetEvents();
+  focusBtn()._fire('click');
+  check('f: center click dispatches graph-focus-exit', eventsOf('graph-focus-exit').length === 1 && eventsOf('graph-focus-node').length === 0);
+  resetEvents();
+  hopBtns()[1]._fire('click');
+  check('f: center segment dispatches graph-focus-node', eventsOf('graph-focus-node').length === 1 && eventsOf('graph-focus-node')[0].detail.id === sema && eventsOf('graph-focus-node')[0].detail.hops === 2 && eventsOf('graph-focus-hops').length === 0, JSON.stringify(dispatched.map((e) => [e.type, e.detail])));
+
+  // graph-focus-changed updates in place
+  fstate.centerId = null; fstate.hops = 1;
+  side.showNodeDetail(sema, nodes, edges, fopts);
+  const rowBefore = focusRow();
+  window.dispatchEvent(new CustomEvent('graph-focus-changed', { detail: { id: sema, hops: 2, counts: { 1: 61, 2: 151 } } }));
+  check('f: changed event -> Exit focus', focusBtn().textContent === 'Exit focus', focusBtn().textContent);
+  check('f: changed event -> counts and checked', hopBtns().map(textOf).join('|') === '1 hop \u00b7 61 nodes|2 hops \u00b7 151 nodes' && hopBtns()[1].getAttribute('aria-checked') === 'true', hopBtns().map(textOf).join('|'));
+  check('f: changed event updates in place', focusRow() === rowBefore);
+  fstate.counts = { 1: 61, 2: 151 };
+  window.dispatchEvent(new CustomEvent('graph-focus-changed', { detail: { id: null, hops: 1, counts: { 1: 0, 2: 0 } } }));
+  check('f: changed event exit -> Focus on this node', focusBtn().textContent === 'Focus on this node', focusBtn().textContent);
+  window.dispatchEvent(new CustomEvent('graph-focus-changed', { detail: { id: 'someone-else', hops: 1, counts: { 1: 3, 2: 4 } } }));
+  check('f: another centre -> not Exit focus', focusBtn().textContent === 'Focus on this node');
+  check('f: another centre keeps own counts', hopBtns().map(textOf).join('|') === '1 hop \u00b7 61 nodes|2 hops \u00b7 151 nodes', hopBtns().map(textOf).join('|'));
+
+  // linkless node
+  fstate.centerId = null; fstate.counts = { 1: 1, 2: 1 };
+  side.showNodeDetail(sema, nodes, edges, fopts);
+  check('f: linkless button disabled', focusBtn() && (focusBtn().disabled === true || focusBtn().getAttribute('disabled') !== null));
+  check('f: linkless title', focusBtn() && focusBtn().title === 'This node has no links to focus on.', focusBtn() && focusBtn().title);
+  check('f: linkless segment singular', hopBtns()[0] && textOf(hopBtns()[0]) === '1 hop \u00b7 1 node', hopBtns()[0] && textOf(hopBtns()[0]));
+  resetEvents();
+  focusBtn()._fire('click');
+  check('f: disabled click sends nothing', dispatched.length === 0);
+
+  // backward compatible: no focusInfo, no row
+  side.showNodeDetail(sema, nodes, edges, optsFor(nodes, display.isSourceRelation));
+  check('f: no focusInfo, no Focus row', !focusRow() && findAll(body, (n) => n.className === 'graph-detail-sidebar__focus').length === 0);
+
+  // hostile name in the focus row
+  fstate.counts = { 1: 5, 2: 9 };
+  const before = violations.length;
+  side.showNodeDetail('a', hn, he, { ...optsFor(hn, display.isSourceRelation), focusInfo: () => ({ ...fstate }) });
+  check('f: hostile node renders Focus row', Boolean(focusRow()));
+  check('f: hostile name absent from Focus row', focusRow() && !textOf(focusRow()).includes('img') && !(focusBtn().title || '').includes('img'));
+  check('f: hostile Focus row no innerHTML', violations.length === before, violations.join('; '));
+  } catch (e) {
+    failed.push({ name: 'f: harness error', detail: String((e && e.stack) || e) });
+  }
 } catch (e) {
   failed.push({ name: 'harness error', detail: String((e && e.stack) || e) });
 }

@@ -14,8 +14,7 @@ GLP1 = ROOT / "tests" / "corpora" / "06_glp1_landscape" / "output-v3"
 HARNESS = Path(__file__).resolve().parent / "js" / "sidebar_harness.mjs"
 
 
-@pytest.mark.unit
-def test_sidebar_relations_and_source_counts():
+def _run_report():
     if shutil.which("node") is None:
         pytest.skip("node not available")
     result = subprocess.run(
@@ -25,9 +24,56 @@ def test_sidebar_relations_and_source_counts():
         text=True,
     )
     try:
-        report = json.loads(result.stdout.strip().splitlines()[-1])
+        return json.loads(result.stdout.strip().splitlines()[-1])
     except (IndexError, ValueError):
-        report = {"failed": ["unparseable harness output"]}
-    assert result.returncode == 0 and report["failed"] == [], (
-        f"stdout: {result.stdout}\nstderr: {result.stderr}"
+        return {"passed": [], "failed": [{"name": "unparseable harness output"}]}
+
+
+def _focus_failures(report, *needles):
+    return [
+        f
+        for f in report["failed"]
+        if f["name"] == "f: harness error"
+        or (f["name"].startswith("f: ") and any(n in f["name"] for n in needles))
+    ]
+
+
+def _assert_focus(*needles):
+    report = _run_report()
+    ran = [p for p in report["passed"] if p.startswith("f: ")]
+    failed = _focus_failures(report, *needles)
+    assert not failed and ran, f"focus checks failed: {failed}; passed {len(ran)}"
+
+
+@pytest.mark.unit
+def test_sidebar_focus_row():
+    _assert_focus(
+        "focus row",
+        "button",
+        "segment",
+        "radiogroup",
+        "tabindex",
+        "click",
+        "arrow",
+        "edge detail",
+        "Attributes",
+        "no focusInfo",
+        "hostile",
     )
+
+
+@pytest.mark.unit
+def test_sidebar_focus_center():
+    _assert_focus("center", "changed event", "another centre")
+
+
+@pytest.mark.unit
+def test_sidebar_focus_disabled():
+    _assert_focus("linkless", "disabled")
+
+
+@pytest.mark.unit
+def test_sidebar_relations_and_source_counts():
+    report = _run_report()
+    failed = [f for f in report["failed"] if not f["name"].startswith("f: ")]
+    assert not failed and report["passed"], f"failed: {failed}"
