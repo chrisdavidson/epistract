@@ -98,6 +98,7 @@ def test_compact_layout_filters_tab_order_print_and_motion(chromium_port, glp1_h
 # Failure, partial-data and empty states
 # ---------------------------------------------------------------------------
 
+
 def _doctored_page(glp1_dir: Path, mode: str) -> str:
     view = static_export.build_view_data(glp1_dir)
     payload = dict(view["payload"])
@@ -128,7 +129,9 @@ def glp1_dir(tmp_path_factory):
     return work
 
 
-@pytest.mark.parametrize("mode", ["no-graph", "bad-json", "no-groups", "no-display", "script-error"])
+@pytest.mark.parametrize(
+    "mode", ["no-graph", "bad-json", "no-groups", "no-display", "script-error"]
+)
 def test_standalone_failure_and_partial_data_states(chromium_port, glp1_dir, tmp_path, mode):
     page = tmp_path / f"{mode}.html"
     page.write_text(_doctored_page(glp1_dir, mode), encoding="utf-8")

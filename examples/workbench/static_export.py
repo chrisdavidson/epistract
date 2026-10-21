@@ -308,10 +308,7 @@ def _notice(subset: dict | None) -> str:
         where = f"around {name}" if depth <= 1 else f"within {_num(depth)} hops of {name}"
         lead = f"{counts} {where}."
     else:
-        lead = (
-            f"{counts}: the {_num(subset['top_n'])} most connected entities "
-            "and their neighbors."
-        )
+        lead = f"{counts}: the {_num(subset['top_n'])} most connected entities and their neighbors."
     return (
         f'<p class="static-notice" role="note">{lead}'
         f' <span class="static-notice__hint">{html.escape(FILTER_HINT)}</span></p>\n'

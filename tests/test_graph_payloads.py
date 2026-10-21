@@ -36,8 +36,12 @@ def test_payload_helpers_match_routes_for_contracts_sample(client):
     got_types = entity_types_payload(state.data.get_nodes(), state.display)
     got_claims = claims_payload(state.data.claims_layer)
 
-    assert got_types == expected_types, f"entity-types payload differs: {got_types} != {expected_types}"
-    assert got_claims == expected_claims, f"claims payload differs: {got_claims} != {expected_claims}"
+    assert got_types == expected_types, (
+        f"entity-types payload differs: {got_types} != {expected_types}"
+    )
+    assert got_claims == expected_claims, (
+        f"claims payload differs: {got_claims} != {expected_claims}"
+    )
 
 
 def test_payload_helpers_match_routes_for_glp1(tmp_path):
@@ -64,7 +68,6 @@ def test_claims_payload_tolerates_empty_layer():
         "custom_findings": {},
         "findings": [],
     }
-
 
 
 def test_routes_delegate_to_shared_helpers():
