@@ -9,7 +9,7 @@ Arguments:
 - `output_dir` -- directory with graph_data.json (default: ./epistract-output)
 - `--neighborhood <entity>` -- show only the neighborhood of one entity (exact id or name)
 - `--depth <d>` -- hop radius for `--neighborhood`, a positive integer (default: 1; ignored without it)
-- `--top <n>` -- show the top N entities by connections, plus their neighbors (N >= 1)
+- `--top <n>` -- show the top N entities by connections, plus their neighbors (N >= 1; ignored when `--neighborhood` is given)
 - `--no-open` -- write `graph.html` without opening a browser
 
 ```bash
@@ -46,7 +46,7 @@ Options:
   <output-dir>              Path to extraction output containing graph_data.json  (default: ./epistract-output)
   --neighborhood <entity>   Show neighborhood subgraph centered on a named entity
   --depth <d>               Hop radius for --neighborhood  (default: 1)
-  --top <n>                 Limit to top N nodes by degree  (default: all)
+  --top <n>                 Show the top N entities by connections, plus their neighbors  (default: all)
   --no-open                 Write graph.html without opening a browser
 
 Page features: Group by (Topic cluster default / Entity family / None), Show sources,
@@ -63,7 +63,7 @@ Arguments:
 - `output_dir` -- directory with graph_data.json (default: ./epistract-output)
 - `--neighborhood <entity>` -- show only the neighborhood of one entity (exact id or name)
 - `--depth <d>` -- hop radius for `--neighborhood`, a positive integer (default: 1; ignored without it)
-- `--top <n>` -- show the top N entities by connections, plus their neighbors (N >= 1)
+- `--top <n>` -- show the top N entities by connections, plus their neighbors (N >= 1; ignored when `--neighborhood` is given)
 - `--no-open` -- write `graph.html` without opening a browser
 
 ```bash
