@@ -4,7 +4,8 @@
 // It owns the single 'navigate-source' listener: any part of the page opens a
 // document with
 //   window.dispatchEvent(new CustomEvent('navigate-source', { detail: { docId, highlight } }))
-// (the legacy `section` field is read as `highlight`).
+// (the legacy `section` field is read as `highlight`). A highlight that occurs
+// in the text is wrapped in a mark and scrolled to the middle of the reader.
 //
 // SEC-01: document ids, names, text and highlight strings come from the corpus
 // and are untrusted. They reach the DOM only through createElement,
@@ -30,6 +31,10 @@ const COPY = {
     graphTitleDisabled: 'This document has no entities in the graph.',
     graphNote: 'This document has no entities in the graph, so there is nothing to focus.',
 };
+
+const MAX_NEEDLE_CHARS = 300;
+const MIN_NEEDLE_CHARS = 3;
+const PREFIX_CHARS = 60;
 
 const documents = new Map();
 const subscribers = new Set();
@@ -99,6 +104,66 @@ export function subscribeDocuments(callback) {
 
 export function getOrigin() {
     return origin;
+}
+
+// --- highlight ------------------------------------------------------------------------
+
+function escapeRegex(value) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Case-insensitive literal search. indexOf on lowercased copies is only valid
+// when lowercasing keeps every length (it does not for characters such as
+// 'İ'); otherwise an escaped case-insensitive RegExp finds the same thing.
+function findLiteral(body, needle) {
+    const lowerBody = body.toLowerCase();
+    const lowerNeedle = needle.toLowerCase();
+    if (lowerBody.length === body.length && lowerNeedle.length === needle.length) {
+        const index = lowerBody.indexOf(lowerNeedle);
+        return index < 0 ? null : { index, length: needle.length };
+    }
+    const match = new RegExp(escapeRegex(needle), 'i').exec(body);
+    return match ? { index: match.index, length: match[0].length } : null;
+}
+
+// Each whitespace run in the needle matches any whitespace run in the text, so
+// a quote that crosses a line break still matches. Tokens are escaped first.
+function findFlexible(body, needle) {
+    const tokens = needle.split(/\s+/).filter(Boolean);
+    if (tokens.length < 2) return null;
+    const match = new RegExp(tokens.map(escapeRegex).join('\\s+'), 'i').exec(body);
+    return match ? { index: match.index, length: match[0].length } : null;
+}
+
+// Wraps the first match of `highlight` in a mark.source-highlight by splitting
+// the text node (text, mark, text). Returns the mark, or null when there is
+// nothing to mark; the text node is then left untouched.
+export function markFirstMatch(textNode, highlight) {
+    if (!textNode || typeof textNode.data !== 'string' || typeof highlight !== 'string') return null;
+    const body = textNode.data;
+    if (!body) return null;
+    let needle = highlight.trim();
+    if (needle.length < MIN_NEEDLE_CHARS) return null;
+    if (needle.length > MAX_NEEDLE_CHARS) needle = needle.slice(0, MAX_NEEDLE_CHARS);
+
+    let found = findLiteral(body, needle) || findFlexible(body, needle);
+    if (!found && needle.length > PREFIX_CHARS) {
+        const prefix = needle.slice(0, PREFIX_CHARS).trim();
+        if (prefix.length >= MIN_NEEDLE_CHARS) found = findLiteral(body, prefix);
+    }
+    if (!found || found.length === 0) return null;
+
+    const rest = textNode.splitText(found.index);
+    rest.splitText(found.length);
+    const mark = document.createElement('mark');
+    mark.className = 'source-highlight';
+    mark.textContent = rest.data;
+    rest.parentNode.replaceChild(mark, rest);
+    return mark;
+}
+
+function prefersReducedMotion() {
+    return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
 // --- panel -----------------------------------------------------------------------
@@ -196,9 +261,15 @@ function showState(token, kind, payload) {
             const filename = (row && row.filename) || id;
             nodes.push(text('p', 'source-note', `Showing the first 2 MB of ${size}. The full text is in ${filename}.`));
         }
-        nodes.push(text('div', 'source-text', shown));
+        const body = el('div', 'source-text');
+        const textNode = document.createTextNode(shown);
+        body.appendChild(textNode);
+        nodes.push(body);
         ui.reader.replaceChildren(...nodes);
-        announce(`Opened ${name}.`);
+        ui.reader.scrollTop = 0;
+        const mark = current && current.highlight ? markFirstMatch(textNode, current.highlight) : null;
+        if (mark) mark.scrollIntoView({ block: 'center', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+        announce(`Opened ${name}.${mark ? ' Cited passage highlighted.' : ''}`);
     } else if (kind === 'empty') {
         ui.reader.replaceChildren(stateBlock(COPY.emptyTitle, COPY.emptyBody + (hasPdf ? COPY.emptyPdf : '')));
         announce(`Opened ${name}.`);

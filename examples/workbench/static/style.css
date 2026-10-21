@@ -798,118 +798,22 @@ body {
 }
 
 /* ---------------------------------------------------------------------------
-   Sources Panel
+   Source text highlight
    --------------------------------------------------------------------------- */
 
-.sources-layout {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
+mark.source-highlight {
+  background: #fde68a;
+  color: inherit;
+  border-radius: 2px;
+  box-shadow: 0 0 0 2px #fde68a;
 }
 
-.doc-list-container {
-  border-bottom: 1px solid #e5e7eb;
-  max-height: 200px;
-  overflow-y: auto;
-  flex-shrink: 0;
-}
-
-.doc-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.doc-list-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  padding: var(--space-sm) var(--space-md);
-  background: none;
-  border: none;
-  border-bottom: 1px solid #f1f5f9;
-  cursor: pointer;
-  font-size: var(--size-label);
-  font-family: var(--font-body);
-  text-align: left;
-  color: #333;
-  transition: background 0.15s;
-}
-
-.doc-list-item:hover {
-  background: #f8f9fa;
-}
-
-.doc-list-item.active {
-  background: #eff6ff;
-  color: var(--color-accent);
-  font-weight: 600;
-}
-
-.doc-name {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.doc-size {
-  color: #999;
-  font-family: var(--font-data);
-  font-size: 12px;
-  margin-left: var(--space-sm);
-  flex-shrink: 0;
-}
-
-.doc-list-empty {
-  padding: var(--space-md);
-  color: #999;
-  font-size: var(--size-label);
-}
-
-.source-viewer-container {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  position: relative;
-}
-
-.source-viewer {
-  flex: 1;
-  overflow-y: auto;
-  padding: var(--space-md);
-  font-size: var(--size-body);
-  white-space: pre-wrap;
-  line-height: 1.6;
-  margin: 0;
-}
-
-.source-empty {
-  color: #999;
-  text-align: center;
-  padding: var(--space-2xl);
-}
-
-.source-highlight {
-  background: var(--severity-warning-bg);
-  padding: 2px 0;
-}
-
-.pdf-link {
-  display: block;
-  padding: var(--space-sm) var(--space-md);
-  color: var(--color-accent);
-  text-decoration: none;
-  font-size: var(--size-label);
-  font-weight: 600;
-  border-top: 1px solid #e5e7eb;
-  text-align: center;
-}
-
-.pdf-link:hover {
-  text-decoration: underline;
+@media (forced-colors: active) {
+  mark.source-highlight {
+    forced-color-adjust: none;
+    background: Highlight;
+    color: HighlightText;
+  }
 }
 
 .loading {

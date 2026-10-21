@@ -4,12 +4,9 @@ import { initGraph } from './graph.js';
 import { loadDisplay, legendEntries, makeSwatch } from './display.js';
 import { buildDocuments, buildEntitySummary, buildEpistemicHealth } from './dashboard.js';
 import { getOrigin, initSourceViewer, setDocuments } from './source_viewer.js';
-// sources.js removed -- source docs now accessed via dashboard links
 
-// SEC-01 / VUL-03: local escapeHtml helper. We intentionally do NOT import the
-// copy from sources.js because that file is no longer wired into the module
-// graph (see line above). DOM-based escaping handles every HTML metacharacter
-// without an explicit replacement table.
+// SEC-01 / VUL-03: local escapeHtml helper. DOM-based escaping handles every
+// HTML metacharacter without an explicit replacement table.
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text == null ? '' : String(text);
@@ -461,7 +458,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     arrangeGraphRail();
     wireSidebarCollapse();
     await initGraph({ template, openChat: askInChat });
-    // Sources panel removed -- docs accessible via dashboard contract links
 
     // Wire up sidebar nav -- each button switches to its panel
     document.querySelectorAll('.nav-link').forEach(link => {
@@ -470,7 +466,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
-    // Wire up panel tabs (graph/sources toggle within side panel)
+    // Wire up panel tabs
     document.querySelectorAll('.panel-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             switchPanel(tab.dataset.tab);

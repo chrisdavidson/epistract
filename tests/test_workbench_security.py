@@ -55,8 +55,8 @@ def test_xss_sanitization():
     sink past the sanitizer allowlist (a comment merely mentioning
     escapeHtml must not make an unsanitized assignment look safe).
 
-    Reads such as `return div.innerHTML;` (the escapeHtml helpers at
-    app.js:13 and sources.js:146) are never matched — the assignment
+    Reads such as `return div.innerHTML;` (the escapeHtml helper at
+    app.js:13) are never matched — the assignment
     regex requires a `=` (or `+=`, excluding `==`/`===`) immediately after
     `.innerHTML`, and a bare return has none.
     """
