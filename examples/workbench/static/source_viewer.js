@@ -64,6 +64,15 @@ function text(tag, className, value) {
     return node;
 }
 
+// The first `limit` UTF-16 code units of `value`, one fewer if the cut would
+// separate a surrogate pair (a lone high surrogate renders as U+FFFD).
+export function capText(value, limit) {
+    if (value.length <= limit) return value;
+    const code = value.charCodeAt(limit - 1);
+    const end = code >= 0xd800 && code <= 0xdbff ? limit - 1 : limit;
+    return value.slice(0, end);
+}
+
 export function formatSize(bytes) {
     if (!bytes || typeof bytes !== 'number') return '';
     if (bytes < 1024) return `${bytes} B`;
@@ -254,12 +263,12 @@ function showState(token, kind, payload) {
 
     if (kind === 'text') {
         const total = payload.length;
-        const shown = total > MAX_RENDERED_CHARS ? payload.slice(0, MAX_RENDERED_CHARS) : payload;
+        const shown = total > MAX_RENDERED_CHARS ? capText(payload, MAX_RENDERED_CHARS) : payload;
         const nodes = [];
         if (total > MAX_RENDERED_CHARS) {
-            const size = formatSize(row && row.size_bytes) || formatSize(total);
             const filename = (row && row.filename) || id;
-            nodes.push(text('p', 'source-note', `Showing the first 2 MB of ${size}. The full text is in ${filename}.`));
+            nodes.push(text('p', 'source-note',
+                `Showing the first 2 million characters of ${total.toLocaleString('en-US')} characters. The full text is in ${filename}.`));
         }
         const body = el('div', 'source-text');
         const textNode = document.createTextNode(shown);

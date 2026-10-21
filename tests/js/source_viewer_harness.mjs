@@ -672,10 +672,19 @@ function respondSeed(env, call) {
   const shown = env.q.text();
   check('large: only the first 2,000,000 characters are rendered', shown && shown.textContent.length === 2000000, shown && shown.textContent.length);
   const notes = byClass(env.q.reader(), 'source-note');
-  check('large: a note explains the cut', notes.length === 1 && notes[0].textContent === 'Showing the first 2 MB of 2.5 MB. The full text is in Big.txt.', notes.map((n) => n.textContent));
+  check('large: a note explains the cut in characters', notes.length === 1 && notes[0].textContent === 'Showing the first 2 million characters of 2,500,000 characters. The full text is in Big.txt.', notes.map((n) => n.textContent));
   check('large: the note sits above the text', env.q.reader().children.indexOf(notes[0]) < env.q.reader().children.indexOf(shown));
   await loaded(env, 'big', { doc_id: 'big', text: 'y'.repeat(2000000) });
   check('large: exactly 2,000,000 characters are not cut', byClass(env.q.reader(), 'source-note').length === 0 && env.q.text().textContent.length === 2000000);
+  // A surrogate pair straddling the cap is dropped whole, never split.
+  const emoji = '\u{1F600}';
+  await loaded(env, 'big', { doc_id: 'big', text: 'z'.repeat(1999999) + emoji + 'tail' });
+  const cut = env.q.text().textContent;
+  check('large: a surrogate pair at the cap is not split', cut.length === 1999999 && !/[\uD800-\uDBFF]$/.test(cut), cut.length);
+  await loaded(env, 'big', { doc_id: 'big', text: 'z'.repeat(1999998) + emoji + 'tail' });
+  check('large: a surrogate pair ending at the cap is kept whole', env.q.text().textContent.endsWith(emoji) && env.q.text().textContent.length === 2000000, env.q.text().textContent.length);
+  check('capText: plain cut, pair kept, pair not split', env.mod.capText('abcdef', 3) === 'abc' && env.mod.capText('a' + emoji, 3) === 'a' + emoji
+    && env.mod.capText('ab' + emoji, 3) === 'ab' && env.mod.capText('ab', 3) === 'ab');
 }
 
 // --- 13b. highlight in the open flow ------------------------------------------------------
