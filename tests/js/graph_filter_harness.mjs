@@ -646,6 +646,7 @@ if (isControl) {
     check('a throwing relayout also recovers', controlSnapshot().checked.cluster === 'true'
       && controlSnapshot().hint === failText && anchorIds().length === 2 && window._graphDebug.mode === 'cluster', controlSnapshot());
     globalThis.__stabilizeThrows = false;
+    window._relayoutTimeoutMs = 5000;
     await tick(500);
     await go(() => groupButtons.family.dispatch('click'));
     check('the control works again after a failure', window._graphDebug.mode === 'family' && controlSnapshot().checked.family === 'true', controlSnapshot().checked);
@@ -659,8 +660,11 @@ if (isControl) {
     const m1 = movesFor('d1');
     const last1 = m1[m1.length - 1];
     check('source moved on reveal', Boolean(last1));
-    // a (0,0) and e (40,0) are in the source's group; b is not. Jitter for index 0 is (-36, -36).
-    check('source sits at its group centroid', last1 && Math.abs(last1.args[1] - (20 - 36)) < 1e-6 && Math.abs(last1.args[2] - (0 - 36)) < 1e-6, last1 && last1.args);
+    // a and e are in the source's group; b (1000 units away) is not. Jitter for index 0 is (-36, -36).
+    const wa0 = world.get('a');
+    const we0 = world.get('e');
+    check('source sits at its group centroid', last1 && Math.abs(last1.args[1] - ((wa0.x + we0.x) / 2 - 36)) < 1e-6
+      && Math.abs(last1.args[2] - ((wa0.y + we0.y) / 2 - 36)) < 1e-6, last1 && last1.args);
     check('source does not change region geometry', JSON.stringify(window._graphDebug.regionGeometry()) === regionsBefore);
     groupButtons.family.dispatch('click');
     await tick();

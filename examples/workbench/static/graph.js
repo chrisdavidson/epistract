@@ -14,7 +14,7 @@ import { initHoverCard, showHoverCard, hideHoverCard } from './hovercard.js';
 import {
     packGroups, seedInside, anchorNodeSpecs, anchorEdgeSpecs, dataEdgeLengths,
     isAnchorId, groupIterations, FIT_MARGIN, regionGeometry, placeRegionLabels,
-    REGION_COLORS, REGION_LABEL_PX, REGION_PILL_PAD_PX,
+    REGION_COLORS, REGION_LABEL_PX, REGION_PILL_PAD_PX, clampIntoRegion,
 } from './grouping.js';
 
 // graph.js - Graph panel: vis.js network, search, entity type toggles
@@ -134,7 +134,16 @@ let groupsPayload = null;                 // /api/graph/groups response; null wh
 let groupMode = 'none';                   // 'cluster' | 'family' | 'none' for the current build
 let groupAssignment = new Map();          // non-source node id -> group id for the current build
 let groupLayout = new Map();              // group id -> {x, y, r} circle the group is packed into
+let sourceGroup = new Map();               // source id -> its plurality group id for the current build
 let _fitShrink = null;                    // pending post-animation fit margin handler
+let layoutToken = 0;                      // bumped by every relayout, failure and rebuild; stale completions compare and bail
+let relayoutBusy = false;                 // a relayout is arranging groups
+let freeLayoutPositions = null;           // Map id -> {x, y} of the free layout; restored by the None option
+let relayoutPrev = null;                  // layout state to roll back to if the running relayout fails
+let _relayoutTimer = null;                // fails a relayout that never completes
+let _hintOverride = null;                 // transient text shown in the group hint slot
+let _hintTimer = null;                    // clears the relayout failure message
+let _groupControlAttached = false;
 let activeRegionId = null;                // group whose Groups-list row was clicked (zoomed to)
 let emphasizedRegionId = null;            // group whose row is hovered or focused
 let groupRowEls = new Map();              // group id -> its Groups-list row button
@@ -142,6 +151,18 @@ let _groupListenersAttached = false;
 let _frameRegions = null;                 // regions computed by beforeDrawing, reused by afterDrawing
 let _lastPlaced = [];                     // pill boxes drawn in the last frame
 let _regionFont = null;                   // --font-body stack, read once
+const RELAYOUT_TIMEOUT_MS = 15000;        // a relayout not finished by now is rolled back (window._relayoutTimeoutMs overrides)
+const RELAYOUT_FAIL_MESSAGE_MS = 6000;    // how long the failure message stays in the hint slot (window._relayoutFailMessageMs overrides)
+const RELAYOUT_FAIL_TEXT = "Couldn't arrange groups. Showing the previous layout.";
+const RELAYOUT_BUSY_TEXT = 'Arranging groups\u2026';
+const GROUP_LOAD_FAILURE = "Grouping data didn't load. Reload the page to try again.";
+const GROUP_MODE_ORDER = ['cluster', 'family', 'none'];
+const GROUP_MODE_LABELS = { cluster: 'Topic cluster', family: 'Entity family', none: 'None' };
+const GROUP_MODE_TITLES = {
+    cluster: 'Group nodes by topic cluster (communities found in the documents)',
+    family: 'Group nodes by entity family',
+    none: 'No grouping: free layout',
+};
 const GROUP_LIST_MAX_ROWS = 40;           // Groups list rows before the "+N more groups" line
 const GROUPS_DISABLED_TITLE = 'Choose a grouping to list its groups.';
 const REGION_DASH_PX = [6, 4];            // Unclustered ring dash pattern, screen px
@@ -412,6 +433,34 @@ function buildGroupAssignment(payload, mode) {
     return assignment;
 }
 
+// Source id -> plurality group id for `mode`, read from the payload. Sources
+// never join groupAssignment, so they never count toward a region.
+function buildSourceGroups(payload, mode) {
+    const groups = new Map();
+    if (mode === 'none') return groups;
+    const source = payload.modes[mode].assignment;
+    for (const id of sourceNodeIds) {
+        if (!Object.hasOwn(source, id)) continue;
+        const gid = source[id];
+        if (typeof gid === 'string') groups.set(id, gid);
+    }
+    return groups;
+}
+
+// Switches the module's grouping state to `mode`: assignment, source groups and
+// the circle each group is packed into.
+function applyGroupMode(mode) {
+    groupMode = mode;
+    groupAssignment = buildGroupAssignment(groupsPayload, mode);
+    sourceGroup = buildSourceGroups(groupsPayload, mode);
+    groupLayout = new Map();
+    if (mode !== 'none') {
+        const counts = new Map();
+        for (const gid of groupAssignment.values()) counts.set(gid, (counts.get(gid) || 0) + 1);
+        groupLayout = packGroups([...counts].map(([id, size]) => ({ id, size })));
+    }
+}
+
 // Ids of the data nodes currently drawn (anchors and hidden nodes excluded).
 function visibleDataNodeIds() {
     if (!visNodes) return [];
@@ -661,6 +710,372 @@ function renderGroupsList() {
     syncGroupRows();
 }
 
+// ---------------------------------------------------------------------------
+// Group by control and relayout. Switching modes removes the old anchors, adds
+// the new ones, reseeds the members and stabilizes once; None restores the
+// cached free layout. A layout token discards completions that belong to an
+// abandoned relayout, and a timer rolls back one that never finishes.
+// ---------------------------------------------------------------------------
+function trimPeriod(text) {
+    return String(text).replace(/\.\s*$/, '');
+}
+
+// Whether `mode` can be selected and the reason when it cannot. None always
+// can. Reasons come from the payload and are only ever written as text.
+function groupModeState(mode) {
+    if (mode === 'none') return { enabled: true, reason: '' };
+    if (!groupsPayload || typeof groupsPayload !== 'object') {
+        return { enabled: false, reason: GROUP_LOAD_FAILURE };
+    }
+    const entry = groupsPayload.modes && groupsPayload.modes[mode];
+    const usable = entry && entry.available === true
+        && entry.assignment && typeof entry.assignment === 'object';
+    if (usable) return { enabled: true, reason: '' };
+    const reason = entry && typeof entry.reason === 'string' && entry.reason
+        ? entry.reason
+        : 'Not available for this project';
+    return { enabled: false, reason };
+}
+
+function enabledGroupModes() {
+    return GROUP_MODE_ORDER.filter(mode => groupModeState(mode).enabled);
+}
+
+function groupControlButtons() {
+    const group = document.getElementById('graph-group');
+    return group ? [...group.querySelectorAll('[data-mode]')] : [];
+}
+
+// The hint slot shows the transient text (arranging / failure) when there is
+// one, otherwise one sentence per unavailable mode.
+function renderGroupHint() {
+    const hint = document.getElementById('graph-group-hint');
+    if (!hint) return;
+    if (_hintOverride !== null) {
+        hint.textContent = _hintOverride;
+        return;
+    }
+    const parts = [];
+    for (const mode of GROUP_MODE_ORDER) {
+        const state = groupModeState(mode);
+        if (!state.enabled) parts.push(`${GROUP_MODE_LABELS[mode]}: ${trimPeriod(state.reason)}.`);
+    }
+    hint.textContent = parts.join(' ');
+}
+
+// Mirrors availability and the selection onto the radio buttons.
+function syncGroupControl(selected = groupMode) {
+    for (const btn of groupControlButtons()) {
+        const mode = btn.getAttribute('data-mode');
+        if (!GROUP_MODE_ORDER.includes(mode)) continue;
+        const state = groupModeState(mode);
+        const checked = state.enabled && mode === selected;
+        btn.setAttribute('aria-checked', String(checked));
+        btn.setAttribute('tabindex', checked ? '0' : '-1');
+        if (state.enabled) {
+            btn.removeAttribute('aria-disabled');
+            btn.setAttribute('title', GROUP_MODE_TITLES[mode]);
+        } else {
+            btn.setAttribute('aria-disabled', 'true');
+            btn.setAttribute('title', state.reason);
+        }
+    }
+    renderGroupHint();
+}
+
+function setGroupBusy(on) {
+    relayoutBusy = on;
+    const group = document.getElementById('graph-group');
+    const container = document.getElementById('graph-container');
+    for (const el of [group, container]) {
+        if (!el) continue;
+        if (on) el.setAttribute('aria-busy', 'true');
+        else el.removeAttribute('aria-busy');
+    }
+    if (group) group.classList.toggle('graph-group--busy', on);
+}
+
+function setHintOverride(text, clearAfterMs = 0) {
+    if (_hintTimer) {
+        clearTimeout(_hintTimer);
+        _hintTimer = null;
+    }
+    _hintOverride = text;
+    renderGroupHint();
+    if (text !== null && clearAfterMs > 0) {
+        _hintTimer = setTimeout(() => {
+            _hintTimer = null;
+            _hintOverride = null;
+            renderGroupHint();
+        }, clearAfterMs);
+    }
+}
+
+// Forgets any relayout in flight (rebuild or domain switch). Pending
+// completions see a new token and do nothing.
+function resetRelayoutState() {
+    layoutToken += 1;
+    if (_relayoutTimer) {
+        clearTimeout(_relayoutTimer);
+        _relayoutTimer = null;
+    }
+    relayoutPrev = null;
+    setGroupBusy(false);
+    setHintOverride(null);
+}
+
+// Runs `fn` after `count` animation frames (timers when frames are unavailable).
+function afterFrames(count, fn) {
+    if (count <= 0) {
+        fn();
+        return;
+    }
+    const next = () => afterFrames(count - 1, fn);
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(next);
+    else setTimeout(next, 16);
+}
+
+function captureDataPositions() {
+    const ids = visNodes.getIds().filter(id => !isAnchorId(id));
+    const positions = network.getPositions(ids);
+    return new Map(ids.filter(id => positions[id]).map(id => [id, { x: positions[id].x, y: positions[id].y }]));
+}
+
+function removeAnchors() {
+    const edgeIds = visEdges.getIds().filter(isAnchorId);
+    if (edgeIds.length) visEdges.remove(edgeIds);
+    const nodeIds = visNodes.getIds().filter(isAnchorId);
+    if (nodeIds.length) visNodes.remove(nodeIds);
+}
+
+// Adds the anchors and rest lengths for the current grouping state (rest
+// lengths go back to the plain spring length when ungrouped).
+function installAnchors() {
+    removeAnchors();
+    const records = visEdges.get({ filter: e => !e._anchor });
+    const lengths = new Map(groupMode === 'none'
+        ? []
+        : dataEdgeLengths(records, groupAssignment, groupLayout).map(l => [l.id, l.length]));
+    visEdges.update(records.map(e => ({ id: e.id, length: lengths.get(e.id) ?? FA2_SPRING_LENGTH })));
+    if (groupMode === 'none') return;
+    visNodes.add(anchorNodeSpecs(groupLayout));
+    visEdges.add(anchorEdgeSpecs(groupAssignment, groupLayout));
+}
+
+function reseedMembers() {
+    for (const [id, gid] of groupAssignment) {
+        const circle = groupLayout.get(gid);
+        if (!circle || pinnedNodes.has(id) || !visNodes.get(id)) continue;
+        const seed = seedInside(circle, id);
+        network.moveNode(id, seed.x, seed.y);
+    }
+}
+
+function restoreFreeLayout() {
+    for (const [id, p] of freeLayoutPositions) {
+        if (pinnedNodes.has(id) || !visNodes.get(id)) continue;
+        network.moveNode(id, p.x, p.y);
+    }
+}
+
+function groupCountText(mode) {
+    if (mode === 'none') return 'Grouping off.';
+    const sizes = new Map();
+    for (const gid of groupAssignment.values()) sizes.set(gid, (sizes.get(gid) || 0) + 1);
+    const n = [...sizes.values()].filter(size => size >= 2).length;
+    const label = mode === 'cluster' ? 'topic cluster' : 'entity family';
+    return `Grouped by ${label}: ${n} ${n === 1 ? 'group' : 'groups'}.`;
+}
+
+// Common ending of a successful relayout, also used by the instant None restore.
+function completeRelayout(mode) {
+    if (_relayoutTimer) {
+        clearTimeout(_relayoutTimer);
+        _relayoutTimer = null;
+    }
+    network.setOptions({ physics: false });
+    if (mode === 'none' && !freeLayoutPositions) freeLayoutPositions = captureDataPositions();
+    sourcesPlaced = false;
+    if (sourcesActive()) placeSources();
+    syncSourcePhysics();
+    fitView(null, false);
+    applyScaleStyle();
+    relayoutPrev = null;
+    renderGroupsList();
+    setGroupBusy(false);
+    setHintOverride(null);
+    syncGroupControl();
+    announceGroup(groupCountText(mode));
+}
+
+// Puts the previous grouping, anchors and positions back and says so.
+function failRelayout(token) {
+    if (token !== layoutToken || !relayoutPrev) return;
+    layoutToken += 1;
+    if (_relayoutTimer) {
+        clearTimeout(_relayoutTimer);
+        _relayoutTimer = null;
+    }
+    const prev = relayoutPrev;
+    relayoutPrev = null;
+    try {
+        if (typeof network.stopSimulation === 'function') network.stopSimulation();
+        network.setOptions({ physics: false });
+        groupMode = prev.mode;
+        groupAssignment = prev.assignment;
+        sourceGroup = prev.sourceGroup;
+        groupLayout = prev.layout;
+        installAnchors();
+        for (const [id, p] of prev.positions) {
+            if (visNodes.get(id)) network.moveNode(id, p.x, p.y);
+        }
+        syncSourcePhysics();
+        fitView(null, false);
+        applyScaleStyle();
+        renderGroupsList();
+    } catch (e) {
+        console.warn('Could not restore the previous layout:', e);
+    }
+    setGroupBusy(false);
+    const failMs = window._relayoutFailMessageMs ?? RELAYOUT_FAIL_MESSAGE_MS;
+    setHintOverride(RELAYOUT_FAIL_TEXT, failMs);
+    syncGroupControl();
+    announceGroup(RELAYOUT_FAIL_TEXT);
+}
+
+// Stabilizes the new layout and completes when vis reports the iteration
+// budget spent. Only `stabilizationIterationsDone` is used: it always arrives
+// after an explicit stabilize(), unlike `stabilized`.
+function runRelayoutStabilization(mode, iterations, token) {
+    const finish = () => {
+        network.off('stabilizationIterationsDone', finish);
+        if (token !== layoutToken) return;
+        try {
+            completeRelayout(mode);
+        } catch (e) {
+            console.warn('Relayout failed:', e);
+            failRelayout(token);
+        }
+    };
+    network.once('stabilizationIterationsDone', finish);
+    network.setOptions({ physics: { enabled: true, stabilization: { fit: false } } });
+    network.stabilize(iterations);
+}
+
+function startRelayout(mode, token) {
+    // Sources and their edges stay out of the force simulation while it runs.
+    syncSourcePhysics(true, false);
+    clearActiveRegion();
+    setEmphasizedRegion(null);
+    removeAnchors();
+    applyGroupMode(mode);
+    if (mode === 'none') {
+        installAnchors();
+        runRelayoutStabilization(mode, PHYSICS_STABILIZATION_ITERATIONS, token);
+        return;
+    }
+    reseedMembers();
+    installAnchors();
+    const knowledgeCount = allNodes.length - sourceNodeIds.size;
+    runRelayoutStabilization(mode, groupIterations(knowledgeCount), token);
+}
+
+function captureLayoutState() {
+    return {
+        mode: groupMode,
+        assignment: groupAssignment,
+        sourceGroup,
+        layout: groupLayout,
+        positions: captureDataPositions(),
+    };
+}
+
+function relayout(mode) {
+    if (relayoutBusy || !network || !visNodes || !visEdges) return;
+    if (!GROUP_MODE_ORDER.includes(mode) || mode === groupMode) return;
+    if (!groupModeState(mode).enabled) return;
+    const token = layoutToken += 1;
+    relayoutPrev = captureLayoutState();
+
+    // None with a cached free layout is instant: no physics, no busy state.
+    if (mode === 'none' && freeLayoutPositions) {
+        try {
+            clearActiveRegion();
+            setEmphasizedRegion(null);
+            removeAnchors();
+            applyGroupMode('none');
+            installAnchors();
+            restoreFreeLayout();
+            completeRelayout('none');
+        } catch (e) {
+            console.warn('Relayout failed:', e);
+            failRelayout(token);
+        }
+        return;
+    }
+
+    setGroupBusy(true);
+    setHintOverride(RELAYOUT_BUSY_TEXT);
+    syncGroupControl(mode);
+    const timeoutMs = window._relayoutTimeoutMs ?? RELAYOUT_TIMEOUT_MS;
+    _relayoutTimer = setTimeout(() => failRelayout(token), timeoutMs);
+    // Two frames let the arranging text paint before stabilization blocks.
+    afterFrames(2, () => {
+        if (token !== layoutToken) return;
+        try {
+            startRelayout(mode, token);
+        } catch (e) {
+            console.warn('Relayout failed:', e);
+            failRelayout(token);
+        }
+    });
+}
+
+// Click and keyboard handling for the Group by radiogroup (attached once).
+function attachGroupControl() {
+    if (_groupControlAttached) return;
+    const buttons = groupControlButtons();
+    if (buttons.length === 0) return;
+    _groupControlAttached = true;
+    for (const btn of buttons) {
+        const mode = btn.getAttribute('data-mode');
+        if (!GROUP_MODE_ORDER.includes(mode)) continue;
+        btn.addEventListener('click', () => relayout(mode));
+        btn.addEventListener('keydown', (event) => {
+            const enabled = enabledGroupModes();
+            const i = enabled.indexOf(mode);
+            let target = null;
+            switch (event.key) {
+                case 'ArrowLeft':
+                case 'ArrowUp':
+                    target = enabled[(i - 1 + enabled.length) % enabled.length];
+                    break;
+                case 'ArrowRight':
+                case 'ArrowDown':
+                    target = enabled[(i + 1) % enabled.length];
+                    break;
+                case 'Home':
+                    target = enabled[0];
+                    break;
+                case 'End':
+                    target = enabled[enabled.length - 1];
+                    break;
+                case ' ':
+                case 'Enter':
+                    target = enabled.includes(mode) ? mode : null;
+                    break;
+                default:
+                    return;
+            }
+            event.preventDefault();
+            if (relayoutBusy || !target) return;
+            const targetBtn = buttons.find(b => b.getAttribute('data-mode') === target);
+            if (targetBtn && typeof targetBtn.focus === 'function') targetBtn.focus();
+            relayout(target);
+        });
+    }
+}
+
 function buildGraph() {
     const container = document.getElementById('graph-container');
     if (!container || !window.vis) return;
@@ -694,9 +1109,12 @@ function buildGraph() {
         sourcesShown = false;
         sourcesPlaced = false;
         for (const type of sourceTypes()) activeTypes.delete(type);
+        resetRelayoutState();
         network.destroy();
         network = null;
     }
+
+    freeLayoutPositions = null;
 
     // WR-04: Close sidebar before rebuilding so stale content is not shown
     // alongside newly rebuilt graph data.
@@ -756,15 +1174,8 @@ function buildGraph() {
 
     // Grouped layout (default topic cluster): members start inside their
     // group's circle; anchors and anchor edges are added to the DataSets below.
-    groupMode = resolveGroupMode(groupsPayload);
-    groupAssignment = buildGroupAssignment(groupsPayload, groupMode);
-    if (groupAssignment.size === 0) groupMode = 'none';
-    groupLayout = new Map();
-    if (groupMode !== 'none') {
-        const counts = new Map();
-        for (const gid of groupAssignment.values()) counts.set(gid, (counts.get(gid) || 0) + 1);
-        groupLayout = packGroups([...counts].map(([id, size]) => ({ id, size })));
-    }
+    applyGroupMode(resolveGroupMode(groupsPayload));
+    if (groupAssignment.size === 0) applyGroupMode('none');
 
     const nodes = allNodes.map(n => {
         const d = typeDisplay(n.entity_type);
@@ -927,6 +1338,11 @@ function buildGraph() {
         // pre-fit one (stabilization fit is animated and lags the event).
         fitView(null, false);
         applyScaleStyle();
+        if (groupMode === 'none') freeLayoutPositions = captureDataPositions();
+        if (!relayoutBusy) {
+            _hintOverride = null;
+            renderGroupHint();
+        }
     };
     network.once('stabilizationIterationsDone', settle);
     network.once('stabilized', settle);
@@ -1113,6 +1529,7 @@ function buildGraph() {
             });
         }
 
+        attachGroupControl();
         _btnListenersAttached = true;
     }
 
@@ -1123,6 +1540,14 @@ function buildGraph() {
     syncSourcesButton();
     buildEdgeKey();
     renderGroupsList();
+    syncGroupControl();
+    if (groupMode !== 'none') {
+        _hintOverride = RELAYOUT_BUSY_TEXT;
+        renderGroupHint();
+    }
+    if (groupMode === 'family' && groupModeState('cluster').enabled === false) {
+        announceGroup(`Topic clusters unavailable: ${trimPeriod(groupModeState('cluster').reason)}. Grouped by entity family.`);
+    }
     window._graphDebug = {
         network,
         visNodes,
@@ -1517,8 +1942,18 @@ function placeSources() {
     if (sourcesPlaced || !network) return;
     sourcesPlaced = true;
     const ids = [...sourceNodeIds].sort();
+    // Region circles of the grouped layout; sources are not members, so placing
+    // them never changes a radius.
+    const regionById = new Map(currentRegions().map(r => [r.id, r]));
     ids.forEach((id, index) => {
-        const neighbourIds = [...(sourceNeighbours.get(id) || [])];
+        let neighbourIds = [...(sourceNeighbours.get(id) || [])];
+        // Grouped: land among the neighbours of the source's own group so the
+        // source sits inside that group's region.
+        const gid = sourceGroup.get(id);
+        if (gid !== undefined) {
+            const inGroup = neighbourIds.filter(nb => groupAssignment.get(nb) === gid);
+            if (inGroup.length > 0) neighbourIds = inGroup;
+        }
         if (neighbourIds.length === 0) return;
         const positions = network.getPositions(neighbourIds);
         let sx = 0;
@@ -1534,17 +1969,20 @@ function placeSources() {
         if (n === 0) return;
         const jitterX = ((index % 7) - 3) * 12;
         const jitterY = ((Math.floor(index / 7) % 7) - 3) * 12;
-        network.moveNode(id, sx / n + jitterX, sy / n + jitterY);
+        let target = { x: sx / n + jitterX, y: sy / n + jitterY };
+        const region = gid === undefined ? undefined : regionById.get(gid);
+        if (region) target = clampIntoRegion(target, region);
+        network.moveNode(id, target.x, target.y);
     });
 }
 
 // Sources join the force layout only while shown (vis-network simulates
 // hidden items, so hiding alone would let invisible document hubs shape the
 // layout). Writes only id + physics.
-function syncSourcePhysics() {
+function syncSourcePhysics(force = false, onOverride = null) {
     if (!visNodes || !visEdges) return;
-    const on = sourcesActive();
-    if (on === sourcePhysicsOn) return;
+    const on = onOverride === null ? sourcesActive() : onOverride;
+    if (!force && on === sourcePhysicsOn) return;
     sourcePhysicsOn = on;
     visNodes.update([...sourceNodeIds].map(id => ({ id, physics: on })));
     const edgeUpdates = [];

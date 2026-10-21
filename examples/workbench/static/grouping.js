@@ -1,6 +1,6 @@
 // grouping.js - pure layout helpers for the grouped graph (no DOM, no vis).
 //
-// Exports: fnv1a, regionGeometry, placeRegionLabels, groupIterations, isAnchorId, packGroups, seedInside,
+// Exports: fnv1a, clampIntoRegion, regionGeometry, placeRegionLabels, groupIterations, isAnchorId, packGroups, seedInside,
 // anchorNodeSpecs, anchorEdgeSpecs, dataEdgeLengths and the tuning constants
 // below. graph.js wires these into vis-network: each group gets a hidden fixed
 // anchor node, every member is tied to its anchor by hidden spring edges, and
@@ -22,6 +22,7 @@ export const REGION_MIN_RADIUS = 40;                // smallest region radius in
 export const REGION_LABEL_PX = 13;                  // region label size in screen px at every zoom
 export const REGION_PILL_PAD_PX = 4;                // padding between pill text and pill edge, screen px
 export const REGION_PILL_GAP_PX = 4;                // gap between a region's top edge and its pill, screen px
+export const SOURCE_INSET = 0.95;                   // fraction of a region's radius a pulled-in source is placed at
 export const REGION_MIN_MEMBERS = 2;                // visible members a group needs before its region is drawn
 const REGION_P90 = 0.9;                             // member-distance percentile the radius is based on
 // Region colors as named strings (neutral ink over a transparent tint).
@@ -251,4 +252,16 @@ export function placeRegionLabels(regions, measure, scale, emphasizedId, viewRec
         }
     }
     return placed;
+}
+
+// Pulls `point` back inside `region` ({cx, cy, r}) when it lies outside, to
+// SOURCE_INSET of the radius along the line from the region centre. Points
+// already inside are returned unchanged.
+export function clampIntoRegion(point, region) {
+    const dx = point.x - region.cx;
+    const dy = point.y - region.cy;
+    const dist = Math.hypot(dx, dy);
+    if (dist <= region.r) return point;
+    const k = (region.r * SOURCE_INSET) / dist;
+    return { x: region.cx + dx * k, y: region.cy + dy * k };
 }

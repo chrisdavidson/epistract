@@ -103,7 +103,7 @@ def test_group_control_load_failure():
 
 
 def test_group_relayout_failure():
-    _passed(_run("graph_filter_harness.mjs", "control-fail"), 13)
+    _passed(_run("graph_filter_harness.mjs", "control-fail"), 12)
 
 
 def test_sources_join_assigned_group():

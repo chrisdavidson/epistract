@@ -209,6 +209,21 @@ check('groupIterations(1738) = 150', G.groupIterations(1738) === 150);
     check('placeRegionLabels tie broken by label', ties[0].label === 'Ant');
 }
 
+// --- clampIntoRegion ----------------------------------------------------
+{
+    const region = { cx: 100, cy: 200, r: 50 };
+    const inside = { x: 120, y: 210 };
+    check('clampIntoRegion keeps an inside point', G.clampIntoRegion(inside, region) === inside);
+    const onEdge = { x: 150, y: 200 };
+    check('clampIntoRegion keeps a point on the edge', G.clampIntoRegion(onEdge, region) === onEdge);
+    const out = G.clampIntoRegion({ x: 300, y: 200 }, region);
+    check('clampIntoRegion pulls an outside point to the inset radius',
+        Math.abs(Math.hypot(out.x - 100, out.y - 200) - 50 * G.SOURCE_INSET) < 1e-9 && Math.abs(out.y - 200) < 1e-9);
+    const diag = G.clampIntoRegion({ x: -500, y: -500 }, region);
+    check('clampIntoRegion keeps the direction from the centre',
+        Math.abs((diag.x - 100) / (diag.y - 200) - (-600 / -700)) < 1e-9);
+}
+
 // --- source hygiene ------------------------------------------------------
 const text = readFileSync(groupingPath, 'utf8');
 for (const token of ['document', 'window', 'Math.random', 'createElementNS', '.innerHTML =', 'PALETTE']) {

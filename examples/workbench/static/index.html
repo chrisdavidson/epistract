@@ -144,6 +144,13 @@
           <option value="info">Info</option>
         </select>
         <div class="graph-toolbar">
+          <span id="graph-group-label" class="graph-group__caption">Group by</span>
+          <div id="graph-group" class="graph-group" role="radiogroup" aria-labelledby="graph-group-label" aria-describedby="graph-group-hint">
+            <button type="button" role="radio" aria-checked="true" tabindex="0" data-mode="cluster" title="Group nodes by topic cluster (communities found in the documents)">Topic cluster</button>
+            <button type="button" role="radio" aria-checked="false" tabindex="-1" data-mode="family" title="Group nodes by entity family">Entity family</button>
+            <button type="button" role="radio" aria-checked="false" tabindex="-1" data-mode="none" title="No grouping: free layout">None</button>
+          </div>
+          <span id="graph-group-hint" class="graph-group__hint"></span>
           <button type="button" class="toggle-btn graph-sources-btn" id="graph-show-sources-btn" aria-pressed="false">Show sources</button>
           <span id="graph-sources-status" class="visually-hidden" role="status" aria-live="polite"></span>
           <button class="toggle-btn active" id="graph-fit-btn" title="Fit all nodes in view">Fit View</button>
