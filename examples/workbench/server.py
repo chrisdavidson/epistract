@@ -359,7 +359,8 @@ def create_app(output_dir: Path, domain: str | None = None) -> FastAPI:
         # only surface on which cross-domain findings (core/cross_domain.py)
         # and per-domain CUSTOM_RULES findings are visible without opening the
         # chat panel — /api/graph/claims carries the full list.
-        super_domain = app.state.data.claims_layer.get("super_domain")
+        claims_layer = app.state.data.claims_layer
+        super_domain = claims_layer.get("super_domain") if isinstance(claims_layer, dict) else None
         custom_findings = (
             super_domain.get("custom_findings") if isinstance(super_domain, dict) else None
         )

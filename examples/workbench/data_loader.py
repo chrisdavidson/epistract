@@ -27,7 +27,9 @@ class WorkbenchData:
 
         cp = self.output_dir / "claims_layer.json"
         if cp.exists():
-            self.claims_layer = json.loads(cp.read_text(encoding="utf-8"))
+            claims = json.loads(cp.read_text(encoding="utf-8"))
+            # Consumers call .get() on it: a list, string or null counts as absent.
+            self.claims_layer = claims if isinstance(claims, dict) else {}
 
         cm = self.output_dir / "communities.json"
         if cm.exists():

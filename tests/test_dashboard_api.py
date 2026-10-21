@@ -126,3 +126,17 @@ def test_malformed_claims_layer_still_200(tmp_path):
     response = TestClient(create_app(tmp_path, domain=None)).get("/api/dashboard")
     assert response.status_code == 200
     assert response.json()["epistemic"]["available"] is False
+
+
+@pytest.mark.parametrize("claims", [[], None, "oops", 3])
+def test_non_object_claims_layer_still_200(tmp_path, claims):
+    graph = {"nodes": [{"id": "n1", "label": "n1", "entity_type": "DRUG"}], "links": []}
+    (tmp_path / "graph_data.json").write_text(json.dumps(graph), encoding="utf-8")
+    (tmp_path / "claims_layer.json").write_text(json.dumps(claims), encoding="utf-8")
+    client = TestClient(create_app(tmp_path, domain=None))
+    response = client.get("/api/dashboard")
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["epistemic"]["available"] is False
+    assert body["findings"] == []
+    assert client.get("/api/graph/claims").status_code == 200
