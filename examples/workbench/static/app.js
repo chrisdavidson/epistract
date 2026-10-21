@@ -1,9 +1,9 @@
 // app.js - Main application coordinator
-import { initChat, loadModelSelector } from './chat.js';
+import { initChat, loadModelSelector, setCitationDocuments } from './chat.js';
 import { initGraph } from './graph.js';
 import { loadDisplay, legendEntries, makeSwatch } from './display.js';
 import { buildDocuments, buildEntitySummary, buildEpistemicHealth } from './dashboard.js';
-import { getOrigin, initSourceViewer, setDocuments } from './source_viewer.js';
+import { getOrigin, initSourceViewer, setDocuments, subscribeDocuments } from './source_viewer.js';
 
 // SEC-01 / VUL-03: local escapeHtml helper. DOM-based escaping handles every
 // HTML metacharacter without an explicit replacement table.
@@ -453,6 +453,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initialize panels with template
     // The viewer registers the 'navigate-source' listener, so it starts first.
     initSourceViewer({ switchPanel, getActivePanel, openGraphWith });
+    subscribeDocuments(setCitationDocuments);
     initChat({ template });
     loadModelSelector();
     arrangeGraphRail();

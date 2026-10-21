@@ -38,6 +38,21 @@ export function initChat(opts) {
 
     document.getElementById('chat-clear-btn')?.addEventListener('click', clearChat);
 
+    // Citation links in assistant replies open the source viewer. One
+    // delegated listener serves every message, including ones rendered later.
+    const messagesBox = document.getElementById('messages');
+    if (messagesBox) {
+        messagesBox.addEventListener('click', (e) => {
+            const target = e && e.target;
+            const link = target && typeof target.closest === 'function' ? target.closest('a.citation-link[data-doc]') : null;
+            if (!link) return;
+            e.preventDefault();
+            window.dispatchEvent(new CustomEvent('navigate-source', {
+                detail: { docId: link.dataset.doc, highlight: link.dataset.section },
+            }));
+        });
+    }
+
     // Starter prompts (D-10)
     document.querySelectorAll('.starter-card').forEach(card => {
         card.addEventListener('click', () => {
@@ -282,20 +297,117 @@ function renderMarkdown(text) {
     return text.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
 }
 
-function linkifyCitations(html) {
-    // Post-process rendered HTML to convert [Contract Name] to clickable links (D-19)
-    // Match [text] that wasn't already converted to <a> by markdown
-    return html.replace(/\[([^\]]+)\](?!\()/g, (match, name) => {
-        // Skip markdown checkbox patterns
-        if (name === 'x' || name === ' ') return match;
-        // Convert contract name to doc_id format
-        const docId = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
-        return `<a href="#" class="citation-link" data-doc="${docId}" data-section="${escapeAttr(name)}" onclick="event.preventDefault(); window.dispatchEvent(new CustomEvent('navigate-source', {detail: {docId: '${docId}', section: '${escapeAttr(name)}'}})); return false;">${match}</a>`;
-    });
+// --- citation links ------------------------------------------------------------
+//
+// A citation becomes a link only when it resolves to a document that is in the
+// project: a bare document id, or a bracketed document name. Anything else in
+// the model's reply is left exactly as written. Document ids, names and the
+// reply are untrusted (SEC-01): anchors are built from known ids only, every
+// value placed in an attribute is escaped, and the caller still passes the
+// result through DOMPurify. Clicks are handled by one delegated listener on
+// #messages (see initChat); the anchors carry no inline handlers.
+
+const SAFE_DOC_ID = /^[a-z0-9_.-]+$/i;
+let citationDocs = null; // null until setCitationDocuments is called with a list
+let citationNames = new Map(); // doc_id -> display name
+let citationSlugs = new Map(); // slug of an id, display name or filename -> doc_id
+let bareIdPattern = null;
+
+function slugify(value) {
+    return String(value).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 }
 
-function escapeAttr(str) {
-    return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+function escapeRegex(value) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function escapeAttrHtml(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function decodeEntities(value) {
+    return value
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#0*39;|&#x0*27;/gi, "'")
+        .replace(/&amp;/g, '&');
+}
+
+// Rebuilds the lookup tables from the project's document list (rows carry
+// doc_id, display_name, filename). Anything that is not a list is ignored.
+export function setCitationDocuments(list) {
+    if (!Array.isArray(list)) return;
+    const names = new Map();
+    const slugs = new Map();
+    for (const row of list) {
+        if (!row || typeof row.doc_id !== 'string' || !SAFE_DOC_ID.test(row.doc_id)) continue;
+        const id = row.doc_id;
+        names.set(id, (typeof row.display_name === 'string' && row.display_name) || (typeof row.filename === 'string' && row.filename) || id);
+        for (const label of [id, row.display_name, row.filename]) {
+            if (typeof label !== 'string') continue;
+            const key = slugify(label);
+            if (key && !slugs.has(key)) slugs.set(key, id);
+        }
+    }
+    citationNames = names;
+    citationSlugs = slugs;
+    if (!names.size) {
+        citationDocs = null;
+        bareIdPattern = null;
+        return;
+    }
+    citationDocs = names;
+    const ids = Array.from(names.keys()).sort((a, b) => b.length - a.length || (a < b ? -1 : 1));
+    bareIdPattern = new RegExp(`(?<![A-Za-z0-9_])(?:${ids.map(escapeRegex).join('|')})(?![A-Za-z0-9_])`, 'g');
+}
+
+function citationAnchor(docId, shownHtml, section) {
+    const title = `Open ${citationNames.get(docId) || docId} in the source viewer`;
+    return `<a href="#" class="citation-link" data-doc="${docId}" data-section="${escapeAttrHtml(section)}" title="${escapeAttrHtml(title)}">${shownHtml}</a>`;
+}
+
+function linkBareIds(segment) {
+    if (!segment) return segment;
+    return segment.replace(bareIdPattern, (id) => citationAnchor(id, id, id));
+}
+
+const BRACKETED = /\[([^[\]]+)\](?!\()/g;
+
+// Links resolved citations inside one run of text (no tags in it).
+function linkTextRun(segment) {
+    if (!segment) return segment;
+    let out = '';
+    let last = 0;
+    for (const match of segment.matchAll(BRACKETED)) {
+        const name = decodeEntities(match[1]);
+        const docId = citationSlugs.get(slugify(name));
+        if (!docId) continue;
+        out += linkBareIds(segment.slice(last, match.index));
+        out += citationAnchor(docId, match[0], name);
+        last = match.index + match[0].length;
+    }
+    return out + linkBareIds(segment.slice(last));
+}
+
+// Runs the replacement over text only: <pre>, <code>, existing anchors and
+// every other tag (attribute values included) are copied through untouched.
+const SKIPPED_MARKUP = /<pre\b[\s\S]*?<\/pre>|<code\b[\s\S]*?<\/code>|<a\b[\s\S]*?<\/a>|<[^>]+>/gi;
+
+export function linkifyCitations(html) {
+    if (!citationDocs || typeof html !== 'string' || !html) return html;
+    let out = '';
+    let last = 0;
+    for (const match of html.matchAll(SKIPPED_MARKUP)) {
+        out += linkTextRun(html.slice(last, match.index)) + match[0];
+        last = match.index + match[0].length;
+    }
+    return out + linkTextRun(html.slice(last));
 }
 
 // ---------------------------------------------------------------------------
