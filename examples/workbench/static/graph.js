@@ -916,10 +916,38 @@ function afterFrames(count, fn) {
     else setTimeout(next, 16);
 }
 
+// WR-02: every position write is one batched DataSet update (per-node
+// network.moveNode costs a full synchronous redraw each while physics is off).
+// vis parses DataSet x/y with parseInt, so coordinates are rounded here and
+// layouts are snapped to integers once they settle (snapLayout); captured
+// positions are rounded the same way, so a restore puts nodes back exactly.
+function writePositions(entries) {
+    const updates = [];
+    for (const [id, p] of entries) {
+        if (!p || !visNodes.get(id)) continue;
+        updates.push({ id, x: Math.round(p.x), y: Math.round(p.y) });
+    }
+    if (updates.length > 0) visNodes.update(updates);
+    return updates.length;
+}
+
+// Rounds every data node of a settled layout to integer coordinates (one write).
+function snapLayout() {
+    const ids = visNodes.getIds().filter(id => !isAnchorId(id));
+    const positions = network.getPositions(ids) || {};
+    const off = [];
+    for (const id of ids) {
+        const p = positions[id];
+        if (p && (!Number.isInteger(p.x) || !Number.isInteger(p.y))) off.push([id, p]);
+    }
+    writePositions(off);
+}
+
 function captureDataPositions() {
     const ids = visNodes.getIds().filter(id => !isAnchorId(id));
     const positions = network.getPositions(ids);
-    return new Map(ids.filter(id => positions[id]).map(id => [id, { x: positions[id].x, y: positions[id].y }]));
+    return new Map(ids.filter(id => positions[id])
+        .map(id => [id, { x: Math.round(positions[id].x), y: Math.round(positions[id].y) }]));
 }
 
 // Geometry of the region circles as drawn (visible members); a focus view,
@@ -970,17 +998,17 @@ function separateGroupRegionsForView() {
         byGroup.get(gid).push(id);
     }
     // One batched DataSet write; per-node network.moveNode calls were far slower on large graphs.
-    const updates = [];
+    const moves = [];
     for (const [gid, off] of total) {
         if (Math.abs(off.dx) < 1e-6 && Math.abs(off.dy) < 1e-6) continue;
         const ids = (byGroup.get(gid) || []).filter(id => visNodes.get(id));
         const positions = network.getPositions(ids);
         for (const id of ids) {
             const p = positions[id];
-            if (p) updates.push({ id, x: p.x + off.dx, y: p.y + off.dy });
+            if (p) moves.push([id, { x: p.x + off.dx, y: p.y + off.dy }]);
         }
     }
-    if (updates.length > 0) visNodes.update(updates);
+    writePositions(moves);
 }
 
 function removeAnchors() {
@@ -1005,19 +1033,17 @@ function installAnchors() {
 }
 
 function reseedMembers() {
+    const seeds = [];
     for (const [id, gid] of groupAssignment) {
         const circle = groupLayout.get(gid);
-        if (!circle || pinnedNodes.has(id) || !visNodes.get(id)) continue;
-        const seed = seedInside(circle, id);
-        network.moveNode(id, seed.x, seed.y);
+        if (!circle || pinnedNodes.has(id)) continue;
+        seeds.push([id, seedInside(circle, id)]);
     }
+    writePositions(seeds);
 }
 
 function restoreFreeLayout() {
-    for (const [id, p] of freeLayoutPositions) {
-        if (pinnedNodes.has(id) || !visNodes.get(id)) continue;
-        network.moveNode(id, p.x, p.y);
-    }
+    writePositions([...freeLayoutPositions].filter(([id]) => !pinnedNodes.has(id)));
 }
 
 function groupCountText(mode) {
@@ -1039,8 +1065,9 @@ function completeRelayout(mode) {
     // The layout is final from here on; the follow-ups below (focus layout,
     // source placement) are held while a layout is in flight, so release first.
     setGroupBusy(false);
-    if (mode === 'none' && !freeLayoutPositions) freeLayoutPositions = captureDataPositions();
     separateGroupRegionsForView();
+    snapLayout();
+    if (mode === 'none' && !freeLayoutPositions) freeLayoutPositions = captureDataPositions();
     // The positions a focus view would restore are stale after a relayout.
     focusPre = null;
     _focusLayoutKey = null;
@@ -1075,9 +1102,7 @@ function failRelayout(token) {
         sourceGroup = prev.sourceGroup;
         groupLayout = prev.layout;
         installAnchors();
-        for (const [id, p] of prev.positions) {
-            if (visNodes.get(id)) network.moveNode(id, p.x, p.y);
-        }
+        writePositions(prev.positions);
         syncSourcePhysics();
         fitView(null, false);
         applyScaleStyle();
@@ -1477,6 +1502,7 @@ function buildGraph() {
         // Fit first so the controller reads the real fit scale, not the
         // pre-fit one (stabilization fit is animated and lags the event).
         separateGroupRegionsForView();
+        snapLayout();
         fitView(null, false);
         applyScaleStyle();
         if (groupMode === 'none') freeLayoutPositions = captureDataPositions();
@@ -2239,9 +2265,7 @@ function syncFocusLayout() {
     const availW = Math.max(((container && container.clientWidth) || 0) - cover - FOCUS_VIEW_PAD_PX, 200);
     const availH = Math.max(((container && container.clientHeight) || 0) - FOCUS_VIEW_PAD_PX, 200);
     const layout = focusLayout({ centerId: top.id, ring1, ring2, boxes, aspect: availW / availH });
-    for (const [id, p] of layout) {
-        if (visNodes.get(id)) network.moveNode(id, p.x, p.y);
-    }
+    const moves = [...layout];
     // Sources have no labels: each sits at its focused neighbours' centre.
     shownSources.forEach((id, index) => {
         let sx = 0; let sy = 0; let n = 0;
@@ -2251,8 +2275,9 @@ function syncFocusLayout() {
             sx += p.x; sy += p.y; n += 1;
         }
         if (n === 0) return;
-        network.moveNode(id, sx / n + ((index % 7) - 3) * 12, sy / n + ((Math.floor(index / 7) % 7) - 3) * 12);
+        moves.push([id, { x: sx / n + ((index % 7) - 3) * 12, y: sy / n + ((Math.floor(index / 7) % 7) - 3) * 12 }]);
     });
+    writePositions(moves);
 }
 
 function restoreFocusLayout() {
@@ -2260,9 +2285,7 @@ function restoreFocusLayout() {
     if (!focusPre) return;
     const pre = focusPre;
     focusPre = null;
-    for (const [id, p] of pre.positions) {
-        if (visNodes.get(id)) network.moveNode(id, p.x, p.y);
-    }
+    writePositions(pre.positions);
     sourcesPlaced = pre.sourcesPlaced;
     if (!sourcesPlaced && sourcesActive()) placeSources();
 }
@@ -2591,6 +2614,7 @@ function placeSources() {
     // Region circles of the grouped layout; sources are not members, so placing
     // them never changes a radius.
     const regionById = new Map(currentRegions().map(r => [r.id, r]));
+    const moves = [];
     ids.forEach((id, index) => {
         let neighbourIds = [...(sourceNeighbours.get(id) || [])];
         // Grouped: land among the neighbours of the source's own group so the
@@ -2618,8 +2642,9 @@ function placeSources() {
         let target = { x: sx / n + jitterX, y: sy / n + jitterY };
         const region = gid === undefined ? undefined : regionById.get(gid);
         if (region) target = clampIntoRegion(target, region);
-        network.moveNode(id, target.x, target.y);
+        moves.push([id, target]);
     });
+    writePositions(moves);
 }
 
 // Sources join the force layout only while shown (vis-network simulates

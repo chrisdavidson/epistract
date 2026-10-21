@@ -90,7 +90,7 @@ def test_group_control_waits_for_initial_settle():
 
 
 def test_focus_waits_for_relayout():
-    _passed(_run("graph_filter_harness.mjs", "control-busy"), 10)
+    _passed(_run("graph_filter_harness.mjs", "control-busy"), 17)
 
 
 def test_group_control_fallback():

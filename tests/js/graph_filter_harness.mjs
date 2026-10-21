@@ -107,7 +107,12 @@ for (const m of GROUP_MODES) {
 }
 document.getElementById('graph-group').querySelectorAll = () => GROUP_MODES.map((m) => groupButtons[m]);
 
-// World positions the control modes read and write through getPositions/moveNode.
+// World positions the control modes read through getPositions and write
+// through moveNode or a DataSet update carrying x/y (vis parses those with
+// parseInt, so the stub does too). positionBatches counts DataSet updates that
+// carry positions; every stub moveNode call stands for one synchronous vis
+// redraw (vis 9.1.2 emits startSimulation per call, which redraws while
+// physics is off), so tests can assert batched writes.
 const WORLD_DEFAULT = {
   a: { x: 0, y: 0 }, e: { x: 40, y: 0 }, b: { x: 1000, y: 0 }, c: { x: 1040, y: 0 },
   f: { x: 0, y: 1000 }, g: { x: 40, y: 1000 }, d1: { x: 500, y: 500 },
@@ -115,6 +120,7 @@ const WORLD_DEFAULT = {
 const world = new Map(Object.entries(WORLD_DEFAULT).map(([k, v]) => [k, { ...v }]));
 const onceFns = new WeakSet();
 const datasets = [];
+const positionBatches = [];
 const FIT_SCALE = 0.1375;
 const handlers = new Map();
 const calls = [];
@@ -136,9 +142,16 @@ class DataSet {
     }
   }
   update(us) {
-    for (const u of [].concat(us)) {
+    const list = [].concat(us);
+    const positioned = list.filter((u) => 'x' in u || 'y' in u);
+    if (positioned.length) positionBatches.push(positioned.length);
+    for (const u of list) {
       calls.push({ kind: 'update', order: order++, u: JSON.parse(JSON.stringify(u)) });
       this.items.set(u.id, { ...(this.items.get(u.id) || {}), ...u });
+      if (isControl && ('x' in u || 'y' in u)) {
+        const w = world.get(u.id) || { x: 0, y: 0 };
+        world.set(u.id, { x: 'x' in u ? parseInt(u.x, 10) : w.x, y: 'y' in u ? parseInt(u.y, 10) : w.y });
+      }
     }
   }
   get(arg) {
@@ -755,6 +768,32 @@ if (isControl) {
     esc();
     await tick();
     check('WR-01: Esc works again after the relayout', depth() === 0, depth());
+
+    // WR-02: focus entry/exit and the instant None restore are one batched
+    // write each (no per-node moveNode, so no per-node redraw), and exact.
+    const moves = () => networkCalls.filter((c) => c.kind === 'moveNode').length;
+    const pre = worldCopy();
+    let batches = positionBatches.length;
+    dbl('a');
+    await tick();
+    check('WR-02: focus layout is one position batch', positionBatches.length === batches + 1 && moves() === 0,
+      { batches: positionBatches.slice(batches), moves: moves() });
+    check('WR-02: focus layout wrote integer positions', DATA_IDS.every((id) => Number.isInteger(world.get(id).x) && Number.isInteger(world.get(id).y)), worldCopy());
+    batches = positionBatches.length;
+    esc();
+    await tick();
+    check('WR-02: focus exit is one position batch', depth() === 0 && positionBatches.length === batches + 1 && moves() === 0,
+      positionBatches.slice(batches));
+    check('WR-02: focus exit restores every node exactly', JSON.stringify(worldCopy()) === JSON.stringify(pre), { pre, now: worldCopy() });
+    await go(() => groupButtons.none.dispatch('click'));
+    const free = worldCopy();
+    await go(() => groupButtons.family.dispatch('click'));
+    batches = positionBatches.length;
+    groupButtons.none.dispatch('click');
+    await tick();
+    check('WR-02: cached None restore is one position batch', positionBatches.length === batches + 1, positionBatches.slice(batches));
+    check('WR-02: cached None restore is exact (delta 0)', JSON.stringify(worldCopy()) === JSON.stringify(free), { free, now: worldCopy() });
+    check('WR-02: no per-node moveNode anywhere', moves() === 0, moves());
   }
 
   if (mode === 'control-nocomm') {
@@ -821,7 +860,8 @@ if (isControl) {
   if (mode === 'control-sources') {
     const srcBtn = document.getElementById('graph-show-sources-btn');
     const regionsBefore = JSON.stringify(window._graphDebug.regionGeometry());
-    const movesFor = (id) => networkCalls.filter((c) => c.kind === 'moveNode' && c.args[0] === id);
+    // Position writes for `id` as [id, x, y] (batched DataSet updates).
+    const movesFor = (id) => calls.filter((c) => c.kind === 'update' && c.u.id === id && 'x' in c.u).map((c) => ({ args: [id, c.u.x, c.u.y] }));
     srcBtn.dispatch('click');
     const m1 = movesFor('d1');
     const last1 = m1[m1.length - 1];
@@ -829,8 +869,8 @@ if (isControl) {
     // a and e are in the source's group; b (1000 units away) is not. Jitter for index 0 is (-36, -36).
     const wa0 = world.get('a');
     const we0 = world.get('e');
-    check('source sits at its group centroid', last1 && Math.abs(last1.args[1] - ((wa0.x + we0.x) / 2 - 36)) < 1e-6
-      && Math.abs(last1.args[2] - ((wa0.y + we0.y) / 2 - 36)) < 1e-6, last1 && last1.args);
+    check('source sits at its group centroid', last1 && Math.abs(last1.args[1] - Math.round((wa0.x + we0.x) / 2 - 36)) < 1e-6
+      && Math.abs(last1.args[2] - Math.round((wa0.y + we0.y) / 2 - 36)) < 1e-6, last1 && last1.args);
     check('source does not change region geometry', JSON.stringify(window._graphDebug.regionGeometry()) === regionsBefore);
     groupButtons.family.dispatch('click');
     await tick();
@@ -846,7 +886,7 @@ if (isControl) {
     const wa = world.get('a');
     const wb = world.get('b');
     check('source re-placed inside its family group', last2 && m2.length > m1.length
-      && Math.abs(last2.args[1] - ((wa.x + wb.x) / 2 - 36)) < 1e-6 && Math.abs(last2.args[2] - ((wa.y + wb.y) / 2 - 36)) < 1e-6, last2 && last2.args);
+      && Math.abs(last2.args[1] - Math.round((wa.x + wb.x) / 2 - 36)) < 1e-6 && Math.abs(last2.args[2] - Math.round((wa.y + wb.y) / 2 - 36)) < 1e-6, last2 && last2.args);
     check('source physics restored after settle', nodeSet().items.get('d1').physics === true);
     check('source stays visible', nodeSet().items.get('d1').hidden !== true);
     check('anchors never include sources', !anchorIds().some((id) => id.includes('d1')));
