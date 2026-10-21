@@ -234,9 +234,7 @@ def test_sources_join_plurality_group():
 def test_sources_tie_goes_to_larger_group():
     from core.graph_groups import build_groups
 
-    payload = build_groups(
-        _toy_nodes(), [_link("a1", "d1"), _link("b1", "d1")], TOY_COMMUNITIES
-    )
+    payload = build_groups(_toy_nodes(), [_link("a1", "d1"), _link("b1", "d1")], TOY_COMMUNITIES)
     assign = payload["modes"]["cluster"]["assignment"]
     assert assign["d1"] == assign["a1"], "tie must go to the larger group (Alpha has 3)"
 
