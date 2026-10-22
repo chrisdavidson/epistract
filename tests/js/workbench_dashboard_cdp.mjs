@@ -354,10 +354,13 @@ async function epistemic() {
   // (1) heading order
   const heads = await s.ev(`[...document.querySelectorAll('#dashboard-content h3')].map((h) => h.textContent)`);
   const iEnt = heads.indexOf('Entity Summary');
+  const iStart = heads.indexOf('Where to start');
   const iEpi = heads.indexOf('Epistemic health');
   const iFind = heads.indexOf('Analysis Findings');
+  // Dashboard order: Entity Summary, Where to start, Epistemic health, ... Findings
+  // (the Where to start section sits between the Entity Summary and this one).
   check('heading sits right after Entity Summary and before Analysis Findings',
-    iEnt >= 0 && iEpi === iEnt + 1 && (iFind === -1 || iFind > iEpi), heads);
+    iEnt >= 0 && iStart === iEnt + 1 && iEpi === iStart + 1 && (iFind === -1 || iFind > iEpi), heads);
 
   // (2) chips
   const chips = await s.ev(`[...document.querySelectorAll('.epistemic-health .epistemic-chip')].map((c) => c.textContent.replace(/\\s+/g, ' ').trim())`);
