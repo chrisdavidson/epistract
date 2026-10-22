@@ -10,8 +10,8 @@ taken from the cluster groups of the ``/api/graph/groups`` payload, so the ids
 are exactly the regions the graph draws. The ``other`` (Unclustered) group is
 never listed. ``member_count`` is the group's ``size`` (knowledge nodes only);
 ``top_members`` holds up to three member names, most connected first. Rows are
-sorted by member count (descending), then label (case-insensitive), then id.
-When the cluster mode is unavailable the list is empty.
+in the ``/api/graph/groups`` order: member count (descending), then full label,
+then id. When the cluster mode is unavailable the list is empty.
 
 Each hub entity is one row::
 
@@ -248,8 +248,10 @@ def build_start_here(
         ids.sort(key=rank)
         rows[gid]["top_members"] = [_name(n, index) for n in ids[:MAX_TOP_MEMBERS]]
 
+    # The same key as graph_groups._finish_mode, so this list and the Groups
+    # list a click lands on agree on ties (short labels would not).
     communities = sorted(
-        rows.values(), key=lambda r: (-r["member_count"], r["label"].lower(), r["id"])
+        rows.values(), key=lambda r: (-r["member_count"], r["full_label"], r["id"])
     )
 
     hubs = []

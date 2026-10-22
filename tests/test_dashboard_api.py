@@ -348,6 +348,20 @@ def test_glp1_start_here_matches_graph_groups(glp1_copy, domain):
     sizes = {g["id"]: g["size"] for g in served if g["id"] != "other"}
     assert {c["id"] for c in start["communities"]} == set(sizes)
     assert {c["id"]: c["member_count"] for c in start["communities"]} == sizes
+    # Same order as the Groups list the click lands on.
+    assert [c["id"] for c in start["communities"]] == list(sizes)
+
+
+def test_tied_corpus_start_here_order_matches_graph_groups(tmp_path):
+    corpus = ROOT / "tests" / "corpora" / "07_glp1_phase3_trials" / "output"
+    for name in GLP1_FILES:
+        shutil.copy2(corpus / name, tmp_path / name)
+    client = TestClient(create_app(tmp_path, domain=None))
+    start = client.get("/api/dashboard").json()["start_here"]
+    served = client.get("/api/graph/groups").json()["modes"]["cluster"]["groups"]
+    served_ids = [g["id"] for g in served if g["id"] != "other"]
+    assert len(served_ids) == 8
+    assert [c["id"] for c in start["communities"]] == served_ids
 
 
 def test_existing_dashboard_keys_kept(glp1_copy):

@@ -989,12 +989,11 @@ async function startHere() {
   check('communities headers are Community, Members', !!ct && JSON.stringify(ct.heads) === '["Community","Members"]', ct && ct.heads);
   const crows = ct ? ct.rows : [];
   check('10 community rows', crows.length === 10, crows.length);
-  const expectedIds = (api ? api.cluster : []).filter((g) => g.id !== 'other')
-    .sort((a, b) => b.size - a.size || a.label.toLowerCase().localeCompare(b.label.toLowerCase()) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
-    .map((g) => g.id);
+  // The served /api/graph/groups order itself (the Groups list order), not re-sorted.
+  const expectedIds = (api ? api.cluster : []).filter((g) => g.id !== 'other').map((g) => g.id);
   const rowIds = crows.map((r) => r.id);
   check('row ids equal start_here ids', JSON.stringify(rowIds) === JSON.stringify(comms.map((c) => c.id)), rowIds);
-  check('row ids equal the cluster groups by size then label', JSON.stringify(rowIds) === JSON.stringify(expectedIds), expectedIds);
+  check('row ids equal the served cluster group order', JSON.stringify(rowIds) === JSON.stringify(expectedIds), expectedIds);
   const memberTexts = await s.ev(`(${JSON.stringify(comms.map((c) => c.member_count))}).map((n) => n.toLocaleString())`);
   check('Members cells show member_count', JSON.stringify(crows.map((r) => r.members)) === JSON.stringify(memberTexts), crows.map((r) => r.members));
   check('no Show all toggle for 10 communities', !!ct && ct.toggle === false);

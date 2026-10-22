@@ -138,8 +138,8 @@ def test_glp1_communities_match_served_cluster_groups():
     served = [g for g in _cluster(groups)["groups"] if g["id"] != "other"]
     assert len(communities) == 10 == len(served)
     assert all(set(c) == COMMUNITY_KEYS for c in communities)
-    expected = sorted(served, key=lambda g: (-g["size"], g["label"].lower(), g["id"]))
-    assert [c["id"] for c in communities] == [g["id"] for g in expected]
+    # The served order itself (size, then full label, then id), never re-derived.
+    assert [c["id"] for c in communities] == [g["id"] for g in served]
     by_id = {g["id"]: g for g in served}
     for row in communities:
         group = by_id[row["id"]]
@@ -249,17 +249,46 @@ def test_list_shape_communities_json_rows_match_groups():
     assert result["communities"][1]["top_members"] == ["Node 4", "Node 3"]
 
 
-def test_scrambled_groups_are_resorted_by_size_then_label_then_id():
+def test_scrambled_groups_are_resorted_by_size_then_full_label_then_id():
+    # The /api/graph/groups key: size desc, then full label (case-sensitive), then id.
     groups = _payload(
         [
             _group("g3", 2, "beta"),
             _group("g1", 5, "Zeta"),
-            _group("g4", 2, "Alpha"),
-            _group("g2", 2, "alpha"),
+            _group("g4", 2, "alpha"),
+            _group("g2", 2, "Alpha"),
+            _group("g5", 2, "Alpha"),
         ]
     )
     result = _build(SMALL_NODES, SMALL_LINKS, groups)
-    assert [c["id"] for c in result["communities"]] == ["g1", "g2", "g4", "g3"]
+    assert [c["id"] for c in result["communities"]] == ["g1", "g2", "g5", "g4", "g3"]
+
+
+def test_size_ties_follow_full_label_not_short_label():
+    # Short labels are truncated and suffixed ("Adults With… 2"), so their order
+    # can differ from the full labels the Groups list is sorted by.
+    groups = _payload(
+        [
+            _group("c1", 3, "Adults With Type 2…", "Adults With Type 2 Diabetes"),
+            _group("c2", 3, "Adults With… 2", "Adults With Obesity"),
+        ]
+    )
+    result = _build(SMALL_NODES, SMALL_LINKS, groups)
+    assert [c["id"] for c in result["communities"]] == ["c2", "c1"]
+
+
+def test_tied_corpus_communities_keep_the_served_order():
+    # 07_glp1_phase3_trials has three 13-member groups whose short-label order
+    # ("Adults With Type 2…" < "Adults With… 2") differs from the served order.
+    data, nodes, links = _loaded(CORPORA / "07_glp1_phase3_trials" / "output")
+    groups = _served_groups(nodes, links, data.communities)
+    served = [g for g in _cluster(groups)["groups"] if g["id"] != "other"]
+    sizes = [g["size"] for g in served]
+    assert any(sizes.count(size) > 1 for size in sizes), "fixture lost its size tie"
+    tied = sorted(served, key=lambda g: (-g["size"], g["label"].lower(), g["id"]))
+    assert tied != served, "fixture no longer separates short-label and served order"
+    result = _build(nodes, links, groups)
+    assert [c["id"] for c in result["communities"]] == [g["id"] for g in served]
 
 
 def test_other_group_is_excluded_even_when_ranked_first():
