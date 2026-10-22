@@ -1791,6 +1791,8 @@ function buildGraph() {
         const fitBtn = document.getElementById('graph-fit-btn');
         if (fitBtn) {
             fitBtn.addEventListener('click', () => {
+                // The user's view choice wins over a Dashboard request still waiting.
+                dropPendingShowTypes();
                 clearActiveRegion();
                 fitView(null, fitAnimation(400));
             });
@@ -1903,6 +1905,8 @@ function buildGraph() {
         document.addEventListener('keydown', (event) => {
             if (event.key !== 'Escape') return;
             if (!graphPanelActive || isEditableTarget(event.target)) return;
+            // Esc is a view change too: a Dashboard request still waiting is dropped.
+            dropPendingShowTypes();
             // One level per press: the hover card, then focus, then the zoomed-to group.
             // While a layout runs, the focus level is held (popOneFocus is a no-op).
             const cardOpen = isHoverCardVisible();
@@ -2894,18 +2898,26 @@ function resetNodeFilters() {
     hideSidebar();
 }
 
+// Replaces the wait text (which promised the item) when a request is dropped.
+const SHOW_DROPPED_TEXT = 'The selected item will not be shown: your newer change to the graph comes first.';
+
 // A node filter the user changes directly is newer than a Dashboard request
 // still waiting (for the graph to load or for a relayout to end): the user's
 // input wins and the stale request is dropped, never applied over it.
 function dropPendingShowTypes() {
+    const had = pendingShowTypes !== null;
     pendingShowTypes = null;
     pendingGroupRelayout = null;
+    if (had) setShowStatus(SHOW_DROPPED_TEXT);
 }
 
 // The same rule for the edge filters (epistemic chips, confidence, relation
 // types): only a held focus request resets them, so only that one is dropped.
 function dropPendingShowFocus() {
-    if (pendingShowTypes !== null && parseShowFocus(pendingShowTypes)) pendingShowTypes = null;
+    if (pendingShowTypes !== null && parseShowFocus(pendingShowTypes)) {
+        pendingShowTypes = null;
+        setShowStatus(SHOW_DROPPED_TEXT);
+    }
 }
 
 function requestShowTypes(detail) {

@@ -43,6 +43,11 @@ SHOW_MODES = [
     "show-group-focus-wins",
     "show-group-double",
     "show-group-double-fail",
+    "show-group-drop-groupby-busy",
+    "show-group-drop-groupby-selected",
+    "show-group-drop-groupby-key",
+    "show-group-drop-fit",
+    "show-group-drop-esc",
 ]
 
 

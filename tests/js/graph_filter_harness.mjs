@@ -55,6 +55,8 @@
 // click, a cluster relayout that fails (no retry) and one that follows it,
 // the panel-open refit while focused, a focus that wins over a group, and
 // two requests (a double-click) during one cluster relayout.
+// "show-group-drop-<action>" (groupby-busy, groupby-selected, groupby-key,
+// fit, esc): a user view action drops the waiting request and its wait text.
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -1047,6 +1049,7 @@ if (isShow) {
     check('the slider value the user set survives the layout end', slider.value === '0.9', slider.value);
     check('the stale focus request is dropped', focusStackIds().length === 0, focusStackIds());
     check('the layout ended', window._graphDebug.busy === false, window._graphDebug.busy);
+    check('the wait text is replaced', status() === 'The selected item will not be shown: your newer change to the graph comes first.', status());
   } else if (mode === 'show-group-queued') {
     check('the graph had not loaded when the request was made', debugAtDispatch === undefined, typeof debugAtDispatch);
     await tick(250);
@@ -1338,6 +1341,7 @@ if (isShow) {
     }
   };
   const WAITING = 'The graph is arranging; the selected item will be shown when it finishes.';
+  const DROPPED = 'The selected item will not be shown: your newer change to the graph comes first.';
   const NOT_IN_GRAPH = `The selected community is not in this graph. Showing the default graph: ${NON_SOURCE.length} entities.`;
   const toFamily = async () => {
     await tick(150);   // past the setup panel-open refit
@@ -1460,6 +1464,45 @@ if (isShow) {
     check('the relayout completed on topic cluster', window._graphDebug.mode === 'cluster' && window._graphDebug.busy === false, window._graphDebug.mode);
     check('the dropped request zooms nowhere', region() === null && currentRows().length === 0, { region: region(), rows: currentRows() });
     check('the grouping announcement stands', groupStatus() === 'Grouped by topic cluster: 2 groups.', groupStatus());
+    check('WR-03: the wait text is replaced', status() === DROPPED, status());
+  }
+
+  // WR-03 / SA-02: every user view action while a community request waits for
+  // its cluster relayout drops the request and replaces the wait text: Group by
+  // (another radio, the already-selected radio, an arrow key; each ignored
+  // while busy), Fit View and Esc.
+  if (mode.startsWith('show-group-drop-')) {
+    const action = mode.slice('show-group-drop-'.length);
+    await toFamily();
+    winEvent('graph-panel-opened');
+    await tick(150);
+    show({ reset: true, group: 'c1' });
+    await tick();
+    check('setup: the cluster relayout runs', window._graphDebug.busy === true, window._graphDebug.busy);
+    check('setup: the wait is announced', status() === WAITING, status());
+    const stabBefore = stabilizeCalls().length;
+    const escTarget = { tagName: 'DIV', closest: () => null };
+    const actions = {
+      'groupby-busy': () => groupButtons.none.dispatch('click'),
+      'groupby-selected': () => groupButtons.cluster.dispatch('click'),
+      'groupby-key': () => groupButtons.cluster.dispatch('keydown', { key: 'ArrowRight' }),
+      fit: () => document.getElementById('graph-fit-btn').dispatch('click'),
+      esc: () => { for (const fn of docListeners.keydown || []) fn({ key: 'Escape', target: escTarget }); },
+    };
+    check(`setup: known action ${action}`, action in actions, action);
+    if (action === 'groupby-selected') {
+      check('setup: Topic cluster is the selected radio', groupButtons.cluster.getAttribute('aria-checked') === 'true', groupButtons.cluster.getAttribute('aria-checked'));
+    }
+    actions[action]();
+    await tick();
+    check('the action starts no relayout of its own', stabilizeCalls().length === stabBefore, stabilizeCalls().length - stabBefore);
+    check('the wait text is replaced at once', status() === DROPPED, status());
+    groupEmitDone();
+    await tick();
+    check('the relayout completed on topic cluster', window._graphDebug.mode === 'cluster' && window._graphDebug.busy === false, window._graphDebug.mode);
+    check('the dropped request zooms nowhere', region() === null && currentRows().length === 0, { region: region(), rows: currentRows() });
+    check('the grouping announcement stands', groupStatus() === 'Grouped by topic cluster: 2 groups.', groupStatus());
+    check('the dropped text stands after the relayout', status() === DROPPED, status());
   }
 
   if (mode === 'show-group-relayout-fail' || mode === 'show-group-after-fail') {
