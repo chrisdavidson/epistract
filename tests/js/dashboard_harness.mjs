@@ -4,7 +4,10 @@
 // markup, hostile type strings (SEC-01), click delegation, the totals button,
 // the hint and the empty state. The `epistemic` mode covers
 // buildEpistemicHealth (run: node dashboard_harness.mjs epistemic) and the
-// `documents` mode covers buildDocuments (run: node dashboard_harness.mjs documents).
+// `documents` mode covers buildDocuments (run: node dashboard_harness.mjs documents),
+// and the `start-here` mode covers buildStartHere, the "Where to start" section
+// with its topic communities and most-connected entities tables
+// (run: node dashboard_harness.mjs start-here).
 // Prints one JSON line {"passed": [...], "failed": [...]} and exits 1 on failure.
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -962,6 +965,318 @@ if (MODE === 'documents') {
       check('hostile: no data-derived class names', !badClass);
       byTag(root, 'table')[0].dispatch('click', { target: rowBtn(docRowsOf(root)[0]) });
       check('hostile: the raw id reaches onOpen as a string', opened.length === 1 && opened[0].doc.doc_id === hostile[0], opened.map((o) => o.doc.doc_id));
+    }
+  }
+}
+
+if (MODE === 'start-here') {
+  const HINT = 'Begin with the largest topics or the most-connected entities. Select a row to see it in the graph.';
+  const NO_COMMUNITIES = 'No topic communities were found for this graph.';
+  const NO_HUBS = 'No connected entities yet.';
+  if (typeof dash.buildStartHere !== 'function') {
+    check('buildStartHere is exported by dashboard.js', false, typeof dash.buildStartHere);
+  } else {
+    const shown = [];
+    const startHere = (payload, totalNodes = 218, callbacks = null) => dash.buildStartHere({
+      startHere: payload,
+      totalNodes,
+      ...(callbacks || {
+        onShowCommunity: (row, event) => shown.push({ kind: 'community', row, event }),
+        onShowEntity: (row, event) => shown.push({ kind: 'entity', row, event }),
+      }),
+    });
+    const community = (i, extra = {}) => ({
+      id: `c${i}`, label: `Topic ${i}`, full_label: `Topic ${i} full label`, member_count: 40 - i,
+      top_members: [`M${i}a`, `M${i}b`, `M${i}c`], ...extra,
+    });
+    const communities = (n) => Array.from({ length: n }, (_, i) => community(i + 1));
+    const hub = (i, extra = {}) => ({
+      id: `e${i}`, name: `Entity ${i}`, entity_type: 'A', connections: 30 - i,
+      community_id: 'c1', community_label: 'Topic 1', ...extra,
+    });
+    const hubs = (n) => Array.from({ length: n }, (_, i) => hub(i + 1));
+    const blocks = (root) => byClass(root, 'start-block');
+    const commTable = (root) => byClass(root, 'start-communities-table')[0];
+    const hubTable = (root) => byClass(root, 'start-hubs-table')[0];
+    const rowsIn = (n) => (n ? byClass(n, 'dashboard-link-row') : []);
+    const mainBtn = (row) => byClass(row, 'dashboard-link-btn')[0];
+    const toggleBtn = (root) => byClass(root, 'start-toggle')[0];
+    const statusEl = (root) => find(root, (n) => n.getAttribute && n.getAttribute('id') === 'start-status')[0];
+    const tbodies = (root) => byTag(commTable(root), 'tbody');
+
+    // --- structure: 10 communities + 10 hubs ---
+    {
+      createdTags.length = 0;
+      innerHtmlWrites.length = 0;
+      const root = startHere({ communities: communities(10), hubs: hubs(10) });
+      check('start: section element', root && root.tagName === 'section' && root.className === 'start-here'
+        && root.getAttribute('aria-labelledby') === 'start-here-heading', root && root.className);
+      const h3 = byTag(root, 'h3')[0];
+      check('start: h3 Where to start', h3 && h3.textContent === 'Where to start' && h3.getAttribute('id') === 'start-here-heading', h3 && h3.textContent);
+      const hint = byClass(root, 'dashboard-hint')[0];
+      check('start: hint copy', hint && hint.textContent === HINT, hint && hint.textContent);
+      check('start: two blocks, communities first', blocks(root).length === 2
+        && byClass(blocks(root)[0], 'start-communities-table').length === 1
+        && byClass(blocks(root)[1], 'start-hubs-table').length === 1);
+      const h4s = byTag(root, 'h4');
+      check('start: block titles', h4s.length === 2 && h4s[0].textContent === 'Topic communities (10)'
+        && h4s[0].getAttribute('id') === 'start-communities-heading' && h4s[0].className === 'start-block__title'
+        && h4s[1].textContent === 'Most-connected entities' && h4s[1].getAttribute('id') === 'start-hubs-heading'
+        && h4s[1].className === 'start-block__title', h4s.map((h) => h.textContent));
+      const st = statusEl(root);
+      check('start: status region', st && st.tagName === 'span' && st.className === 'visually-hidden'
+        && st.getAttribute('role') === 'status' && st.getAttribute('aria-live') === 'polite');
+      check('start: no img or script, no innerHTML', !createdTags.includes('img') && !createdTags.includes('script') && innerHtmlWrites.length === 0, createdTags);
+
+      const ct = commTable(root);
+      check('communities: table classes and label', ct && ct.className === 'dashboard-table start-communities-table'
+        && ct.getAttribute('aria-labelledby') === 'start-communities-heading', ct && ct.className);
+      check('communities: no colgroup', byTag(root, 'colgroup').length === 0);
+      const cth = byTag(ct, 'th');
+      check('communities: headers', JSON.stringify(cth.map((t) => t.textContent)) === JSON.stringify(['Community', 'Members'])
+        && cth[1].matches('th.start-col-count'), cth.map((t) => t.textContent));
+      const rows = rowsIn(ct);
+      check('communities: 10 rows in payload order', rows.length === 10 && rows.every((r, i) => r.tagName === 'tr'
+        && r.getAttribute('data-index') === String(i) && r.getAttribute('data-group-id') === `c${i + 1}`), rows.length);
+      const r0 = rows[0];
+      const cell0 = byClass(r0, 'dashboard-link-cell')[0];
+      const actions0 = cell0 && cell0.children[0];
+      const btn0 = mainBtn(r0);
+      check('communities: cell > start-action > button', cell0 && cell0.tagName === 'td' && actions0 && actions0.tagName === 'div'
+        && actions0.className === 'start-action' && actions0.children[0] === btn0);
+      check('communities: button attributes', btn0 && btn0.tagName === 'button' && btn0.getAttribute('type') === 'button'
+        && btn0.getAttribute('data-start-action') === 'show', btn0 && btn0.getAttribute('data-start-action'));
+      const name0 = byClass(btn0, 'start-name')[0];
+      check('communities: name stack', name0 && name0.tagName === 'span' && byClass(name0, 'start-name__text')[0].textContent === 'Topic 1'
+        && byClass(name0, 'start-name__sub')[0].textContent === 'Top members: M1a, M1b, M1c');
+      const chev = byClass(btn0, 'dashboard-link-chevron')[0];
+      check('communities: chevron last and hidden', chev && chev.textContent === '›' && chev.getAttribute('aria-hidden') === 'true'
+        && btn0.children[btn0.children.length - 1] === chev);
+      check('communities: title is the full label and the members line', btn0.getAttribute('title') === 'Topic 1 full label\nTop members: M1a, M1b, M1c', btn0.getAttribute('title'));
+      check('communities: aria-label with three members', btn0.getAttribute('aria-label')
+        === 'Show the Topic 1 full label community in the graph: 39 members, including M1a, M1b and M1c', btn0.getAttribute('aria-label'));
+      const counts = rows.map((r) => byClass(r, 'dashboard-count')[0].textContent);
+      check('communities: member counts', JSON.stringify(counts) === JSON.stringify(['39', '38', '37', '36', '35', '34', '33', '32', '31', '30']), counts);
+      check('communities: one tab stop per row', rows.every((r) => byTag(r, 'button').length === 1));
+      check('communities: no toggle and one tbody', !toggleBtn(root) && tbodies(root).length === 1);
+
+      const ht = hubTable(root);
+      check('hubs: table classes and label', ht && ht.className === 'dashboard-table start-hubs-table'
+        && ht.getAttribute('aria-labelledby') === 'start-hubs-heading', ht && ht.className);
+      const hth = byTag(ht, 'th');
+      check('hubs: headers', JSON.stringify(hth.map((t) => t.textContent)) === JSON.stringify(['Entity', 'Type', 'Connections', 'Community'])
+        && hth[1].matches('th.start-col-type') && hth[2].matches('th.start-col-count') && hth[3].matches('th.start-col-community'), hth.map((t) => t.textContent));
+      const hrows = rowsIn(ht);
+      check('hubs: 10 rows with index and node id', hrows.length === 10 && hrows.every((r, i) => r.getAttribute('data-index') === String(i)
+        && r.getAttribute('data-node-id') === `e${i + 1}`));
+      check('hubs: one tbody, no toggle', byTag(ht, 'tbody').length === 1);
+    }
+
+    // --- row details and copy ---
+    {
+      const comms = [
+        community(1, { member_count: 1, top_members: ['Solo'] }),
+        community(2, { member_count: 0, top_members: ['A1', 'B1'] }),
+        community(3, { member_count: 1234, top_members: [] }),
+        community(4, { label: '', full_label: 'Only full', top_members: 'x' }),
+        community(5, { label: '', full_label: '', top_members: null }),
+      ];
+      const hs = [
+        hub(1, { connections: 1, community_id: 'c1', community_label: 'Topic 1' }),
+        hub(2, { connections: 2, community_id: null, community_label: null }),
+        hub(3, { connections: 1500, community_id: 'gone', community_label: 'Short gone' }),
+        hub(4, { name: '', entity_type: 'ZED' }),
+        hub(5, { entity_type: 'B' }),
+      ];
+      const root = startHere({ communities: comms, hubs: hs });
+      const rows = rowsIn(commTable(root));
+      const aria = rows.map((r) => mainBtn(r).getAttribute('aria-label'));
+      check('copy: one member singular, one name', aria[0] === 'Show the Topic 1 full label community in the graph: 1 member, including Solo', aria[0]);
+      check('copy: two names joined with and', aria[1] === 'Show the Topic 2 full label community in the graph: 0 members, including A1 and B1', aria[1]);
+      check('copy: no members suffix and locale count', aria[2] === 'Show the Topic 3 full label community in the graph: 1,234 members', aria[2]);
+      const labels = rows.map((r) => byClass(r, 'start-name__text')[0].textContent);
+      check('copy: label falls back to full label then id', labels[3] === 'Only full' && labels[4] === 'c5', labels);
+      check('copy: no sub line without members', byClass(rows[2], 'start-name__sub').length === 0 && byClass(rows[3], 'start-name__sub').length === 0
+        && byClass(rows[4], 'start-name__sub').length === 0);
+      check('copy: title without members is the full label', mainBtn(rows[2]).getAttribute('title') === 'Topic 3 full label', mainBtn(rows[2]).getAttribute('title'));
+      check('copy: zero members muted', byClass(rows[1], 'dashboard-count--zero').length === 1 && byClass(rows[0], 'dashboard-count--zero').length === 0);
+      check('copy: member count locale', byClass(rows[2], 'dashboard-count')[0].textContent === '1,234');
+
+      const hrows = rowsIn(hubTable(root));
+      const haria = hrows.map((r) => mainBtn(r).getAttribute('aria-label'));
+      check('hub: aria-label with the community full label, singular', haria[0] === 'Show Entity 1 and its connections in the graph: Alpha, 1 connection, in the Topic 1 full label community', haria[0]);
+      check('hub: aria-label not in a community', haria[1] === 'Show Entity 2 and its connections in the graph: Alpha, 2 connections, not in a topic community', haria[1]);
+      check('hub: aria-label falls back to the short label (A-7)', haria[2] === 'Show Entity 3 and its connections in the graph: Alpha, 1,500 connections, in the Short gone community', haria[2]);
+      check('hub: title is the name', mainBtn(hrows[0]).getAttribute('title') === 'Entity 1');
+      const names = hrows.map((r) => byClass(r, 'start-name__text')[0].textContent);
+      check('hub: name falls back to id', names[3] === 'e4', names);
+      check('hub: no sub line', hrows.every((r) => byClass(r, 'start-name__sub').length === 0));
+      const typeCells = hrows.map((r) => byClass(r, 'start-type')[0]);
+      check('hub: type cell is a td with a swatch and a label', typeCells.every((c) => c && c.tagName === 'td'
+        && byClass(c, 'type-swatch').length === 1 && byClass(c, 'start-type__label').length === 1));
+      const typeLabels = typeCells.map((c) => byClass(c, 'start-type__label')[0].textContent);
+      check('hub: type labels', JSON.stringify(typeLabels) === JSON.stringify(['Alpha', 'Alpha', 'Alpha', 'ZED', 'Beta Things']), typeLabels);
+      check('hub: type cell title is the label', typeCells.every((c, i) => c.getAttribute('title') === typeLabels[i]));
+      const summaryLabels = new Map(dash.sortEntityRows({ A: 1, B: 1, ZED: 1 }).map((r) => [r.type, r.label]));
+      check('hub: type labels equal the Entity Summary labels', typeLabels[0] === summaryLabels.get('A')
+        && typeLabels[3] === summaryLabels.get('ZED') && typeLabels[4] === summaryLabels.get('B'), [...summaryLabels]);
+      const conn = hrows.map((r) => byClass(r, 'dashboard-count')[0].textContent);
+      check('hub: connections locale', conn[2] === '1,500' && conn[0] === '1', conn);
+      const commCells = hrows.map((r) => byClass(r, 'start-community')[0]);
+      check('hub: community cell short label and full-label title', commCells[0].tagName === 'td' && commCells[0].textContent === 'Topic 1'
+        && commCells[0].getAttribute('title') === 'Topic 1 full label', commCells[0].getAttribute('title'));
+      check('hub: unclustered community', commCells[1].textContent === 'Unclustered' && commCells[1].matches('td.start-community--none'), commCells[1].className);
+      check('hub: unknown community id keeps the short label as title', commCells[2].textContent === 'Short gone'
+        && commCells[2].getAttribute('title') === 'Short gone' && !commCells[2].matches('td.start-community--none'));
+      check('hub: community cell is plain text', commCells.every((c) => byTag(c, 'button').length === 0));
+    }
+
+    // --- 25 communities: Show all toggle ---
+    {
+      focusLog.length = 0;
+      const root = startHere({ communities: communities(25), hubs: hubs(3) });
+      check('toggle: title count', byTag(root, 'h4')[0].textContent === 'Topic communities (25)');
+      const [first, rest] = tbodies(root);
+      check('toggle: first tbody 10 rows', tbodies(root).length === 2 && rowsIn(first).length === 10, tbodies(root).length);
+      check('toggle: rest tbody 15 rows hidden', rest && rowsIn(rest).length === 15 && rest.hasAttribute('hidden')
+        && rest.getAttribute('id') === 'start-communities-rest');
+      const t = toggleBtn(root);
+      check('toggle: collapsed state', t && t.tagName === 'button' && t.getAttribute('type') === 'button' && t.textContent === 'Show all 25'
+        && t.getAttribute('aria-expanded') === 'false' && t.getAttribute('aria-controls') === 'start-communities-rest'
+        && t.getAttribute('aria-label') === 'Show all 25 topic communities', t && t.textContent);
+      const commBlock = blocks(root)[0];
+      check('toggle: inside the communities block after the table', t && commBlock.children.indexOf(t) > commBlock.children.findIndex((c) => c.className === 'dashboard-table-wrap'));
+      t.dispatch('click', { detail: 1 });
+      check('toggle: expands', t.getAttribute('aria-expanded') === 'true' && !rest.hasAttribute('hidden') && t.textContent === 'Show first 10'
+        && t.getAttribute('aria-label') === 'Show only the first 10 topic communities', [t.textContent, t.getAttribute('aria-label')]);
+      check('toggle: status all', statusEl(root).textContent === 'Showing all 25 topic communities.', statusEl(root).textContent);
+      const target = mainBtn(rowsIn(rest)[0]);
+      check('toggle: focus on row 11 with preventScroll', focusLog.length === 1 && focusLog[0].el === target
+        && focusLog[0].options && focusLog[0].options.preventScroll === true, focusLog.length);
+      t.dispatch('click', { detail: 1 });
+      check('toggle: collapses', t.getAttribute('aria-expanded') === 'false' && rest.hasAttribute('hidden') && t.textContent === 'Show all 25'
+        && t.getAttribute('aria-label') === 'Show all 25 topic communities');
+      check('toggle: status first 10', statusEl(root).textContent === 'Showing the first 10 of 25 topic communities.', statusEl(root).textContent);
+      check('toggle: focus back on the toggle', focusLog.length === 2 && focusLog[1].el === t && focusLog[1].options && focusLog[1].options.preventScroll === true);
+      const eleven = startHere({ communities: communities(11), hubs: [] });
+      check('toggle: 11 communities give one hidden row', toggleBtn(eleven) && rowsIn(tbodies(eleven)[1]).length === 1);
+      const big = startHere({ communities: Array.from({ length: 1200 }, (_, i) => community(i + 1)), hubs: [] });
+      check('toggle: locale counts', byTag(big, 'h4')[0].textContent === 'Topic communities (1,200)' && toggleBtn(big).textContent === 'Show all 1,200', toggleBtn(big).textContent);
+    }
+
+    // --- empty and missing ---
+    {
+      const noComm = startHere({ communities: [], hubs: hubs(2) });
+      const h4 = byTag(noComm, 'h4');
+      check('empty: communities title without count', h4[0].textContent === 'Topic communities', h4[0].textContent);
+      const commBlock = blocks(noComm)[0];
+      const body = byClass(commBlock, 'dashboard-empty__body');
+      check('empty: communities copy, no table or toggle', body.length === 1 && body[0].textContent === NO_COMMUNITIES
+        && !commTable(noComm) && !toggleBtn(noComm), body.map((b) => b.textContent));
+      check('empty: hubs still render', rowsIn(hubTable(noComm)).length === 2);
+      check('empty: hint shown when one block has rows', byClass(noComm, 'dashboard-hint').length === 1);
+      const noHubs = startHere({ communities: communities(2), hubs: [] });
+      const hubBody = byClass(blocks(noHubs)[1], 'dashboard-empty__body');
+      check('empty: hubs copy, no table', hubBody.length === 1 && hubBody[0].textContent === NO_HUBS && !hubTable(noHubs)
+        && byTag(noHubs, 'h4')[1].textContent === 'Most-connected entities');
+      check('empty: both empty, no nodes -> null', startHere({ communities: [], hubs: [] }, 0) === null);
+      const both = startHere({ communities: [], hubs: [] }, 5);
+      check('empty: both empty with nodes -> both copies, no hint', both && byClass(both, 'dashboard-empty__body').length === 2
+        && byClass(both, 'dashboard-hint').length === 0);
+      for (const bad of [undefined, null, 'x', [], 7]) {
+        check(`missing: startHere ${JSON.stringify(bad)} -> null`, startHere(bad) === null);
+      }
+      const notArrays = startHere({ communities: 'x', hubs: { a: 1 } }, 5);
+      check('missing: non-array lists are treated as empty', notArrays && byClass(notArrays, 'dashboard-empty__body').length === 2);
+      check('missing: non-array lists with no nodes -> null', startHere({ communities: 'x', hubs: null }, 0) === null);
+      const dirty = startHere({ communities: [null, 3, 'x', [], community(1)], hubs: [null, 'y', hub(1)] });
+      check('missing: non-object rows are skipped', rowsIn(commTable(dirty)).length === 1 && rowsIn(hubTable(dirty)).length === 1
+        && rowsIn(commTable(dirty))[0].getAttribute('data-index') === '0');
+    }
+
+    // --- activation ---
+    {
+      shown.length = 0;
+      const comms = communities(12);
+      const hs = hubs(4);
+      const root = startHere({ communities: comms, hubs: hs });
+      const ct = commTable(root);
+      const ht = hubTable(root);
+      const crows = rowsIn(ct);
+      const hrows = rowsIn(ht);
+      ct.dispatch('click', { target: mainBtn(crows[1]), detail: 1 });
+      check('click: community button calls onShowCommunity once with the payload row', shown.length === 1 && shown[0].kind === 'community'
+        && shown[0].row === comms[1] && shown[0].event && shown[0].event.detail === 1, shown.map((x) => x.kind));
+      ct.dispatch('click', { target: byClass(crows[11], 'dashboard-count')[0] });
+      check('click: a count cell in the rest tbody opens its row', shown.length === 2 && shown[1].row === comms[11]);
+      ct.dispatch('click', { target: byClass(crows[0], 'start-name__sub')[0] });
+      check('click: a nested span resolves to its row', shown.length === 3 && shown[2].row === comms[0]);
+      ht.dispatch('click', { target: mainBtn(hrows[2]), detail: 0 });
+      check('click: hub button calls onShowEntity with the payload row', shown.length === 4 && shown[3].kind === 'entity' && shown[3].row === hs[2]
+        && shown[3].event.detail === 0);
+      ht.dispatch('click', { target: byClass(hrows[0], 'start-type')[0] });
+      ht.dispatch('click', { target: byClass(hrows[1], 'start-community')[0] });
+      check('click: type and community cells open their hub', shown.length === 6 && shown[4].row === hs[0] && shown[5].row === hs[1]);
+      ct.dispatch('click', { target: byTag(ct, 'th')[0] });
+      ht.dispatch('click', { target: ht });
+      check('click: headers and tables do nothing', shown.length === 6, shown.length);
+      check('click: delegation only', [...crows, ...hrows].every((r) => r.listenerCount('click') === 0 && mainBtn(r).listenerCount('click') === 0));
+      crows[2].setAttribute('data-index', '999');
+      ct.dispatch('click', { target: mainBtn(crows[2]) });
+      crows[2].setAttribute('data-index', 'abc');
+      ct.dispatch('click', { target: mainBtn(crows[2]) });
+      crows[2].setAttribute('data-index', '-1');
+      ct.dispatch('click', { target: mainBtn(crows[2]) });
+      hrows[1].setAttribute('data-index', '1.5');
+      ht.dispatch('click', { target: mainBtn(hrows[1]) });
+      check('click: tampered data-index opens nothing', shown.length === 6, shown.length);
+      // Phase 10 routing: a second action button appended into the row's .start-action.
+      const ask = document.createElement('button');
+      ask.setAttribute('type', 'button');
+      ask.setAttribute('data-start-action', 'ask');
+      byClass(crows[3], 'start-action')[0].appendChild(ask);
+      ct.dispatch('click', { target: ask });
+      const askHub = document.createElement('button');
+      askHub.setAttribute('data-start-action', 'ask');
+      byClass(hrows[3], 'start-action')[0].appendChild(askHub);
+      ht.dispatch('click', { target: askHub });
+      check('click: an ask action calls neither callback', shown.length === 6, shown.length);
+      const bare = startHere({ communities: comms, hubs: hs }, 218, {});
+      let threw = false;
+      try {
+        commTable(bare).dispatch('click', { target: mainBtn(rowsIn(commTable(bare))[0]) });
+        hubTable(bare).dispatch('click', { target: mainBtn(rowsIn(hubTable(bare))[0]) });
+      } catch { threw = true; }
+      check('click: missing callbacks are tolerated', !threw);
+    }
+
+    // --- hostile ---
+    {
+      const hostile = ['<img src=x onerror=1>', '"><script>alert(1)</script>'];
+      createdTags.length = 0;
+      innerHtmlWrites.length = 0;
+      shown.length = 0;
+      const root = startHere({
+        communities: [community(1, { id: hostile[1], label: hostile[0], full_label: hostile[1], top_members: [hostile[0], hostile[1]] })],
+        hubs: [hub(1, { id: hostile[0], name: hostile[1], entity_type: hostile[0], community_id: hostile[1], community_label: hostile[0] })],
+      });
+      check('hostile: no img or script element is created', !createdTags.includes('img') && !createdTags.includes('script'), createdTags);
+      check('hostile: innerHTML is never assigned', innerHtmlWrites.length === 0);
+      check('hostile: the tree holds no img or script', find(root, (n) => n.tagName === 'img' || n.tagName === 'script').length === 0);
+      const crow = rowsIn(commTable(root))[0];
+      const hrow = rowsIn(hubTable(root))[0];
+      check('hostile: label and members are text', byClass(crow, 'start-name__text')[0].textContent === hostile[0]
+        && byClass(crow, 'start-name__sub')[0].textContent === `Top members: ${hostile[0]}, ${hostile[1]}`);
+      check('hostile: ids are attribute values', crow.getAttribute('data-group-id') === hostile[1] && hrow.getAttribute('data-node-id') === hostile[0]);
+      check('hostile: hub name, type and community are text', byClass(hrow, 'start-name__text')[0].textContent === hostile[1]
+        && byClass(hrow, 'start-type__label')[0].textContent === hostile[0]
+        && byClass(hrow, 'start-community')[0].textContent === hostile[0]
+        && byClass(hrow, 'start-community')[0].getAttribute('title') === hostile[1]);
+      let badClass = false;
+      walk(root, (n) => { if (/[<>"']|onerror|script/i.test(String(n.className || ''))) badClass = true; });
+      check('hostile: no data-derived class names', !badClass);
+      commTable(root).dispatch('click', { target: mainBtn(crow) });
+      check('hostile: the raw row reaches the callback', shown.length === 1 && shown[0].row.id === hostile[1]);
     }
   }
 }
