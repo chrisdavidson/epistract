@@ -315,6 +315,11 @@ def create_app(output_dir: Path, domain: str | None = None) -> FastAPI:
             "static_dir": "not found - create examples/workbench/static/index.html",
         }
 
+    # Browsers request /favicon.ico on their own, whatever the page links to
+    @app.get("/favicon.ico", include_in_schema=False)
+    async def favicon():
+        return FileResponse(str(STATIC_DIR / "favicon.ico"), media_type="image/x-icon")
+
     @app.get("/api/template")
     async def get_template():
         return app.state.template
