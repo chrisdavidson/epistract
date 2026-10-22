@@ -1192,6 +1192,14 @@ if (MODE === 'start-here') {
       const dirty = startHere({ communities: [null, 3, 'x', [], community(1)], hubs: [null, 'y', hub(1)] });
       check('missing: non-object rows are skipped', rowsIn(commTable(dirty)).length === 1 && rowsIn(hubTable(dirty)).length === 1
         && rowsIn(commTable(dirty))[0].getAttribute('data-index') === '0');
+      // IN-03: a row whose click could not name its target is not drawn.
+      const badIds = [{ id: '' }, { id: 7 }, { id: null }, { id: undefined }];
+      const noIds = startHere({
+        communities: [...badIds.map((b) => community(9, b)), community(1)],
+        hubs: [...badIds.map((b) => hub(9, b)), hub(1)],
+      });
+      check('missing: rows without a non-empty string id are skipped', rowsIn(commTable(noIds)).length === 1
+        && rowsIn(hubTable(noIds)).length === 1, [rowsIn(commTable(noIds)).length, rowsIn(hubTable(noIds)).length]);
     }
 
     // --- activation ---

@@ -23,9 +23,6 @@ function text(tag, className, value) {
     return node;
 }
 
-// Rows for the entity table: [{type, label, count}], largest first, label
-// ascending on ties. The label is the display label for the type, else the
-// raw key.
 // Display label per type key, from the loaded display data.
 function typeLabels() {
     return new Map(legendEntries().map(entry => [entry.type, entry.label]));
@@ -36,6 +33,9 @@ function typeLabelFor(type, labels) {
     return labels.get(typeKey(type)) || type;
 }
 
+// Rows for the entity table: [{type, label, count}], largest first, label
+// ascending on ties. The label is the display label for the type, else the
+// raw key.
 export function sortEntityRows(entityCounts) {
     const labels = typeLabels();
     const rows = Object.entries(entityCounts || {}).map(([type, count]) => ({
@@ -789,9 +789,12 @@ const NO_COMMUNITIES_COPY = 'No topic communities were found for this graph.';
 const NO_HUBS_COPY = 'No connected entities yet.';
 const UNCLUSTERED = 'Unclustered';
 
+// A row without a non-empty string id is skipped: its click could not name
+// the community (or entity) to show.
 function cleanCommunity(raw) {
     if (!isObj(raw)) return null;
     const id = str(raw.id);
+    if (id === '') return null;
     const fullLabel = str(raw.full_label) || str(raw.label) || id;
     const members = Array.isArray(raw.top_members)
         ? raw.top_members.filter(m => typeof m === 'string' && m).slice(0, 3)
@@ -809,6 +812,7 @@ function cleanCommunity(raw) {
 function cleanHub(raw) {
     if (!isObj(raw)) return null;
     const id = str(raw.id);
+    if (id === '') return null;
     const communityId = typeof raw.community_id === 'string' && raw.community_id ? raw.community_id : null;
     return {
         raw,
