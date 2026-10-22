@@ -24,7 +24,7 @@ async def get_source(request: Request, doc_id: str):
         # JSONResponse, not a bare tuple: FastAPI has no (body, status) convention
         # and would serialize the tuple itself, yielding HTTP 200 with an array body.
         # Not HTTPException either — that reshapes the body to {"detail": ...} and
-        # orphans the `data.error` branch in static/sources.js.
+        # orphans the `error` field that static/source_viewer.js relies on.
         return JSONResponse(
             status_code=404, content={"error": f"Document not found: {doc_id}"}
         )

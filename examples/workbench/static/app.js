@@ -1,14 +1,12 @@
 // app.js - Main application coordinator
-import { initChat, loadModelSelector } from './chat.js';
+import { initChat, loadModelSelector, setCitationDocuments } from './chat.js';
 import { initGraph } from './graph.js';
 import { loadDisplay, legendEntries, makeSwatch } from './display.js';
-import { buildEntitySummary } from './dashboard.js';
-// sources.js removed -- source docs now accessed via dashboard links
+import { buildDocuments, buildEntitySummary, buildEpistemicHealth } from './dashboard.js';
+import { getOrigin, initSourceViewer, setDocuments, subscribeDocuments } from './source_viewer.js';
 
-// SEC-01 / VUL-03: local escapeHtml helper. We intentionally do NOT import the
-// copy from sources.js because that file is no longer wired into the module
-// graph (see line above). DOM-based escaping handles every HTML metacharacter
-// without an explicit replacement table.
+// SEC-01 / VUL-03: local escapeHtml helper. DOM-based escaping handles every
+// HTML metacharacter without an explicit replacement table.
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text == null ? '' : String(text);
@@ -18,19 +16,27 @@ function escapeHtml(text) {
 // ---------------------------------------------------------------------------
 // Panel State -- only one panel visible at a time
 // ---------------------------------------------------------------------------
-let activePanel = 'chat'; // 'dashboard' | 'chat' | 'graph' | 'sources'
+let activePanel = 'chat'; // 'dashboard' | 'chat' | 'graph' | 'source'
 
-function switchPanel(panel) {
+function getActivePanel() {
+    return activePanel;
+}
+
+function switchPanel(requested) {
+    // 'sources' is the old name of the document viewer panel.
+    const panel = requested === 'sources' ? 'source' : requested;
     activePanel = panel;
 
     const dashboardPanel = document.getElementById('dashboard-panel');
     const chatPanel = document.querySelector('.chat-panel');
     const sidePanel = document.getElementById('side-panel');
     const graphPanel = document.getElementById('graph-panel');
+    const sourcePanel = document.getElementById('source-panel');
     // Hide all panels
     dashboardPanel.style.display = 'none';
     chatPanel.style.display = 'none';
     sidePanel.style.display = 'none';
+    if (sourcePanel) sourcePanel.style.display = 'none';
     // Shows the graph filter rail (and hides the entity legend) in the sidebar.
     document.body.classList.toggle('graph-active', panel === 'graph');
 
@@ -38,13 +44,16 @@ function switchPanel(panel) {
         dashboardPanel.style.display = 'flex';
     } else if (panel === 'chat') {
         chatPanel.style.display = 'flex';
+    } else if (panel === 'source') {
+        if (sourcePanel) sourcePanel.style.display = 'flex';
     } else if (panel === 'graph') {
         sidePanel.style.display = 'flex';
         sidePanel.classList.add('open');
         graphPanel.style.display = 'flex';
     }
 
-    updateNavLinks(panel);
+    // The viewer is opened from the Dashboard or Chat: that nav link stays marked.
+    updateNavLinks(panel === 'source' ? getOrigin() : panel);
     updatePanelTabs(panel);
 
     // Notify graph panel when shown (vis.js needs resize) or hidden (the
@@ -235,6 +244,12 @@ function openGraphWith(detail, event) {
     }
 }
 
+// Puts a question in the chat box. Prefill only: chat.js never sends it.
+function askInChat(question) {
+    switchPanel('chat');
+    window.dispatchEvent(new CustomEvent('ask-question', { detail: { question } }));
+}
+
 async function populateDashboard(template) {
     const dashContent = document.getElementById('dashboard-content');
     if (!dashContent) return;
@@ -278,6 +293,24 @@ async function populateDashboard(template) {
                 onSelectType: (type, event) => openGraphWith({ types: [type] }, event),
                 onShowAll: (event) => openGraphWith({ reset: true }, event),
             }));
+            dashContent.appendChild(buildEpistemicHealth({
+                epistemic: dashData.epistemic,
+                onShowInGraph: (id, event) => openGraphWith({ reset: true, focus: { id, hops: 1 } }, event),
+                onAskInChat: (question) => askInChat(question),
+                documents: dashData.documents,
+                onOpenDocument: (docId, highlight) => window.dispatchEvent(
+                    new CustomEvent('navigate-source', { detail: { docId, highlight } }),
+                ),
+            }));
+            // The viewer module owns the 'navigate-source' event and switches panels.
+            const docsSection = buildDocuments({
+                documents: dashData.documents,
+                onOpen: (doc) => window.dispatchEvent(
+                    new CustomEvent('navigate-source', { detail: { docId: doc.doc_id } }),
+                ),
+            });
+            if (docsSection) dashContent.appendChild(docsSection);
+            setDocuments(dashData.documents);
             // Custom rule findings — per-domain CUSTOM_RULES and cross-domain
             // rules both land in claims_layer.super_domain.custom_findings.
             // Purely additive: domains that ship no custom rules get an empty
@@ -422,18 +455,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     configureSeverityVisibility();
 
     // Initialize panels with template
-    initChat({ template, openSources: (docId, section) => {
-        switchPanel('sources');
-        window.dispatchEvent(new CustomEvent('navigate-source', { detail: { docId, section } }));
-    }});
+    // The viewer registers the 'navigate-source' listener, so it starts first.
+    initSourceViewer({ switchPanel, getActivePanel, openGraphWith });
+    subscribeDocuments(setCitationDocuments);
+    initChat({ template });
     loadModelSelector();
     arrangeGraphRail();
     wireSidebarCollapse();
-    await initGraph({ template, openChat: (question) => {
-        switchPanel('chat');
-        window.dispatchEvent(new CustomEvent('ask-question', { detail: { question } }));
-    }});
-    // Sources panel removed -- docs accessible via dashboard contract links
+    await initGraph({ template, openChat: askInChat });
 
     // Wire up sidebar nav -- each button switches to its panel
     document.querySelectorAll('.nav-link').forEach(link => {
@@ -442,7 +471,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
-    // Wire up panel tabs (graph/sources toggle within side panel)
+    // Wire up panel tabs
     document.querySelectorAll('.panel-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             switchPanel(tab.dataset.tab);
@@ -463,4 +492,4 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // Export for use by other modules
-export { switchPanel };
+export { switchPanel, getActivePanel };

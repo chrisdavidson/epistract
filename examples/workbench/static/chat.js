@@ -38,6 +38,25 @@ export function initChat(opts) {
 
     document.getElementById('chat-clear-btn')?.addEventListener('click', clearChat);
 
+    // Citation links in assistant replies open the source viewer. One
+    // delegated listener serves every message, including ones rendered later.
+    const messagesBox = document.getElementById('messages');
+    if (messagesBox) {
+        messagesBox.addEventListener('click', (e) => {
+            const target = e && e.target;
+            const link = target && typeof target.closest === 'function' ? target.closest('a.citation-link[data-doc]') : null;
+            if (!link) return;
+            // Only ids from the project's document list open the viewer; an
+            // anchor that merely looks like a citation (raw HTML in a reply)
+            // is left alone.
+            const docId = link.dataset && link.dataset.doc;
+            if (!isKnownCitationDoc(docId)) return;
+            e.preventDefault();
+            // A citation label is not a quoted passage, so nothing is highlighted.
+            window.dispatchEvent(new CustomEvent('navigate-source', { detail: { docId } }));
+        });
+    }
+
     // Starter prompts (D-10)
     document.querySelectorAll('.starter-card').forEach(card => {
         card.addEventListener('click', () => {
@@ -47,10 +66,28 @@ export function initChat(opts) {
     });
 
     // Listen for "ask question" events from graph panel (D-16 "Ask about this")
+    // and the Dashboard. Prefill only: the question is never sent from here.
     window.addEventListener('ask-question', (e) => {
         const question = e.detail.question;
-        input.value = question;
         input.focus();
+        if (!input.value.trim()) {
+            input.value = question;
+            return;
+        }
+        // A draft is already there: replace it as an edit, so the browser's
+        // Undo (Ctrl/Cmd+Z) brings the draft back.
+        input.select();
+        let replaced = false;
+        try {
+            replaced = document.execCommand('insertText', false, question) && input.value === question;
+        } catch {
+            replaced = false;
+        }
+        // No editing command available: keep the draft and add the question below it.
+        if (!replaced && input.value !== question) {
+            const draft = input.value.replace(/\s+$/, '');
+            input.value = draft === question ? question : `${draft}\n${question}`;
+        }
     });
 }
 
@@ -196,8 +233,9 @@ async function sendMessage(question) {
                             // textContent only. Keep any partial answer streamed so far.
                             if (fullResponse) {
                                 assistantDiv.innerHTML = (typeof DOMPurify !== 'undefined')
-                                    ? DOMPurify.sanitize(linkifyCitations(renderMarkdown(fullResponse)), { ADD_ATTR: ['id'] })
-                                    : linkifyCitations(renderMarkdown(fullResponse));
+                                    ? DOMPurify.sanitize(renderMarkdown(fullResponse), { ADD_ATTR: ['id'] })
+                                    : renderMarkdown(fullResponse);
+                                linkifyCitations(assistantDiv);
                             } else {
                                 assistantDiv.replaceChildren();
                             }
@@ -215,13 +253,13 @@ async function sendMessage(question) {
                                     hint: 'Try a different model or a shorter question.',
                                 });
                             } else {
-                                // Final render with citation linking
-                                // Sanitize the linkified output too — linkifyCitations
-                                // builds <a> tags from regex-extracted strings, so the
-                                // final pass guarantees no element slips through.
+                                // Final render with citation linking: sanitize first, then
+                                // link citations in the resulting text nodes with DOM calls
+                                // (no markup is ever built from the reply's strings).
                                 assistantDiv.innerHTML = (typeof DOMPurify !== 'undefined')
-                                    ? DOMPurify.sanitize(linkifyCitations(renderMarkdown(fullResponse)), { ADD_ATTR: ['id'] })
-                                    : linkifyCitations(renderMarkdown(fullResponse));
+                                    ? DOMPurify.sanitize(renderMarkdown(fullResponse), { ADD_ATTR: ['id'] })
+                                    : renderMarkdown(fullResponse);
+                                linkifyCitations(assistantDiv);
                             }
                         }
                     } catch (e) {
@@ -264,20 +302,149 @@ function renderMarkdown(text) {
     return text.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
 }
 
-function linkifyCitations(html) {
-    // Post-process rendered HTML to convert [Contract Name] to clickable links (D-19)
-    // Match [text] that wasn't already converted to <a> by markdown
-    return html.replace(/\[([^\]]+)\](?!\()/g, (match, name) => {
-        // Skip markdown checkbox patterns
-        if (name === 'x' || name === ' ') return match;
-        // Convert contract name to doc_id format
-        const docId = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
-        return `<a href="#" class="citation-link" data-doc="${docId}" data-section="${escapeAttr(name)}" onclick="event.preventDefault(); window.dispatchEvent(new CustomEvent('navigate-source', {detail: {docId: '${docId}', section: '${escapeAttr(name)}'}})); return false;">${match}</a>`;
-    });
+// --- citation links ------------------------------------------------------------
+//
+// A citation becomes a link only when it resolves to a document that is in the
+// project: a bracketed document name, or a bare token that is clearly a
+// document id. Anything else in the model's reply is left exactly as written.
+// Document ids, names and the reply are untrusted (SEC-01). Linking runs on the
+// TEXT NODES of the already-sanitized message DOM, so entities, tags and
+// attribute values can never be touched; anchors are built with createElement,
+// setAttribute and textContent from known ids only. <pre>, <code> and existing
+// anchors are skipped with everything inside them. Clicks are handled by one
+// delegated listener on #messages (see initChat); the anchors carry no inline
+// handlers.
+
+const SAFE_DOC_ID = /^[a-z0-9_.-]+$/i;
+let citationDocs = null; // null until setCitationDocuments is called with a list
+let citationNames = new Map(); // doc_id -> display name
+let citationSlugs = new Map(); // slug of an id, display name or filename -> doc_id
+let bareIdPattern = null;
+
+function slugify(value) {
+    return String(value).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 }
 
-function escapeAttr(str) {
-    return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+function escapeRegex(value) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// A bare (unbracketed) token is linked only when it looks like a document id:
+// at least 6 characters, and an underscore or both letters and digits. Plain
+// words ("notes", "agenda") and short numbers still link through [Bracketed Name].
+export function isBareCitableId(id) {
+    if (typeof id !== 'string' || id.length < 6) return false;
+    return id.includes('_') || (/[a-z]/i.test(id) && /\d/.test(id));
+}
+
+// Token characters are [A-Za-z0-9_]; "." and "-" join two tokens ("v1.2",
+// "report-2"), so an id is never linked as part of a larger dotted or dashed token.
+const TOKEN_BEFORE = '(?<![A-Za-z0-9_])(?<![A-Za-z0-9_][.\\-])';
+const TOKEN_AFTER = '(?![A-Za-z0-9_])(?![.\\-][A-Za-z0-9_])';
+
+// Rebuilds the lookup tables from the project's document list (rows carry
+// doc_id, display_name, filename). Anything that is not a list is ignored.
+export function setCitationDocuments(list) {
+    if (!Array.isArray(list)) return;
+    const names = new Map();
+    const slugs = new Map();
+    for (const row of list) {
+        if (!row || typeof row.doc_id !== 'string' || !SAFE_DOC_ID.test(row.doc_id)) continue;
+        const id = row.doc_id;
+        names.set(id, (typeof row.display_name === 'string' && row.display_name) || (typeof row.filename === 'string' && row.filename) || id);
+        for (const label of [id, row.display_name, row.filename]) {
+            if (typeof label !== 'string') continue;
+            const key = slugify(label);
+            if (key && !slugs.has(key)) slugs.set(key, id);
+        }
+    }
+    citationNames = names;
+    citationSlugs = slugs;
+    if (!names.size) {
+        citationDocs = null;
+        bareIdPattern = null;
+        return;
+    }
+    citationDocs = names;
+    const bareIds = Array.from(names.keys())
+        .filter(isBareCitableId)
+        .sort((a, b) => b.length - a.length || (a < b ? -1 : 1));
+    bareIdPattern = bareIds.length
+        ? new RegExp(`${TOKEN_BEFORE}(?:${bareIds.map(escapeRegex).join('|')})${TOKEN_AFTER}`, 'g')
+        : null;
+}
+
+export function isKnownCitationDoc(docId) {
+    return typeof docId === 'string' && citationNames.has(docId);
+}
+
+const BRACKETED = /\[([^[\]]+)\](?!\()/g;
+const SKIPPED_ELEMENTS = new Set(['A', 'CODE', 'PRE', 'SCRIPT', 'STYLE', 'TEXTAREA']);
+
+// Finds the citations in one plain-text string: [{start, end, docId}] in order.
+// A resolved [Bracketed Name] wins over a bare id inside the same brackets.
+function findCitations(text) {
+    const found = [];
+    for (const match of text.matchAll(BRACKETED)) {
+        const docId = citationSlugs.get(slugify(match[1]));
+        if (docId) found.push({ start: match.index, end: match.index + match[0].length, docId });
+    }
+    if (bareIdPattern) {
+        const bracketed = found.slice();
+        for (const m of text.matchAll(bareIdPattern)) {
+            const start = m.index;
+            const end = start + m[0].length;
+            if (bracketed.some((b) => start < b.end && end > b.start)) continue;
+            found.push({ start, end, docId: m[0] });
+        }
+    }
+    return found.sort((x, y) => x.start - y.start);
+}
+
+function citationAnchor(doc, docId, shownText) {
+    const a = doc.createElement('a');
+    a.setAttribute('href', '#');
+    a.setAttribute('class', 'citation-link');
+    a.setAttribute('data-doc', docId);
+    a.setAttribute('title', `Open ${citationNames.get(docId) || docId} in the source viewer`);
+    a.textContent = shownText;
+    return a;
+}
+
+function collectTextNodes(node, out) {
+    for (const child of Array.from(node.childNodes || [])) {
+        if (child.nodeType === 3) {
+            out.push(child);
+        } else if (child.nodeType === 1 && !SKIPPED_ELEMENTS.has(String(child.nodeName).toUpperCase())) {
+            collectTextNodes(child, out);
+        }
+    }
+    return out;
+}
+
+// Links resolved citations inside `root` (a sanitized message element) in place.
+// Returns the number of links added.
+export function linkifyCitations(root) {
+    if (!citationDocs || !root || typeof root !== 'object' || !root.childNodes) return 0;
+    const doc = root.ownerDocument || document;
+    let added = 0;
+    for (const textNode of collectTextNodes(root, [])) {
+        const text = textNode.nodeValue || '';
+        if (!text) continue;
+        const found = findCitations(text);
+        if (!found.length) continue;
+        const parent = textNode.parentNode;
+        let last = 0;
+        for (const { start, end, docId } of found) {
+            if (start > last) parent.insertBefore(doc.createTextNode(text.slice(last, start)), textNode);
+            parent.insertBefore(citationAnchor(doc, docId, text.slice(start, end)), textNode);
+            last = end;
+            added += 1;
+        }
+        if (last < text.length) parent.insertBefore(doc.createTextNode(text.slice(last)), textNode);
+        parent.removeChild(textNode);
+    }
+    return added;
 }
 
 // ---------------------------------------------------------------------------

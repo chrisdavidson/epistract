@@ -3,6 +3,16 @@
 // usage: node workbench_dashboard_cdp.mjs <cdp-port> <workbench-url> <mode> [screenshot-dir]
 //   mode: click  full Dashboard -> Graph flow (rows, keyboard, mouse, sources, totals)
 //         early  Dashboard click fired before the graph has finished loading
+//         epistemic        GLP-1 v3 Epistemic health section: render, toggle, Show in graph, Ask in chat
+//         epistemic-early  Show in graph clicked before the graph has finished loading
+//         epistemic-legacy legacy PICALM claims layer renders the section
+//         documents        GLP-1 v3 Documents table and the in-workbench source viewer
+//         card-highlight   GLP-1 v3 Epistemic card document id opens the viewer on the cited passage
+//         citations        a stubbed chat reply with a document id becomes a link that opens the viewer
+//         fda-highlight    FDA labels: a passage deep in an 80,000-character document is centred
+//
+// A run that cannot be judged because a third-party script did not load ends with
+// a "skipped" reason in the final line instead of failures.
 //
 // Talks to an already running chromium over the DevTools protocol using only
 // Node built-ins. Prints one JSON line per check and a final
@@ -124,7 +134,7 @@ async function expectedSets(s) {
 
 async function openDashboard(s) {
   await s.ev(`document.querySelector('.nav-link[data-panel=dashboard]').click()`);
-  return s.waitFor(`document.querySelectorAll('.dashboard-link-btn').length > 0`);
+  return s.waitFor(`document.querySelectorAll('.dashboard-entity-summary .dashboard-link-btn').length > 0`);
 }
 
 // Waits until the graph is built and the visible node set equals `want`.
@@ -153,7 +163,7 @@ async function click() {
   await s.shot('dashboard.png');
 
   // (a) rows
-  const rows = await s.ev(`(() => [...document.querySelectorAll('.dashboard-link-btn')].map((b) => ({
+  const rows = await s.ev(`(() => [...document.querySelectorAll('.dashboard-entity-summary .dashboard-link-btn')].map((b) => ({
     type: b.getAttribute('data-entity-type'),
     count: Number(b.closest('tr').querySelector('td.dashboard-count').textContent.replace(/,/g, '')),
     cell: b.closest('tr').querySelector('td.dashboard-count').textContent.trim(),
@@ -172,7 +182,7 @@ async function click() {
   check('no img/script in dashboard', inj === 0, inj);
 
   // (c) keyboard: real Enter on the COMPOUND button
-  await s.ev(`document.querySelector('.dashboard-link-btn[data-entity-type="COMPOUND"]').focus()`);
+  await s.ev(`document.querySelector('.dashboard-entity-summary .dashboard-link-btn[data-entity-type="COMPOUND"]').focus()`);
   await s.key('Enter');
   check('Enter shows graph panel', await s.waitFor(`document.getElementById('graph-panel').style.display === 'flex'`));
   check('COMPOUND solo visible set', await waitVisible(s, sets.COMPOUND), (await s.ev(visibleIds)).length);
@@ -218,8 +228,8 @@ async function click() {
     slider: document.getElementById('min-degree-slider').value })`);
   check('setup: focus survives the dirty filters', dirty.stack > 0 && dirty.search !== '' && dirty.slider === '1', dirty);
   check('open dashboard again', await openDashboard(s));
-  check('dashboard still lists 13 rows', (await s.ev(`document.querySelectorAll('.dashboard-link-btn').length`)) === 13);
-  const pt = await s.ev(`(() => { const r = document.querySelector('tr.dashboard-link-row[data-entity-type="DISEASE"] td.dashboard-count').getBoundingClientRect();
+  check('dashboard still lists 13 rows', (await s.ev(`document.querySelectorAll('.dashboard-entity-summary .dashboard-link-btn').length`)) === 13);
+  const pt = await s.ev(`(() => { const r = document.querySelector('.dashboard-entity-summary tr.dashboard-link-row[data-entity-type="DISEASE"] td.dashboard-count').getBoundingClientRect();
     return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
   await s.click(pt.x, pt.y);
   check('DISEASE solo visible set', await waitVisible(s, sets.DISEASE), sets.DISEASE.length);
@@ -237,7 +247,7 @@ async function click() {
 
   // (e) source type
   check('open dashboard for DOCUMENT', await openDashboard(s));
-  await s.ev(`document.querySelector('.dashboard-link-btn[data-entity-type="DOCUMENT"]').click()`);
+  await s.ev(`document.querySelector('.dashboard-entity-summary .dashboard-link-btn[data-entity-type="DOCUMENT"]').click()`);
   check('DOCUMENT solo visible set', await waitVisible(s, sets.DOCUMENT), sets.DOCUMENT.length);
   check('DOCUMENT count is 34', sets.DOCUMENT.length === 34);
   check('Show sources pressed', (await s.ev(`document.getElementById('graph-show-sources-btn').getAttribute('aria-pressed')`)) === 'true');
@@ -280,7 +290,7 @@ async function early() {
   await s.send('Page.addScriptToEvaluateOnNewDocument', { source: `
     document.addEventListener('DOMContentLoaded', () => {
       const t = setInterval(() => {
-        const b = document.querySelector('.dashboard-link-btn[data-entity-type="COMPOUND"]');
+        const b = document.querySelector('.dashboard-entity-summary .dashboard-link-btn[data-entity-type="COMPOUND"]');
         if (!b) return;
         clearInterval(t);
         window.__early = { graphReady: !!window._graphDebug };
@@ -305,8 +315,577 @@ async function early() {
   await s.done();
 }
 
+// --- Epistemic health ------------------------------------------------------
+
+async function openEpistemic(s) {
+  await s.ev(`document.querySelector('.nav-link[data-panel=dashboard]').click()`);
+  const ok = await s.waitFor(`!!document.querySelector('.epistemic-health')`);
+  await s.ev(`document.querySelector('.epistemic-health').scrollIntoView({ block: 'start', behavior: 'instant' })`);
+  return ok;
+}
+
+// In-page expression for a section's buttons: key is a fixed section key.
+const secBtn = (key, action, nth = 0) => `document.querySelector('#epistemic-sec-${key}').parentElement`
+  + `.querySelectorAll('[data-action="${action}"]')[${nth}]`;
+
+// Scrolls the element to the middle of the viewport and returns its centre.
+async function centreOf(s, expr) {
+  return s.ev(`(() => { const b = ${expr}; if (!b) return null;
+    b.scrollIntoView({ block: 'center', behavior: 'instant' });
+    const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+}
+
+async function clickEl(s, expr) {
+  const pt = await centreOf(s, expr);
+  if (!pt) return false;
+  await s.click(pt.x, pt.y);
+  return true;
+}
+
+const focusTop = `(() => { const st = window._graphDebug.focus().stack; return st.length ? st[st.length - 1].id : null; })()`;
+
+async function epistemic() {
+  const s = await session();
+  await load(s);
+  check('dashboard opens with the epistemic section', await openEpistemic(s));
+
+  // (1) heading order
+  const heads = await s.ev(`[...document.querySelectorAll('#dashboard-content h3')].map((h) => h.textContent)`);
+  const iEnt = heads.indexOf('Entity Summary');
+  const iEpi = heads.indexOf('Epistemic health');
+  const iFind = heads.indexOf('Analysis Findings');
+  check('heading sits right after Entity Summary and before Analysis Findings',
+    iEnt >= 0 && iEpi === iEnt + 1 && (iFind === -1 || iFind > iEpi), heads);
+
+  // (2) chips
+  const chips = await s.ev(`[...document.querySelectorAll('.epistemic-health .epistemic-chip')].map((c) => c.textContent.replace(/\\s+/g, ' ').trim())`);
+  check('six status chips', chips.length === 6, chips);
+  check('chip order and shares', chips[0] === 'Asserted 758 89%' && chips[1] === 'Prophetic 61 7%' && chips[2] === 'Hypothesized 31 4%'
+    && chips.slice(3).every((c) => c.endsWith(' <1%')), chips);
+  check('status caption', (await s.ev(`document.querySelector('.epistemic-status .epistemic-hint').textContent`)) === 'Epistemic status of 855 relations');
+
+  // (3) tiny segment stays visible
+  const negW = await s.ev(`(() => { const seg = [...document.querySelectorAll('.epistemic-bar__seg')].find((x) => x.title.startsWith('Negative'));
+    return seg ? seg.getBoundingClientRect().width : -1; })()`);
+  check('negative segment is at least 6px wide', negW >= 6, negW);
+
+  // (4) counts
+  check('counts line', (await s.ev(`document.querySelector('.epistemic-counts').textContent`)) === '2 contradictions · 33 contested claims · 2 hypotheses');
+
+  // (5) card counts
+  const vis = (key) => s.ev(`(() => { const sec = document.querySelector('#epistemic-sec-${key}').parentElement;
+    return [...sec.querySelectorAll('.epistemic-card')].filter((c) => c.offsetParent !== null).length; })()`);
+  check('contradictions: 2 cards', (await vis('contradictions')) === 2);
+  check('hypotheses: 2 cards and no toggle', (await vis('hypotheses')) === 2
+    && (await s.ev(`!document.querySelector('#epistemic-sec-hypotheses').parentElement.querySelector('.epistemic-toggle')`)));
+  check('contested: 5 visible cards', (await vis('contested_claims')) === 5);
+  const tgText = await s.ev(`document.querySelector('#epistemic-sec-contested_claims').parentElement.querySelector('.epistemic-toggle').textContent`);
+  check('contested toggle reads Show all 33', tgText === 'Show all 33', tgText);
+
+  // screenshot before the toggle moves things
+  await s.ev(`document.querySelector('.epistemic-health').scrollIntoView({ block: 'start', behavior: 'instant' })`);
+  await s.shot('dashboard-epistemic.png');
+
+  // (6) toggle with a real mouse click
+  const toggleExpr = `document.querySelector('#epistemic-sec-contested_claims').parentElement.querySelector('.epistemic-toggle')`;
+  check('toggle clicked', await clickEl(s, toggleExpr));
+  check('toggle expands', (await s.ev(`${toggleExpr}.getAttribute('aria-expanded')`)) === 'true'
+    && (await vis('contested_claims')) === 33, await vis('contested_claims'));
+  check('toggle keeps focus', (await s.ev(`document.activeElement === ${toggleExpr}`)) === true);
+  check('toggle label flips', (await s.ev(`${toggleExpr}.textContent`)) === 'Show first 5');
+  await s.shot('dashboard-epistemic-expanded.png');
+  await clickEl(s, toggleExpr);
+  check('toggle collapses again', (await vis('contested_claims')) === 5 && (await s.ev(`${toggleExpr}.getAttribute('aria-expanded')`)) === 'false');
+
+  // (7) quotes
+  const quotes = await s.ev(`(() => [...document.querySelectorAll('.epistemic-card')].map((c) => {
+    const qs = [...c.querySelectorAll('.epistemic-quote')];
+    return { n: qs.length, clamp: qs.map((q) => getComputedStyle(q).webkitLineClamp) };
+  }))()`);
+  check('at most two quotes per card, clamped to 3 lines', quotes.every((c) => c.n <= 2 && c.clamp.every((v) => v === '3')) && quotes.some((c) => c.n === 2), quotes.slice(0, 3));
+
+  // (8) hypothesis card
+  const hyp = await s.ev(`(() => { const card = document.querySelector('#epistemic-sec-hypotheses').parentElement.querySelector('.epistemic-card');
+    return [...card.querySelectorAll('.epistemic-meta')].map((m) => m.textContent); })()`);
+  check('hypothesis card: capped entities', hyp.some((m) => m.startsWith('Entities:') && m.includes('+') && m.includes('more')), hyp);
+  check('hypothesis card: Sources line', hyp.some((m) => m.startsWith('Sources:')), hyp);
+
+  // (9) type scale
+  const type = await s.ev(`(() => {
+    const bad = [];
+    for (const n of document.querySelectorAll('.epistemic-health, .epistemic-health *')) {
+      const own = [...n.childNodes].some((c) => c.nodeType === 3 && c.textContent.trim());
+      if (!own) continue;
+      const cs = getComputedStyle(n);
+      if (!['13px', '14px', '15px'].includes(cs.fontSize) || !['400', '600'].includes(cs.fontWeight)) {
+        bad.push([n.tagName, n.className, cs.fontSize, cs.fontWeight]);
+      }
+    }
+    return bad;
+  })()`);
+  check('only 13/14/15px sizes and 400/600 weights', type.length === 0, type.slice(0, 4));
+
+  // (10) Show in graph, settled graph, real mouse click
+  const firstGraph = secBtn('contradictions', 'show-graph', 0);
+  check('Show in graph is enabled for the first contradiction', (await s.ev(`${firstGraph}.getAttribute('aria-disabled')`)) === null);
+  check('Show in graph clicked', await clickEl(s, firstGraph));
+  check('graph panel shown', await s.waitFor(`document.getElementById('graph-panel').style.display === 'flex'`));
+  check('graph focused on semaglutide', await s.waitFor(`(${focusTop}) === 'compound:semaglutide'`), await s.ev(focusTop));
+  check('the focus layout settles', await s.waitFor(`!window._graphDebug.busy`));
+  const fsize = await s.ev(`window._graphDebug.focus().size`);
+  check('focus set has at least two nodes', fsize >= 2, fsize);
+  check('graph search is empty', (await s.ev(`document.getElementById('graph-search').value`)) === '');
+  await s.ev(`new Promise((r) => setTimeout(r, 600))`);
+  await s.shot('graph-focus-semaglutide.png');
+
+  // (11) keyboard activation moves focus to the graph. Restore the default
+  // view first so the focus check below can only pass if Enter dispatched it.
+  await s.ev(`window.dispatchEvent(new CustomEvent('graph-show-types', { detail: { reset: true } }))`);
+  check('setup: the reset leaves focus mode', await s.waitFor(`(${focusTop}) === null`), await s.ev(focusTop));
+  check('setup: the reset layout settles', await s.waitFor(`!window._graphDebug.busy`));
+  check('open the dashboard again', await openEpistemic(s));
+  check('setup: still no focus before Enter', (await s.ev(focusTop)) === null, await s.ev(focusTop));
+  await s.ev(`${firstGraph}.scrollIntoView({ block: 'center', behavior: 'instant' }); ${firstGraph}.focus()`);
+  check('setup: the Show in graph button has keyboard focus', (await s.ev(`document.activeElement === ${firstGraph}`)) === true);
+  await s.key('Enter');
+  check('Enter focuses the graph container', await s.waitFor(`document.activeElement && document.activeElement.id === 'graph-container'`));
+  check('Enter enters focus on semaglutide', await s.waitFor(`(${focusTop}) === 'compound:semaglutide'`), await s.ev(focusTop));
+  check('the keyboard focus layout settles', await s.waitFor(`!window._graphDebug.busy`));
+  check('keyboard focus centre is still semaglutide', (await s.ev(focusTop)) === 'compound:semaglutide', await s.ev(focusTop));
+
+  // (12) Ask in chat only prefills
+  const urls = [];
+  s.on('Network.requestWillBeSent', (p) => urls.push(p.request.url));
+  const expectedQ = await s.ev(`(async () => { const d = await (await fetch('/api/dashboard')).json();
+    return d.epistemic.sections[0].items[0].question; })()`);
+  check('the API supplies a question', typeof expectedQ === 'string' && expectedQ.length > 0, expectedQ);
+  check('open the dashboard for chat', await openEpistemic(s));
+  urls.length = 0;
+  check('Ask in chat clicked', await clickEl(s, secBtn('contradictions', 'ask-chat', 0)));
+  check('chat panel shown', await s.waitFor(`document.querySelector('.chat-panel').style.display === 'flex'`));
+  check('chat input holds the question', (await s.ev(`document.getElementById('chat-input').value`)) === expectedQ,
+    await s.ev(`document.getElementById('chat-input').value`));
+  check('chat input has focus', (await s.ev(`document.activeElement && document.activeElement.id`)) === 'chat-input');
+  await s.ev(`new Promise((r) => setTimeout(r, 1000))`);
+  check('no /api/chat request was made', !urls.some((u) => u.includes('/api/chat')), urls.filter((u) => u.includes('/api/')));
+  await s.shot('chat-prefilled.png');
+
+  // (12b) a draft in the chat box is replaced as an edit that Undo restores
+  const draft = 'my own unsent draft';
+  await s.ev(`(() => { const i = document.getElementById('chat-input'); i.focus(); i.select(); })()`);
+  await s.send('Input.insertText', { text: draft });
+  check('setup: the draft is typed', (await s.ev(`document.getElementById('chat-input').value`)) === draft,
+    await s.ev(`document.getElementById('chat-input').value`));
+  const secondQ = await s.ev(`(async () => { const d = await (await fetch('/api/dashboard')).json();
+    return d.epistemic.sections[0].items[1].question; })()`);
+  check('open the dashboard with a draft', await openEpistemic(s));
+  urls.length = 0;
+  check('Ask in chat clicked over a draft', await clickEl(s, secBtn('contradictions', 'ask-chat', 1)));
+  check('chat panel shown again', await s.waitFor(`document.querySelector('.chat-panel').style.display === 'flex'`));
+  check('the question replaces the draft', (await s.ev(`document.getElementById('chat-input').value`)) === secondQ,
+    await s.ev(`document.getElementById('chat-input').value`));
+  const undone = await s.ev(`(() => { const i = document.getElementById('chat-input'); i.focus();
+    document.execCommand('undo'); return i.value; })()`);
+  check('Undo brings the draft back', undone === draft, undone);
+  check('no /api/chat request was made for the draft case', !urls.some((u) => u.includes('/api/chat')), urls.filter((u) => u.includes('/api/')));
+
+  // (13)
+  check('no script exceptions from the workbench', s.errors.length === 0, s.errors.slice(0, 3));
+  await s.done();
+}
+
+async function epistemicEarly() {
+  const s = await session();
+  await s.viewport(1440, 1000);
+  const held = [];
+  let released = false;
+  s.on('Fetch.requestPaused', (p) => {
+    if (released) s.send('Fetch.continueRequest', { requestId: p.requestId });
+    else held.push(p.requestId);
+  });
+  await s.send('Fetch.enable', { patterns: [{ urlPattern: '*/api/graph', requestStage: 'Request' }] });
+  await s.send('Page.addScriptToEvaluateOnNewDocument', { source: `
+    document.addEventListener('DOMContentLoaded', () => {
+      const t = setInterval(() => {
+        const b = document.querySelector('.epistemic-btn[data-action="show-graph"]');
+        if (!b) return;
+        clearInterval(t);
+        window.__early = { graphReady: !!window._graphDebug };
+        b.click();
+      }, 1);
+    });` });
+  await s.send('Page.navigate', { url: URL_ });
+  check('early Show in graph click fired', await s.waitFor(`!!window.__early`, 30000), await s.ev(`window.__early`));
+  const early = await s.ev(`window.__early`);
+  check('early click: made before the graph loaded', early && early.graphReady === false, early);
+  check('early click: /api/graph was held until the click', held.length > 0, held.length);
+  check('early click: graph not built while held', (await s.ev(`!window._graphDebug`)) === true);
+  released = true;
+  for (const requestId of held.splice(0)) await s.send('Fetch.continueRequest', { requestId });
+  await s.send('Fetch.disable');
+  await s.waitFor(`!!window._graphDebug && window._graphDebug.settled`, 30000);
+  check('early click: graph panel shown', (await s.ev(`document.getElementById('graph-panel').style.display`)) === 'flex');
+  check('early click: graph focused on semaglutide', await s.waitFor(`window._graphDebug && (${focusTop}) === 'compound:semaglutide'`, 30000), await s.ev(focusTop));
+  check('early click: no script exceptions', s.errors.length === 0, s.errors.slice(0, 3));
+  await s.done();
+}
+
+async function epistemicLegacy() {
+  const s = await session();
+  await load(s);
+  check('dashboard opens with the epistemic section', await openEpistemic(s));
+  check('legacy counts line', (await s.ev(`document.querySelector('.epistemic-counts').textContent`)) === '1 contradiction · 1 hypothesis',
+    await s.ev(`document.querySelector('.epistemic-counts') && document.querySelector('.epistemic-counts').textContent`));
+  const quotes = await s.ev(`document.querySelector('#epistemic-sec-contradictions').parentElement.querySelector('.epistemic-card').querySelectorAll('.epistemic-quote').length`);
+  check('the contradiction card shows both statements', quotes === 2, quotes);
+  const chips = await s.ev(`[...document.querySelectorAll('.epistemic-health .epistemic-chip')].map((c) => c.textContent.trim())`);
+  check('a Contested chip exists', chips.some((c) => c.startsWith('Contested')), chips);
+  check('Show in graph is enabled', (await s.ev(`${secBtn('contradictions', 'show-graph', 0)}.getAttribute('aria-disabled')`)) === null);
+  await s.ev(`document.querySelector('.epistemic-health').scrollIntoView({ block: 'start', behavior: 'instant' })`);
+  await s.shot('dashboard-epistemic-picalm.png');
+  check('legacy: no script exceptions', s.errors.length === 0, s.errors.slice(0, 3));
+  await s.done();
+}
+
+// --- Documents and the source viewer ----------------------------------------
+
+const DOC_BTN = '.documents-table .dashboard-doc-btn';
+const docRows = `[...document.querySelectorAll('.documents-table tbody tr.dashboard-doc-row')]`;
+const visibleDocRows = `${docRows}.filter((r) => r.offsetParent !== null)`;
+
+async function openDocuments(s) {
+  await s.ev(`document.querySelector('.nav-link[data-panel=dashboard]').click()`);
+  return s.waitFor(`document.querySelectorAll('${DOC_BTN}').length > 0`);
+}
+
+const panelDisplay = (s, sel) => s.ev(`getComputedStyle(document.querySelector(${q(sel)})).display`);
+
+async function documents() {
+  const s = await session();
+  await load(s);
+  check('dashboard opens with the documents table', await openDocuments(s));
+
+  const api = await s.ev(`(async () => (await (await fetch('/api/dashboard')).json()).documents)()`);
+  check('the API returns 34 documents', Array.isArray(api) && api.length === 34, api && api.length);
+
+  // (1) placement and heading
+  const heads = await s.ev(`[...document.querySelectorAll('#dashboard-content h3')].map((h) => h.textContent)`);
+  const iEpi = heads.indexOf('Epistemic health');
+  const iDocs = heads.indexOf('Documents (34)');
+  const iFind = heads.indexOf('Analysis Findings');
+  check('Documents (34) sits after Epistemic health and before Analysis Findings',
+    iEpi >= 0 && iDocs > iEpi && (iFind === -1 || iFind > iDocs), heads);
+
+  // (2) rows
+  const visible = await s.ev(`${visibleDocRows}.length`);
+  check('10 rows are visible', visible === 10, visible);
+  const rows = await s.ev(`(() => ${docRows}.map((r) => ({
+    aria: r.querySelector('button').getAttribute('aria-label'),
+    buttons: r.querySelectorAll('button').length,
+    entities: r.querySelectorAll('td.dashboard-count')[0].textContent.trim(),
+    relations: r.querySelectorAll('td.dashboard-count')[1].textContent.trim(),
+    shared: r.classList.contains('dashboard-link-row') && r.querySelector('button').classList.contains('dashboard-link-btn'),
+  })))()`);
+  check('34 rows in the DOM, one button each', rows.length === 34 && rows.every((r) => r.buttons === 1), rows.length);
+  check('row buttons keep the shared dashboard classes', rows.every((r) => r.shared));
+  check('aria-labels read "Read name: E entities, R relations"',
+    rows.every((r) => /^Read .+: \d[\d,]* entit(y|ies), \d[\d,]* relations?$/.test(r.aria || '')), rows.slice(0, 2).map((r) => r.aria));
+  check('count cells equal the API values in order',
+    rows.every((r, i) => r.entities === api[i].entity_count.toLocaleString('en-US')
+      && r.relations === api[i].relation_count.toLocaleString('en-US')), rows.slice(0, 2));
+  check('rows follow the API order (entity count descending)',
+    api.every((d, i) => i === 0 || api[i - 1].entity_count >= d.entity_count));
+  const names = await s.ev(`(() => ${docRows}.map((r) => r.querySelector('.documents-name__text').textContent))()`);
+  check('row names are the API display names', names.every((n, i) => n === api[i].display_name), names.slice(0, 2));
+  check('no row shows an id line', (await s.ev(`document.querySelectorAll('.documents-name__id').length`)) === 0);
+  check('entity summary rows are untouched', (await s.ev(`document.querySelectorAll('.dashboard-entity-summary tr.dashboard-link-row').length`)) === 13);
+
+  // (3) toggle
+  const toggle = `document.querySelector('.documents-toggle')`;
+  check('toggle reads Show all 34, collapsed',
+    (await s.ev(`${toggle}.textContent`)) === 'Show all 34' && (await s.ev(`${toggle}.getAttribute('aria-expanded')`)) === 'false');
+  await s.ev(`document.querySelector('.documents-section').scrollIntoView({ block: 'start', behavior: 'instant' })`);
+  await s.shot('dashboard-documents.png');
+  check('toggle clicked', await clickEl(s, toggle));
+  check('34 rows visible after expanding', (await s.ev(`${visibleDocRows}.length`)) === 34);
+  check('toggle reads Show first 10',
+    (await s.ev(`${toggle}.textContent`)) === 'Show first 10' && (await s.ev(`${toggle}.getAttribute('aria-expanded')`)) === 'true');
+  check('focus moved to the 11th row button',
+    (await s.ev(`document.activeElement === document.querySelectorAll('${DOC_BTN}')[10]`)) === true);
+  check('status announces all documents', (await s.ev(`document.getElementById('documents-status').textContent`)) === 'Showing all 34 documents.');
+  check('toggle clicked again', await clickEl(s, toggle));
+  check('24 rows hidden again', (await s.ev(`${visibleDocRows}.length`)) === 10);
+  check('focus returned to the toggle', (await s.ev(`document.activeElement === ${toggle}`)) === true);
+
+  // (4) open the first document with a real pointer click
+  const first = api[0];
+  const firstBtn = `document.querySelectorAll('${DOC_BTN}')[0]`;
+  const pt = await centreOf(s, firstBtn);
+  const scrolled = await s.ev(`document.getElementById('dashboard-panel').scrollTop`);
+  check('the dashboard is scrolled before opening', scrolled > 0, scrolled);
+  await s.click(pt.x, pt.y);
+  check('source panel shown', await s.waitFor(`getComputedStyle(document.getElementById('source-panel')).display === 'flex'`));
+  check('dashboard hidden', (await panelDisplay(s, '#dashboard-panel')) === 'none');
+  check('the reader shows the text', await s.waitFor(`!!document.querySelector('#source-reader .source-text')`));
+  const want = await s.ev(`(async () => (await (await fetch('/api/sources/${first.doc_id}')).json()).text)()`);
+  const got = await s.ev(`document.querySelector('#source-reader .source-text').textContent`);
+  check('reader text equals the API text', typeof want === 'string' && want.length > 0 && got === want, [want && want.length, got && got.length]);
+  check('no highlight mark without a highlight', (await s.ev(`document.querySelectorAll('#source-reader mark').length`)) === 0);
+  check('title is the display name', (await s.ev(`document.getElementById('source-title').textContent`)) === first.display_name);
+  check('title has focus', (await s.ev(`document.activeElement === document.getElementById('source-title')`)) === true);
+  check('status reads Opened name', (await s.ev(`document.getElementById('source-status').textContent`)) === `Opened ${first.display_name}.`);
+  check('the id line shows the document id', (await s.ev(`document.querySelector('.source-id').textContent`)) === first.doc_id);
+  const meta = await s.ev(`document.querySelector('.source-meta').textContent`);
+  check('meta line carries the counts', meta.startsWith(`${first.entity_count.toLocaleString('en-US')} entit`) && meta.includes(' relation'), meta);
+  check('nav Dashboard link stays active', (await s.ev(`document.querySelector('.nav-link[data-panel="dashboard"]').classList.contains('active')`)) === true);
+  check('back button says Back to Dashboard', (await s.ev(`document.getElementById('source-back-btn').textContent`)).includes('Back to Dashboard'));
+  check('no PDF link without a PDF', (await s.ev(`!document.getElementById('source-pdf-link')`)) === true);
+  await s.shot('source-viewer.png');
+
+  // (5) Esc goes back
+  await s.key('Escape');
+  check('Esc shows the dashboard again', await s.waitFor(`getComputedStyle(document.getElementById('dashboard-panel')).display === 'flex'`));
+  check('viewer hidden after Esc', (await panelDisplay(s, '#source-panel')) === 'none');
+  const restored = await s.ev(`document.getElementById('dashboard-panel').scrollTop`);
+  check('scrollTop restored', Math.abs(restored - scrolled) <= 1, [scrolled, restored]);
+  check('focus back on the row button', (await s.ev(`document.activeElement === ${firstBtn}`)) === true);
+
+  // (6) keyboard open, then the Back button
+  await s.key('Enter');
+  check('Enter on the row opens the viewer', await s.waitFor(`getComputedStyle(document.getElementById('source-panel')).display === 'flex'`));
+  check('the viewer loaded again', await s.waitFor(`!!document.querySelector('#source-reader .source-text')`));
+  await s.ev(`document.getElementById('source-back-btn').click()`);
+  check('Back button shows the dashboard', await s.waitFor(`getComputedStyle(document.getElementById('dashboard-panel')).display === 'flex'`));
+  check('Back button restores scrollTop', Math.abs((await s.ev(`document.getElementById('dashboard-panel').scrollTop`)) - scrolled) <= 1);
+  check('Back button restores focus', (await s.ev(`document.activeElement === ${firstBtn}`)) === true);
+
+  // (7) Show in graph
+  await s.ev(`window.__gst = []; window.addEventListener('graph-show-types', (e) => window.__gst.push(JSON.parse(JSON.stringify(e.detail))));`);
+  await clickEl(s, firstBtn);
+  check('viewer open for Show in graph', await s.waitFor(`!!document.querySelector('#source-reader .source-text')`));
+  check('Show in graph is enabled for a document with entities',
+    (await s.ev(`document.getElementById('source-graph-btn').getAttribute('aria-disabled')`)) === null && first.entity_count > 0);
+  check('Show in graph clicked', await clickEl(s, `document.getElementById('source-graph-btn')`));
+  check('graph panel shown', await s.waitFor(`getComputedStyle(document.getElementById('graph-panel')).display === 'flex' && getComputedStyle(document.getElementById('side-panel')).display === 'flex'`));
+  const gst = await s.ev(`window.__gst`);
+  check('graph-show-types carries the document focus',
+    JSON.stringify(gst) === JSON.stringify([{ reset: true, focus: { id: `doc:${first.doc_id}`, hops: 1 } }]), gst);
+  check('viewer hidden once the graph is shown', (await panelDisplay(s, '#source-panel')) === 'none');
+  await s.waitFor(`!window._graphDebug.busy`);
+
+  // (8) Esc on the Graph panel does not touch the viewer
+  await s.key('Escape');
+  await sleep(300);
+  check('Esc on the graph keeps the viewer hidden', (await panelDisplay(s, '#source-panel')) === 'none');
+  check('Esc on the graph keeps the graph visible', (await panelDisplay(s, '#graph-panel')) === 'flex');
+
+  // (9) unknown document
+  check('open the dashboard again', await openDocuments(s));
+  await s.ev(`window.dispatchEvent(new CustomEvent('navigate-source', { detail: { docId: 'no_such_doc' } }))`);
+  check('unknown id shows the viewer', await s.waitFor(`getComputedStyle(document.getElementById('source-panel')).display === 'flex'`));
+  check('unknown id: Document not available', await s.waitFor(`(document.querySelector('.source-state__title') || {}).textContent === 'Document not available'`),
+    await s.ev(`document.getElementById('source-reader').textContent`));
+  check('unknown id: exact body copy',
+    (await s.ev(`document.querySelector('.source-state__body').textContent`)) === "This document's text is not available in this output directory.");
+  check('unknown id: Show in graph is aria-disabled with its note',
+    (await s.ev(`document.getElementById('source-graph-btn').getAttribute('aria-disabled')`)) === 'true'
+    && (await s.ev(`(document.getElementById('source-graph-note') || {}).textContent`)) === 'This document has no entities in the graph, so there is nothing to focus.');
+  await s.shot('source-viewer-unavailable.png');
+  await s.ev(`document.getElementById('source-back-btn').click()`);
+  check('Back works from the unavailable state', await s.waitFor(`getComputedStyle(document.getElementById('dashboard-panel')).display === 'flex'`));
+
+  check('no script exceptions from the workbench', s.errors.length === 0, s.errors.slice(0, 3));
+  await s.done();
+}
+
+
+// --- Source highlight, chat citations ----------------------------------------
+
+const RIGHT = `getComputedStyle(document.getElementById('source-panel')).display === 'flex'`;
+const normalise = (t) => String(t).replace(/\s+/g, ' ').trim().toLowerCase();
+
+async function waitScrollSettled(s, expr, cap = 8000) {
+  const t0 = Date.now();
+  let last = null;
+  let stableSince = Date.now();
+  while (Date.now() - t0 < cap) {
+    const v = await s.ev(expr);
+    if (v !== last) { last = v; stableSince = Date.now(); }
+    else if (Date.now() - stableSince >= 300) return v;
+    await sleep(60);
+  }
+  return last;
+}
+
+async function cardHighlight() {
+  const s = await session();
+  await load(s);
+  check('dashboard opens with the epistemic section', await openEpistemic(s));
+
+  const api = await s.ev(`(async () => { const d = await (await fetch('/api/dashboard')).json();
+    return { docs: d.documents.map((x) => x.doc_id), statement: d.epistemic.sections[0].items[0].statements[0] }; })()`);
+  check('the first contradiction has a statement in a listed document', !!api.statement && api.docs.includes(api.statement.document), api.statement);
+
+  // Ids in the list are buttons; the others stay plain text.
+  const linkIds = await s.ev(`[...document.querySelectorAll('.epistemic-health button.epistemic-doc-link')].map((b) => b.getAttribute('data-doc-id'))`);
+  check('every card doc-id button is a listed document', linkIds.length > 0 && linkIds.every((id) => api.docs.includes(id)), linkIds.slice(0, 3));
+  const plain = await s.ev(`[...document.querySelectorAll('.epistemic-health span.epistemic-meta__doc')].map((n) => n.textContent)`);
+  check('plain doc ids are not in the documents list', plain.every((t) => !api.docs.includes(t)), plain.slice(0, 3));
+
+  const link = `document.querySelector('#epistemic-sec-contradictions').parentElement.querySelector('.epistemic-card button.epistemic-doc-link')`;
+  check('the first statement id is a button', (await s.ev(`!!${link} && ${link}.textContent`)) === api.statement.document, await s.ev(`${link} && ${link}.textContent`));
+  check('its aria-label mentions the highlighted passage', (await s.ev(`${link}.getAttribute('aria-label')`)) === `Read ${api.statement.document} with the cited passage highlighted`);
+
+  check('the id button is clicked', await clickEl(s, link));
+  check('source panel shown', await s.waitFor(RIGHT));
+  check('dashboard hidden', (await panelDisplay(s, '#dashboard-panel')) === 'none');
+  check('exactly one highlight mark', await s.waitFor(`document.querySelectorAll('#source-reader mark.source-highlight').length === 1`), await s.ev(`document.querySelectorAll('#source-reader mark').length`));
+  const bg = await s.ev(`getComputedStyle(document.querySelector('#source-reader mark.source-highlight')).backgroundColor`);
+  check('the mark is amber', bg === 'rgb(253, 230, 138)', bg);
+  const markText = await s.ev(`document.querySelector('#source-reader mark.source-highlight').textContent`);
+  check('the mark holds the statement text', normalise(markText) === normalise(api.statement.text) || normalise(api.statement.text).startsWith(normalise(markText)), [markText.slice(0, 60), api.statement.text.slice(0, 60)]);
+  await waitScrollSettled(s, `document.getElementById('source-reader').scrollTop`);
+  const inside = await s.ev(`(() => { const m = document.querySelector('#source-reader mark').getBoundingClientRect();
+    const r = document.getElementById('source-reader').getBoundingClientRect();
+    return m.top >= r.top - 1 && m.bottom <= r.bottom + 1 && m.left >= r.left - 1 && m.right <= r.right + 1; })()`);
+  check('the mark lies inside the reader', inside === true);
+  check('the status ends with the cited-passage sentence', (await s.ev(`document.getElementById('source-status').textContent`)).endsWith('Cited passage highlighted.'),
+    await s.ev(`document.getElementById('source-status').textContent`));
+  check('the reader still holds the whole document text', (await s.ev(`(async () => (await (await fetch('/api/sources/${api.statement.document}')).json()).text)()`))
+    === (await s.ev(`document.querySelector('#source-reader .source-text').textContent`)));
+  await s.shot('source-viewer-highlight.png');
+
+  await s.ev(`document.getElementById('source-back-btn').click()`);
+  check('Back returns to the Dashboard', await s.waitFor(`getComputedStyle(document.getElementById('dashboard-panel')).display === 'flex'`));
+
+  // A highlight that does not occur opens the document at the top without a mark.
+  await s.ev(`window.dispatchEvent(new CustomEvent('navigate-source', { detail: { docId: ${q(api.statement.document)}, highlight: 'this passage is not anywhere in the document 0xC0FFEE' } }))`);
+  check('a missing passage still opens the viewer', await s.waitFor(`${RIGHT} && !!document.querySelector('#source-reader .source-text')`));
+  check('a missing passage: no mark', (await s.ev(`document.querySelectorAll('#source-reader mark').length`)) === 0);
+  check('a missing passage: reader at the top', (await s.ev(`document.getElementById('source-reader').scrollTop`)) === 0);
+  check('a missing passage: no error state', (await s.ev(`document.querySelectorAll('#source-reader .source-state').length`)) === 0);
+  check('a missing passage: plain opened status', (await s.ev(`document.getElementById('source-status').textContent`)).indexOf('Cited passage') === -1);
+
+  check('no script exceptions from the workbench', s.errors.length === 0, s.errors.slice(0, 3));
+  await s.done();
+}
+
+const CHAT_REPLY = 'Semaglutide was approved (pmid_35650449). See [Nonexistent Thing] and `pmid_35650449`.';
+
+async function citations() {
+  const s = await session();
+  await load(s);
+  const cdn = await s.waitFor(`typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined'`, 15000);
+  if (!cdn) {
+    await s.done();
+    console.log(JSON.stringify({ passed: passedCount, failed: failures, skipped: 'marked/DOMPurify CDN unavailable' }));
+    process.exit(0);
+  }
+  check('marked and DOMPurify are loaded', cdn);
+
+  const chatCalls = [];
+  s.on('Fetch.requestPaused', (p) => {
+    chatCalls.push(p.request.url);
+    const body = `data: ${JSON.stringify({ type: 'text', content: CHAT_REPLY })}\n\ndata: ${JSON.stringify({ type: 'done' })}\n\n`;
+    s.send('Fetch.fulfillRequest', {
+      requestId: p.requestId,
+      responseCode: 200,
+      responseHeaders: [
+        { name: 'Content-Type', value: 'text/event-stream' },
+        { name: 'Cache-Control', value: 'no-cache' },
+      ],
+      body: Buffer.from(body).toString('base64'),
+    });
+  });
+  await s.send('Fetch.enable', { patterns: [{ urlPattern: '*/api/chat', requestStage: 'Request' }] });
+
+  // The Dashboard has loaded the document list; the chat resolves citations against it.
+  check('the document list reached the chat', await s.waitFor(`document.querySelectorAll('.documents-table .dashboard-doc-btn').length > 0`));
+  await s.ev(`document.querySelector('.nav-link[data-panel=chat]').click()`);
+  check('chat panel shown', await s.waitFor(`document.querySelector('.chat-panel').style.display === 'flex'`));
+  await s.ev(`(() => { document.getElementById('chat-input').value = 'What was approved?';
+    document.getElementById('chat-form').dispatchEvent(new Event('submit', { cancelable: true })); })()`);
+  const linkSel = `.chat-msg--assistant a.citation-link[data-doc="pmid_35650449"]`;
+  check('the reply contains a citation link', await s.waitFor(`document.querySelectorAll('${linkSel}').length > 0`), chatCalls);
+  check('the stubbed /api/chat was used (no real model call)', chatCalls.length === 1 && chatCalls[0].includes('/api/chat'), chatCalls);
+  check('exactly one link: the code-span copy is not linked', (await s.ev(`document.querySelectorAll('${linkSel}').length`)) === 1);
+  check('the link has a title and no onclick', (await s.ev(`document.querySelector('${linkSel}').getAttribute('title')`)) === 'Open pmid_35650449 in the source viewer'
+    && (await s.ev(`!document.querySelector('${linkSel}').hasAttribute('onclick')`)) === true);
+  check('no element in the assistant message has an onclick', (await s.ev(`[...document.querySelectorAll('.chat-msg--assistant *')].every((e) => !e.hasAttribute('onclick'))`)) === true);
+  check('the code span keeps the id as plain text', (await s.ev(`[...document.querySelectorAll('.chat-msg--assistant code')].some((c) => c.textContent === 'pmid_35650449' && !c.closest('a'))`)) === true);
+  check('[Nonexistent Thing] stays text, outside any link', (await s.ev(`document.querySelector('.chat-msg--assistant').textContent.includes('[Nonexistent Thing]')
+    && ![...document.querySelectorAll('.chat-msg--assistant a')].some((a) => a.textContent.includes('Nonexistent'))`)) === true);
+  await s.shot('chat-citation.png');
+  await s.send('Fetch.disable');
+
+  check('the link is clicked', await clickEl(s, `document.querySelector('${linkSel}')`));
+  check('the viewer is shown', await s.waitFor(RIGHT));
+  check('the viewer shows pmid_35650449', await s.waitFor(`document.getElementById('source-title').textContent === 'pmid_35650449' && !!document.querySelector('#source-reader .source-text')`));
+  check('Back says Back to Chat', (await s.ev(`document.getElementById('source-back-btn').textContent`)).includes('Back to Chat'));
+  check('the chat nav link stays active', (await s.ev(`document.querySelector('.nav-link[data-panel="chat"]').classList.contains('active')`)) === true);
+  await s.ev(`document.getElementById('source-back-btn').click()`);
+  check('Back returns to the chat', await s.waitFor(`document.querySelector('.chat-panel').style.display === 'flex'`));
+  check('the viewer is hidden again', (await panelDisplay(s, '#source-panel')) === 'none');
+  check('no script exceptions from the workbench', s.errors.length === 0, s.errors.slice(0, 3));
+  await s.done();
+}
+
+async function fdaHighlight() {
+  const s = await session();
+  await load(s);
+  check('dashboard opens with the documents table', await openDocuments(s));
+  check('FDA labels list 7 documents', (await s.ev(`${docRows}.length`)) === 7, await s.ev(`${docRows}.length`));
+  check('no Documents toggle for 7 documents', (await s.ev(`!document.querySelector('.documents-toggle')`)) === true);
+
+  const pick = await s.ev(`(async () => {
+    const text = (await (await fetch('/api/sources/semaglutide_wegovy')).json()).text;
+    const lower = text.toLowerCase();
+    const isSpace = (c) => /\\s/.test(c);
+    for (let start = Math.floor(text.length * 0.7); start < text.length - 200; start += 53) {
+      let i = start;
+      while (i < text.length && !isSpace(text[i])) i += 1;
+      while (i < text.length && isSpace(text[i])) i += 1;
+      let end = Math.min(i + 100, text.length);
+      while (end > i + 40 && !isSpace(text[end])) end -= 1;
+      const passage = text.slice(i, end).trim();
+      if (passage.length < 40) continue;
+      const at = lower.indexOf(passage.toLowerCase());
+      if (at === i && lower.indexOf(passage.toLowerCase(), at + 1) === -1) return { length: text.length, passage, at: i };
+    }
+    return { length: text.length, passage: null };
+  })()`);
+  check('semaglutide_wegovy is an 80 KB document (79,814 characters)', pick.length > 79000 && pick.length <= 80000, pick.length);
+  check('a unique deep passage was found', !!pick.passage && pick.at > 50000, pick);
+
+  await s.ev(`window.dispatchEvent(new CustomEvent('navigate-source', { detail: { docId: 'semaglutide_wegovy', highlight: ${JSON.stringify(pick.passage)} } }))`);
+  check('source panel shown', await s.waitFor(RIGHT));
+  check('one mark placed', await s.waitFor(`document.querySelectorAll('#source-reader mark.source-highlight').length === 1`));
+  const top = await waitScrollSettled(s, `document.getElementById('source-reader').scrollTop`);
+  check('the reader scrolled down', top > 0, top);
+  const off = await s.ev(`(() => { const m = document.querySelector('#source-reader mark').getBoundingClientRect();
+    const r = document.getElementById('source-reader').getBoundingClientRect();
+    return { mark: (m.top + m.bottom) / 2, reader: (r.top + r.bottom) / 2 }; })()`);
+  check('the mark is within one line of the reader middle', Math.abs(off.mark - off.reader) <= 24, off);
+  const style = await s.ev(`(() => { const cs = getComputedStyle(document.querySelector('#source-reader .source-text')); const r = document.getElementById('source-reader');
+    return { size: cs.fontSize, line: cs.lineHeight, ws: cs.whiteSpace, family: cs.fontFamily, overflow: r.scrollWidth - r.clientWidth }; })()`);
+  check('reading text is 15px with a 24px line', style.size === '15px' && style.line === '24px', style);
+  check('reading text keeps its line breaks', style.ws === 'pre-wrap', style.ws);
+  check('reading text is not monospace', !/mono/i.test(style.family), style.family);
+  check('the reader has no horizontal overflow', style.overflow <= 0, style.overflow);
+  await s.shot('source-viewer-fda.png');
+  check('no script exceptions from the workbench', s.errors.length === 0, s.errors.slice(0, 3));
+  await s.done();
+}
+
 try {
   if (MODE === 'early') await early();
+  else if (MODE === 'epistemic') await epistemic();
+  else if (MODE === 'epistemic-early') await epistemicEarly();
+  else if (MODE === 'epistemic-legacy') await epistemicLegacy();
+  else if (MODE === 'documents') await documents();
+  else if (MODE === 'card-highlight') await cardHighlight();
+  else if (MODE === 'citations') await citations();
+  else if (MODE === 'fda-highlight') await fdaHighlight();
   else await click();
 } catch (e) {
   check('script completed', false, String(e && e.stack || e));

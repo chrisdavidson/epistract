@@ -173,7 +173,7 @@ def test_source_text(client):
 #
 # Each test pins BOTH halves of the contract: the status must be 404, and the
 # body must be a JSON object carrying `error` (not an array, and not FastAPI's
-# `{"detail": ...}` shape, which static/sources.js does not read).
+# `{"detail": ...}` shape, which static/source_viewer.js does not read).
 # ---------------------------------------------------------------------------
 
 

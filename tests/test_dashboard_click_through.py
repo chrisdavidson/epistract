@@ -23,6 +23,14 @@ SHOW_MODES = [
     "show-queued",
     "show-nodisplay",
     "show-during-relayout",
+    "show-focus",
+    "show-focus-stale",
+    "show-focus-unknown",
+    "show-focus-queued",
+    "show-focus-queued-edit",
+    "show-focus-source",
+    "show-focus-edge-filter",
+    "show-focus-isolated",
 ]
 
 
@@ -41,6 +49,27 @@ def _run(harness: Path, *args: str) -> dict:
 @pytest.mark.unit
 def test_dashboard_harness():
     out = _run(DASHBOARD_HARNESS)
+    assert out["failed"] == [], out["failed"]
+    assert out["passed"], "harness ran no checks"
+
+
+@pytest.mark.unit
+def test_dashboard_documents_harness():
+    out = _run(DASHBOARD_HARNESS, "documents")
+    assert out["failed"] == [], out["failed"]
+    assert out["passed"], "harness ran no checks"
+
+
+@pytest.mark.unit
+def test_dashboard_epistemic_harness():
+    out = _run(DASHBOARD_HARNESS, "epistemic")
+    assert out["failed"] == [], out["failed"]
+    assert out["passed"], "harness ran no checks"
+
+
+@pytest.mark.unit
+def test_dashboard_doc_links_harness():
+    out = _run(DASHBOARD_HARNESS, "doc-links")
     assert out["failed"] == [], out["failed"]
     assert out["passed"], "harness ran no checks"
 

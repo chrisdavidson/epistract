@@ -35,6 +35,14 @@
 // fixture: solo one entity type, restore the default view, malformed payloads,
 // node-filter and focus clearing, a request made before the graph loaded, a
 // graph without display data, and a request that waits for a running relayout.
+// argv[2] = "show-focus" / "show-focus-stale" / "show-focus-unknown" /
+// "show-focus-queued" / "show-focus-source" / "show-focus-edge-filter" /
+// "show-focus-isolated" drive graph-show-types with a focus {id, hops}: the
+// default view then focus on the entity, stale node and edge filters cleared,
+// malformed focus payloads, a request held until the graph loads and its first
+// layout ends, a source-type target, and a target with too few visible
+// connections. "show-focus-queued-edit" changes an edge filter while the focus
+// request is held: the user's newer input wins and the request is dropped.
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -459,7 +467,7 @@ globalThis.fetch = async (url) => {
   }
   if (url === '/api/graph') {
     // show-queued: the graph arrives late so a request can be made before it loads.
-    if (mode === 'show-queued') await new Promise((r) => setTimeout(r, 120));
+    if (mode === 'show-queued' || mode.startsWith('show-focus-queued')) await new Promise((r) => setTimeout(r, 120));
     return respond(200, { nodes: NODES, edges: EDGES });
   }
   if (url === '/api/graph/groups' && usesFocusFixture) return respond(200, FOCUS_PAYLOAD);
@@ -488,6 +496,11 @@ if (mode === 'show-queued') {
   debugAtDispatch = window._graphDebug;
   window.dispatchEvent(new CustomEvent('graph-show-types', { detail: { types: ['COMPOUND'] } }));
   window.dispatchEvent(new CustomEvent('graph-show-types', { detail: { types: ['DISEASE'] } }));
+}
+// show-focus-queued: a focus request made while the graph is still loading.
+if (mode.startsWith('show-focus-queued')) {
+  debugAtDispatch = window._graphDebug;
+  window.dispatchEvent(new CustomEvent('graph-show-types', { detail: { reset: true, focus: { id: 'hub', hops: 1 } } }));
 }
 // Let loadGraphData's fetches and buildGraph settle.
 for (let i = 0; i < 20; i++) await new Promise((r) => setTimeout(r, 0));
@@ -981,9 +994,42 @@ if (isShow) {
     check('the graph had not loaded when the requests were made', debugAtDispatch === undefined, typeof debugAtDispatch);
     await tick(250);
   }
-  settle();
-  await tick();
-  winEvent('graph-panel-opened');
+  const focusStackIds = () => window._graphDebug.focus().stack.map((s) => ({ id: s.id, hops: s.hops }));
+  if (mode === 'show-focus-queued') {
+    // The graph loads but its first layout is still running: the request is held.
+    check('the graph had not loaded when the request was made', debugAtDispatch === undefined, typeof debugAtDispatch);
+    await tick(250);
+    check('the request is held while the initial layout runs', window._graphDebug.busy === true && focusStackIds().length === 0, { busy: window._graphDebug.busy, stack: focusStackIds() });
+    check('the wait is announced', status() === 'The graph is arranging; the selected item will be shown when it finishes.', status());
+    settle();
+    await tick();
+    winEvent('graph-panel-opened');
+    check('the focus is applied when the layout ends', JSON.stringify(focusStackIds()) === JSON.stringify([{ id: 'hub', hops: 1 }]), focusStackIds());
+    check('only the hub and its neighbours are visible', same(visibleIds(), ['hub', 'n1', 'n2', 'n3']), visibleIds());
+  } else if (mode === 'show-focus-queued-edit') {
+    // WR-01: the user moves the confidence slider while the focus request waits.
+    check('the graph had not loaded when the request was made', debugAtDispatch === undefined, typeof debugAtDispatch);
+    await tick(250);
+    check('the request is held while the initial layout runs', window._graphDebug.busy === true && focusStackIds().length === 0, { busy: window._graphDebug.busy, stack: focusStackIds() });
+    const slider = document.getElementById('confidence-slider');
+    slider.value = '0.9';
+    slider.dispatch('input');
+    settle();
+    await tick();
+    winEvent('graph-panel-opened');
+    check('the slider value the user set survives the layout end', slider.value === '0.9', slider.value);
+    check('the stale focus request is dropped', focusStackIds().length === 0, focusStackIds());
+    check('the layout ended', window._graphDebug.busy === false, window._graphDebug.busy);
+  } else {
+    settle();
+    await tick();
+    winEvent('graph-panel-opened');
+  }
+  if (mode === 'show-focus-edge-filter') {
+    // Edge-only filters the arrival must restore: relation types (TREATS off).
+    const panel = document.getElementById('relation-type-panel');
+    panel.querySelectorAll = () => panel.children.map((row) => row.children[0]);
+  }
 
   if (mode === 'show-solo') {
     calls.length = 0;
@@ -1099,6 +1145,91 @@ if (isShow) {
     check('the queued arrival is announced', status() === 'Showing 2 Disease nodes. Use the legend to show other types.', status());
   }
 
+  if (mode === 'show-focus') {
+    show({ reset: true, focus: { id: 'hub', hops: 1 } });
+    await tick();
+    check('the focus is on the hub', JSON.stringify(focusStackIds()) === JSON.stringify([{ id: 'hub', hops: 1 }]), focusStackIds());
+    check('the hub and its direct connections are visible', same(visibleIds(), ['hub', 'n1', 'n2', 'n3']), visibleIds());
+    check('every non-source chip is pressed', JSON.stringify(pressedTypes()) === JSON.stringify(NON_SOURCE_TYPES), pressedTypes());
+    check('Show sources is not pressed', sourcesBtn.getAttribute('aria-pressed') === 'false', sourcesBtn.getAttribute('aria-pressed'));
+    check('the arrival is announced', status() === 'Focused on Hub core and its direct connections.', status());
+  }
+
+  if (mode === 'show-focus-stale') {
+    dbl('n1');
+    await tick();
+    check('setup: focused on n1', JSON.stringify(focusStackIds()) === JSON.stringify([{ id: 'n1', hops: 1 }]), focusStackIds());
+    const search = document.getElementById('graph-search');
+    search.value = 'Alpha';
+    search.dispatch('input');
+    const slider = document.getElementById('min-degree-slider');
+    slider.value = '1';
+    slider.dispatch('input');
+    await tick();
+    show({ reset: true, focus: { id: 'n2', hops: 1 } });
+    await tick();
+    check('the search is cleared', search.value === '', search.value);
+    check('the minimum degree is cleared', slider.value === '0', slider.value);
+    check('the focus moved to n2 alone', JSON.stringify(focusStackIds()) === JSON.stringify([{ id: 'n2', hops: 1 }]), focusStackIds());
+    check('the n2 neighbourhood is visible', same(visibleIds(), ['hub', 'n2', 'h1']), visibleIds());
+  }
+
+  if (mode === 'show-focus-unknown') {
+    const bad = [{ id: 'nope', hops: 1 }, { id: 42, hops: 1 }, { id: '', hops: 1 }, 'x', {}, [], null];
+    for (const focus of bad) {
+      show({ reset: true, focus });
+      await tick();
+      const label = JSON.stringify(focus);
+      check(`focus ${label} shows the default view`, same(visibleIds(), NON_SOURCE), visibleIds());
+      check(`focus ${label} leaves no focus`, focusStackIds().length === 0, focusStackIds());
+      // IN-05: a well-formed id that is not in the graph is reported as such.
+      const expected = focus && focus.id === 'nope'
+        ? `The selected item is not in this graph. Showing the default graph: ${NON_SOURCE.length} entities.`
+        : DEFAULT_STATUS;
+      check(`focus ${label} announces the default view`, status() === expected, status());
+    }
+  }
+
+  if (mode === 'show-focus-source') {
+    show({ reset: true, focus: { id: 's1', hops: 1 } });
+    await tick();
+    check('Show sources is pressed', sourcesBtn.getAttribute('aria-pressed') === 'true', sourcesBtn.getAttribute('aria-pressed'));
+    check('the source chip is pressed', pressedTypes().includes('DOCUMENT'), pressedTypes());
+    check('the focus is on the source', focusStackIds().length === 1 && focusStackIds()[0].id === 's1', focusStackIds());
+    check('the source and the hub are visible', visibleIds().includes('s1') && visibleIds().includes('hub'), visibleIds());
+  }
+
+  if (mode === 'show-focus-edge-filter') {
+    const slider = document.getElementById('confidence-slider');
+    slider.value = '0.9';
+    slider.dispatch('input');
+    const panel = document.getElementById('relation-type-panel');
+    const treats = panel.children.map((row) => row.children[0]).find((box) => box.dataset.relationType === 'TREATS');
+    check('setup: the relation checkbox exists', !!treats);
+    treats.checked = false;
+    treats.dispatch('change');
+    await tick();
+    dbl('hub');
+    await tick();
+    check('setup: the stale edge filters block focus', focusStackIds().length === 0, focusStackIds());
+    show({ reset: true, focus: { id: 'hub', hops: 1 } });
+    await tick();
+    check('the confidence filter is restored', slider.value === '0', slider.value);
+    check('the relation checkbox is checked again', treats.checked === true, treats.checked);
+    check('the hub is focused', JSON.stringify(focusStackIds()) === JSON.stringify([{ id: 'hub', hops: 1 }]), focusStackIds());
+    check('the hub neighbourhood is visible', same(visibleIds(), ['hub', 'n1', 'n2', 'n3']), visibleIds());
+  }
+
+  if (mode === 'show-focus-isolated') {
+    networkCalls.length = 0;
+    show({ reset: true, focus: { id: 'lone', hops: 1 } });
+    await tick();
+    check('the visible target is centred', networkCalls.some((c) => c.kind === 'moveTo'), networkCalls.map((c) => c.kind));
+    check('the default view is kept', same(visibleIds(), NON_SOURCE), visibleIds());
+    check('no focus is entered', focusStackIds().length === 0, focusStackIds());
+    check('the failure is announced', status() === "Couldn't focus on Lonely core: it has too few visible connections.", status());
+  }
+
   if (mode === 'show-nodisplay') {
     check('setup: no legend chips without display data', chips().length === 0, chips().length);
     let threw = null;
@@ -1112,6 +1243,14 @@ if (isShow) {
     check('the default view is shown', same(visibleIds(), NON_SOURCE), visibleIds());
     check('sources stay hidden', !visibleIds().includes('s1'), visibleIds());
     check('the default view is announced', status() === DEFAULT_STATUS, status());
+    // IN-05: a focus target this view does not draw is reported, not selected.
+    networkCalls.length = 0;
+    show({ reset: true, focus: { id: 's1', hops: 1 } });
+    await tick();
+    check('hidden target: no focus', focusStackIds().length === 0, focusStackIds());
+    check('hidden target: it stays hidden', !visibleIds().includes('s1'), visibleIds());
+    check('hidden target: not centred', !networkCalls.some((c) => c.kind === 'moveTo'), networkCalls.map((c) => c.kind));
+    check('hidden target: announced as not visible', status() === 'Doc one is not visible in the graph. Showing the default graph.', status());
   }
 
   if (mode === 'show-during-relayout') {

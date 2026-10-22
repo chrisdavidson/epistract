@@ -17,6 +17,9 @@ class WorkbenchData:
         self.documents: list[dict] = []
         self.ingested_dir = output_dir / "ingested"
         self.corpus_dir: Path | None = None
+        # doc_id -> original PDF, resolved once at load time. The has_pdf flag
+        # and /api/sources/pdf/{doc_id} both read this map, so they always agree.
+        self.pdf_paths: dict[str, Path] = {}
         self.load()
 
     def load(self):
@@ -27,7 +30,9 @@ class WorkbenchData:
 
         cp = self.output_dir / "claims_layer.json"
         if cp.exists():
-            self.claims_layer = json.loads(cp.read_text(encoding="utf-8"))
+            claims = json.loads(cp.read_text(encoding="utf-8"))
+            # Consumers call .get() on it: a list, string or null counts as absent.
+            self.claims_layer = claims if isinstance(claims, dict) else {}
 
         cm = self.output_dir / "communities.json"
         if cm.exists():
@@ -43,7 +48,7 @@ class WorkbenchData:
             if triage.get("documents"):
                 fp = triage["documents"][0].get("file_path", "")
                 if fp:
-                    self.corpus_dir = Path(fp).parent
+                    self.corpus_dir = self._resolve_recorded(fp).parent
 
         # Build document list from ingested/ directory
         if self.ingested_dir.exists():
@@ -66,8 +71,56 @@ class WorkbenchData:
                         "original_size": triage_info.get(
                             "chars", txt_file.stat().st_size
                         ),
+                        # The ingested .txt exists by construction.
+                        "has_text": True,
+                        "has_pdf": self._register_pdf(doc_id, triage_info),
                     }
                 )
+
+    def _resolve_recorded(self, recorded: str) -> Path:
+        """Resolve a path recorded in triage.json.
+
+        Relative paths are taken relative to the output directory, never the
+        server's working directory, so the result does not depend on where the
+        workbench was launched from.
+        """
+        path = Path(recorded)
+        return path if path.is_absolute() else self.output_dir / path
+
+    def resolve_pdf(self, doc_id: str, triage_info: dict) -> Path | None:
+        """Find the original PDF of a document without walking the corpus tree.
+
+        The single resolver behind both ``has_pdf`` and the PDF endpoint: the
+        path recorded in triage.json (``file_path``, else ``original_path``) if
+        it is a PDF that exists, otherwise ``<doc_id>.pdf`` directly in the
+        corpus directory.
+        """
+        if not doc_id or ".." in doc_id or "/" in doc_id or "\\" in doc_id:
+            return None
+        for key in ("file_path", "original_path"):
+            recorded = triage_info.get(key)
+            if isinstance(recorded, str) and recorded.lower().endswith(".pdf"):
+                try:
+                    candidate = self._resolve_recorded(recorded)
+                    if candidate.is_file():
+                        return candidate
+                except OSError:
+                    pass
+        if self.corpus_dir is None:
+            return None
+        candidate = self.corpus_dir / f"{doc_id}.pdf"
+        try:
+            return candidate if candidate.is_file() else None
+        except OSError:
+            return None
+
+    def _register_pdf(self, doc_id: str, triage_info: dict) -> bool:
+        """Resolve a document's PDF, remember it for the endpoint, return has_pdf."""
+        pdf = self.resolve_pdf(doc_id, triage_info)
+        if pdf is None:
+            return False
+        self.pdf_paths[doc_id] = pdf
+        return True
 
     def get_nodes(self, entity_type: str | None = None) -> list[dict]:
         """Return graph nodes, optionally filtered by entity_type."""
@@ -107,18 +160,12 @@ class WorkbenchData:
         return None
 
     def get_document_pdf_path(self, doc_id: str) -> Path | None:
-        """Try to find original PDF for a document.
+        """Return the original PDF of a listed document, or None.
 
-        Same containment guard as get_document_text — even though rglob is
-        inherently contained to corpus_dir, we reject obvious traversal payloads
-        early so callers see consistent behavior across both lookups.
+        Served from the map filled at load time by ``resolve_pdf``, so the
+        endpoint returns a PDF exactly when the document's ``has_pdf`` is true.
+        The traversal guard matches get_document_text.
         """
         if not doc_id or ".." in doc_id or "/" in doc_id or "\\" in doc_id:
             return None
-        if not self.corpus_dir or not self.corpus_dir.exists():
-            return None
-        # Search for matching PDF (doc_id is sanitized lowercase filename stem)
-        for pdf in self.corpus_dir.rglob("*.pdf"):
-            if pdf.stem.lower().replace(" ", "_").replace("-", "_") == doc_id:
-                return pdf
-        return None
+        return self.pdf_paths.get(doc_id)

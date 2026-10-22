@@ -1,7 +1,9 @@
-"""Headless-chromium click-through of the live workbench Dashboard on the GLP-1 graph."""
+"""Headless-chromium checks of the live workbench Dashboard: entity click-through and
+the Epistemic health section on the GLP-1 v3 graph and the legacy PICALM graph."""
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import shutil
@@ -26,6 +28,8 @@ pytestmark = [
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "tests" / "js" / "workbench_dashboard_cdp.mjs"
 GLP1 = ROOT / "tests" / "corpora" / "06_glp1_landscape" / "output-v3"
+PICALM = ROOT / "tests" / "corpora" / "01_picalm_alzheimers" / "output"
+FDA = ROOT / "tests" / "corpora" / "08_fda_labels" / "output"
 GLP1_FILES = ("graph_data.json", "communities.json", "claims_layer.json")
 
 
@@ -38,12 +42,19 @@ def _log_tail(path: Path, limit: int = 2000) -> str:
     return text[-limit:] or "(log is empty)"
 
 
-@pytest.fixture(scope="module")
-def workbench_url(tmp_path_factory):
+@contextlib.contextmanager
+def _serve(tmp_path_factory, corpus: Path, name: str):
+    """Serve a copy of `corpus` with the workbench on an ephemeral loopback port."""
     pytest.importorskip("uvicorn")
-    work = tmp_path_factory.mktemp("glp1-wb")
-    for name in GLP1_FILES:
-        shutil.copy2(GLP1 / name, work / name)
+    work = tmp_path_factory.mktemp(name)
+    for fname in GLP1_FILES:
+        shutil.copy2(corpus / fname, work / fname)
+    # The Documents table needs the ingested texts; triage.json keeps the original
+    # file names (taken from the recorded paths' names; nothing depends on the cwd).
+    if (corpus / "ingested").is_dir():
+        shutil.copytree(corpus / "ingested", work / "ingested")
+    if (corpus / "triage.json").is_file():
+        shutil.copy2(corpus / "triage.json", work / "triage.json")
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
@@ -91,6 +102,24 @@ def workbench_url(tmp_path_factory):
             proc.kill()
             proc.wait()
         log.close()
+
+
+@pytest.fixture(scope="module")
+def workbench_url(tmp_path_factory):
+    with _serve(tmp_path_factory, GLP1, "glp1-wb") as url:
+        yield url
+
+
+@pytest.fixture(scope="module")
+def picalm_workbench_url(tmp_path_factory):
+    with _serve(tmp_path_factory, PICALM, "picalm-wb") as url:
+        yield url
+
+
+@pytest.fixture(scope="module")
+def fda_workbench_url(tmp_path_factory):
+    with _serve(tmp_path_factory, FDA, "fda-wb") as url:
+        yield url
 
 
 @pytest.fixture(scope="module")
@@ -145,6 +174,8 @@ def _run(port: int, url: str, mode: str) -> dict:
     assert lines, f"no output from CDP script: {proc.stderr[-500:]}"
     result = json.loads(lines[-1])
     assert "failed" in result, f"no result line: {lines[-5:]}"
+    if result.get("skipped"):
+        pytest.skip(result["skipped"])
     if result["failed"]:
         detail = [ln for ln in lines if '"ok":false' in ln]
         pytest.fail(f"failed checks {result['failed']}: {detail}")
@@ -158,4 +189,41 @@ def test_dashboard_click_through_glp1(chromium_port, workbench_url):
 
 def test_dashboard_click_before_graph_ready(chromium_port, workbench_url):
     result = _run(chromium_port, workbench_url, "early")
+    assert result["passed"] >= 8, result
+
+
+def test_dashboard_epistemic_glp1(chromium_port, workbench_url):
+    result = _run(chromium_port, workbench_url, "epistemic")
+    assert result["passed"] >= 34, result
+
+
+def test_dashboard_epistemic_before_graph_ready(chromium_port, workbench_url):
+    result = _run(chromium_port, workbench_url, "epistemic-early")
+    assert result["passed"] >= 7, result
+
+
+def test_dashboard_epistemic_legacy_picalm(chromium_port, picalm_workbench_url):
+    result = _run(chromium_port, picalm_workbench_url, "epistemic-legacy")
+    assert result["passed"] >= 6, result
+
+
+def test_dashboard_documents_glp1(chromium_port, workbench_url):
+    result = _run(chromium_port, workbench_url, "documents")
+    assert result["passed"] >= 20, result
+
+
+def test_source_viewer_card_highlight_glp1(chromium_port, workbench_url):
+    result = _run(chromium_port, workbench_url, "card-highlight")
+    assert result["passed"] >= 8, result
+
+
+def test_chat_citation_opens_viewer_glp1(chromium_port, workbench_url):
+    # The reply is stubbed in the browser (Fetch.fulfillRequest), so no model is
+    # called. marked and DOMPurify come from a CDN; without them the run skips.
+    result = _run(chromium_port, workbench_url, "citations")
+    assert result["passed"] >= 8, result
+
+
+def test_source_viewer_fda_deep_highlight(chromium_port, fda_workbench_url):
+    result = _run(chromium_port, fda_workbench_url, "fda-highlight")
     assert result["passed"] >= 8, result
