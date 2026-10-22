@@ -1583,6 +1583,27 @@ if (isShow) {
     await tick(150);
     check('while focused the refit fits the drawn nodes', lastFit() && same(lastFit().opts.nodes, visibleIds())
       && same(visibleIds(), ['hub', 'n1', 'n2', 'n3']), lastFit() && lastFit().opts.nodes);
+    // WR-04: entering focus clears the region, so the guard needs a region set
+    // *during* focus: a Groups-list row click (it does not exit focus). Focus
+    // on n1 draws {n1, hub, x1}, so its c1 members are a strict subset.
+    show({ reset: true });
+    await tick();
+    dbl('n1');
+    await tick();
+    check('setup: focused on n1', JSON.stringify(focusStackIds()) === JSON.stringify([{ id: 'n1', hops: 1 }]), focusStackIds());
+    check('setup: n1 focus spans two groups', same(visibleIds(), ['hub', 'n1', 'x1']), visibleIds());
+    const c1Row = groupRows().find((row) => row.getAttribute('data-group') === 'c1');
+    check('setup: a c1 Groups-list row', !!c1Row, groupRows().map((row) => row.getAttribute('data-group')));
+    if (c1Row) c1Row.dispatch('click');
+    await tick();
+    check('setup: region c1 is active while focused', region() === 'c1' && focusStackIds().length === 1,
+      { region: region(), stack: focusStackIds() });
+    check('setup: the c1 region is smaller than the focus set', same(membersOf('c1'), ['hub', 'n1']), membersOf('c1'));
+    calls.length = 0;
+    winEvent('graph-panel-opened');
+    await tick(150);
+    check('with a region set during focus the refit fits the focus set, not the region',
+      lastFit() && same(lastFit().opts.nodes, ['hub', 'n1', 'x1']), lastFit() && lastFit().opts.nodes);
     show({ reset: true });
     await tick();
     check('setup: no focus and no region', focusStackIds().length === 0 && region() === null, { stack: focusStackIds(), region: region() });
