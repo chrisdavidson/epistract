@@ -496,3 +496,24 @@ def test_module_is_pure():
     source = (ROOT / "core" / "dashboard_start.py").read_text()
     assert "open(" not in source and "Path(" not in source
     assert "import fastapi" not in source
+
+
+def test_link_rules_are_shared_with_document_stats():
+    # WR-05: one provenance-exclusion rule for hub counts and the Documents
+    # table, and no reach into graph_groups' private names.
+    import core.dashboard_start as start
+    import core.document_stats as stats
+    import core.graph_links as links
+
+    for name in ("EXCLUDED_RELATIONS", "DOC_PREFIX", "endpoint", "relation_type", "relation_key"):
+        assert getattr(start, name) is getattr(links, name), name
+        assert getattr(stats, name) is getattr(links, name), name
+    source = (ROOT / "core" / "dashboard_start.py").read_text()
+    assert "def _endpoint" not in source and "def _relation_key" not in source
+    assert "_is_source" not in source
+    from core.graph_groups import is_source_node
+
+    assert start.is_source_node is is_source_node
+    assert is_source_node({"entity_type": "DOCUMENT"}, None) is True
+    assert is_source_node({"entity_type": "DOCUMENT"}, {"types": {"DOCUMENT": {}}}) is False
+    assert is_source_node({"entity_type": "DRUG"}, None) is False

@@ -20,10 +20,11 @@ Each hub entity is one row::
 for the ten most-connected knowledge entities. ``connections`` is the number of
 distinct knowledge relations touching the node: ``MENTIONED_IN`` and
 ``PUBLISHED_IN`` links, relations the display marks as ``source_edge``, links
-touching a source node (a display source type, DOCUMENT/PUBLICATION, or a
-``doc:<id>`` node) and links to unknown nodes never count; a self-loop counts
-once. Rows are sorted by connections (descending), then name
-(case-insensitive), then id; entities with no connections are never listed.
+touching a source node (a source type per the display, by default
+DOCUMENT/PUBLICATION, or a ``doc:<id>`` node) and links to unknown nodes never
+count; a self-loop counts once. Rows are sorted by connections (descending),
+then name (case-insensitive), then id; entities with no connections are never
+listed.
 ``community_id`` / ``community_label`` are ``None`` for unclustered entities.
 
 This module is pure: no FastAPI, no file or network access. It never raises;
@@ -33,53 +34,25 @@ verbatim (escaping is the renderer's job).
 
 from __future__ import annotations
 
-from core.graph_display import SOURCE_EDGE_RELATIONS, entity_type_key
-from core.graph_groups import OTHER_GROUP_ID, _is_source
+from core.graph_display import entity_type_key
+from core.graph_groups import OTHER_GROUP_ID, is_source_node
+from core.graph_links import (
+    DOC_PREFIX,
+    EXCLUDED_RELATIONS,
+    endpoint,
+    relation_key,
+    relation_type,
+)
 
 # Most hub entities listed.
 MAX_HUBS = 10
 # Most member names shown per topic community.
 MAX_TOP_MEMBERS = 3
-# PUBLISHED_IN is provenance (a link to a publication node) but, unlike
-# MENTIONED_IN, graph_display does not treat it as a source edge.
-EXCLUDED_RELATIONS = SOURCE_EDGE_RELATIONS | {"PUBLISHED_IN"}
-
-DOC_PREFIX = "doc:"
 
 
 # ---------------------------------------------------------------------------
 # Links
 # ---------------------------------------------------------------------------
-
-
-def _endpoint(value: object) -> str:
-    """Return the node id of a link end given as an id or as ``{"id": ...}``."""
-    if isinstance(value, dict):
-        value = value.get("id")
-    return value if isinstance(value, str) else ""
-
-
-def _relation_type(link: dict) -> str:
-    """Return the link's relation type, falling back to the middle of its id."""
-    rtype = link.get("relation_type")
-    if isinstance(rtype, str) and rtype:
-        return rtype
-    rid = link.get("relation_id")
-    if isinstance(rid, str):
-        parts = rid.split("|")
-        if len(parts) >= 3:
-            return parts[1]
-    return ""
-
-
-def _relation_key(link: dict, rtype: str) -> str:
-    rid = link.get("relation_id")
-    if isinstance(rid, str) and rid:
-        return rid
-    source, target = _endpoint(link.get("source")), _endpoint(link.get("target"))
-    if not source or not target:
-        return ""
-    return f"{source}|{rtype}|{target}"
 
 
 def _source_edge_relations(display: dict | None) -> set[str]:
@@ -122,7 +95,7 @@ def _knowledge_index(nodes: object, display: dict | None) -> dict[str, dict]:
         node_id = node.get("id")
         if not isinstance(node_id, str) or not node_id or node_id in index:
             continue
-        if node_id.startswith(DOC_PREFIX) or _is_source(node, display):
+        if node_id.startswith(DOC_PREFIX) or is_source_node(node, display):
             continue
         index[node_id] = node
     return index
@@ -135,15 +108,15 @@ def _connections(links: object, index: dict[str, dict], display: dict | None) ->
     for link in links if isinstance(links, list) else []:
         if not isinstance(link, dict):
             continue
-        rtype = _relation_type(link)
+        rtype = relation_type(link)
         if rtype in skipped:
             continue
-        ends = (_endpoint(link.get("source")), _endpoint(link.get("target")))
+        ends = (endpoint(link.get("source")), endpoint(link.get("target")))
         # Both ends must be known knowledge nodes: this also drops links that
         # touch a source node and links to nodes missing from the graph.
         if not all(end in index for end in ends):
             continue
-        key = _relation_key(link, rtype)
+        key = relation_key(link, rtype)
         if not key:
             continue
         for end in ends:
