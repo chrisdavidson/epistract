@@ -43,6 +43,16 @@
 // layout ends, a source-type target, and a target with too few visible
 // connections. "show-focus-queued-edit" changes an edge filter while the focus
 // request is held: the user's newer input wins and the request is dropped.
+// argv[2] = "show-group" / "show-group-relayout" / "show-group-invalid" /
+// "show-group-unavailable" / "show-group-queued" / "show-group-dropped" /
+// "show-group-relayout-fail" / "show-group-after-fail" /
+// "show-group-panel-refit-focus" / "show-group-focus-wins" drive
+// graph-show-types with a topic community {reset: true, group}: the region
+// zoom on the current cluster layout (surviving the panel-open refit), the
+// switch to Topic cluster first, invalid ids and an unavailable cluster mode,
+// a request held through the initial layout, a request dropped by a Group by
+// click, a cluster relayout that fails (no retry) and one that follows it,
+// the panel-open refit while focused, and a focus that wins over a group.
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -431,6 +441,15 @@ const FOCUS_PAYLOAD = {
   },
 };
 
+// The focus fixture without topic clusters: grouped by entity family.
+const NO_CLUSTER_PAYLOAD = {
+  default: 'family',
+  modes: {
+    cluster: { available: false, reason: 'No topic clusters in this project', groups: [], assignment: {} },
+    family: FOCUS_PAYLOAD.modes.family,
+  },
+};
+
 const controlPayload = (clusterAvailable) => ({
   default: clusterAvailable ? 'cluster' : 'family',
   modes: {
@@ -467,9 +486,10 @@ globalThis.fetch = async (url) => {
   }
   if (url === '/api/graph') {
     // show-queued: the graph arrives late so a request can be made before it loads.
-    if (mode === 'show-queued' || mode.startsWith('show-focus-queued')) await new Promise((r) => setTimeout(r, 120));
+    if (mode === 'show-queued' || mode.startsWith('show-focus-queued') || mode === 'show-group-queued') await new Promise((r) => setTimeout(r, 120));
     return respond(200, { nodes: NODES, edges: EDGES });
   }
+  if (url === '/api/graph/groups' && mode === 'show-group-unavailable') return respond(200, NO_CLUSTER_PAYLOAD);
   if (url === '/api/graph/groups' && usesFocusFixture) return respond(200, FOCUS_PAYLOAD);
   if (url === '/api/graph/groups' && isControl) return respond(200, controlPayload(mode !== 'control-nocomm'));
   if (url === '/api/graph/groups' && isRegions) return respond(200, REGIONS_PAYLOAD);
@@ -501,6 +521,11 @@ if (mode === 'show-queued') {
 if (mode.startsWith('show-focus-queued')) {
   debugAtDispatch = window._graphDebug;
   window.dispatchEvent(new CustomEvent('graph-show-types', { detail: { reset: true, focus: { id: 'hub', hops: 1 } } }));
+}
+// show-group-queued: a community request made while the graph is still loading.
+if (mode === 'show-group-queued') {
+  debugAtDispatch = window._graphDebug;
+  window.dispatchEvent(new CustomEvent('graph-show-types', { detail: { reset: true, group: 'c1' } }));
 }
 // Let loadGraphData's fetches and buildGraph settle.
 for (let i = 0; i < 20; i++) await new Promise((r) => setTimeout(r, 0));
@@ -1020,6 +1045,17 @@ if (isShow) {
     check('the slider value the user set survives the layout end', slider.value === '0.9', slider.value);
     check('the stale focus request is dropped', focusStackIds().length === 0, focusStackIds());
     check('the layout ended', window._graphDebug.busy === false, window._graphDebug.busy);
+  } else if (mode === 'show-group-queued') {
+    check('the graph had not loaded when the request was made', debugAtDispatch === undefined, typeof debugAtDispatch);
+    await tick(250);
+    check('the request is held while the initial layout runs', window._graphDebug.busy === true
+      && window._graphDebug.settled === false && window._graphDebug.activeRegion === null,
+    { busy: window._graphDebug.busy, settled: window._graphDebug.settled, region: window._graphDebug.activeRegion });
+    check('the wait is announced', status() === 'The graph is arranging; the selected item will be shown when it finishes.', status());
+    settle();
+    await tick();
+    winEvent('graph-panel-opened');
+    await tick(150);
   } else {
     settle();
     await tick();
@@ -1278,6 +1314,207 @@ if (isShow) {
     check('the request is applied once the relayout ends', depth() === 0 && same(visibleIds(), idsOfType('DISEASE')), { depth: depth(), visible: visibleIds() });
     check('its chip is the only one pressed', JSON.stringify(pressedTypes()) === JSON.stringify(['DISEASE']), pressedTypes());
     check('the deferred arrival is announced', status() === 'Showing 2 Disease nodes. Use the legend to show other types.', status());
+  }
+
+  // --- graph-show-types {reset: true, group} (topic community) ---------------
+  const groupStatus = () => document.getElementById('graph-group-status').textContent;
+  const groupRows = () => {
+    const list = document.getElementById('graph-groups').children[0];
+    if (!list || !Array.isArray(list.children)) return [];
+    return list.children.map((li) => li.children && li.children[0])
+      .filter((row) => row && row.getAttribute && row.getAttribute('data-group') !== null);
+  };
+  const currentRows = () => groupRows().filter((row) => row.getAttribute('aria-current') === 'true')
+    .map((row) => row.getAttribute('data-group'));
+  const region = () => window._graphDebug.activeRegion;
+  const membersOf = (gid) => visibleIds().filter((id) => FOCUS_PAYLOAD.modes.cluster.assignment[id] === gid);
+  const groupEmitDone = () => {
+    const fns = [...(handlers.get('stabilizationIterationsDone') || [])];
+    for (const fn of fns) {
+      if (onceFns.has(fn)) handlers.set('stabilizationIterationsDone', handlers.get('stabilizationIterationsDone').filter((h) => h !== fn));
+      fn();
+    }
+  };
+  const WAITING = 'The graph is arranging; the selected item will be shown when it finishes.';
+  const NOT_IN_GRAPH = `The selected community is not in this graph. Showing the default graph: ${NON_SOURCE.length} entities.`;
+  const toFamily = async () => {
+    await tick(150);   // past the setup panel-open refit
+    groupButtons.family.dispatch('click');
+    await tick();
+    groupEmitDone();
+    await tick();
+    check('setup: grouped by entity family', window._graphDebug.mode === 'family' && window._graphDebug.busy === false, window._graphDebug.mode);
+  };
+
+  if (mode === 'show-group') {
+    await tick(150);
+    const search = document.getElementById('graph-search');
+    search.value = 'core';
+    search.dispatch('input');
+    await tick();
+    const stabBefore = stabilizeCalls().length;
+    winEvent('graph-panel-opened');
+    show({ reset: true, group: 'c2' });
+    await tick(150);
+    const k = membersOf('c2').length;
+    check('setup: c2 has visible members', k === 4, membersOf('c2'));
+    check('no relayout is started on the current cluster layout', stabilizeCalls().length === stabBefore, stabilizeCalls().length);
+    check('the search is cleared', search.value === '', search.value);
+    check('the default view is shown', same(visibleIds(), NON_SOURCE), visibleIds());
+    check('every non-source chip is pressed', JSON.stringify(pressedTypes()) === JSON.stringify(NON_SOURCE_TYPES), pressedTypes());
+    check('the zoomed-to region is c2', region() === 'c2', region());
+    check('only the c2 Groups-list row is current', JSON.stringify(currentRows()) === JSON.stringify(['c2']), currentRows());
+    check('the last fit (after the panel-open refit) is the c2 members', lastFit() && same(lastFit().opts.nodes, membersOf('c2')), lastFit() && lastFit().opts.nodes);
+    check('the arrival is announced', status() === `Showing the Outer community: ${k} nodes.`, status());
+    check('the zoom is announced', groupStatus() === `Zoomed to Outer: ${k} nodes.`, groupStatus());
+    document.getElementById('graph-sources-status').textContent = '';
+    document.getElementById('graph-group-status').textContent = '';
+    winEvent('graph-panel-opened');
+    show({ reset: true, group: 'c2' });
+    await tick(150);
+    check('a repeated request keeps the region (no toggle-off)', region() === 'c2' && JSON.stringify(currentRows()) === JSON.stringify(['c2']), { region: region(), rows: currentRows() });
+    check('a repeated request announces again', status() === `Showing the Outer community: ${k} nodes.`
+      && groupStatus() === `Zoomed to Outer: ${k} nodes.`, [status(), groupStatus()]);
+    check('a repeated request is still zoomed', lastFit() && same(lastFit().opts.nodes, membersOf('c2')), lastFit() && lastFit().opts.nodes);
+  }
+
+  if (mode === 'show-group-relayout') {
+    await toFamily();
+    const stabBefore = stabilizeCalls().length;
+    show({ reset: true, group: 'c1' });
+    await tick();
+    check('the Topic cluster radio is selected', groupButtons.cluster.getAttribute('aria-checked') === 'true'
+      && groupButtons.cluster.getAttribute('tabindex') === '0',
+    [groupButtons.cluster.getAttribute('aria-checked'), groupButtons.cluster.getAttribute('tabindex')]);
+    check('a cluster relayout runs', window._graphDebug.busy === true && stabilizeCalls().length === stabBefore + 1, stabilizeCalls().length);
+    check('the wait is announced', status() === WAITING, status());
+    check('no region while the relayout runs', region() === null, region());
+    groupEmitDone();
+    await tick();
+    const k = membersOf('c1').length;
+    check('grouped by topic cluster', window._graphDebug.mode === 'cluster' && window._graphDebug.busy === false, window._graphDebug.mode);
+    check('the zoomed-to region is c1', region() === 'c1', region());
+    check('only the c1 Groups-list row is current', JSON.stringify(currentRows()) === JSON.stringify(['c1']), currentRows());
+    check('the zoom replaced the grouping announcement', groupStatus() === `Zoomed to Core: ${k} nodes.`, groupStatus());
+    check('the arrival is announced', status() === `Showing the Core community: ${k} nodes.`, status());
+    check('the view is fitted to the c1 members', lastFit() && same(lastFit().opts.nodes, membersOf('c1')), lastFit() && lastFit().opts.nodes);
+  }
+
+  if (mode === 'show-group-invalid') {
+    await tick(150);
+    const bad = ['nope', 'other', '', 42, {}, ['c1']];
+    for (const group of bad) {
+      show({ reset: true, group: 'c2' });
+      await tick();
+      check(`setup ${JSON.stringify(group)}: zoomed to c2`, region() === 'c2', region());
+      let threw = null;
+      try {
+        show({ reset: true, group });
+        await tick();
+      } catch (e) {
+        threw = String(e);
+      }
+      const label = JSON.stringify(group);
+      check(`group ${label} does not throw`, threw === null, threw);
+      check(`group ${label} shows the default view`, same(visibleIds(), NON_SOURCE), visibleIds());
+      check(`group ${label} keeps the grouping`, window._graphDebug.mode === 'cluster', window._graphDebug.mode);
+      check(`group ${label} leaves no region`, region() === null && currentRows().length === 0, { region: region(), rows: currentRows() });
+      const expected = group === 'nope' || group === 'other' ? NOT_IN_GRAPH : DEFAULT_STATUS;
+      check(`group ${label} announces the default view`, status() === expected, status());
+    }
+  }
+
+  if (mode === 'show-group-unavailable') {
+    await tick(150);
+    check('setup: grouped by entity family', window._graphDebug.mode === 'family', window._graphDebug.mode);
+    const stabBefore = stabilizeCalls().length;
+    show({ reset: true, group: 'c1' });
+    await tick();
+    check('the grouping stays entity family', window._graphDebug.mode === 'family' && window._graphDebug.busy === false, window._graphDebug.mode);
+    check('no relayout is started', stabilizeCalls().length === stabBefore, stabilizeCalls().length);
+    check('no region', region() === null && currentRows().length === 0, { region: region(), rows: currentRows() });
+    check('the default view is shown', same(visibleIds(), NON_SOURCE), visibleIds());
+    check('the community is reported as not in the graph', status() === NOT_IN_GRAPH, status());
+  }
+
+  if (mode === 'show-group-queued') {
+    const k = membersOf('c1').length;
+    check('the request is applied after the layout settles', region() === 'c1', region());
+    check('only the c1 Groups-list row is current', JSON.stringify(currentRows()) === JSON.stringify(['c1']), currentRows());
+    check('the zoom is announced', groupStatus() === `Zoomed to Core: ${k} nodes.`, groupStatus());
+    check('the arrival is announced', status() === `Showing the Core community: ${k} nodes.`, status());
+    check('the last fit is the c1 members', lastFit() && same(lastFit().opts.nodes, membersOf('c1')), lastFit() && lastFit().opts.nodes);
+  }
+
+  if (mode === 'show-group-dropped') {
+    await toFamily();
+    show({ reset: true, group: 'c1' });
+    await tick();
+    check('setup: the cluster relayout runs', window._graphDebug.busy === true, window._graphDebug.busy);
+    groupButtons.none.dispatch('click');
+    await tick();
+    groupEmitDone();
+    await tick();
+    check('the relayout completed on topic cluster', window._graphDebug.mode === 'cluster' && window._graphDebug.busy === false, window._graphDebug.mode);
+    check('the dropped request zooms nowhere', region() === null && currentRows().length === 0, { region: region(), rows: currentRows() });
+    check('the grouping announcement stands', groupStatus() === 'Grouped by topic cluster: 2 groups.', groupStatus());
+  }
+
+  if (mode === 'show-group-relayout-fail' || mode === 'show-group-after-fail') {
+    await toFamily();
+    window._relayoutTimeoutMs = 1;
+    show({ reset: true, group: 'c1' });
+    await tick(150);
+    const stabAfterFail = stabilizeCalls().length;
+    check('the previous grouping is restored', window._graphDebug.mode === 'family' && window._graphDebug.busy === false, window._graphDebug.mode);
+    check('no region after the failure', region() === null && currentRows().length === 0, { region: region(), rows: currentRows() });
+    check('the failure is announced', groupStatus() === "Couldn't arrange groups. Showing the previous layout.", groupStatus());
+    check('the default view is announced, not the wait', status() === DEFAULT_STATUS, status());
+    await tick(150);
+    check('no retry after the failure', stabilizeCalls().length === stabAfterFail && window._graphDebug.busy === false, stabilizeCalls().length);
+    if (mode === 'show-group-after-fail') {
+      window._relayoutTimeoutMs = 600000;
+      show({ reset: true, group: 'c2' });
+      await tick();
+      check('a new request starts a new cluster relayout', stabilizeCalls().length === stabAfterFail + 1 && window._graphDebug.busy === true, stabilizeCalls().length);
+      groupEmitDone();
+      await tick();
+      const k = membersOf('c2').length;
+      check('grouped by topic cluster', window._graphDebug.mode === 'cluster', window._graphDebug.mode);
+      check('the new request is zoomed to c2', region() === 'c2' && JSON.stringify(currentRows()) === JSON.stringify(['c2']), { region: region(), rows: currentRows() });
+      check('the zoom is announced', groupStatus().startsWith('Zoomed to Outer: ') && groupStatus() === `Zoomed to Outer: ${k} nodes.`, groupStatus());
+    }
+  }
+
+  if (mode === 'show-group-panel-refit-focus') {
+    await tick(150);
+    show({ reset: true, group: 'c2' });
+    await tick();
+    check('setup: zoomed to c2', region() === 'c2', region());
+    dbl('hub');
+    await tick();
+    check('setup: focused on the hub', focusStackIds().length === 1, focusStackIds());
+    calls.length = 0;
+    winEvent('graph-panel-opened');
+    await tick(150);
+    check('while focused the refit fits the drawn nodes', lastFit() && same(lastFit().opts.nodes, visibleIds())
+      && same(visibleIds(), ['hub', 'n1', 'n2', 'n3']), lastFit() && lastFit().opts.nodes);
+    show({ reset: true });
+    await tick();
+    check('setup: no focus and no region', focusStackIds().length === 0 && region() === null, { stack: focusStackIds(), region: region() });
+    calls.length = 0;
+    winEvent('graph-panel-opened');
+    await tick(150);
+    check('without focus or region the refit fits the default set', lastFit() && same(lastFit().opts.nodes, NON_SOURCE), lastFit() && lastFit().opts.nodes);
+  }
+
+  if (mode === 'show-group-focus-wins') {
+    await tick(150);
+    show({ reset: true, group: 'c1', focus: { id: 'hub', hops: 1 } });
+    await tick();
+    check('the focus wins', JSON.stringify(focusStackIds()) === JSON.stringify([{ id: 'hub', hops: 1 }]), focusStackIds());
+    check('the group is ignored', region() === null && currentRows().length === 0, { region: region(), rows: currentRows() });
+    check('the focus arrival is announced', status() === 'Focused on Hub core and its direct connections.', status());
   }
 
   process.stdout.write(JSON.stringify({ passed, failed }) + '\n');

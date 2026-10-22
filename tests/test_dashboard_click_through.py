@@ -31,6 +31,16 @@ SHOW_MODES = [
     "show-focus-source",
     "show-focus-edge-filter",
     "show-focus-isolated",
+    "show-group",
+    "show-group-relayout",
+    "show-group-invalid",
+    "show-group-unavailable",
+    "show-group-queued",
+    "show-group-dropped",
+    "show-group-relayout-fail",
+    "show-group-after-fail",
+    "show-group-panel-refit-focus",
+    "show-group-focus-wins",
 ]
 
 
