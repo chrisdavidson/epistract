@@ -376,6 +376,6 @@ def test_start_here_without_communities(tmp_path):
     body = TestClient(create_app(tmp_path, domain=None)).get("/api/dashboard").json()
     start = body["start_here"]
     assert start["communities"] == []
-    assert [h["id"] for h in start["hubs"]] == ["e1", "e2", "e3"]
+    assert [h["id"] for h in start["hubs"]] == ["e1", "e3", "e2"]  # One, Three, Two
     assert [h["connections"] for h in start["hubs"]] == [2, 2, 2]
     assert all(h["community_id"] is None for h in start["hubs"])
