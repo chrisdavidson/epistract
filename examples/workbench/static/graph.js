@@ -168,6 +168,7 @@ let _lastFocusSig = null;                 // last graph-focus-changed payload, t
 let _focusListenersAttached = false;
 let pendingShowTypes = null;              // graph-show-types request waiting for the graph to load (or for a relayout to end); last request wins
 let _showTypesListenerAttached = false;
+let pendingGroupRelayout = null;          // the held group request whose own cluster relayout is running (compared by identity)
 let activeRegionId = null;                // group whose Groups-list row was clicked (zoomed to)
 let emphasizedRegionId = null;            // group whose row is hovered or focused
 let groupRowEls = new Map();              // group id -> its Groups-list row button
@@ -300,10 +301,25 @@ export async function initGraph(opts) {
                 // A plain fit() emits neither `zoom` nor `animationFinished`, so
                 // the scale-aware label/size controller must be run explicitly or
                 // it keeps the styles computed while the panel was hidden.
-                setTimeout(() => fitView(null, false), 100);
+                setTimeout(refitForPanel, 100);
             }
         });
     }
+}
+
+// Refit when the Graph panel becomes visible. A zoomed-to group region (a
+// Dashboard community, say) stays framed; focus mode and every other view fit
+// the drawn nodes as before.
+function refitForPanel() {
+    if (!network) return;
+    if (activeRegionId !== null && focusStack.length === 0) {
+        const ids = visibleMembersByGroup().get(activeRegionId) || [];
+        if (ids.length > 0) {
+            fitView(ids, false);
+            return;
+        }
+    }
+    fitView(null, false);
 }
 
 async function loadGraphData() {
@@ -346,6 +362,7 @@ async function loadGraphData() {
         flushPendingShowTypes();
     } catch (e) {
         pendingShowTypes = null;
+        pendingGroupRelayout = null;
         console.error('Failed to load graph data:', e);
         const container = document.getElementById('graph-container');
         // CR-01: use createElement/textContent instead of innerHTML (SEC-01)
@@ -820,17 +837,22 @@ function setEmphasizedRegion(gid) {
     if (network) network.redraw();
 }
 
+// Zooms to `group` and marks it as the active region (never toggles it off).
+function activateRegion(group, visibleIds) {
+    activeRegionId = group.id;
+    syncGroupRows();
+    fitView(visibleIds, fitAnimation(250));
+    if (network) network.redraw();
+}
+
 function toggleActiveRegion(group, visibleIds) {
     if (visibleIds.length === 0) return;
     if (activeRegionId === group.id) {
         clearActiveRegion();
         return;
     }
-    activeRegionId = group.id;
-    syncGroupRows();
-    fitView(visibleIds, fitAnimation(250));
+    activateRegion(group, visibleIds);
     announceGroup(`Zoomed to ${group.full_label}: ${visibleIds.length.toLocaleString()} nodes.`);
-    if (network) network.redraw();
 }
 
 // Rebuilds the Groups button and list from the current build and filters.
@@ -1347,11 +1369,13 @@ function attachGroupControl() {
     for (const btn of buttons) {
         const mode = btn.getAttribute('data-mode');
         if (!GROUP_MODE_ORDER.includes(mode)) continue;
-        btn.addEventListener('click', () => relayout(mode));
+        btn.addEventListener('click', () => { dropPendingShowTypes(); relayout(mode); });
         btn.addEventListener('keydown', (event) => {
             const target = radioTarget(event.key, enabledGroupModes(), mode);
             if (target === undefined) return;
             event.preventDefault();
+            // The user's own Group by choice wins over a Dashboard request still waiting.
+            dropPendingShowTypes();
             if (relayoutBusy || !target) return;
             const targetBtn = buttons.find(b => b.getAttribute('data-mode') === target);
             if (targetBtn && typeof targetBtn.focus === 'function') targetBtn.focus();
@@ -1848,6 +1872,7 @@ function buildGraph() {
         get groupCount() { return groupLayout.size; },
         get settled() { return _initialSettled; },
         get busy() { return relayoutBusy; },
+        get activeRegion() { return activeRegionId; },
         relayoutTimeoutMs: () => relayoutTimeoutMs(),
         dataNodes: () => visNodes.get().filter(n => !n._anchor),
         dataEdges: () => visEdges.get().filter(e => !e._anchor),
@@ -2874,6 +2899,7 @@ function resetNodeFilters() {
 // input wins and the stale request is dropped, never applied over it.
 function dropPendingShowTypes() {
     pendingShowTypes = null;
+    pendingGroupRelayout = null;
 }
 
 // The same rule for the edge filters (epistemic chips, confidence, relation
@@ -2898,6 +2924,23 @@ function parseShowFocus(detail) {
     if (!focus || typeof focus !== 'object' || Array.isArray(focus)) return null;
     if (typeof focus.id !== 'string' || focus.id === '') return null;
     return { id: focus.id, hops: focus.hops === 2 ? 2 : 1 };
+}
+
+// The topic community (cluster group id) a graph-show-types detail asks for,
+// or null. A valid focus wins over a group; only a non-empty string counts.
+function parseShowGroup(detail) {
+    if (!detail || typeof detail !== 'object' || Array.isArray(detail)) return null;
+    if (parseShowFocus(detail) !== null) return null;
+    return typeof detail.group === 'string' && detail.group !== '' ? detail.group : null;
+}
+
+// The cluster group with id `gid` when topic clusters are available, else null.
+// The id is only compared with ===; `other` (Unclustered) is not a community.
+function clusterGroupById(gid) {
+    if (gid === 'other' || !groupModeState('cluster').enabled) return null;
+    const entry = groupsPayload && groupsPayload.modes ? groupsPayload.modes.cluster : null;
+    const groups = entry && Array.isArray(entry.groups) ? entry.groups : [];
+    return groups.find(g => g && typeof g === 'object' && g.id === gid) || null;
 }
 
 // Restores the edge-only filters (epistemic status chips, confidence slider,
@@ -2933,8 +2976,9 @@ function announceShowWaiting(isFocus) {
 function flushPendingShowTypes() {
     if (pendingShowTypes === null || !visNodes) return;
     const heldFocus = parseShowFocus(pendingShowTypes);
-    if ((focusStack.length > 0 || heldFocus) && relayoutBusy) {
-        if (heldFocus) announceShowWaiting(true);
+    const heldGroup = parseShowGroup(pendingShowTypes);
+    if ((focusStack.length > 0 || heldFocus || heldGroup !== null) && relayoutBusy) {
+        if (heldFocus || heldGroup !== null) announceShowWaiting(true);
         return;
     }
     const detail = pendingShowTypes;
@@ -2959,19 +3003,32 @@ function applyShowTypes(detail) {
     // Leaving focus needs an idle layout (exitFocus does nothing while one
     // runs): keep the request and apply it when the relayout ends.
     const focusRequest = parseShowFocus(detail);
-    if ((focusStack.length > 0 || focusRequest) && relayoutBusy) {
+    // A community request waits for an idle layout too (it may switch Group by).
+    const groupRequest = parseShowGroup(detail);
+    // This is the flush of the request whose own cluster relayout just ended.
+    const ownRelayout = detail != null && detail === pendingGroupRelayout;
+    if ((focusStack.length > 0 || focusRequest || groupRequest !== null) && relayoutBusy) {
         pendingShowTypes = detail || {};
-        announceShowWaiting(focusRequest !== null);
+        if (!ownRelayout) pendingGroupRelayout = null;
+        announceShowWaiting(focusRequest !== null || groupRequest !== null);
         return;
     }
     pendingShowTypes = null;
+    pendingGroupRelayout = null;
+    if (groupRequest !== null && ownRelayout && groupMode !== 'cluster') {
+        // Its cluster relayout failed: the previous grouping is back and the
+        // default view was applied before it started. Dropped, never retried.
+        setShowStatus(`Showing the default graph: ${visibleDataNodeIds().length.toLocaleString()} entities.`);
+        return;
+    }
 
     const request = detail && typeof detail === 'object' ? detail : {};
     // A focus request starts from the default view: its types are ignored.
     const focusId = focusRequest && nodeById.has(focusRequest.id) && !isAnchorId(focusRequest.id)
         ? focusRequest.id
         : null;
-    const requested = !focusRequest && Array.isArray(request.types)
+    // A community request starts from the default view: its types are ignored.
+    const requested = !focusRequest && groupRequest === null && Array.isArray(request.types)
         ? request.types.filter(t => typeof t === 'string')
         : [];
     const entries = legendEntries();
@@ -3002,6 +3059,10 @@ function applyShowTypes(detail) {
     syncSourcePhysics();
     syncSourcesButton();
     filterGraph();
+    if (groupRequest !== null) {
+        applyGroupArrival(detail, clusterGroupById(groupRequest));
+        return;
+    }
     const focused = focusId !== null && enterFocus(focusId, focusRequest.hops);
     // Entering focus fits the focus set itself; every other arrival fits the view.
     if (!focused) fitView(null, false);
@@ -3032,8 +3093,47 @@ function applyShowTypes(detail) {
     } else {
         message = `Showing the default graph: ${visibleDataNodeIds().length.toLocaleString()} entities.`;
     }
+    setShowStatus(message);
+}
+
+function setShowStatus(message) {
     const status = document.getElementById('graph-sources-status');
     if (status) status.textContent = message;
+}
+
+// The second half of a community request, once the default view is applied:
+// switch Group by to Topic cluster when needed (the request is held until that
+// relayout ends), then zoom to the group's region. Anything that cannot be
+// shown keeps the default view.
+function applyGroupArrival(detail, group) {
+    const defaultText = () => `Showing the default graph: ${visibleDataNodeIds().length.toLocaleString()} entities.`;
+    if (group !== null && groupMode !== 'cluster') {
+        relayout('cluster');
+        if (relayoutBusy) {
+            pendingShowTypes = detail;
+            pendingGroupRelayout = detail;
+            announceShowWaiting(true);
+            return;
+        }
+        group = null;   // the relayout could not start
+    }
+    if (group === null) {
+        fitView(null, false);
+        setShowStatus(`The selected community is not in this graph. ${defaultText()}`);
+        return;
+    }
+    // filterGraph() rebuilt the Groups rows; the region is set after it.
+    const ids = visibleMembersByGroup().get(group.id) || [];
+    if (ids.length === 0) {
+        fitView(null, false);
+        setShowStatus(defaultText());
+        return;
+    }
+    activateRegion(group, ids);
+    const k = ids.length.toLocaleString();
+    setShowStatus(`Showing the ${group.full_label} community: ${k} nodes.`);
+    // Written last: the zoom is the final announcement of the sequence.
+    announceGroup(`Zoomed to ${group.full_label}: ${k} nodes.`);
 }
 
 function clearHighlight() {
