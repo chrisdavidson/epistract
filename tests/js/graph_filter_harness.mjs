@@ -46,13 +46,15 @@
 // argv[2] = "show-group" / "show-group-relayout" / "show-group-invalid" /
 // "show-group-unavailable" / "show-group-queued" / "show-group-dropped" /
 // "show-group-relayout-fail" / "show-group-after-fail" /
-// "show-group-panel-refit-focus" / "show-group-focus-wins" drive
+// "show-group-panel-refit-focus" / "show-group-focus-wins" /
+// "show-group-double" / "show-group-double-fail" drive
 // graph-show-types with a topic community {reset: true, group}: the region
 // zoom on the current cluster layout (surviving the panel-open refit), the
 // switch to Topic cluster first, invalid ids and an unavailable cluster mode,
 // a request held through the initial layout, a request dropped by a Group by
 // click, a cluster relayout that fails (no retry) and one that follows it,
-// the panel-open refit while focused, and a focus that wins over a group.
+// the panel-open refit while focused, a focus that wins over a group, and
+// two requests (a double-click) during one cluster relayout.
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -1484,6 +1486,45 @@ if (isShow) {
       check('the new request is zoomed to c2', region() === 'c2' && JSON.stringify(currentRows()) === JSON.stringify(['c2']), { region: region(), rows: currentRows() });
       check('the zoom is announced', groupStatus().startsWith('Zoomed to Outer: ') && groupStatus() === `Zoomed to Outer: ${k} nodes.`, groupStatus());
     }
+  }
+
+  // WR-02: a double-click (two requests during the request's own cluster
+  // relayout) must not turn one failed relayout into two attempts.
+  if (mode === 'show-group-double-fail') {
+    await toFamily();
+    window._relayoutTimeoutMs = 200;
+    const stabBefore = stabilizeCalls().length;
+    show({ reset: true, group: 'c1' });
+    show({ reset: true, group: 'c1' });
+    await tick(80);   // past the two frames before stabilize(), before the timeout
+    check('setup: one cluster relayout runs', window._graphDebug.busy === true && stabilizeCalls().length === stabBefore + 1, stabilizeCalls().length);
+    await tick(250);
+    check('one stabilize for both clicks', stabilizeCalls().length === stabBefore + 1, stabilizeCalls().length - stabBefore);
+    check('the previous grouping is restored', window._graphDebug.mode === 'family' && window._graphDebug.busy === false, window._graphDebug.mode);
+    check('no region after the failure', region() === null && currentRows().length === 0, { region: region(), rows: currentRows() });
+    check('the failure is announced', groupStatus() === "Couldn't arrange groups. Showing the previous layout.", groupStatus());
+    check('the default view is announced, not the wait', status() === DEFAULT_STATUS, status());
+    await tick(300);
+    check('still no retry later', stabilizeCalls().length === stabBefore + 1 && window._graphDebug.busy === false, stabilizeCalls().length - stabBefore);
+  }
+
+  // A second click on another community during the relayout: the newest
+  // request is the one zoomed to when the single relayout succeeds.
+  if (mode === 'show-group-double') {
+    await toFamily();
+    const stabBefore = stabilizeCalls().length;
+    show({ reset: true, group: 'c1' });
+    show({ reset: true, group: 'c2' });
+    await tick();
+    check('setup: one cluster relayout runs', window._graphDebug.busy === true && stabilizeCalls().length === stabBefore + 1, stabilizeCalls().length);
+    check('the wait is announced', status() === WAITING, status());
+    groupEmitDone();
+    await tick();
+    const k = membersOf('c2').length;
+    check('grouped by topic cluster', window._graphDebug.mode === 'cluster' && window._graphDebug.busy === false, window._graphDebug.mode);
+    check('one stabilize for both clicks', stabilizeCalls().length === stabBefore + 1, stabilizeCalls().length - stabBefore);
+    check('the newest request is zoomed to', region() === 'c2' && JSON.stringify(currentRows()) === JSON.stringify(['c2']), { region: region(), rows: currentRows() });
+    check('the arrival is announced', status() === `Showing the Outer community: ${k} nodes.`, status());
   }
 
   if (mode === 'show-group-panel-refit-focus') {

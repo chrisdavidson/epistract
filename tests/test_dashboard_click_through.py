@@ -41,6 +41,8 @@ SHOW_MODES = [
     "show-group-after-fail",
     "show-group-panel-refit-focus",
     "show-group-focus-wins",
+    "show-group-double",
+    "show-group-double-fail",
 ]
 
 

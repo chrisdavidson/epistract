@@ -3009,7 +3009,11 @@ function applyShowTypes(detail) {
     const ownRelayout = detail != null && detail === pendingGroupRelayout;
     if ((focusStack.length > 0 || focusRequest || groupRequest !== null) && relayoutBusy) {
         pendingShowTypes = detail || {};
-        if (!ownRelayout) pendingGroupRelayout = null;
+        // A newer community request (a double-click, say) made during a
+        // request's own cluster relayout takes over that relayout: if it
+        // fails, the newest request is dropped too, never a second attempt.
+        if (groupRequest !== null && pendingGroupRelayout !== null) pendingGroupRelayout = pendingShowTypes;
+        else if (!ownRelayout) pendingGroupRelayout = null;
         announceShowWaiting(focusRequest !== null || groupRequest !== null);
         return;
     }
