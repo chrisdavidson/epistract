@@ -1,5 +1,6 @@
 // dashboard.js - DOM builders for the auto-generated Dashboard: the entity
-// summary, the epistemic health section and the documents table.
+// summary, the "Where to start" section (topic communities and the most
+// connected entities), the epistemic health section and the documents table.
 //
 // SEC-01: entity type keys, claim text, statuses, entity names and document
 // ids come from graph_data.json / claims_layer.json and are untrusted. They
@@ -25,11 +26,21 @@ function text(tag, className, value) {
 // Rows for the entity table: [{type, label, count}], largest first, label
 // ascending on ties. The label is the display label for the type, else the
 // raw key.
+// Display label per type key, from the loaded display data.
+function typeLabels() {
+    return new Map(legendEntries().map(entry => [entry.type, entry.label]));
+}
+
+// The label shown for an entity type: its display label, else the raw key.
+function typeLabelFor(type, labels) {
+    return labels.get(typeKey(type)) || type;
+}
+
 export function sortEntityRows(entityCounts) {
-    const labels = new Map(legendEntries().map(entry => [entry.type, entry.label]));
+    const labels = typeLabels();
     const rows = Object.entries(entityCounts || {}).map(([type, count]) => ({
         type,
-        label: labels.get(typeKey(type)) || type,
+        label: typeLabelFor(type, labels),
         count: Number(count) || 0,
     }));
     rows.sort((a, b) => (
@@ -766,6 +777,286 @@ export function buildDocuments({ documents, onOpen }) {
         });
         root.appendChild(toggle);
     }
+    root.appendChild(status);
+    return root;
+}
+
+// --- Where to start ----------------------------------------------------------
+
+const VISIBLE_COMMUNITIES = 10;
+const START_HINT = 'Begin with the largest topics or the most-connected entities. Select a row to see it in the graph.';
+const NO_COMMUNITIES_COPY = 'No topic communities were found for this graph.';
+const NO_HUBS_COPY = 'No connected entities yet.';
+const UNCLUSTERED = 'Unclustered';
+
+function cleanCommunity(raw) {
+    if (!isObj(raw)) return null;
+    const id = str(raw.id);
+    const fullLabel = str(raw.full_label) || str(raw.label) || id;
+    const members = Array.isArray(raw.top_members)
+        ? raw.top_members.filter(m => typeof m === 'string' && m).slice(0, 3)
+        : [];
+    return {
+        raw,
+        id,
+        label: str(raw.label) || str(raw.full_label) || id,
+        fullLabel,
+        members: nonNegative(raw.member_count),
+        topMembers: members,
+    };
+}
+
+function cleanHub(raw) {
+    if (!isObj(raw)) return null;
+    const id = str(raw.id);
+    const communityId = typeof raw.community_id === 'string' && raw.community_id ? raw.community_id : null;
+    return {
+        raw,
+        id,
+        name: str(raw.name) || id,
+        type: str(raw.entity_type),
+        connections: nonNegative(raw.connections),
+        communityId,
+        communityLabel: communityId === null ? '' : (str(raw.community_label) || communityId),
+    };
+}
+
+// "A", "A and B", "A, B and C".
+function joinNames(names) {
+    if (names.length <= 1) return names.join('');
+    return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
+// The main row button with the name stack and chevron, inside the row's
+// .start-action wrapper (a later second action is appended to `actions`).
+function buildStartAction(label, subLine, ariaLabel, title) {
+    const btn = el('button', 'dashboard-link-btn');
+    btn.setAttribute('type', 'button');
+    btn.setAttribute('data-start-action', 'show');
+    btn.setAttribute('aria-label', ariaLabel);
+    btn.setAttribute('title', title);
+    const nameStack = el('span', 'start-name');
+    nameStack.appendChild(text('span', 'start-name__text', label));
+    if (subLine) nameStack.appendChild(text('span', 'start-name__sub', subLine));
+    const chevron = text('span', 'dashboard-link-chevron', '›');
+    chevron.setAttribute('aria-hidden', 'true');
+    btn.append(nameStack, chevron);
+    const actions = el('div', 'start-action');
+    actions.appendChild(btn);
+    const cell = el('td', 'dashboard-link-cell');
+    cell.appendChild(actions);
+    return { cell, btn, actions };
+}
+
+function countCell(n) {
+    return text('td', n === 0 ? 'dashboard-count dashboard-count--zero' : 'dashboard-count', n.toLocaleString());
+}
+
+function buildCommunityRow(row, index) {
+    const tr = el('tr', 'dashboard-link-row');
+    tr.setAttribute('data-index', String(index));
+    tr.setAttribute('data-group-id', row.id);
+    const membersLine = row.topMembers.length ? `Top members: ${row.topMembers.join(', ')}` : '';
+    let aria = `Show the ${row.fullLabel} community in the graph: ${unitLabel(row.members, 'member', 'members')}`;
+    if (row.topMembers.length) aria += `, including ${joinNames(row.topMembers)}`;
+    const title = membersLine ? `${row.fullLabel}\n${membersLine}` : row.fullLabel;
+    const { cell, btn, actions } = buildStartAction(row.label, membersLine, aria, title);
+    tr.append(cell, countCell(row.members));
+    return { tr, btn, actions };
+}
+
+function buildHubRow(row, index, fullLabels, labels) {
+    const tr = el('tr', 'dashboard-link-row');
+    tr.setAttribute('data-index', String(index));
+    tr.setAttribute('data-node-id', row.id);
+    const typeLabel = typeLabelFor(row.type, labels);
+    const communityFull = row.communityId === null
+        ? ''
+        : (fullLabels.get(row.communityId) || row.communityLabel);
+    const where = row.communityId === null
+        ? 'not in a topic community'
+        : `in the ${communityFull} community`;
+    const aria = `Show ${row.name} and its connections in the graph: ${typeLabel}, `
+        + `${unitLabel(row.connections, 'connection', 'connections')}, ${where}`;
+    const { cell, btn, actions } = buildStartAction(row.name, '', aria, row.name);
+
+    const typeCell = el('td', 'start-type');
+    typeCell.setAttribute('title', typeLabel);
+    typeCell.append(makeSwatch(row.type, SWATCH_PX), text('span', 'start-type__label', typeLabel));
+
+    const community = row.communityId === null
+        ? text('td', 'start-community start-community--none', UNCLUSTERED)
+        : text('td', 'start-community', row.communityLabel);
+    community.setAttribute('title', row.communityId === null ? UNCLUSTERED : communityFull);
+
+    tr.append(cell, typeCell, countCell(row.connections), community);
+    return { tr, btn, actions };
+}
+
+function headerCell(label, className) {
+    return text('th', className || '', label);
+}
+
+function startTable(tableClass, headingId, headers) {
+    const table = el('table', `dashboard-table ${tableClass}`);
+    table.setAttribute('aria-labelledby', headingId);
+    const headRow = el('tr');
+    for (const [label, className] of headers) headRow.appendChild(headerCell(label, className));
+    const thead = el('thead');
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+    return table;
+}
+
+// One delegated listener per table: the row comes from the closure by index,
+// never from DOM text; the action from the nearest data-start-action ("show"
+// when the click landed elsewhere in the row). Unknown actions are ignored.
+function delegateStartClicks(table, rows, actions) {
+    table.addEventListener('click', (event) => {
+        const target = event && event.target;
+        const tr = target && typeof target.closest === 'function'
+            ? target.closest('tr.dashboard-link-row')
+            : null;
+        if (!tr) return;
+        const index = Number(tr.getAttribute('data-index'));
+        if (!Number.isInteger(index) || index < 0 || index >= rows.length) return;
+        const actionEl = target.closest('[data-start-action]');
+        const action = actionEl ? actionEl.getAttribute('data-start-action') : 'show';
+        const handler = Object.prototype.hasOwnProperty.call(actions, action) ? actions[action] : null;
+        if (typeof handler === 'function') handler(rows[index].raw, event);
+    });
+}
+
+function blockTitle(id, label) {
+    const h4 = text('h4', 'start-block__title', label);
+    h4.setAttribute('id', id);
+    return h4;
+}
+
+function buildCommunitiesBlock(communities, status, onShowCommunity) {
+    const block = el('div', 'start-block');
+    const total = communities.length;
+    block.appendChild(blockTitle(
+        'start-communities-heading',
+        total ? `Topic communities (${total.toLocaleString()})` : 'Topic communities',
+    ));
+    if (total === 0) {
+        block.appendChild(text('p', 'dashboard-empty__body', NO_COMMUNITIES_COPY));
+        return block;
+    }
+    const table = startTable('start-communities-table', 'start-communities-heading', [
+        ['Community', ''],
+        ['Members', 'start-col-count'],
+    ]);
+    const head = el('tbody');
+    communities.slice(0, VISIBLE_COMMUNITIES).forEach((row, i) => head.appendChild(buildCommunityRow(row, i).tr));
+    table.appendChild(head);
+
+    let rest = null;
+    let firstRevealed = null;
+    if (total > VISIBLE_COMMUNITIES) {
+        rest = el('tbody');
+        rest.setAttribute('id', 'start-communities-rest');
+        rest.setAttribute('hidden', '');
+        communities.slice(VISIBLE_COMMUNITIES).forEach((row, i) => {
+            const built = buildCommunityRow(row, i + VISIBLE_COMMUNITIES);
+            if (!firstRevealed) firstRevealed = built.btn;
+            rest.appendChild(built.tr);
+        });
+        table.appendChild(rest);
+    }
+    delegateStartClicks(table, communities, { show: onShowCommunity });
+
+    const wrap = el('div', 'dashboard-table-wrap');
+    wrap.appendChild(table);
+    block.appendChild(wrap);
+
+    if (rest) {
+        const count = total.toLocaleString();
+        const toggle = el('button', 'start-toggle');
+        toggle.setAttribute('type', 'button');
+        toggle.setAttribute('aria-expanded', 'false');
+        toggle.setAttribute('aria-controls', 'start-communities-rest');
+        const collapsed = () => {
+            toggle.textContent = `Show all ${count}`;
+            toggle.setAttribute('aria-label', `Show all ${count} topic communities`);
+        };
+        collapsed();
+        toggle.addEventListener('click', () => {
+            const open = toggle.getAttribute('aria-expanded') !== 'true';
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            if (open) {
+                rest.removeAttribute('hidden');
+                toggle.textContent = `Show first ${VISIBLE_COMMUNITIES}`;
+                toggle.setAttribute('aria-label', `Show only the first ${VISIBLE_COMMUNITIES} topic communities`);
+                status.textContent = `Showing all ${count} topic communities.`;
+                // The toggle sits below the table: land in the revealed rows.
+                firstRevealed.focus({ preventScroll: true });
+            } else {
+                rest.setAttribute('hidden', '');
+                collapsed();
+                status.textContent = `Showing the first ${VISIBLE_COMMUNITIES} of ${count} topic communities.`;
+                toggle.focus({ preventScroll: true });
+            }
+        });
+        block.appendChild(toggle);
+    }
+    return block;
+}
+
+function buildHubsBlock(hubs, communities, onShowEntity) {
+    const block = el('div', 'start-block');
+    block.appendChild(blockTitle('start-hubs-heading', 'Most-connected entities'));
+    if (hubs.length === 0) {
+        block.appendChild(text('p', 'dashboard-empty__body', NO_HUBS_COPY));
+        return block;
+    }
+    const fullLabels = new Map(communities.map(row => [row.id, row.fullLabel]));
+    const labels = typeLabels();
+    const table = startTable('start-hubs-table', 'start-hubs-heading', [
+        ['Entity', ''],
+        ['Type', 'start-col-type'],
+        ['Connections', 'start-col-count'],
+        ['Community', 'start-col-community'],
+    ]);
+    const body = el('tbody');
+    hubs.forEach((row, i) => body.appendChild(buildHubRow(row, i, fullLabels, labels).tr));
+    table.appendChild(body);
+    delegateStartClicks(table, hubs, { show: onShowEntity });
+    const wrap = el('div', 'dashboard-table-wrap');
+    wrap.appendChild(table);
+    block.appendChild(wrap);
+    return block;
+}
+
+// The "Where to start" section: the topic communities (largest first, ten
+// shown and the rest behind a toggle) and the most-connected entities. Returns
+// null when the reply carried no `start_here` object, or when both lists are
+// empty and the graph has no nodes, so the caller omits the section.
+//   onShowCommunity(row, event)  a community row was activated (payload row)
+//   onShowEntity(row, event)     an entity row was activated (payload row)
+export function buildStartHere({ startHere, totalNodes, onShowCommunity, onShowEntity }) {
+    if (!isObj(startHere)) return null;
+    const communities = (Array.isArray(startHere.communities) ? startHere.communities : [])
+        .map(cleanCommunity).filter(Boolean);
+    const hubs = (Array.isArray(startHere.hubs) ? startHere.hubs : [])
+        .map(cleanHub).filter(Boolean);
+    if (communities.length === 0 && hubs.length === 0 && nonNegative(totalNodes) === 0) return null;
+
+    const root = el('section', 'start-here');
+    root.setAttribute('aria-labelledby', 'start-here-heading');
+    const heading = text('h3', '', 'Where to start');
+    heading.setAttribute('id', 'start-here-heading');
+    root.appendChild(heading);
+    if (communities.length || hubs.length) root.appendChild(text('p', 'dashboard-hint', START_HINT));
+
+    const status = el('span', 'visually-hidden');
+    status.setAttribute('id', 'start-status');
+    status.setAttribute('role', 'status');
+    status.setAttribute('aria-live', 'polite');
+
+    root.appendChild(buildCommunitiesBlock(communities, status, onShowCommunity));
+    root.appendChild(buildHubsBlock(hubs, communities, onShowEntity));
     root.appendChild(status);
     return root;
 }

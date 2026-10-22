@@ -1095,7 +1095,8 @@ mark.source-highlight {
   display: none;
 }
 
-.documents-name {
+.documents-name,
+.start-name {
   display: flex;
   flex: 0 1 auto;
   flex-direction: column;
@@ -1104,7 +1105,9 @@ mark.source-highlight {
 }
 
 .documents-name__text,
-.documents-name__id {
+.documents-name__id,
+.start-name__text,
+.start-name__sub {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1130,10 +1133,154 @@ mark.source-highlight {
   color: #666666;
 }
 
-.dashboard-link-row:hover .documents-name__text {
+.dashboard-link-row:hover .documents-name__text,
+.dashboard-link-row:hover .start-name__text {
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 2px;
+}
+
+/* Where to start: topic communities and most-connected entities */
+
+.start-here {
+  container-type: inline-size;
+  container-name: start-here;
+}
+
+.dashboard-content .start-block__title {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--size-body);
+  font-weight: 600;
+  line-height: 1.2;
+  color: #1a1a2e;
+  border: 0;
+  padding: 0;
+}
+
+.dashboard-content .start-block + .start-block .start-block__title {
+  margin-top: var(--space-lg);
+}
+
+.start-communities-table,
+.start-hubs-table {
+  table-layout: fixed;
+}
+
+.start-communities-table tbody[hidden] {
+  display: none;
+}
+
+.start-communities-table th.start-col-count {
+  width: 120px;
+}
+
+.start-hubs-table th.start-col-count {
+  width: 136px;
+}
+
+.dashboard-table th.start-col-count {
+  text-align: right;
+}
+
+.start-hubs-table th.start-col-type {
+  width: 144px;
+}
+
+.start-hubs-table th.start-col-community {
+  width: 176px;
+}
+
+.start-action {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.start-action > .dashboard-link-btn {
+  flex: 1;
+  min-width: 0;
+}
+
+.start-name {
+  flex: 1 1 auto;
+}
+
+.start-name__text {
+  color: #1a1a1a;
+}
+
+.start-name__sub {
+  font-family: var(--font-body);
+  font-size: var(--size-label);
+  font-weight: 400;
+  line-height: 1.5;
+  color: #666666;
+}
+
+.start-type,
+.start-community {
+  font-size: var(--size-label);
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dashboard-table td.start-type,
+.dashboard-table td.start-community {
+  padding: var(--space-sm) var(--space-md);
+  vertical-align: middle;
+}
+
+.start-type .type-swatch {
+  vertical-align: -1px;
+  margin-right: var(--space-sm);
+}
+
+.start-type__label {
+  color: #1a1a1a;
+}
+
+.start-community {
+  color: #1a1a1a;
+}
+
+.start-community--none {
+  color: #666666;
+}
+
+@container start-here (max-width: 720px) {
+  .start-hubs-table th.start-col-community,
+  .start-hubs-table td.start-community {
+    display: none;
+  }
+}
+
+@container start-here (max-width: 480px) {
+  .start-type__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .start-type .type-swatch {
+    margin-right: 0;
+  }
+
+  .start-hubs-table th.start-col-type {
+    width: 44px;
+  }
+
+  .start-communities-table th.start-col-count {
+    width: 96px;
+  }
 }
 
 /* Source viewer panel */
@@ -2510,7 +2657,8 @@ button.graph-focus-bar__crumb:focus-visible {
 
 .epistemic-btn,
 .epistemic-toggle,
-.documents-toggle {
+.documents-toggle,
+.start-toggle {
   min-height: 36px;
   padding: var(--space-sm) var(--space-md);
   background: #ffffff;
@@ -2526,27 +2674,31 @@ button.graph-focus-bar__crumb:focus-visible {
 }
 
 .epistemic-toggle,
-.documents-toggle {
+.documents-toggle,
+.start-toggle {
   margin-top: var(--space-sm);
 }
 
 .epistemic-btn:hover,
 .epistemic-toggle:hover,
-.documents-toggle:hover {
+.documents-toggle:hover,
+.start-toggle:hover {
   border-color: #9ca3af;
   background: rgba(0, 0, 0, 0.04);
 }
 
 .epistemic-btn:focus-visible,
 .epistemic-toggle:focus-visible,
-.documents-toggle:focus-visible {
+.documents-toggle:focus-visible,
+.start-toggle:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 1px;
 }
 
 .epistemic-btn:active,
 .epistemic-toggle:active,
-.documents-toggle:active {
+.documents-toggle:active,
+.start-toggle:active {
   border-color: #1a1a2e;
 }
 
@@ -2680,6 +2832,7 @@ button.graph-focus-bar__crumb:focus-visible {
   .epistemic-btn,
   .epistemic-toggle,
   .documents-toggle,
+  .start-toggle,
   .source-btn {
     transition: none;
   }

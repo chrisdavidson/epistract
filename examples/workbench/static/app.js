@@ -2,7 +2,7 @@
 import { initChat, loadModelSelector, setCitationDocuments } from './chat.js';
 import { initGraph } from './graph.js';
 import { loadDisplay, legendEntries, makeSwatch } from './display.js';
-import { buildDocuments, buildEntitySummary, buildEpistemicHealth } from './dashboard.js';
+import { buildDocuments, buildEntitySummary, buildEpistemicHealth, buildStartHere } from './dashboard.js';
 import { getOrigin, initSourceViewer, setDocuments, subscribeDocuments } from './source_viewer.js';
 
 // SEC-01 / VUL-03: local escapeHtml helper. DOM-based escaping handles every
@@ -293,6 +293,15 @@ async function populateDashboard(template) {
                 onSelectType: (type, event) => openGraphWith({ types: [type] }, event),
                 onShowAll: (event) => openGraphWith({ reset: true }, event),
             }));
+            // "Where to start": a community row zooms the graph to its topic
+            // cluster region, an entity row opens focus mode on that entity.
+            const startSection = buildStartHere({
+                startHere: dashData.start_here,
+                totalNodes: dashData.total_nodes,
+                onShowCommunity: (row, event) => openGraphWith({ reset: true, group: row.id }, event),
+                onShowEntity: (row, event) => openGraphWith({ reset: true, focus: { id: row.id, hops: 1 } }, event),
+            });
+            if (startSection) dashContent.appendChild(startSection);
             dashContent.appendChild(buildEpistemicHealth({
                 epistemic: dashData.epistemic,
                 onShowInGraph: (id, event) => openGraphWith({ reset: true, focus: { id, hops: 1 } }, event),
