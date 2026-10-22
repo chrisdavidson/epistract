@@ -10,6 +10,8 @@
 //         card-highlight   GLP-1 v3 Epistemic card document id opens the viewer on the cited passage
 //         citations        a stubbed chat reply with a document id becomes a link that opens the viewer
 //         fda-highlight    FDA labels: a passage deep in an 80,000-character document is centred
+//         start-here       GLP-1 v3 Where to start section: communities, hubs, narrow widths, click-through
+//         start-here-early a community row clicked before the graph has finished loading
 //
 // A run that cannot be judged because a third-party script did not load ends with
 // a "skipped" reason in the final line instead of failures.
@@ -877,6 +879,380 @@ async function fdaHighlight() {
   await s.done();
 }
 
+// --- Where to start ------------------------------------------------------------
+
+const START = `document.querySelector('section.start-here')`;
+const COMM_BTN = '.start-communities-table tbody tr.dashboard-link-row button.dashboard-link-btn';
+const HUB_BTN = '.start-hubs-table tbody tr.dashboard-link-row button.dashboard-link-btn';
+const commBtn = (nth) => `document.querySelectorAll(${q(COMM_BTN)})[${nth}]`;
+const SCALE = `window._graphDebug.network.getScale()`;
+const activeRegion = `(window._graphDebug ? window._graphDebug.activeRegion : undefined)`;
+const graphShown = `document.getElementById('graph-panel').style.display === 'flex'`;
+
+// Waits at least 600 ms, then until two scale reads 200 ms apart are equal, so
+// any zoom animation and the panel-open refit are over.
+async function settledScale(s) {
+  await sleep(600);
+  let prev = await s.ev(SCALE);
+  for (let i = 0; i < 50; i += 1) {
+    await sleep(200);
+    const cur = await s.ev(SCALE);
+    if (cur === prev) return cur;
+    prev = cur;
+  }
+  return prev;
+}
+
+// The canvas rectangle currently in view and the drawn group regions.
+const viewAndRegions = `(() => {
+  const n = window._graphDebug.network;
+  const c = document.getElementById('graph-container');
+  const a = n.DOMtoCanvas({ x: 0, y: 0 });
+  const b = n.DOMtoCanvas({ x: c.clientWidth, y: c.clientHeight });
+  const view = { x0: Math.min(a.x, b.x), y0: Math.min(a.y, b.y), x1: Math.max(a.x, b.x), y1: Math.max(a.y, b.y) };
+  return { view, regions: window._graphDebug.regionGeometry() };
+})()`;
+const centreIn = (v, r) => !!r && r.cx >= v.x0 && r.cx <= v.x1 && r.cy >= v.y0 && r.cy <= v.y1;
+const fullyIn = (v, r) => !!r && r.cx - r.r >= v.x0 && r.cx + r.r <= v.x1 && r.cy - r.r >= v.y0 && r.cy + r.r <= v.y1;
+
+// Checks that the view is zoomed onto region `id`: the scale is well above the
+// whole-graph fit, the region centre is in view and some other region is not.
+async function checkZoomed(s, label, id, s0) {
+  const scale = await settledScale(s);
+  check(`${label}: settled scale >= 1.2 x the whole-graph fit`, typeof scale === 'number' && scale >= 1.2 * s0, [scale, s0]);
+  const vr = await s.ev(viewAndRegions);
+  const mine = vr && vr.regions.find((r) => r.id === id);
+  check(`${label}: the region centre is inside the view`, centreIn(vr && vr.view, mine), { view: vr && vr.view, mine });
+  const others = vr ? vr.regions.filter((r) => r.id !== id) : [];
+  check(`${label}: another region centre lies outside the view`, others.some((r) => !centreIn(vr.view, r)), others.length);
+  return vr;
+}
+
+async function startHere() {
+  const s = await session();
+  await load(s);
+  check('dashboard opens', await openDashboard(s));
+  const api = await s.ev(`(async () => {
+    const d = await (await fetch('/api/dashboard')).json();
+    const g = await (await fetch('/api/graph/groups')).json();
+    return { start: d.start_here, cluster: g.modes.cluster.groups };
+  })()`);
+  const comms = (api && api.start && api.start.communities) || [];
+  const hubs = (api && api.start && api.start.hubs) || [];
+  const fullLabel = Object.fromEntries(comms.map((c) => [c.id, c.full_label]));
+
+  // (a) placement and headings
+  check('the section exists', await s.waitFor(`!!${START}`, 5000));
+  const place = await s.ev(`(() => {
+    const sec = ${START};
+    const summary = document.querySelector('.dashboard-entity-summary');
+    const epi = document.querySelector('section.epistemic-health');
+    if (!sec || !summary || !epi) return null;
+    const F = Node.DOCUMENT_POSITION_FOLLOWING;
+    return {
+      h3: (sec.querySelector('h3') || {}).textContent,
+      h4: [...sec.querySelectorAll('h4')].map((h) => h.textContent),
+      afterSummary: !summary.contains(sec) && Boolean(summary.compareDocumentPosition(sec) & F),
+      beforeEpistemic: !sec.contains(epi) && Boolean(sec.compareDocumentPosition(epi) & F),
+    };
+  })()`);
+  check('h3 reads Where to start', !!place && place.h3 === 'Where to start', place);
+  check('the section follows the Entity Summary', !!place && place.afterSummary, place);
+  check('the section precedes Epistemic health', !!place && place.beforeEpistemic, place);
+  check('block titles in order', !!place && JSON.stringify(place.h4) === JSON.stringify(['Topic communities (10)', 'Most-connected entities']), place && place.h4);
+
+  // (b) communities table
+  const ct = await s.ev(`(() => {
+    const t = document.querySelector('.start-communities-table');
+    if (!t) return null;
+    return {
+      heads: [...t.querySelectorAll('thead th')].map((th) => th.textContent.trim()),
+      rows: [...t.querySelectorAll('tbody tr.dashboard-link-row')].map((tr) => {
+        const btns = tr.querySelectorAll('div.start-action > button.dashboard-link-btn[data-start-action="show"]');
+        const b = btns[0];
+        return {
+          id: tr.getAttribute('data-group-id'),
+          members: (tr.querySelector('td.dashboard-count') || {}).textContent,
+          buttons: btns.length,
+          aria: b ? b.getAttribute('aria-label') : null,
+          title: b ? b.getAttribute('title') : null,
+          text: b ? (b.querySelector('.start-name__text') || {}).textContent : null,
+          sub: b && b.querySelector('.start-name__sub') ? b.querySelector('.start-name__sub').textContent : null,
+        };
+      }),
+      toggle: !!document.querySelector('.start-toggle'),
+    };
+  })()`);
+  check('communities headers are Community, Members', !!ct && JSON.stringify(ct.heads) === '["Community","Members"]', ct && ct.heads);
+  const crows = ct ? ct.rows : [];
+  check('10 community rows', crows.length === 10, crows.length);
+  const expectedIds = (api ? api.cluster : []).filter((g) => g.id !== 'other')
+    .sort((a, b) => b.size - a.size || a.label.toLowerCase().localeCompare(b.label.toLowerCase()) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    .map((g) => g.id);
+  const rowIds = crows.map((r) => r.id);
+  check('row ids equal start_here ids', JSON.stringify(rowIds) === JSON.stringify(comms.map((c) => c.id)), rowIds);
+  check('row ids equal the cluster groups by size then label', JSON.stringify(rowIds) === JSON.stringify(expectedIds), expectedIds);
+  const memberTexts = await s.ev(`(${JSON.stringify(comms.map((c) => c.member_count))}).map((n) => n.toLocaleString())`);
+  check('Members cells show member_count', JSON.stringify(crows.map((r) => r.members)) === JSON.stringify(memberTexts), crows.map((r) => r.members));
+  check('no Show all toggle for 10 communities', !!ct && ct.toggle === false);
+  check('one show button per community row', crows.length > 0 && crows.every((r) => r.buttons === 1), crows.map((r) => r.buttons));
+  check('community aria-labels', crows.length > 0 && crows.every((r) => /^Show the .+ community in the graph: \d+ members?/.test(r.aria || '')), crows.slice(0, 2).map((r) => r.aria));
+  check('visible label is the short label', crows.length === comms.length && crows.length > 0 && crows.every((r, i) => r.text === comms[i].label), crows.slice(0, 2));
+  check('title starts with the full label', crows.length === comms.length && crows.length > 0 && crows.every((r, i) => (r.title || '').startsWith(comms[i].full_label)));
+  check('rows with top members show the Top members line', crows.length === comms.length && crows.length > 0
+    && crows.every((r, i) => (comms[i].top_members.length === 0) || (r.sub || '').startsWith('Top members: ')), crows.map((r) => r.sub).slice(0, 2));
+
+  // (c) hubs table
+  const ht = await s.ev(`(() => {
+    const t = document.querySelector('.start-hubs-table');
+    if (!t) return null;
+    const summaryLabel = (type) => {
+      const tr = [...document.querySelectorAll('.dashboard-entity-summary tr.dashboard-link-row')].find((r) => r.getAttribute('data-entity-type') === type);
+      const l = tr && tr.querySelector('.dashboard-link-label');
+      return l ? l.textContent : null;
+    };
+    return {
+      heads: [...t.querySelectorAll('thead th')].map((th) => th.textContent.trim()),
+      rows: [...t.querySelectorAll('tbody tr.dashboard-link-row')].map((tr) => {
+        const comm = tr.querySelector('td.start-community');
+        return {
+          id: tr.getAttribute('data-node-id'),
+          connections: Number(((tr.querySelector('td.dashboard-count') || {}).textContent || '').replace(/,/g, '')),
+          swatch: !!tr.querySelector('td.start-type svg.type-swatch'),
+          typeLabel: (tr.querySelector('td.start-type .start-type__label') || {}).textContent,
+          community: comm ? comm.textContent : null,
+          none: comm ? comm.classList.contains('start-community--none') : false,
+        };
+      }),
+      summaryLabels: Object.fromEntries(${JSON.stringify([...new Set(hubs.map((h) => h.entity_type))])}.map((t) => [t, summaryLabel(t)])),
+    };
+  })()`);
+  check('hubs headers are Entity, Type, Connections, Community', !!ht && JSON.stringify(ht.heads) === '["Entity","Type","Connections","Community"]', ht && ht.heads);
+  const hrows = ht ? ht.rows : [];
+  check('1 to 10 hub rows', hrows.length >= 1 && hrows.length <= 10 && hrows.length === hubs.length, [hrows.length, hubs.length]);
+  check('hub rows follow start_here order', JSON.stringify(hrows.map((r) => r.id)) === JSON.stringify(hubs.map((h) => h.id)));
+  check('connections are non-increasing', hrows.length > 0 && hrows.every((r, i) => i === 0 || hrows[i - 1].connections >= r.connections), hrows.map((r) => r.connections));
+  check('every Type cell has a swatch', hrows.length > 0 && hrows.every((r) => r.swatch));
+  const typeOk = hrows.length === hubs.length && hrows.length > 0 && hrows.every((r, i) => {
+    const want = ht.summaryLabels[hubs[i].entity_type];
+    return typeof want === 'string' && want.length > 0 && r.typeLabel === want;
+  });
+  check('every hub type label equals its Entity Summary label', typeOk, hrows.map((r, i) => [r.typeLabel, ht && ht.summaryLabels[hubs[i] && hubs[i].entity_type]]));
+  check('community cells: label or Unclustered', hrows.length === hubs.length && hrows.length > 0 && hrows.every((r, i) => (hubs[i].community_id === null
+    ? r.community === 'Unclustered' && r.none
+    : r.community === hubs[i].community_label && !r.none)), hrows.map((r) => r.community));
+  await s.ev(`(${START} || document.body).scrollIntoView({ block: 'start', behavior: 'instant' })`);
+  await s.shot('dashboard-start-here.png');
+
+  // (d) narrow widths (container queries on the section)
+  const narrow = await s.ev(`(async () => {
+    const sec = ${START};
+    if (!sec) return null;
+    sec.style.width = '640px';
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const th = document.querySelector('.start-hubs-table th.start-col-community');
+    const td = document.querySelector('.start-hubs-table td.start-community');
+    return {
+      th: th ? getComputedStyle(th).display : null,
+      td: td ? getComputedStyle(td).display : null,
+      wraps: [...sec.querySelectorAll('.dashboard-table-wrap')].map((w) => [w.scrollWidth, w.clientWidth]),
+    };
+  })()`);
+  check('640px: the hubs Community column is hidden', !!narrow && narrow.th === 'none' && narrow.td === 'none', narrow);
+  check('640px: no table wrap overflows', !!narrow && narrow.wraps.length === 2 && narrow.wraps.every(([sw, cw]) => sw <= cw), narrow && narrow.wraps);
+  await s.shot('start-here-narrow.png');
+  const tiny = await s.ev(`(async () => {
+    const sec = ${START};
+    if (!sec) return null;
+    sec.style.width = '420px';
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const label = document.querySelector('.start-hubs-table .start-type__label');
+    const swatch = document.querySelector('.start-hubs-table td.start-type svg.type-swatch');
+    const out = {
+      labelWidth: label ? label.getBoundingClientRect().width : null,
+      labelText: label ? label.textContent : '',
+      swatchWidth: swatch ? swatch.getBoundingClientRect().width : 0,
+    };
+    sec.style.width = '';
+    return out;
+  })()`);
+  check('420px: type label visually hidden but present', !!tiny && tiny.labelWidth !== null && tiny.labelWidth <= 1 && tiny.labelText.length > 0, tiny);
+  check('420px: the swatch stays visible', !!tiny && tiny.swatchWidth > 0, tiny);
+
+  // (e) typography of the text classes only (A-2)
+  const TYPO = `(() => {
+    const sec = ${START};
+    if (!sec) return null;
+    const sel = '.start-block__title, .start-name__text, .start-name__sub, .start-type, .start-type__label, .start-community, .start-toggle, td.dashboard-count';
+    return [...sec.querySelectorAll(sel)].map((e) => {
+      const cs = getComputedStyle(e);
+      return [e.className, cs.fontSize, cs.fontWeight];
+    });
+  })()`;
+  const typoOk = (list) => Array.isArray(list) && list.length > 0
+    && list.every(([, size, weight]) => ['13px', '14px', '15px'].includes(size) && ['400', '600'].includes(weight));
+  const typo = await s.ev(TYPO);
+  check('text sizes 13/14/15px, weights 400/600', typoOk(typo), (typo || []).filter(([, sz, w]) => !['13px', '14px', '15px'].includes(sz) || !['400', '600'].includes(w)).slice(0, 4));
+  await s.ev(`document.body.classList.add('present')`);
+  const typoPresent = await s.ev(TYPO);
+  await s.ev(`document.body.classList.remove('present')`);
+  check('Present mode keeps the same text sizes', typoOk(typoPresent) && JSON.stringify(typoPresent) === JSON.stringify(typo));
+
+  // (f) an invalid group id falls back to the default view
+  await s.ev(`document.querySelector('.nav-link[data-panel="graph"]').click()`);
+  await s.waitFor(`${graphShown} && !window._graphDebug.busy`, 30000);
+  const modeBefore = await s.ev(`window._graphDebug.mode`);
+  await s.ev(`window.dispatchEvent(new CustomEvent('graph-show-types', { detail: { reset: true } }))`);
+  await s.waitFor(`!window._graphDebug.busy`, 30000);
+  await sleep(300);
+  const defaultVisible = await s.ev(visibleIds);
+  const defaultChips = await s.ev(pressedChips);
+  const s0 = await settledScale(s);
+  await s.ev(`window.dispatchEvent(new CustomEvent('graph-show-types', { detail: { reset: true, group: 'nope' } }))`);
+  await sleep(500);
+  await s.waitFor(`!window._graphDebug.busy`, 30000);
+  const invalid = await s.ev(`({
+    mode: window._graphDebug.mode,
+    active: ${activeRegion},
+    current: document.querySelectorAll('.graph-group-row[aria-current="true"]').length,
+    status: document.getElementById('graph-sources-status').textContent,
+  })`);
+  check('invalid group: Group by unchanged', invalid.mode === modeBefore, [invalid.mode, modeBefore]);
+  check('invalid group: no active region', invalid.active === null, invalid.active);
+  check('invalid group: no Groups row is current', invalid.current === 0, invalid.current);
+  check('invalid group: not-in-graph status', invalid.status.startsWith('The selected community is not in this graph. Showing the default graph: '), invalid.status);
+  check('invalid group: default visible set', sameSet(await s.ev(visibleIds), defaultVisible) && defaultVisible.length > 0, defaultVisible.length);
+  check('invalid group: default chips', JSON.stringify(await s.ev(pressedChips)) === JSON.stringify(defaultChips), defaultChips);
+
+  // (g) a community click starting from Group by None
+  await clickEl(s, `document.querySelector('#graph-group button[data-mode="none"]')`);
+  check('setup: Group by None', await s.waitFor(`window._graphDebug.mode === 'none' && !window._graphDebug.busy`, 30000), await s.ev(`window._graphDebug.mode`));
+  check('dashboard opens for the community click', await openDashboard(s));
+  const first = comms[0] ? comms[0].id : null;
+  const clickedFirst = await clickEl(s, commBtn(0));
+  check('first community row clicked', clickedFirst);
+  const zoomed = clickedFirst && await s.waitFor(`${graphShown} && window._graphDebug.mode === 'cluster' && !window._graphDebug.busy && ${activeRegion} === ${q(first)}`, 30000);
+  check('community click: Graph panel, Topic cluster, zoomed region', zoomed, await s.ev(`({ mode: window._graphDebug.mode, active: ${activeRegion} })`));
+  if (zoomed) {
+    check('community click: Topic cluster radio checked',
+      (await s.ev(`document.querySelector('#graph-group button[data-mode="cluster"]').getAttribute('aria-checked')`)) === 'true');
+    check('community click: Groups row is current',
+      (await s.ev(`(document.querySelector('.graph-group-row[data-group=' + ${JSON.stringify(JSON.stringify(first))} + ']') || { getAttribute: () => null }).getAttribute('aria-current')`)) === 'true');
+    await checkZoomed(s, 'community click', first, s0);
+    const groupStatus = await s.ev(`document.getElementById('graph-group-status').textContent`);
+    check('community click: zoom announcement', groupStatus.startsWith(`Zoomed to ${fullLabel[first]}: `), groupStatus);
+    const srcStatus = await s.ev(`document.getElementById('graph-sources-status').textContent`);
+    check('community click: sources status', srcStatus.startsWith(`Showing the ${fullLabel[first]} community: `), srcStatus);
+    check('community click: pointer activation leaves the container unfocused',
+      (await s.ev(`document.activeElement && document.activeElement.id`)) !== 'graph-container');
+    await s.shot('start-here-community-zoom.png');
+  }
+
+  // (h) the same row again, already on Topic cluster: stays zoomed, no toggle-off
+  check('dashboard opens for the repeat click', await openDashboard(s));
+  const again = await clickEl(s, commBtn(0));
+  const zoomedAgain = again && await s.waitFor(`${graphShown} && !window._graphDebug.busy && ${activeRegion} === ${q(first)}`, 30000);
+  check('repeat click: region still active', zoomedAgain);
+  if (zoomedAgain) {
+    await checkZoomed(s, 'repeat click', first, s0);
+    check('repeat click: still the active region after settling', (await s.ev(activeRegion)) === first);
+    check('repeat click: Groups row still current',
+      (await s.ev(`(document.querySelector('.graph-group-row[data-group=' + ${JSON.stringify(JSON.stringify(first))} + ']') || { getAttribute: () => null }).getAttribute('aria-current')`)) === 'true');
+  }
+  check('dashboard opens for the second community', await openDashboard(s));
+  const second = comms[1] ? comms[1].id : null;
+  const clickedSecond = await clickEl(s, commBtn(1));
+  const zoomedSecond = clickedSecond && await s.waitFor(`${graphShown} && !window._graphDebug.busy && ${activeRegion} === ${q(second)}`, 30000);
+  check('second community: region active', zoomedSecond);
+  if (zoomedSecond) {
+    const vr = await checkZoomed(s, 'second community', second, s0);
+    const firstRegion = vr && vr.regions.find((r) => r.id === first);
+    check('second community: the first region is no longer fully in view',
+      !!firstRegion && (!centreIn(vr.view, firstRegion) || !fullyIn(vr.view, firstRegion)), firstRegion);
+  }
+
+  // (i) hub by keyboard
+  check('dashboard opens for the hub', await openDashboard(s));
+  const hub = hubs[0] || { id: null, name: '' };
+  const focused = await s.ev(`(() => { const b = document.querySelector(${q(HUB_BTN)}); if (!b) return false; b.focus(); return document.activeElement === b; })()`);
+  check('first hub button focused', focused);
+  if (focused) await s.key('Enter');
+  const inFocus = focused && await s.waitFor(`${graphShown} && ${focusTop} === ${q(hub.id)}`, 30000);
+  check('hub Enter: focus mode on the hub', inFocus, await s.ev(`window._graphDebug && ${focusTop}`));
+  if (inFocus) {
+    check('hub Enter: focus bar shown', (await s.ev(`document.getElementById('graph-focus-bar').hidden`)) === false);
+    const st = await s.ev(`document.getElementById('graph-group-status').textContent`);
+    check('hub Enter: focus announcement', st.startsWith(`Focus: ${hub.name}`), st);
+    check('hub Enter: keyboard focus on the graph container', (await s.ev(`document.activeElement && document.activeElement.id`)) === 'graph-container');
+    await s.shot('start-here-hub-focus.png');
+  }
+
+  // (j) Present mode
+  await s.ev(`document.body.classList.add('present')`);
+  check('dashboard opens in Present mode', await openDashboard(s));
+  const third = comms[2] ? comms[2].id : null;
+  const clickedThird = await clickEl(s, commBtn(2));
+  const zoomedThird = clickedThird && await s.waitFor(`${graphShown} && !window._graphDebug.busy && ${activeRegion} === ${q(third)}`, 30000);
+  check('Present mode: third community zoomed', zoomedThird);
+  if (zoomedThird) {
+    const scale = await settledScale(s);
+    check('Present mode: scale >= 1.2 x the whole-graph fit', scale >= 1.2 * s0, [scale, s0]);
+    const st = await s.ev(`document.getElementById('graph-group-status').textContent`);
+    check('Present mode: zoom announcement', st.startsWith('Zoomed to '), st);
+  }
+  await s.ev(`document.body.classList.remove('present')`);
+
+  // (k)
+  check('no script exceptions from the workbench', s.errors.length === 0, s.errors.slice(0, 3));
+  await s.done();
+}
+
+async function startHereEarly() {
+  const s = await session();
+  await s.viewport(1440, 1000);
+  // Hold /api/graph until the community click has fired (see early()).
+  const held = [];
+  let released = false;
+  s.on('Fetch.requestPaused', (p) => {
+    if (released) s.send('Fetch.continueRequest', { requestId: p.requestId });
+    else held.push(p.requestId);
+  });
+  await s.send('Fetch.enable', { patterns: [{ urlPattern: '*/api/graph', requestStage: 'Request' }] });
+  await s.send('Page.addScriptToEvaluateOnNewDocument', { source: `
+    document.addEventListener('DOMContentLoaded', () => {
+      const t = setInterval(() => {
+        const b = document.querySelectorAll(${q(COMM_BTN)})[2];
+        if (!b) return;
+        clearInterval(t);
+        const tr = b.closest('tr');
+        window.__earlyStart = { graphReady: !!window._graphDebug, id: tr ? tr.getAttribute('data-group-id') : null };
+        b.click();
+      }, 1);
+    });` });
+  await s.send('Page.navigate', { url: URL_ });
+  check('early community click fired', await s.waitFor(`!!window.__earlyStart`, 30000), await s.ev(`window.__earlyStart`));
+  const info = await s.ev(`window.__earlyStart`);
+  check('early community click: made before the graph loaded', !!info && info.graphReady === false, info);
+  check('early community click: /api/graph was held until the click', held.length > 0, held.length);
+  released = true;
+  for (const requestId of held.splice(0)) await s.send('Fetch.continueRequest', { requestId });
+  await s.send('Fetch.disable');
+  const id = info ? info.id : null;
+  const zoomed = !!info && await s.waitFor(`!!window._graphDebug && window._graphDebug.mode === 'cluster' && !window._graphDebug.busy && ${activeRegion} === ${q(id)}`, 30000);
+  check('early community click: zoomed to that community', zoomed, await s.ev(`window._graphDebug ? { mode: window._graphDebug.mode, active: window._graphDebug.activeRegion } : null`));
+  if (zoomed) {
+    const st = await s.ev(`document.getElementById('graph-group-status').textContent`);
+    check('early community click: zoom announcement', st.startsWith('Zoomed to '), st);
+    const scale = await settledScale(s);
+    await s.ev(`window.dispatchEvent(new CustomEvent('graph-show-types', { detail: { reset: true } }))`);
+    await s.waitFor(`!window._graphDebug.busy`, 30000);
+    const whole = await settledScale(s);
+    check('early community click: scale >= 1.2 x the whole-graph fit', scale >= 1.2 * whole, [scale, whole]);
+  }
+  check('early community click: no script exceptions', s.errors.length === 0, s.errors.slice(0, 3));
+  await s.done();
+}
+
 try {
   if (MODE === 'early') await early();
   else if (MODE === 'epistemic') await epistemic();
@@ -886,6 +1262,8 @@ try {
   else if (MODE === 'card-highlight') await cardHighlight();
   else if (MODE === 'citations') await citations();
   else if (MODE === 'fda-highlight') await fdaHighlight();
+  else if (MODE === 'start-here') await startHere();
+  else if (MODE === 'start-here-early') await startHereEarly();
   else await click();
 } catch (e) {
   check('script completed', false, String(e && e.stack || e));

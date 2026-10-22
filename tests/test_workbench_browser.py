@@ -227,3 +227,13 @@ def test_chat_citation_opens_viewer_glp1(chromium_port, workbench_url):
 def test_source_viewer_fda_deep_highlight(chromium_port, fda_workbench_url):
     result = _run(chromium_port, fda_workbench_url, "fda-highlight")
     assert result["passed"] >= 8, result
+
+
+def test_dashboard_start_here_glp1(chromium_port, workbench_url):
+    result = _run(chromium_port, workbench_url, "start-here")
+    assert result["passed"] >= 30, result
+
+
+def test_dashboard_start_here_before_graph_ready(chromium_port, workbench_url):
+    result = _run(chromium_port, workbench_url, "start-here-early")
+    assert result["passed"] >= 4, result
