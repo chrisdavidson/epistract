@@ -17,8 +17,8 @@
 //                          widths, styles, Present mode; no chat request is ever sent
 //         ask-about-findings  GLP-1 v3 copy with custom findings: the Analysis Findings
 //                          table and its Ask about this buttons
-//         ask-guard        GLP-1 v3 "Ask about this" guards: a double-click, held Enter or near miss on Ask
-//                          sends nothing and runs no row action; a single starter click after the
+//         ask-guard        GLP-1 v3 "Ask about this" guards: a double-click, held Enter, near miss or press on Ask
+//                          sends nothing, runs no row action and does not shade the row; a single starter click after the
 //                          guard window still sends
 //
 // A run that cannot be judged because a third-party script did not load ends with
@@ -1726,6 +1726,46 @@ async function askGuard() {
       && st.source === 'none' && st.chat === false, st);
   }
   check('near miss: no /api/chat request', spy.chat === 0, spy.chat);
+
+  // (d) IN-01: pressing an Ask does not darken the row with the
+  // .dashboard-link-row:active shade its own button gives. While the pointer
+  // is on the row the hover rule wins, so the visible case is a press on the
+  // button followed by a drag off the row with the button still held (the
+  // :active chain stays, :hover goes). The release lands outside the row, so
+  // no Ask and no row action runs.
+  const HOVER_TINT = 'rgb(248, 250, 252)';
+  const PRESSED = 'rgba(0, 0, 0, 0.08)';
+  const OFF = { x: 1435, y: 995 };
+  const pressAndDragOff = async (expr) => {
+    const pt = await centreOf(s, expr);
+    if (!pt) return null;
+    await s.mouse('mouseMoved', pt.x, pt.y);
+    await s.mouse('mousePressed', pt.x, pt.y);
+    await sleep(400);  // past the 0.15s background transition
+    const onRow = await s.ev(`(() => { const tr = (${expr}).closest('tr'); return getComputedStyle(tr).backgroundColor; })()`);
+    await s.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: OFF.x, y: OFF.y, button: 'left', buttons: 1 });
+    await sleep(400);
+    const off = await s.ev(`(() => { const b = ${expr}; const tr = b.closest('tr');
+      return { bg: getComputedStyle(tr).backgroundColor, active: b.matches(':active'), hovered: tr.matches(':hover') }; })()`);
+    await s.mouse('mouseReleased', OFF.x, OFF.y);
+    await sleep(200);
+    return { onRow, ...off };
+  };
+  for (const [label, expr] of [['DISEASE row', typeAsk('DISEASE')], ['first hub', hubAsk(0)], ['first document', docAsk('pmid_38851997')]]) {
+    await openDashboard(s);
+    await s.ev(`(() => { window.__rowEvents = []; return true; })()`);
+    const st = await pressAndDragOff(expr);
+    check(`press ${label} Ask: the row keeps the hover tint under the pointer`, !!st && st.onRow === HOVER_TINT, st);
+    check(`press ${label} Ask and drag off: the Ask is still pressed, the row not hovered`, !!st && st.active === true && st.hovered === false, st);
+    check(`press ${label} Ask and drag off: the row does not take the pressed shade`, !!st && st.bg !== PRESSED, st);
+    const after = await s.ev(`({ ev: (window.__rowEvents || []).slice(), chat: ${chatShown} })`);
+    check(`press ${label} Ask and drag off: the release runs nothing`, after.ev.length === 0 && after.chat === false, after);
+  }
+  // Control: the same gesture on the row's own main button darkens the row.
+  await openDashboard(s);
+  const ctlPress = await pressAndDragOff(typeMain('DISEASE'));
+  check('press control: the DISEASE main button pressed and dragged off darkens the row', !!ctlPress && ctlPress.bg === PRESSED, ctlPress);
+  check('press: no /api/chat request', spy.chat === 0, spy.chat);
 
   // (z) positive control: past the guard window a single starter click sends.
   await sleep(800);

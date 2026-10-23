@@ -1129,6 +1129,12 @@ mark.source-highlight {
   color: #9ca3af;
 }
 
+/* Pressing the Ask button does not give the row its own pressed shade
+   (.dashboard-link-row:active); the row keeps its hover / focus tint. */
+.dashboard-link-row:has(.ask-about-btn:active) {
+  background: #f8fafc;
+}
+
 /* Analysis Findings: the rule cell may hold the rule text and its Ask. */
 .dashboard-table td.findings-rule-cell {
   vertical-align: middle;
