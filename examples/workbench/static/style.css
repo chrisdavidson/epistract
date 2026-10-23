@@ -676,26 +676,6 @@ body {
   color: #666;
 }
 
-.ask-about-btn {
-  display: block;
-  width: 100%;
-  margin-top: var(--space-sm);
-  padding: var(--space-sm);
-  background: var(--color-accent);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: var(--size-label);
-  font-weight: 600;
-  font-family: var(--font-body);
-  transition: opacity 0.15s;
-}
-
-.ask-about-btn:hover {
-  opacity: 0.9;
-}
-
 /* Edge popover — multi-source view of an edge, with epistemic_status badge,
    per-mention confidence, and verbatim evidence quotes. */
 .edge-popover {
@@ -1140,6 +1120,45 @@ mark.source-highlight {
   text-underline-offset: 2px;
 }
 
+/* Hovering the Ask button does not light up the row's own link. */
+.dashboard-link-row:has(.ask-about-btn:hover) :is(.dashboard-link-label, .documents-name__text, .start-name__text) {
+  text-decoration: none;
+}
+
+.dashboard-link-row:has(.ask-about-btn:hover) .dashboard-link-chevron {
+  color: #9ca3af;
+}
+
+/* Analysis Findings: the rule cell may hold the rule text and its Ask. */
+.dashboard-table td.findings-rule-cell {
+  vertical-align: middle;
+}
+
+.findings-rule {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.findings-table td {
+  vertical-align: middle;
+}
+
+/* Narrow sections show just "Ask" on row Ask buttons. */
+.dashboard-entity-summary,
+.documents-section,
+.findings-section {
+  container-type: inline-size;
+  container-name: dashboard-section;
+}
+
+@container dashboard-section (max-width: 560px) {
+  .dashboard-row-actions .ask-about-btn__more {
+    display: none;
+  }
+}
+
 /* Where to start: topic communities and most-connected entities */
 
 .start-here {
@@ -1190,16 +1209,33 @@ mark.source-highlight {
   width: 176px;
 }
 
-.start-action {
+.start-action,
+.dashboard-row-actions {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
   min-width: 0;
 }
 
-.start-action > .dashboard-link-btn {
+.start-action > .dashboard-link-btn,
+.dashboard-row-actions > .dashboard-link-btn {
   flex: 1;
   min-width: 0;
+}
+
+/* A row's main control and its Ask button: the Ask wraps under the main
+   control instead of overflowing the cell. */
+.dashboard-row-actions {
+  flex-wrap: wrap;
+  gap: 0;
+}
+
+.dashboard-row-actions > .dashboard-link-btn {
+  flex: 1 1 96px;
+}
+
+.dashboard-row-actions > .ask-about-btn {
+  margin: var(--space-xs) var(--space-sm);
 }
 
 .start-name {
@@ -1253,6 +1289,12 @@ mark.source-highlight {
 @container start-here (max-width: 720px) {
   .start-hubs-table th.start-col-community,
   .start-hubs-table td.start-community {
+    display: none;
+  }
+}
+
+@container start-here (max-width: 560px) {
+  .dashboard-row-actions .ask-about-btn__more {
     display: none;
   }
 }
@@ -1465,6 +1507,10 @@ mark.source-highlight {
 
 .dashboard-totals {
   margin-top: var(--space-md);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
 }
 
 .dashboard-totals-btn {
@@ -2655,6 +2701,7 @@ button.graph-focus-bar__crumb:focus-visible {
   margin-top: var(--space-sm);
 }
 
+.ask-about-btn,
 .epistemic-btn,
 .epistemic-toggle,
 .documents-toggle,
@@ -2679,6 +2726,7 @@ button.graph-focus-bar__crumb:focus-visible {
   margin-top: var(--space-sm);
 }
 
+.ask-about-btn:hover,
 .epistemic-btn:hover,
 .epistemic-toggle:hover,
 .documents-toggle:hover,
@@ -2687,6 +2735,7 @@ button.graph-focus-bar__crumb:focus-visible {
   background: rgba(0, 0, 0, 0.04);
 }
 
+.ask-about-btn:focus-visible,
 .epistemic-btn:focus-visible,
 .epistemic-toggle:focus-visible,
 .documents-toggle:focus-visible,
@@ -2695,11 +2744,31 @@ button.graph-focus-bar__crumb:focus-visible {
   outline-offset: 1px;
 }
 
+.ask-about-btn:active,
 .epistemic-btn:active,
 .epistemic-toggle:active,
 .documents-toggle:active,
 .start-toggle:active {
   border-color: #1a1a2e;
+}
+
+/* "Ask about this": the shared outlined button on every dashboard card,
+   smaller than the row's main control. */
+.ask-about-btn {
+  flex: none;
+  min-height: 28px;
+  min-width: 28px;
+  padding: var(--space-xs) var(--space-sm);
+  white-space: nowrap;
+}
+
+.epistemic-actions .ask-about-btn {
+  min-height: 36px;
+  padding: var(--space-sm) var(--space-md);
+}
+
+.epistemic-health > .ask-about-btn {
+  margin-top: var(--space-xs);
 }
 
 .epistemic-btn[aria-disabled="true"],
@@ -2829,6 +2898,7 @@ button.graph-focus-bar__crumb:focus-visible {
   .legend-chip,
   .dashboard-link-row,
   .dashboard-totals-btn,
+  .ask-about-btn,
   .epistemic-btn,
   .epistemic-toggle,
   .documents-toggle,

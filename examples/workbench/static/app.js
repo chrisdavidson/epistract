@@ -2,7 +2,7 @@
 import { initChat, loadModelSelector, setCitationDocuments } from './chat.js';
 import { initGraph } from './graph.js';
 import { loadDisplay, legendEntries, makeSwatch } from './display.js';
-import { buildDocuments, buildEntitySummary, buildEpistemicHealth, buildStartHere } from './dashboard.js';
+import { buildDocuments, buildEntitySummary, buildEpistemicHealth, buildFindings, buildStartHere } from './dashboard.js';
 import { getOrigin, initSourceViewer, setDocuments, subscribeDocuments } from './source_viewer.js';
 
 // SEC-01 / VUL-03: local escapeHtml helper. DOM-based escaping handles every
@@ -248,6 +248,10 @@ function openGraphWith(detail, event) {
 function askInChat(question) {
     switchPanel('chat');
     window.dispatchEvent(new CustomEvent('ask-question', { detail: { question } }));
+    // Lets chat.js's auto-resize size the box to the prefilled question; the
+    // input listener only resizes, nothing is sent.
+    const input = document.getElementById('chat-input');
+    if (input) input.dispatchEvent(new Event('input'));
 }
 
 async function populateDashboard(template) {
@@ -292,6 +296,7 @@ async function populateDashboard(template) {
                 totalEdges: dashData.total_edges,
                 onSelectType: (type, event) => openGraphWith({ types: [type] }, event),
                 onShowAll: (event) => openGraphWith({ reset: true }, event),
+                onAsk: (question) => askInChat(question),
             }));
             // "Where to start": a community row zooms the graph to its topic
             // cluster region, an entity row opens focus mode on that entity.
@@ -300,6 +305,7 @@ async function populateDashboard(template) {
                 totalNodes: dashData.total_nodes,
                 onShowCommunity: (row, event) => openGraphWith({ reset: true, group: row.id }, event),
                 onShowEntity: (row, event) => openGraphWith({ reset: true, focus: { id: row.id, hops: 1 } }, event),
+                onAsk: (question) => askInChat(question),
             });
             if (startSection) dashContent.appendChild(startSection);
             dashContent.appendChild(buildEpistemicHealth({
@@ -317,6 +323,7 @@ async function populateDashboard(template) {
                 onOpen: (doc) => window.dispatchEvent(
                     new CustomEvent('navigate-source', { detail: { docId: doc.doc_id } }),
                 ),
+                onAsk: (question) => askInChat(question),
             });
             if (docsSection) dashContent.appendChild(docsSection);
             setDocuments(dashData.documents);
@@ -324,27 +331,11 @@ async function populateDashboard(template) {
             // rules both land in claims_layer.super_domain.custom_findings.
             // Purely additive: domains that ship no custom rules get an empty
             // list from /api/dashboard and this block renders nothing.
-            const findings = dashData.findings || [];
-            if (findings.length) {
-                let findingsHtml = '<h3>Analysis Findings</h3><div class="dashboard-table-wrap">'
-                    + '<table class="dashboard-table"><thead><tr><th>Rule</th><th>Findings</th><th>By Severity</th></tr></thead><tbody>';
-                for (const f of findings) {
-                    const sev = Object.entries(f.by_severity || {})
-                        .map(([k, v]) => k + ': ' + v).join(', ');
-                    const label = f.errors
-                        ? String(f.rule_name) + ' (' + f.errors + ' rule error(s))'
-                        : String(f.rule_name);
-                    findingsHtml += '<tr><td>' + escapeHtml(label) + '</td><td>'
-                        + escapeHtml(String(f.total || 0)) + '</td><td>'
-                        + escapeHtml(sev) + '</td></tr>';
-                }
-                findingsHtml += '</tbody></table></div>';
-                const findingsBox = document.createElement('div');
-                findingsBox.innerHTML = (typeof DOMPurify !== 'undefined')
-                    ? DOMPurify.sanitize(findingsHtml, { ADD_ATTR: ['id'] })
-                    : findingsHtml;
-                dashContent.appendChild(findingsBox);
-            }
+            const findingsSection = buildFindings({
+                findings: dashData.findings,
+                onAsk: (question) => askInChat(question),
+            });
+            if (findingsSection) dashContent.appendChild(findingsSection);
         }
     } catch (e) {
         const failure = document.createElement('p');
