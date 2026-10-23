@@ -264,7 +264,7 @@ function firstLabel(...values) {
 //                     the payload question is used verbatim
 //   epistemic-status  (no fields)
 //   document          {name, doc_id}           cleanDocument row
-//   finding           {rule_name, total}       findings entry
+//   finding           {rule_name, total, errors}  findings entry
 // A builder returns '' when its label is empty after the fallbacks.
 const ASK_QUESTIONS = {
     graph: () => 'Give me an overview of this knowledge graph: what are its main topics and most important entities?',
@@ -296,7 +296,13 @@ const ASK_QUESTIONS = {
     },
     finding: (f) => {
         const rule = collapse(f.rule_name);
-        return rule ? `Explain the ${rule} findings (${String(f.total || 0)}): which ones matter most and why?` : '';
+        if (!rule) return '';
+        // A rule whose entries all failed has no findings to explain: ask why
+        // it failed instead (10-REVIEW IN-03 ruling, R-01 amendment).
+        const total = f.total || 0;
+        const errors = typeof f.errors === 'number' && Number.isFinite(f.errors) ? f.errors : 0;
+        if (total === 0 && errors > 0) return `Why did the ${rule} rule fail (${errors} errors)?`;
+        return `Explain the ${rule} findings (${String(total)}): which ones matter most and why?`;
     },
 };
 

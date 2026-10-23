@@ -1364,6 +1364,15 @@ if (MODE === 'ask-question') {
     eq('finding: missing total is 0', q('finding', { rule_name: 'r' }), findQ('r', 0));
     eq('finding: whitespace rule gives empty', q('finding', { rule_name: '   ', total: 2 }), '');
     eq('finding: non-string rule gives empty', q('finding', { rule_name: 7 }), '');
+    // 10-REVIEW IN-03 ruling: a rule whose every entry failed (total 0, errors > 0)
+    // gets the failure question instead of asking which of zero findings matter.
+    const failQ = (rule, errors) => `Why did the ${rule} rule fail (${errors} errors)?`;
+    eq('finding: total 0 with errors asks why the rule failed', q('finding', { rule_name: 'label_gap', total: 0, errors: 2 }), failQ('label_gap', 2));
+    eq('finding: missing total with errors asks why the rule failed', q('finding', { rule_name: ' r \n', errors: 1 }), failQ('r', 1));
+    eq('finding: findings plus errors keep the findings question', q('finding', { rule_name: 'r', total: 2, errors: 1 }), findQ('r', 2));
+    eq('finding: total 0 and errors 0 keep the findings question', q('finding', { rule_name: 'r', total: 0, errors: 0 }), findQ('r', 0));
+    eq('finding: non-numeric errors keep the findings question', q('finding', { rule_name: 'r', total: 0, errors: 'x' }), findQ('r', 0));
+    eq('finding: whitespace rule with errors gives empty', q('finding', { rule_name: ' ', total: 0, errors: 2 }), '');
 
     // --- hostile ---
     for (const h of ['<img src=x onerror=1>', '"><script>alert(1)</script>']) {
@@ -2026,6 +2035,30 @@ if (MODE === 'findings') {
       walk(root, (n) => { if (/[<>"]|onerror|script/i.test(String(n.className || ''))) badClass = true; });
       check('findings hostile: no data-derived class names', !badClass);
       check('findings: rows are not link rows', rows.every((r) => !classList(r).includes('dashboard-link-row')));
+    });
+
+    // 10-REVIEW IN-03: a rule whose entries all failed shows "(N rule error(s))"
+    // with 0 findings; its Ask asks why the rule failed.
+    guarded('findings all errors', () => {
+      const asked = [];
+      const root = dash.buildFindings({
+        findings: [
+          { rule_name: 'broken_rule', total: 0, errors: 2, by_severity: {} },
+          { rule_name: 'label_gap', total: 1, errors: 1, by_severity: { medium: 1 } },
+        ],
+        onAsk: (question) => asked.push(question),
+      });
+      const table = byTag(root, 'table')[0];
+      const rows = byTag(byTag(root, 'tbody')[0], 'tr');
+      const rule0 = byClass(rows[0], 'findings-rule')[0];
+      check('findings all errors: the row still reads "broken_rule (2 rule error(s))" and 0', !!rule0
+        && textOf(rule0) === 'broken_rule (2 rule error(s))' && textOf(rows[0].children[1]) === '0', rule0 && textOf(rule0));
+      table.dispatch('click', { target: askIn(rows[0]) || table, detail: 1 });
+      table.dispatch('click', { target: askIn(rows[1]) || table, detail: 1 });
+      check('findings all errors: the Ask asks why the rule failed; a rule with findings is unchanged', JSON.stringify(asked) === JSON.stringify([
+        'Why did the broken_rule rule fail (2 errors)?',
+        'Explain the label_gap findings (1): which ones matter most and why?',
+      ]), asked);
     });
 
     guarded('findings without onAsk', () => {
