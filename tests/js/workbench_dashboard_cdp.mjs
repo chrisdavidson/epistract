@@ -1363,7 +1363,9 @@ const Q_CARD1 = 'Why do sources disagree on whether semaglutide is indicated for
 const Q_DOC1 = 'Summarize the document pmid_38851997: what are its key findings?';
 const PATENT = 'patent_06_us10370426b2_triple_agonist';
 const PATENT_NAME = 'patent_06_US10370426B2_triple_agonist';
-const Q_PATENT = `Summarize the document ${PATENT_NAME} (${PATENT}): what are its key findings?`;
+// The name differs from the id only by letter case, so the id is not repeated
+// (10-REVIEW IN-06).
+const Q_PATENT = `Summarize the document ${PATENT_NAME}: what are its key findings?`;
 
 const NARROW_SECTIONS = ['.dashboard-entity-summary', 'section.start-here', 'section.documents-section'];
 

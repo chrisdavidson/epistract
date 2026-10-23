@@ -1351,9 +1351,15 @@ if (MODE === 'ask-question') {
     eq('document: name and id', q('document', { name: 'Doc 1', doc_id: 'doc_1' }), docQ('Doc 1 (doc_1)'));
     eq('document: name equal to id omits the parenthetical', q('document', { name: 'pmid_38851997', doc_id: 'pmid_38851997' }),
       docQ('pmid_38851997'));
-    eq('document: names differing only by case keep the id',
+    // 10-REVIEW IN-06 ruling: a name equal to the id ignoring letter case omits
+    // the parenthetical too; it is kept only when they really differ.
+    eq('document: a name differing from the id only by case omits the parenthetical',
       q('document', { name: 'patent_06_US10370426B2_triple_agonist', doc_id: 'patent_06_us10370426b2_triple_agonist' }),
-      docQ('patent_06_US10370426B2_triple_agonist (patent_06_us10370426b2_triple_agonist)'));
+      docQ('patent_06_US10370426B2_triple_agonist'));
+    eq('document: case-only difference after collapsing omits the parenthetical', q('document', { name: '  PMID_1 \n', doc_id: 'pmid_1' }),
+      docQ('PMID_1'));
+    eq('document: a name that really differs keeps the id', q('document', { name: 'Patent 06 triple agonist', doc_id: 'patent_06_triple_agonist' }),
+      docQ('Patent 06 triple agonist (patent_06_triple_agonist)'));
     eq('document: empty name uses the id once', q('document', { name: '', doc_id: 'd' }), docQ('d'));
     eq('document: empty id omits the parenthetical', q('document', { name: 'X', doc_id: '' }), docQ('X'));
     eq('document: both empty give empty', q('document', { name: '', doc_id: '' }), '');

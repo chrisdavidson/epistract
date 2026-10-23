@@ -291,7 +291,9 @@ const ASK_QUESTIONS = {
         const id = collapse(f.doc_id);
         const name = collapse(f.name) || id;
         if (!name) return '';
-        const shown = id && id !== name ? `${name} (${id})` : name;
+        // The id is repeated only when it really differs from the name; a
+        // letter-case difference alone is not shown (10-REVIEW IN-06).
+        const shown = id && id.toLowerCase() !== name.toLowerCase() ? `${name} (${id})` : name;
         return `Summarize the document ${shown}: what are its key findings?`;
     },
     finding: (f) => {
