@@ -3,7 +3,7 @@
 // usage: node workbench_dashboard_cdp.mjs <cdp-port> <workbench-url> <mode> [screenshot-dir]
 //   mode: click  full Dashboard -> Graph flow (rows, keyboard, mouse, sources, totals)
 //         early  Dashboard click fired before the graph has finished loading
-//         epistemic        GLP-1 v3 Epistemic health section: render, toggle, Show in graph, Ask in chat
+//         epistemic        GLP-1 v3 Epistemic health section: render, toggle, Show in graph, Ask about this
 //         epistemic-early  Show in graph clicked before the graph has finished loading
 //         epistemic-legacy legacy PICALM claims layer renders the section
 //         documents        GLP-1 v3 Documents table and the in-workbench source viewer
@@ -464,7 +464,7 @@ async function epistemic() {
   check('the keyboard focus layout settles', await s.waitFor(`!window._graphDebug.busy`));
   check('keyboard focus centre is still semaglutide', (await s.ev(focusTop)) === 'compound:semaglutide', await s.ev(focusTop));
 
-  // (12) Ask in chat only prefills
+  // (12) Ask about this only prefills
   const urls = [];
   s.on('Network.requestWillBeSent', (p) => urls.push(p.request.url));
   const expectedQ = await s.ev(`(async () => { const d = await (await fetch('/api/dashboard')).json();
@@ -472,7 +472,7 @@ async function epistemic() {
   check('the API supplies a question', typeof expectedQ === 'string' && expectedQ.length > 0, expectedQ);
   check('open the dashboard for chat', await openEpistemic(s));
   urls.length = 0;
-  check('Ask in chat clicked', await clickEl(s, secBtn('contradictions', 'ask-chat', 0)));
+  check('Ask about this clicked', await clickEl(s, secBtn('contradictions', 'ask-chat', 0)));
   check('chat panel shown', await s.waitFor(`document.querySelector('.chat-panel').style.display === 'flex'`));
   check('chat input holds the question', (await s.ev(`document.getElementById('chat-input').value`)) === expectedQ,
     await s.ev(`document.getElementById('chat-input').value`));
@@ -491,7 +491,7 @@ async function epistemic() {
     return d.epistemic.sections[0].items[1].question; })()`);
   check('open the dashboard with a draft', await openEpistemic(s));
   urls.length = 0;
-  check('Ask in chat clicked over a draft', await clickEl(s, secBtn('contradictions', 'ask-chat', 1)));
+  check('Ask about this clicked over a draft', await clickEl(s, secBtn('contradictions', 'ask-chat', 1)));
   check('chat panel shown again', await s.waitFor(`document.querySelector('.chat-panel').style.display === 'flex'`));
   check('the question replaces the draft', (await s.ev(`document.getElementById('chat-input').value`)) === secondQ,
     await s.ev(`document.getElementById('chat-input').value`));
@@ -593,11 +593,13 @@ async function documents() {
   const rows = await s.ev(`(() => ${docRows}.map((r) => ({
     aria: r.querySelector('button').getAttribute('aria-label'),
     buttons: r.querySelectorAll('button').length,
+    pair: [...r.querySelectorAll('button')].map((b) => b.classList.contains('dashboard-link-btn') ? 'main' : (b.classList.contains('ask-about-btn') ? 'ask' : 'other')).join(','),
     entities: r.querySelectorAll('td.dashboard-count')[0].textContent.trim(),
     relations: r.querySelectorAll('td.dashboard-count')[1].textContent.trim(),
     shared: r.classList.contains('dashboard-link-row') && r.querySelector('button').classList.contains('dashboard-link-btn'),
   })))()`);
-  check('34 rows in the DOM, one button each', rows.length === 34 && rows.every((r) => r.buttons === 1), rows.length);
+  check('34 rows in the DOM, one main button and one Ask button each',
+    rows.length === 34 && rows.every((r) => r.buttons === 2 && r.pair === 'main,ask'), rows.length);
   check('row buttons keep the shared dashboard classes', rows.every((r) => r.shared));
   check('aria-labels read "Read name: E entities, R relations"',
     rows.every((r) => /^Read .+: \d[\d,]* entit(y|ies), \d[\d,]* relations?$/.test(r.aria || '')), rows.slice(0, 2).map((r) => r.aria));
