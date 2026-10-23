@@ -217,6 +217,77 @@ const ASK_TITLE = 'Puts a question in the chat box. Nothing is sent until you pr
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const str = (v) => (typeof v === 'string' ? v : '');
 
+// --- Ask about this ------------------------------------------------------------
+
+// A label as it goes into a question or aria-label: runs of whitespace become
+// one space, the ends are trimmed. Anything that is not a string is ''.
+function collapse(value) {
+    return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : '';
+}
+
+// The first value that is non-empty after collapsing, else ''.
+function firstLabel(...values) {
+    for (const value of values) {
+        const label = collapse(value);
+        if (label) return label;
+    }
+    return '';
+}
+
+// One question builder per card kind. Each reads the cleaned row its builder
+// already holds:
+//   graph             (no fields)
+//   type              {label, type}            sortEntityRows row
+//   community         {fullLabel, label, id}   cleanCommunity row
+//   hub               {name, id}               cleanHub row
+//   epistemic         {question, title, sectionKey}  cleanItem + section key;
+//                     the payload question is used verbatim
+//   epistemic-status  (no fields)
+//   document          {name, doc_id}           cleanDocument row
+//   finding           {rule_name, total}       findings entry
+// A builder returns '' when its label is empty after the fallbacks.
+const ASK_QUESTIONS = {
+    graph: () => 'Give me an overview of this knowledge graph: what are its main topics and most important entities?',
+    type: (f) => {
+        const label = firstLabel(f.label, f.type);
+        return label ? `What are the most important ${label} entities in this graph, and how do they connect?` : '';
+    },
+    community: (f) => {
+        const label = firstLabel(f.fullLabel, f.label, f.id);
+        return label ? `Summarize the ${label} community.` : '';
+    },
+    hub: (f) => {
+        const name = firstLabel(f.name, f.id);
+        return name ? `What is ${name}, and why is it so connected in this graph?` : '';
+    },
+    epistemic: (f) => {
+        const question = str(f.question);
+        if (question) return question;
+        const about = str(f.title) || str(f.sectionKey);
+        return about ? `What does the evidence say about: ${about}?` : '';
+    },
+    'epistemic-status': () => "What does the epistemic status distribution say about how well supported this graph's claims are?",
+    document: (f) => {
+        const id = collapse(f.doc_id);
+        const name = collapse(f.name) || id;
+        if (!name) return '';
+        const shown = id && id !== name ? `${name} (${id})` : name;
+        return `Summarize the document ${shown}: what are its key findings?`;
+    },
+    finding: (f) => {
+        const rule = collapse(f.rule_name);
+        return rule ? `Explain the ${rule} findings (${String(f.total || 0)}): which ones matter most and why?` : '';
+    },
+};
+
+// The question an "Ask about this" button puts in the chat box for a card of
+// `kind`. A plain string: it only ever becomes the chat input's value. Unknown
+// kinds and cards with nothing to name give ''. Never throws.
+export function askAboutQuestion(kind, fields) {
+    if (typeof kind !== 'string' || !Object.prototype.hasOwnProperty.call(ASK_QUESTIONS, kind)) return '';
+    return ASK_QUESTIONS[kind](isObj(fields) ? fields : {});
+}
+
 function statusLabel(status) {
     return status.replace(/_/g, ' ').replace(/(^|\s)(\S)/g, (_m, space, ch) => space + ch.toUpperCase());
 }
