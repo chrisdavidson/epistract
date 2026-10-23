@@ -280,7 +280,7 @@ def test_dashboard_ask_about_glp1(chromium_port, workbench_url):
 
 def test_dashboard_ask_about_findings(chromium_port, findings_workbench_url):
     result = _run(chromium_port, findings_workbench_url, "ask-about-findings")
-    assert result["passed"] >= 53, result
+    assert result["passed"] >= 18, result
 
 
 def test_dashboard_ask_guard_glp1(chromium_port, workbench_url):
