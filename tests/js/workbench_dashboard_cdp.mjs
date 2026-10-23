@@ -1708,12 +1708,25 @@ async function sidebarAsk() {
       check(`double-click hub ${i}: sidebar Ask found`, false, hub);
       continue;
     }
+    // Presses that get past the chat panel's capture-phase guard bubble up to
+    // the document; the guard stops the second press before it gets there.
+    await s.ev(`(() => { window.__secondPress = [];
+      if (!window.__secondPressSpy) {
+        window.__secondPressSpy = true;
+        for (const type of ['mousedown', 'mouseup', 'click']) {
+          document.addEventListener(type, (e) => {
+            if (e.detail >= 2 && e.target.closest && e.target.closest('.chat-panel')) window.__secondPress.push(type);
+          });
+        }
+      }
+      return true; })()`);
     await s.dblclick(pt.x, pt.y);
     await sleep(1000);
     st = await s.ev(`(() => { const u = document.elementFromPoint(${pt.x}, ${pt.y}); return {
       value: ${chatValue}, focused: ${chatFocused}, shown: ${chatShown}, messages: ${messageCount},
-      inChat: !!u && !!u.closest('.chat-panel') }; })()`);
+      inChat: !!u && !!u.closest('.chat-panel'), passed: window.__secondPress.slice() }; })()`);
     check(`double-click hub ${i}: the second press lands on the Chat panel`, st.inChat === true, pt);
+    check(`double-click hub ${i}: the guard swallows the second press`, st.passed.length === 0, st.passed);
     check(`double-click hub ${i}: no /api/chat request`, spy.chat === 0, spy.chat);
     check(`double-click hub ${i}: chat shown with the question prefilled`, st.shown === true && st.value === sideAskQuestion(hub.name),
       { got: st.value, want: sideAskQuestion(hub.name) });
