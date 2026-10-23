@@ -11,6 +11,9 @@
 // Prints one JSON line {"passed": [...], "failed": [...]} and exits 1 on failure.
 // The `ask-question` mode covers askAboutQuestion, the "Ask about this" question
 // templates for every card kind (run: node dashboard_harness.mjs ask-question).
+// The `ask-buttons` mode covers the "Ask about this" button of every builder
+// (run: node dashboard_harness.mjs ask-buttons) and the `findings` mode covers
+// buildFindings, the Analysis Findings table (run: node dashboard_harness.mjs findings).
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -1408,6 +1411,540 @@ if (MODE === 'ask-question') {
       check('purity: same input gives the same output', JSON.stringify(first) === JSON.stringify(second), [first, second]);
       check('purity: the fields object is not mutated', JSON.stringify(fields) === before, fields);
     }
+  }
+}
+
+// Shared by the ask-buttons and findings modes.
+const ASK_TITLE_TEXT = 'Puts a question in the chat box. Nothing is sent until you press Send.';
+const classList = (n) => String((n && n.className) || '').split(/\s+/).filter(Boolean);
+const askButtons = (root) => find(root, (n) => n.matches('button.ask-about-btn'));
+const askIn = (n) => (n ? find(n, (x) => x.matches('button.ask-about-btn'))[0] : undefined);
+// One block of checks; an exception (a missing element on a red run) is a
+// named failure instead of a crash.
+const guarded = (name, fn) => {
+  try { fn(); } catch (e) { check(`${name}: runs without throwing`, false, String(e && e.stack ? e.stack.split('\n').slice(0, 2).join(' ') : e)); }
+};
+// The shared Ask anatomy (UI-SPEC A, A-1, A-2).
+const checkAnatomy = (name, btn, kind, aria, extraClasses = []) => {
+  check(`${name}: Ask button exists`, !!btn, kind);
+  if (!btn) return;
+  check(`${name}: button element of type button`, btn.tagName === 'button' && btn.getAttribute('type') === 'button', btn.tagName);
+  check(`${name}: classes include ask-about-btn`, ['ask-about-btn', ...extraClasses].every((c) => classList(btn).includes(c)), btn.className);
+  check(`${name}: data-ask is ${kind}`, btn.getAttribute('data-ask') === kind, btn.getAttribute('data-ask'));
+  check(`${name}: title is ASK_TITLE`, btn.getAttribute('title') === ASK_TITLE_TEXT, btn.getAttribute('title'));
+  check(`${name}: text is Ask about this`, textOf(btn) === 'Ask about this', textOf(btn));
+  const [first, second] = btn.children;
+  check(`${name}: first child is the text node Ask`, !!first && first.isText === true && first.textContent === 'Ask', first && first.textContent);
+  check(`${name}: second child is span.ask-about-btn__more " about this"`, !!second && !!second.matches
+    && second.matches('span.ask-about-btn__more') && textOf(second) === ' about this', second && textOf(second));
+  check(`${name}: aria-label`, btn.getAttribute('aria-label') === aria, { got: btn.getAttribute('aria-label'), want: aria });
+};
+
+if (MODE === 'ask-buttons') {
+  const Q = (kind, fields) => (typeof dash.askAboutQuestion === 'function' ? dash.askAboutQuestion(kind, fields) : `<${kind}>`);
+  const GRAPH_Q = 'Give me an overview of this knowledge graph: what are its main topics and most important entities?';
+  const STATUS_Q = "What does the epistemic status distribution say about how well supported this graph's claims are?";
+
+  // --- Entity Summary rows and totals ---
+  guarded('summary', () => {
+    const asked = [];
+    const picked = [];
+    let all = 0;
+    const root = dash.buildEntitySummary({
+      entityCounts: { A: 3, B: 10, ONE: 1, '   ': 2 },
+      totalNodes: 16,
+      totalEdges: 4,
+      onSelectType: (type, event) => picked.push({ type, event }),
+      onShowAll: () => { all += 1; },
+      onAsk: (question, event) => asked.push({ question, event }),
+    });
+    const rows = byClass(root, 'dashboard-link-row');
+    const rowOf = (type) => rows.find((r) => r.getAttribute('data-entity-type') === type);
+    check('summary: four rows', rows.length === 4, rows.length);
+    const table = byTag(root, 'table')[0];
+    const typeAsks = table ? askButtons(table) : [];
+    check('summary: three Ask buttons in the table (the blank key gets none)', typeAsks.length === 3, typeAsks.length);
+    const blank = rowOf('   ');
+    const blankCell = blank && byClass(blank, 'dashboard-link-cell')[0];
+    check('summary: the blank-key row has no Ask and no wrapper', !!blankCell && blankCell.children.length === 1
+      && blankCell.children[0].matches('button.dashboard-link-btn') && !askIn(blank)
+      && byClass(blank, 'dashboard-row-actions').length === 0, blankCell && blankCell.children.map((c) => c.className));
+    for (const [type, label] of [['A', 'Alpha'], ['B', 'Beta Things'], ['ONE', 'Solo']]) {
+      const row = rowOf(type);
+      const cell = row && byClass(row, 'dashboard-link-cell')[0];
+      const wrap = cell && cell.children.length === 1 ? cell.children[0] : null;
+      const ok = !!wrap && wrap.tagName === 'div' && wrap.className === 'dashboard-row-actions' && wrap.children.length === 2
+        && wrap.children[0].matches('button.dashboard-link-btn') && wrap.children[1].matches('button.ask-about-btn');
+      check(`summary: ${type} first cell is div.dashboard-row-actions [main, Ask]`, ok, cell && cell.children.map((c) => c.className));
+      const ask = askIn(row);
+      check(`summary: ${type} Ask is not a row button`, !!ask && !classList(ask).includes('dashboard-link-btn')
+        && !ask.hasAttribute('data-entity-type'), ask && ask.className);
+      check(`summary: ${type} Ask aria-label`, !!ask && ask.getAttribute('aria-label') === `Ask about this: ${label} entities`, ask && ask.getAttribute('aria-label'));
+    }
+    const askB = askIn(rowOf('B'));
+    checkAnatomy('anatomy type', askB, 'type', 'Ask about this: Beta Things entities');
+    const BQ = 'What are the most important Beta Things entities in this graph, and how do they connect?';
+    table.dispatch('click', { target: askB || table, detail: 1 });
+    check('summary: B Ask calls onAsk once with the type question and the event', asked.length === 1 && asked[0].question === BQ
+      && asked[0].event && asked[0].event.detail === 1, asked.map((a) => a.question));
+    check('summary: B Ask never selects the type', picked.length === 0, picked.map((p) => p.type));
+    const more = askB ? byClass(askB, 'ask-about-btn__more')[0] : null;
+    table.dispatch('click', { target: more || table });
+    check('summary: a click on the Ask span also asks', asked.length === 2 && asked[1].question === BQ && picked.length === 0, asked.length);
+    asked.length = 0;
+    picked.length = 0;
+    table.dispatch('click', { target: byClass(rowOf('B'), 'dashboard-link-btn')[0] });
+    table.dispatch('click', { target: byClass(rowOf('B'), 'dashboard-count')[0] });
+    check('summary: main button and count cell still select B, not ask', picked.length === 2 && picked.every((p) => p.type === 'B')
+      && asked.length === 0, { picked: picked.map((p) => p.type), asked: asked.length });
+
+    const totals = byClass(root, 'dashboard-totals')[0];
+    const totalsBtn = totals && byClass(totals, 'dashboard-totals-btn')[0];
+    const totalsAsk = askIn(totals);
+    check('totals: p.dashboard-totals children are [totals button, Ask]', !!totals && totals.children.length === 2
+      && totals.children[0] === totalsBtn && totals.children[1] === totalsAsk && !!totalsAsk, totals && totals.children.map((c) => c.className));
+    checkAnatomy('anatomy graph', totalsAsk, 'graph', 'Ask about this: the knowledge graph');
+    asked.length = 0;
+    if (totalsAsk) totalsAsk.dispatch('click', { detail: 0 });
+    check('totals: Ask calls onAsk with the graph question, not onShowAll', asked.length === 1 && asked[0].question === GRAPH_Q && all === 0,
+      { asked: asked.map((a) => a.question), all });
+    asked.length = 0;
+    all = 0;
+    if (totalsBtn) totalsBtn.dispatch('click', { detail: 0 });
+    check('totals: the totals button still shows all and does not ask', all === 1 && asked.length === 0, { all, asked: asked.length });
+  });
+
+  guarded('summary without onAsk', () => {
+    const plain = dash.buildEntitySummary({ entityCounts: { A: 3, B: 10 }, totalNodes: 13, totalEdges: 2, onSelectType: () => {}, onShowAll: () => {} });
+    check('summary without onAsk: no Ask and no wrapper', askButtons(plain).length === 0 && byClass(plain, 'dashboard-row-actions').length === 0);
+    const empty = dash.buildEntitySummary({ entityCounts: {}, totalNodes: 0, totalEdges: 0, onAsk: () => {} });
+    check('summary empty state with onAsk: no Ask and no wrapper', askButtons(empty).length === 0 && byClass(empty, 'dashboard-row-actions').length === 0);
+  });
+
+  // --- Where to start ---
+  const community = (i, extra = {}) => ({
+    id: `c${i}`, label: `Topic ${i}`, full_label: `Topic ${i} full label`, member_count: 40 - i,
+    top_members: [`M${i}a`, `M${i}b`, `M${i}c`], ...extra,
+  });
+  const hub = (i, extra = {}) => ({
+    id: `e${i}`, name: `Entity ${i}`, entity_type: 'A', connections: 30 - i, community_id: 'c1', community_label: 'Topic 1', ...extra,
+  });
+  guarded('start', () => {
+    const asked = [];
+    const shown = [];
+    focusLog.length = 0;
+    const comms = Array.from({ length: 25 }, (_, i) => community(i + 1));
+    const hs = Array.from({ length: 10 }, (_, i) => hub(i + 1));
+    const root = dash.buildStartHere({
+      startHere: { communities: comms, hubs: hs },
+      totalNodes: 218,
+      onShowCommunity: (row, event) => shown.push({ kind: 'community', row, event }),
+      onShowEntity: (row, event) => shown.push({ kind: 'entity', row, event }),
+      onAsk: (question, event) => asked.push({ question, event }),
+    });
+    const ct = byClass(root, 'start-communities-table')[0];
+    const ht = byClass(root, 'start-hubs-table')[0];
+    const crows = byClass(ct, 'dashboard-link-row');
+    const hrows = byClass(ht, 'dashboard-link-row');
+    check('start: 35 Ask buttons', askButtons(root).length === 35, askButtons(root).length);
+    const rest = find(root, (n) => n.getAttribute && n.getAttribute('id') === 'start-communities-rest')[0];
+    check('start: the 15 hidden community rows have their Ask too', !!rest && askButtons(rest).length === 15, rest && askButtons(rest).length);
+    const slots = byClass(root, 'start-action');
+    check('start: every .start-action is "start-action dashboard-row-actions" with [main, Ask]', slots.length === 35
+      && slots.every((s) => s.className === 'start-action dashboard-row-actions' && s.children.length === 2
+        && s.children[0].matches('button.dashboard-link-btn') && s.children[1].matches('button.ask-about-btn')),
+    slots.map((s) => s.className).slice(0, 3));
+    check('start: Ask buttons carry data-start-action="ask"', askButtons(root).length === 35
+      && askButtons(root).every((b) => b.getAttribute('data-start-action') === 'ask'));
+    check('start: data-ask community / hub', askButtons(ct).length === 25 && askButtons(ct).every((b) => b.getAttribute('data-ask') === 'community')
+      && askButtons(ht).length === 10 && askButtons(ht).every((b) => b.getAttribute('data-ask') === 'hub'));
+    checkAnatomy('anatomy community', askIn(crows[0]), 'community', 'Ask about this: the Topic 1 full label community');
+    checkAnatomy('anatomy hub', askIn(hrows[2]), 'hub', 'Ask about this: Entity 3');
+
+    ct.dispatch('click', { target: askIn(crows[11]) || ct, detail: 1 });
+    check('start: Ask in hidden row 12 asks about Topic 12', asked.length === 1 && asked[0].question === 'Summarize the Topic 12 full label community.'
+      && asked[0].event && asked[0].event.detail === 1, asked.map((a) => a.question));
+    check('start: the community Ask never shows the community', shown.length === 0, shown.length);
+    ht.dispatch('click', { target: askIn(hrows[2]) || ht });
+    check('start: hub 3 Ask asks about Entity 3', asked.length === 2
+      && asked[1].question === 'What is Entity 3, and why is it so connected in this graph?', asked.map((a) => a.question));
+    check('start: the hub Ask never shows the entity', shown.length === 0, shown.length);
+
+    // A-4: the question comes from the cleaned row (collapsed fullLabel).
+    const spaced = dash.buildStartHere({
+      startHere: { communities: [community(1, { full_label: '  Full   one ', label: 'Short' })], hubs: [] },
+      totalNodes: 5,
+      onShowCommunity: () => {},
+      onAsk: (question) => asked.push({ question }),
+    });
+    const st = byClass(spaced, 'start-communities-table')[0];
+    asked.length = 0;
+    st.dispatch('click', { target: askIn(byClass(st, 'dashboard-link-row')[0]) || st });
+    check('start: the handler gets the cleaned row (collapsed full label)', asked.length === 1
+      && asked[0].question === 'Summarize the Full one community.', asked.map((a) => a.question));
+
+    // The question comes from the closure, not the DOM.
+    const r1 = crows[1];
+    const ask1 = askIn(r1);
+    const main1 = byClass(r1, 'dashboard-link-btn')[0];
+    main1.setAttribute('aria-label', 'evil');
+    main1.setAttribute('title', 'evil');
+    if (ask1) ask1.setAttribute('aria-label', 'evil');
+    asked.length = 0;
+    ct.dispatch('click', { target: ask1 || ct });
+    check('start: tampered labels do not change the question', asked.length === 1
+      && asked[0].question === 'Summarize the Topic 2 full label community.', asked.map((a) => a.question));
+
+    const before = asked.length;
+    const r2 = crows[2];
+    for (const bad of ['-1', '1.5', '99']) {
+      r2.setAttribute('data-index', bad);
+      ct.dispatch('click', { target: askIn(r2) || ct });
+    }
+    r2.setAttribute('data-index', '2');
+    check('start: a tampered data-index asks nothing and shows nothing', asked.length === before && shown.length === 0,
+      { asked: asked.length - before, shown: shown.length });
+
+    ct.dispatch('click', { target: main1 });
+    ht.dispatch('click', { target: byClass(hrows[0], 'dashboard-link-btn')[0] });
+    check('start: main buttons still show and do not ask', shown.length === 2 && shown[0].kind === 'community' && shown[0].row === comms[1]
+      && shown[1].kind === 'entity' && shown[1].row === hs[0] && asked.length === before, { shown: shown.length, asked: asked.length - before });
+
+    const toggle = byClass(root, 'start-toggle')[0];
+    focusLog.length = 0;
+    toggle.dispatch('click', { detail: 1 });
+    const firstRestMain = byClass(byClass(rest, 'dashboard-link-row')[0], 'dashboard-link-btn')[0];
+    check('start: Show all still focuses the row-11 main button', focusLog.length === 1 && focusLog[0].el === firstRestMain
+      && classList(focusLog[0].el).includes('dashboard-link-btn'), focusLog.map((f) => f.el.className));
+  });
+
+  guarded('start without onAsk', () => {
+    const plain = dash.buildStartHere({
+      startHere: { communities: Array.from({ length: 12 }, (_, i) => community(i + 1)), hubs: [hub(1), hub(2)] },
+      totalNodes: 50,
+      onShowCommunity: () => {},
+      onShowEntity: () => {},
+    });
+    check('start without onAsk: no Ask and no dashboard-row-actions', askButtons(plain).length === 0
+      && byClass(plain, 'dashboard-row-actions').length === 0 && byClass(plain, 'start-action').every((s) => s.className === 'start-action'));
+  });
+
+  // --- Epistemic health ---
+  const ent = (id, name, type = 'COMPOUND') => ({ id, name, entity_type: type });
+  const GLP_EPI = {
+    available: true,
+    status_counts: [{ status: 'asserted', count: 758 }, { status: 'prophetic', count: 61 }],
+    sections: [
+      {
+        key: 'contradictions', label: 'Contradictions', description: 'd', count: 2,
+        items: [
+          {
+            title: 'semaglutide is indicated for Obesity', kind: 'contradiction',
+            entities: [ent('compound:semaglutide', 'semaglutide'), ent('disease:obesity', 'Obesity', 'DISEASE')],
+            statements: [{ text: 'Low', document: 'patent_x', confidence: 0.55 }], documents: ['patent_x'],
+            question: 'Why do sources disagree on whether semaglutide is indicated for Obesity?',
+          },
+          { title: 'tirzepatide treats Diabetes', entities: [ent('compound:t', 't')], statements: [], documents: [], question: 'Q2?' },
+        ],
+      },
+      {
+        key: 'contested_claims', label: 'Contested claims', description: 'd', count: 7,
+        items: Array.from({ length: 7 }, (_, i) => ({ title: `Claim ${i}`, entities: [], statements: [], documents: [], question: `Question ${i}?` })),
+      },
+    ],
+  };
+  guarded('epistemic', () => {
+    const asked = [];
+    const shown = [];
+    const root = dash.buildEpistemicHealth({
+      epistemic: GLP_EPI,
+      onShowInGraph: (id, event) => shown.push({ id, event }),
+      onAskInChat: (question, event) => asked.push({ question, event }),
+    });
+    const cards = byClass(root, 'epistemic-card');
+    check('epistemic: nine cards', cards.length === 9, cards.length);
+    const cardAsks = cards.map((c) => find(c, (n) => n.matches('button[data-action="ask-chat"]'))[0]);
+    check('epistemic: every card Ask is epistemic-btn ask-about-btn with data-ask="epistemic"', cardAsks.every((b) => b
+      && classList(b).includes('epistemic-btn') && classList(b).includes('ask-about-btn') && b.getAttribute('data-ask') === 'epistemic'
+      && textOf(b) === 'Ask about this'), cardAsks.map((b) => b && [b.className, textOf(b)]));
+    const first = cardAsks[0];
+    checkAnatomy('anatomy epistemic', first, 'epistemic', 'Ask about this: semaglutide is indicated for Obesity', ['epistemic-btn']);
+    check('epistemic: the card Ask keeps data-action, data-section and data-index', !!first && first.getAttribute('data-action') === 'ask-chat'
+      && first.getAttribute('data-section') === 'contradictions' && first.getAttribute('data-index') === '0');
+    const acts = byClass(cards[0], 'epistemic-actions')[0];
+    check('epistemic: the Ask is second in .epistemic-actions, after Show in graph', !!acts && acts.children.length === 2
+      && acts.children[0].getAttribute('data-action') === 'show-graph' && acts.children[1] === first);
+    root.dispatch('click', { target: first, detail: 1 });
+    check('epistemic: the card Ask asks the payload question verbatim', asked.length === 1
+      && asked[0].question === 'Why do sources disagree on whether semaglutide is indicated for Obesity?' && asked[0].event.detail === 1
+      && shown.length === 0, asked.map((a) => a.question));
+
+    const statusAsks = find(root, (n) => n.matches('[data-ask="epistemic-status"]'));
+    check('epistemic-status: exactly one status Ask', statusAsks.length === 1, statusAsks.length);
+    const sAsk = statusAsks[0];
+    checkAnatomy('anatomy epistemic-status', sAsk, 'epistemic-status', 'Ask about this: the epistemic status distribution');
+    check('epistemic-status: data-action="ask-status"', !!sAsk && sAsk.getAttribute('data-action') === 'ask-status');
+    const counts = byClass(root, 'epistemic-counts')[0];
+    const ci = root.children.indexOf(counts);
+    check('epistemic-status: the root child right after p.epistemic-counts', ci >= 0 && root.children[ci + 1] === sAsk && !!sAsk, ci);
+    root.dispatch('click', { target: sAsk || root, detail: 0 });
+    check('epistemic-status: a click asks the status question once, never shows', asked.length === 2 && asked[1].question === STATUS_Q
+      && shown.length === 0, asked.map((a) => a.question));
+
+    // 130-character title keeps the aria-label truncation; empty question falls back.
+    const long = dash.buildEpistemicHealth({
+      epistemic: {
+        available: true, status_counts: [], sections: [{
+          key: 'risks', label: 'Risks', description: 'd', count: 2,
+          items: [
+            { title: 'T'.repeat(130), entities: [], statements: [], documents: [], question: 'q' },
+            { title: '', entities: [], statements: [], documents: [], question: '' },
+          ],
+        }],
+      },
+      onAskInChat: (question) => asked.push({ question }),
+    });
+    const longAsks = find(long, (n) => n.matches('button[data-action="ask-chat"]'));
+    check('epistemic: a long title is truncated in the Ask aria-label', !!longAsks[0]
+      && longAsks[0].getAttribute('aria-label') === `Ask about this: ${'T'.repeat(100)}...`, longAsks[0] && longAsks[0].getAttribute('aria-label'));
+    asked.length = 0;
+    long.dispatch('click', { target: longAsks[1] || long });
+    check('epistemic: no question and no title asks about the section key', asked.length === 1
+      && asked[0].question === 'What does the evidence say about: risks?', asked.map((a) => a.question));
+    check('epistemic-status: no status Ask without status counts', find(long, (n) => n.matches('[data-ask="epistemic-status"]')).length === 0);
+
+    const noSections = dash.buildEpistemicHealth({
+      epistemic: { available: true, status_counts: [{ status: 'asserted', count: 4 }], sections: [] },
+      onAskInChat: () => {},
+    });
+    const hint = byClass(noSections, 'epistemic-hint').find((h) => h.textContent === 'No contradictions, conflicts or hypotheses were found.');
+    const hi = noSections.children.indexOf(hint);
+    const nsAsk = find(noSections, (n) => n.matches('[data-ask="epistemic-status"]'))[0];
+    check('epistemic-status: with no sections the Ask follows the "No contradictions..." hint', hi >= 0 && !!nsAsk
+      && noSections.children[hi + 1] === nsAsk, hi);
+
+    const bare = dash.buildEpistemicHealth({ epistemic: GLP_EPI });
+    const bareAsks = find(bare, (n) => n.matches('button[data-action="ask-chat"]'));
+    check('epistemic without onAskInChat: card Ask buttons are still there (A-3)', bareAsks.length === 9
+      && bareAsks.every((b) => classList(b).includes('ask-about-btn')), bareAsks.length);
+    check('epistemic without onAskInChat: no status Ask', find(bare, (n) => n.matches('[data-ask="epistemic-status"]')).length === 0);
+    let threw = false;
+    try { bare.dispatch('click', { target: bareAsks[0] || bare }); } catch { threw = true; }
+    check('epistemic without onAskInChat: a card Ask click does not throw', !threw);
+  });
+
+  // --- Documents ---
+  const mk = (i, extra = {}) => ({
+    doc_id: `doc_${i}`, display_name: `Doc ${i}`, filename: `Doc ${i}.txt`,
+    entity_count: 100 - i, relation_count: 50 - i, has_text: true, has_pdf: false, ...extra,
+  });
+  guarded('documents', () => {
+    const asked = [];
+    const opened = [];
+    focusLog.length = 0;
+    const docs = Array.from({ length: 34 }, (_, i) => mk(i + 1));
+    const root = dash.buildDocuments({
+      documents: docs,
+      onOpen: (doc, event) => opened.push({ doc, event }),
+      onAsk: (question, event) => asked.push({ question, event }),
+    });
+    const table = byTag(root, 'table')[0];
+    const rows = byClass(root, 'dashboard-doc-row');
+    check('documents: 34 Ask buttons', askButtons(root).length === 34, askButtons(root).length);
+    const rest = find(root, (n) => n.getAttribute && n.getAttribute('id') === 'documents-rest')[0];
+    check('documents: 24 of them in the hidden rows', !!rest && askButtons(rest).length === 24, rest && askButtons(rest).length);
+    const cell0 = byClass(rows[0], 'dashboard-link-cell')[0];
+    const wrap0 = cell0 && cell0.children.length === 1 ? cell0.children[0] : null;
+    check('documents: first cell is div.dashboard-row-actions [main .dashboard-doc-btn, Ask]', !!wrap0 && wrap0.tagName === 'div'
+      && wrap0.className === 'dashboard-row-actions' && wrap0.children.length === 2 && wrap0.children[0].matches('button.dashboard-doc-btn')
+      && wrap0.children[1].matches('button.ask-about-btn'), cell0 && cell0.children.map((c) => c.className));
+    checkAnatomy('anatomy document', askIn(rows[0]), 'document', 'Ask about this: Doc 1');
+    table.dispatch('click', { target: askIn(rows[0]) || table, detail: 1 });
+    check('documents: row 0 Ask asks about Doc 1 (doc_1)', asked.length === 1
+      && asked[0].question === 'Summarize the document Doc 1 (doc_1): what are its key findings?' && asked[0].event.detail === 1,
+    asked.map((a) => a.question));
+    table.dispatch('click', { target: askIn(rows[19]) || table });
+    check('documents: Ask in hidden row 20 asks and never opens', asked.length === 2
+      && asked[1].question === 'Summarize the document Doc 20 (doc_20): what are its key findings?' && opened.length === 0,
+    { asked: asked.map((a) => a.question), opened: opened.length });
+    asked.length = 0;
+    table.dispatch('click', { target: byClass(rows[2], 'dashboard-doc-btn')[0], detail: 1 });
+    check('documents: the main button still opens and does not ask', opened.length === 1 && opened[0].doc === docs[2] && asked.length === 0,
+      { opened: opened.length, asked: asked.length });
+
+    const toggle = byClass(root, 'documents-toggle')[0];
+    focusLog.length = 0;
+    toggle.dispatch('click', { detail: 1 });
+    check('documents: Show all still focuses the row-11 main button', focusLog.length === 1
+      && focusLog[0].el === byClass(byClass(rest, 'dashboard-doc-row')[0], 'dashboard-doc-btn')[0], focusLog.map((f) => f.el.className));
+
+    const odd = dash.buildDocuments({
+      documents: [
+        { doc_id: 'y', display_name: 'y', filename: 'y' },
+        { doc_id: 'x', filename: 'Some Report.pdf' },
+      ],
+      onAsk: (question) => asked.push({ question }),
+    });
+    const ot = byTag(odd, 'table')[0];
+    const orows = byClass(odd, 'dashboard-doc-row');
+    asked.length = 0;
+    ot.dispatch('click', { target: askIn(orows[0]) || ot });
+    check('documents: a name equal to the id omits the parenthetical', asked.length === 1
+      && asked[0].question === 'Summarize the document y: what are its key findings?', asked.map((a) => a.question));
+    asked.length = 0;
+    ot.dispatch('click', { target: askIn(orows[1]) || ot });
+    check('documents: the filename fallback names the document', asked.length === 1
+      && asked[0].question === 'Summarize the document Some Report.pdf (x): what are its key findings?', asked.map((a) => a.question));
+
+    const plain = dash.buildDocuments({ documents: docs.slice(0, 3), onOpen: () => {} });
+    check('documents without onAsk: Phase 8 markup (no wrapper, no Ask)', askButtons(plain).length === 0
+      && byClass(plain, 'dashboard-row-actions').length === 0
+      && byClass(plain, 'dashboard-link-cell').every((c) => c.children.length === 1 && c.children[0].matches('button.dashboard-doc-btn')));
+  });
+
+  // --- Hostile strings in every builder ---
+  guarded('hostile', () => {
+    const H = ['<img src=x onerror=1>', '"><script>alert(1)</script>'];
+    createdTags.length = 0;
+    innerHtmlWrites.length = 0;
+    const asked = [];
+    const onAsk = (question) => asked.push(question);
+    const summary = dash.buildEntitySummary({ entityCounts: { [H[0]]: 2, [H[1]]: 1 }, totalNodes: 3, totalEdges: 1, onAsk });
+    const start = dash.buildStartHere({
+      startHere: { communities: [community(1, { full_label: H[0], label: H[1] })], hubs: [hub(1, { name: H[1] })] },
+      totalNodes: 5, onAsk,
+    });
+    const docs = dash.buildDocuments({ documents: [mk(1, { display_name: H[0] })], onAsk });
+    const epi = dash.buildEpistemicHealth({
+      epistemic: { available: true, status_counts: [], sections: [{ key: 'risks', label: 'Risks', description: 'd', count: 1,
+        items: [{ title: H[1], entities: [], statements: [], documents: [], question: '' }] }] },
+      onAskInChat: onAsk,
+    });
+    const roots = [summary, start, docs, epi];
+    check('hostile: no img or script element is created', !createdTags.includes('img') && !createdTags.includes('script'), createdTags);
+    check('hostile: innerHTML is never assigned', innerHtmlWrites.length === 0, innerHtmlWrites);
+    const arias = roots.flatMap((r) => askButtons(r).map((b) => b.getAttribute('aria-label')));
+    const wantAria = [
+      `Ask about this: ${H[0]} entities`, `Ask about this: ${H[1]} entities`,
+      `Ask about this: the ${H[0]} community`, `Ask about this: ${H[1]}`,
+      `Ask about this: ${H[0]}`, `Ask about this: ${H[1]}`,
+    ];
+    check('hostile: aria-labels hold the strings literally', wantAria.every((a) => arias.includes(a)), arias);
+    const tableOf = (r, cls) => byClass(r, cls)[0];
+    const clickAsk = (container) => { const b = askIn(container); if (b && container) container.dispatch('click', { target: b }); };
+    clickAsk(tableOf(start, 'start-communities-table'));
+    clickAsk(tableOf(start, 'start-hubs-table'));
+    clickAsk(byTag(docs, 'table')[0]);
+    const epiAsk = find(epi, (n) => n.matches('button[data-action="ask-chat"]'))[0];
+    if (epiAsk) epi.dispatch('click', { target: epiAsk });
+    const st = byTag(summary, 'table')[0];
+    const sRow = byClass(st, 'dashboard-link-row').find((r) => r.getAttribute('data-entity-type') === H[0]);
+    if (sRow && askIn(sRow)) st.dispatch('click', { target: askIn(sRow) });
+    const wantQ = [
+      `Summarize the ${H[0]} community.`,
+      `What is ${H[1]}, and why is it so connected in this graph?`,
+      `Summarize the document ${H[0]} (doc_1): what are its key findings?`,
+      `What does the evidence say about: ${H[1]}?`,
+      `What are the most important ${H[0]} entities in this graph, and how do they connect?`,
+    ];
+    check('hostile: questions hold the strings literally', JSON.stringify(asked) === JSON.stringify(wantQ), asked);
+    let badClass = false;
+    for (const r of roots) walk(r, (n) => { if (/[<>"]|onerror|script/i.test(String(n.className || ''))) badClass = true; });
+    check('hostile: no data-derived class names', !badClass);
+    check('hostile: the trees hold no img or script', roots.every((r) => find(r, (n) => n.tagName === 'img' || n.tagName === 'script').length === 0));
+  });
+}
+
+if (MODE === 'findings') {
+  if (typeof dash.buildFindings !== 'function') {
+    check('buildFindings is exported by dashboard.js', false, typeof dash.buildFindings);
+  } else {
+    const FIXTURE = [
+      { rule_name: '<img src=x onerror=1>', total: 1, errors: 0, by_severity: { low: 1 } },
+      { rule_name: 'dosing_window_conflict', total: 3, errors: 0, by_severity: { high: 2, low: 1 } },
+      { rule_name: 'label_gap', total: 1, errors: 1, by_severity: { medium: 1 } },
+    ];
+    const F = [...FIXTURE, null, 'x', { rule_name: '', total: 2 }, { rule_name: 7 }, { rule_name: 'no_counts' }];
+    // The old app.js formula, kept here as the content reference.
+    const oldCells = (f) => [
+      f.errors ? String(f.rule_name) + ' (' + f.errors + ' rule error(s))' : String(f.rule_name),
+      String(f.total || 0),
+      Object.entries(f.by_severity || {}).map(([k, v]) => k + ': ' + v).join(', '),
+    ];
+    const kept = [...FIXTURE, { rule_name: 'no_counts' }];
+
+    guarded('findings', () => {
+      createdTags.length = 0;
+      innerHtmlWrites.length = 0;
+      const asked = [];
+      const root = dash.buildFindings({ findings: F, onAsk: (question, event) => asked.push({ question, event }) });
+      check('findings: section.findings-section labelled by the heading', !!root && root.tagName === 'section'
+        && classList(root).includes('findings-section') && root.getAttribute('aria-labelledby') === 'findings-heading', root && root.className);
+      const h3 = root.children[0];
+      check('findings: first child h3#findings-heading "Analysis Findings"', !!h3 && h3.tagName === 'h3'
+        && h3.getAttribute('id') === 'findings-heading' && h3.textContent === 'Analysis Findings', h3 && h3.textContent);
+      const wrap = root.children[1];
+      const table = wrap && wrap.children[0];
+      check('findings: div.dashboard-table-wrap > table.dashboard-table.findings-table', !!wrap && wrap.matches('div.dashboard-table-wrap')
+        && !!table && table.matches('table.dashboard-table.findings-table') && table.getAttribute('aria-labelledby') === 'findings-heading',
+      [wrap && wrap.className, table && table.className]);
+      const heads = byTag(root, 'th').map((t) => t.textContent);
+      check('findings: headers Rule, Findings, By Severity', JSON.stringify(heads) === JSON.stringify(['Rule', 'Findings', 'By Severity']), heads);
+      const body = byTag(root, 'tbody')[0];
+      const rows = body ? byTag(body, 'tr') : [];
+      check('findings: four rows with data-index 0..3', rows.length === 4 && rows.every((r, i) => r.getAttribute('data-index') === String(i)),
+        rows.map((r) => r.getAttribute('data-index')));
+      const cellsOf = (r) => {
+        const tds = r.children.filter((c) => c.tagName === 'td');
+        const rule = byClass(tds[0], 'findings-rule')[0];
+        return [rule ? textOf(rule) : null, tds[1] ? textOf(tds[1]) : null, tds[2] ? textOf(tds[2]) : null];
+      };
+      const got = rows.map(cellsOf);
+      const want = kept.map(oldCells);
+      check('findings: cell texts equal the old table formula', JSON.stringify(got) === JSON.stringify(want), { got, want });
+      check('findings: the reference values', JSON.stringify(want) === JSON.stringify([
+        ['<img src=x onerror=1>', '1', 'low: 1'], ['dosing_window_conflict', '3', 'high: 2, low: 1'],
+        ['label_gap (1 rule error(s))', '1', 'medium: 1'], ['no_counts', '0', '']]), want);
+      const first = rows.map((r) => r.children[0]);
+      check('findings: first cell td.findings-rule-cell > div.dashboard-row-actions [span.findings-rule, Ask]', first.length === 4
+        && first.every((c) => c.matches('td.findings-rule-cell') && c.children.length === 1 && c.children[0].matches('div.dashboard-row-actions')
+          && c.children[0].children.length === 2 && c.children[0].children[0].matches('span.findings-rule')
+          && c.children[0].children[1].matches('button.ask-about-btn')), first.map((c) => c.children.map((x) => x.className)));
+      checkAnatomy('anatomy finding', askIn(rows[2]), 'finding', 'Ask about this: the label_gap findings');
+      table.dispatch('click', { target: askIn(rows[2]) || table, detail: 1 });
+      check('findings: row 2 Ask asks about label_gap (1)', asked.length === 1
+        && asked[0].question === 'Explain the label_gap findings (1): which ones matter most and why?' && asked[0].event.detail === 1,
+      asked.map((a) => a.question));
+      table.dispatch('click', { target: askIn(rows[1]) || table });
+      check('findings: row 1 Ask asks about dosing_window_conflict (3)', asked.length === 2
+        && asked[1].question === 'Explain the dosing_window_conflict findings (3): which ones matter most and why?', asked.map((a) => a.question));
+      table.dispatch('click', { target: byClass(rows[0], 'findings-rule')[0] || table });
+      table.dispatch('click', { target: rows[0].children[1] });
+      table.dispatch('click', { target: table });
+      check('findings: rule text, count cell and table clicks do nothing', asked.length === 2, asked.length);
+
+      check('findings hostile: no img or script element is created', !createdTags.includes('img') && !createdTags.includes('script'), createdTags);
+      check('findings hostile: innerHTML is never assigned', innerHtmlWrites.length === 0, innerHtmlWrites);
+      check('findings hostile: the rule text is literal', got[0] && got[0][0] === '<img src=x onerror=1>', got[0]);
+      let badClass = false;
+      walk(root, (n) => { if (/[<>"]|onerror|script/i.test(String(n.className || ''))) badClass = true; });
+      check('findings hostile: no data-derived class names', !badClass);
+      check('findings: rows are not link rows', rows.every((r) => !classList(r).includes('dashboard-link-row')));
+    });
+
+    guarded('findings without onAsk', () => {
+      const root = dash.buildFindings({ findings: F });
+      const rows = byTag(byTag(root, 'tbody')[0], 'tr');
+      check('findings without onAsk: no Ask and no wrapper', askButtons(root).length === 0 && byClass(root, 'dashboard-row-actions').length === 0);
+      check('findings without onAsk: each first cell holds only span.findings-rule', rows.length === 4
+        && rows.every((r) => r.children[0].children.length === 1 && r.children[0].children[0].matches('span.findings-rule')));
+    });
+
+    guarded('findings null', () => {
+      for (const bad of [[], undefined, null, 'x', {}, [null, 'x', { rule_name: '' }]]) {
+        check(`findings: ${JSON.stringify(bad)} returns null`, dash.buildFindings({ findings: bad, onAsk: () => {} }) === null);
+      }
+    });
   }
 }
 

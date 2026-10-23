@@ -106,6 +106,20 @@ def test_dashboard_ask_question_harness():
 
 
 @pytest.mark.unit
+def test_dashboard_ask_buttons_harness():
+    out = _run(DASHBOARD_HARNESS, "ask-buttons")
+    assert out["failed"] == [], out["failed"]
+    assert out["passed"], "harness ran no checks"
+
+
+@pytest.mark.unit
+def test_dashboard_findings_harness():
+    out = _run(DASHBOARD_HARNESS, "findings")
+    assert out["failed"] == [], out["failed"]
+    assert out["passed"], "harness ran no checks"
+
+
+@pytest.mark.unit
 @pytest.mark.parametrize("mode", SHOW_MODES)
 def test_graph_show_types(mode):
     out = _run(GRAPH_HARNESS, mode)
