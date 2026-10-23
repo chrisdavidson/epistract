@@ -17,6 +17,8 @@
 //                          widths, styles, Present mode; no chat request is ever sent
 //         ask-about-findings  GLP-1 v3 copy with custom findings: the Analysis Findings
 //                          table and its Ask about this buttons
+//         ask-guard        GLP-1 v3 "Ask about this" guards: a double-click on Ask sends
+//                          nothing; a single starter click after the guard window still sends
 //
 // A run that cannot be judged because a third-party script did not load ends with
 // a "skipped" reason in the final line instead of failures.
@@ -89,6 +91,16 @@ async function session() {
     await mouse('mousePressed', x, y);
     await mouse('mouseReleased', x, y);
   };
+  // A real double-click: two press/release pairs on one point, the second
+  // with clickCount 2 (event.detail 2), `gap` ms apart.
+  const dblclick = async (x, y, gap = 80) => {
+    await mouse('mouseMoved', x, y);
+    for (const n of [1, 2]) {
+      await send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: n });
+      await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', buttons: 0, clickCount: n });
+      if (n === 1) await sleep(gap);
+    }
+  };
   const KEYS = {
     Escape: { code: 27 },
     Tab: { code: 9 },
@@ -120,7 +132,7 @@ async function session() {
     try { await fetch(`http://127.0.0.1:${PORT}/json/close/${list.id}`); } catch { /* already gone */ }
     ws.close();
   };
-  return { send, on, ev, shot, click, key, viewport, waitFor, errors, done };
+  return { send, on, ev, shot, mouse, click, dblclick, key, viewport, waitFor, errors, done };
 }
 
 const q = (sel) => JSON.stringify(sel);
@@ -1616,6 +1628,74 @@ async function askAbout() {
   await s.done();
 }
 
+// The "Ask about this" guards (10-REVIEW rulings): after an Ask, the rest of
+// the user's gesture lands on the Chat panel and must never send anything.
+// Ends with a positive control: a single starter click made after the guard
+// window still sends.
+const messageCount = `document.getElementById('messages').children.length`;
+const starterCount = `document.querySelectorAll('#messages .starter-card').length`;
+
+async function askGuard() {
+  const s = await session();
+  await load(s);
+  check('dashboard opens', await openDashboard(s));
+  const spy = await armSpies(s);
+  const m0 = await s.ev(messageCount);
+  check('setup: the chat welcome shows starter cards', (await s.ev(starterCount)) > 0, await s.ev(starterCount));
+
+  // (a) CR-01: a double-click on an Ask button. At 700x1000 the switch to the
+  // Chat panel puts a starter card under the resting pointer, so the second
+  // press lands on it.
+  await s.viewport(700, 1000);
+  const dbl = [
+    ['first document', docAsk('pmid_38851997'), Q_DOC1],
+    ['first hub', hubAsk(0), Q_HUB1],
+    ['DISEASE row', typeAsk('DISEASE'), Q_DISEASE],
+  ];
+  for (const [label, expr, expected] of dbl) {
+    await openDashboard(s);
+    await s.ev(`(() => { document.getElementById('chat-input').value = ''; return true; })()`);
+    const pt = await centreOf(s, expr);
+    if (!pt) {
+      check(`double-click ${label}: Ask button found`, false, expr);
+      continue;
+    }
+    await s.dblclick(pt.x, pt.y);
+    await sleep(1000);
+    const st = await s.ev(`(() => { const u = document.elementFromPoint(${pt.x}, ${pt.y}); return {
+      value: ${chatValue}, focused: ${chatFocused}, shown: ${chatShown}, messages: ${messageCount},
+      under: u ? String(u.className || u.tagName) : null }; })()`);
+    check(`double-click ${label}: no /api/chat request`, spy.chat === 0 && !spy.urls.some((u) => u.includes('/api/chat')),
+      { chat: spy.chat, under: st.under });
+    check(`double-click ${label}: chat shown with the question prefilled`, st.shown === true && st.value === expected,
+      { got: st.value, want: expected });
+    check(`double-click ${label}: focus stays in the chat input`, st.focused === true, st.under);
+    check(`double-click ${label}: no new chat message`, st.messages === m0, [m0, st.messages]);
+  }
+  await s.viewport(1440, 1000);
+
+  // (z) positive control: past the guard window a single starter click sends.
+  await sleep(800);
+  await s.ev(`document.querySelector('.nav-link[data-panel=chat]').click()`);
+  check('control: chat shown', await s.waitFor(chatShown, 5000));
+  const before = spy.chat;
+  const card = await centreOf(s, `document.querySelector('#messages .starter-card')`);
+  check('control: a visible starter card is there', !!card && card.x > 0 && card.y > 0, card);
+  if (card) await s.click(card.x, card.y);
+  let sent = false;
+  for (const t0 = Date.now(); Date.now() - t0 < 5000 && !sent;) {
+    if (spy.chat > before) sent = true;
+    else await sleep(100);
+  }
+  await sleep(1000);
+  check('control: a single starter click after the guard window sends exactly once', sent && spy.chat === before + 1,
+    [before, spy.chat]);
+
+  check('no script exceptions from the workbench', s.errors.length === 0, s.errors.slice(0, 3));
+  await s.send('Fetch.disable');
+  await s.done();
+}
+
 const FINDINGS_API = [
   { rule_name: '<img src=x onerror=1>', total: 1, errors: 0, by_severity: { low: 1 } },
   { rule_name: 'dosing_window_conflict', total: 3, errors: 0, by_severity: { high: 2, low: 1 } },
@@ -1717,6 +1797,7 @@ try {
   else if (MODE === 'start-here-early') await startHereEarly();
   else if (MODE === 'ask-about') await askAbout();
   else if (MODE === 'ask-about-findings') await askAboutFindings();
+  else if (MODE === 'ask-guard') await askGuard();
   else await click();
 } catch (e) {
   check('script completed', false, String(e && e.stack || e));

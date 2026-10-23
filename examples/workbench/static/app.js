@@ -244,8 +244,36 @@ function openGraphWith(detail, event) {
     }
 }
 
+// An Ask switches to the Chat panel inside the user's gesture, so the rest of
+// that gesture lands on the Chat panel: the second press of a double-click
+// falls on whatever is now under the pointer (a starter card sends on click).
+// For ASK_GUARD_MS after an Ask, wireAskGuard swallows those follow-up presses
+// (10-REVIEW CR-01). A deliberate single click (detail 1) is never touched.
+const ASK_GUARD_MS = 600;
+let askGuardUntil = 0;
+
+function askGuardActive() {
+    return performance.now() < askGuardUntil;
+}
+
+function wireAskGuard() {
+    const panel = document.querySelector('.chat-panel');
+    if (!panel) return;
+    // Capture phase on the panel runs before the starter card's or Send's own
+    // listener. mousedown too: its default would move focus off #chat-input.
+    for (const type of ['mousedown', 'mouseup', 'click']) {
+        panel.addEventListener(type, (e) => {
+            if (e.detail >= 2 && askGuardActive()) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }, true);
+    }
+}
+
 // Puts a question in the chat box. Prefill only: chat.js never sends it.
 function askInChat(question) {
+    askGuardUntil = performance.now() + ASK_GUARD_MS;
     switchPanel('chat');
     window.dispatchEvent(new CustomEvent('ask-question', { detail: { question } }));
     // Lets chat.js's auto-resize size the box to the prefilled question; the
@@ -459,6 +487,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initSourceViewer({ switchPanel, getActivePanel, openGraphWith });
     subscribeDocuments(setCitationDocuments);
     initChat({ template });
+    wireAskGuard();
     loadModelSelector();
     arrangeGraphRail();
     wireSidebarCollapse();
