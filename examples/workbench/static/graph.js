@@ -81,7 +81,14 @@ function isSourceNodeId(id) {
     return sourceNodeIds.has(id);
 }
 
-const SIDEBAR_OPTS = { isSourceNode: isSourceNodeId, isSourceEdge: isSourceEdgeRecord, focusInfo };
+// The sidebar's Ask goes through the host's openChat (app.js askInChat) when
+// there is one; read at click time, since initGraph sets the callbacks.
+function askFromSidebar(question) {
+    if (typeof callbacks.openChat === 'function') callbacks.openChat(question);
+    else window.dispatchEvent(new CustomEvent('ask-question', { detail: { question } }));
+}
+
+const SIDEBAR_OPTS = { isSourceNode: isSourceNodeId, isSourceEdge: isSourceEdgeRecord, focusInfo, onAsk: askFromSidebar };
 
 // Reduced-motion users get an instant fit; everyone else an eased one.
 function fitAnimation(duration) {

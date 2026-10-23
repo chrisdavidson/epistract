@@ -20,6 +20,8 @@
 //         ask-guard        GLP-1 v3 "Ask about this" guards: a double-click, held Enter, near miss or press on Ask
 //                          sends nothing, runs no row action and does not shade the row; a single starter click after the
 //                          guard window still sends
+//         sidebar-ask      GLP-1 v3 graph detail sidebar "Ask about this": opens Chat with the question
+//                          prefilled like the Dashboard Asks, and the same double-click / held-Enter guard
 //
 // A run that cannot be judged because a third-party script did not load ends with
 // a "skipped" reason in the final line instead of failures.
@@ -1639,6 +1641,140 @@ async function askAbout() {
   await s.done();
 }
 
+// The graph detail sidebar's "Ask about this" behaves like the Dashboard Asks:
+// it goes through app.js askInChat (Chat panel shown, question prefilled,
+// focus in the input, nothing sent) and gets the same double-click and
+// held-Enter guard.
+const SIDE_ASK = `document.querySelector('#graph-detail-sidebar .graph-detail-sidebar__ask-btn')`;
+const sideAskQuestion = (name) => `Tell me about ${name}. What are the key details and relationships?`;
+
+async function openHubSidebar(s, i = 0) {
+  await openDashboard(s);
+  const name = await s.ev(`(() => { const r = document.querySelector('.start-hubs-table tbody tr[data-index="${i}"]');
+    return r ? r.querySelector('.start-action button:not(.ask-about-btn)').getAttribute('title') : null; })()`);
+  await clickEl(s, `document.querySelector('.start-hubs-table tbody tr[data-index="${i}"] .start-action button:not(.ask-about-btn)')`);
+  const open = await s.waitFor(`(() => { const b = ${SIDE_ASK}; const sb = document.getElementById('graph-detail-sidebar');
+    return !!b && !sb.classList.contains('graph-detail-sidebar--closed') && getComputedStyle(b).display !== 'none'
+      && b.getBoundingClientRect().width > 0 && !window._graphDebug.busy; })()`, 20000);
+  await sleep(400);
+  return { open, name };
+}
+
+async function sidebarAsk() {
+  const s = await session();
+  await load(s);
+  const spy = await armSpies(s);
+  const m0 = await s.ev(messageCount);
+
+  // (a) a single click opens Chat with the question, like the Dashboard Asks.
+  const { open, name } = await openHubSidebar(s, 0);
+  check('setup: the hub opens the graph sidebar with its Ask button', open && !!name, name);
+  const attrs = await s.ev(`(() => { const b = ${SIDE_ASK}; return b && { type: b.getAttribute('type'), title: b.getAttribute('title'),
+    aria: b.getAttribute('aria-label') }; })()`);
+  check('sidebar Ask is type="button" with the shared title', !!attrs && attrs.type === 'button'
+    && attrs.title === 'Puts a question in the chat box. Nothing is sent until you press Send.', attrs);
+  check('sidebar Ask has the "Ask about this: {name}" aria-label', !!attrs && attrs.aria === `Ask about this: ${name}`, attrs);
+  await s.ev(`(() => { document.getElementById('chat-input').value = ''; return true; })()`);
+  check('sidebar Ask clicked', await clickEl(s, SIDE_ASK));
+  await sleep(600);
+  let st = await s.ev(`({ value: ${chatValue}, focused: ${chatFocused}, shown: ${chatShown},
+    nav: document.querySelector('.nav-link[data-panel="chat"]').classList.contains('active'),
+    side: getComputedStyle(document.getElementById('side-panel')).display })`);
+  check('click: the Chat panel is shown and the graph hidden', st.shown === true && st.side === 'none', st);
+  check('click: the Chat nav link is active', st.nav === true, st);
+  check('click: the question is prefilled', st.value === sideAskQuestion(name), { got: st.value, want: sideAskQuestion(name) });
+  check('click: focus is in the chat input', st.focused === true, st);
+  check('click: no /api/chat request', spy.chat === 0, spy.chat);
+
+  // (b) a typed draft is replaced as an undoable edit.
+  await s.ev(`(() => { const i = document.getElementById('chat-input'); i.value = 'my draft'; return true; })()`);
+  await openHubSidebar(s, 0);
+  await clickEl(s, SIDE_ASK);
+  await sleep(600);
+  check('draft: replaced by the question', (await s.ev(chatValue)) === sideAskQuestion(name), await s.ev(chatValue));
+  await s.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'z', code: 'KeyZ', windowsVirtualKeyCode: 90, modifiers: 2 });
+  await s.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'z', code: 'KeyZ', windowsVirtualKeyCode: 90, modifiers: 2 });
+  await sleep(200);
+  check('draft: Undo brings the draft back', (await s.ev(chatValue)) === 'my draft', await s.ev(chatValue));
+
+  // (c) a double-click on the sidebar Ask. The Ask sits at the foot of the
+  // sidebar, level with the chat input bar, so the second press lands in the
+  // chat box: nothing is sent and focus stays there.
+  for (const i of [0, 1]) {
+    const hub = await openHubSidebar(s, i);
+    await s.ev(`(() => { document.getElementById('chat-input').value = ''; return true; })()`);
+    const pt = await centreOf(s, SIDE_ASK);
+    if (!hub.open || !pt) {
+      check(`double-click hub ${i}: sidebar Ask found`, false, hub);
+      continue;
+    }
+    await s.dblclick(pt.x, pt.y);
+    await sleep(1000);
+    st = await s.ev(`(() => { const u = document.elementFromPoint(${pt.x}, ${pt.y}); return {
+      value: ${chatValue}, focused: ${chatFocused}, shown: ${chatShown}, messages: ${messageCount},
+      inChat: !!u && !!u.closest('.chat-panel') }; })()`);
+    check(`double-click hub ${i}: the second press lands on the Chat panel`, st.inChat === true, pt);
+    check(`double-click hub ${i}: no /api/chat request`, spy.chat === 0, spy.chat);
+    check(`double-click hub ${i}: chat shown with the question prefilled`, st.shown === true && st.value === sideAskQuestion(hub.name),
+      { got: st.value, want: sideAskQuestion(hub.name) });
+    check(`double-click hub ${i}: focus stays in the chat input`, st.focused === true, st);
+    check(`double-click hub ${i}: no new chat message`, st.messages === m0, [m0, st.messages]);
+  }
+
+  // (c2) the guard is armed by the sidebar Ask: a second press (clickCount 2)
+  // that lands on a starter card right after it sends nothing.
+  const hubG = await openHubSidebar(s, 1);
+  await clickEl(s, SIDE_ASK);
+  await s.waitFor(chatShown, 3000);
+  const cardPt = await centreOf(s, `document.querySelector('#messages .starter-card')`);
+  const cardVisible = !!cardPt && cardPt.x > 0 && cardPt.y > 0;
+  check('guard: a visible starter card is under test', cardVisible, cardPt);
+  if (cardVisible) {
+    await s.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: cardPt.x, y: cardPt.y, button: 'none' });
+    await s.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: cardPt.x, y: cardPt.y, button: 'left', buttons: 1, clickCount: 2 });
+    await s.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: cardPt.x, y: cardPt.y, button: 'left', buttons: 0, clickCount: 2 });
+    await sleep(1000);
+  }
+  st = await s.ev(`({ value: ${chatValue}, focused: ${chatFocused}, messages: ${messageCount} })`);
+  check('guard: a second press on a starter card after the sidebar Ask sends nothing', spy.chat === 0 && st.messages === m0,
+    { chat: spy.chat, messages: st.messages });
+  check('guard: the question stays prefilled and focused', st.value === sideAskQuestion(hubG.name) && st.focused === true, st);
+
+  // (d) Enter held on the focused sidebar Ask: the repeats land in #chat-input
+  // and send nothing.
+  const ENTER = { key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 };
+  const hub = await openHubSidebar(s, 2);
+  await s.ev(`(() => { document.getElementById('chat-input').value = ''; return true; })()`);
+  const focused = await s.ev(`(() => { const b = ${SIDE_ASK}; if (!b) return false; b.focus(); return document.activeElement === b; })()`);
+  check('hold Enter: the sidebar Ask has focus', focused === true);
+  await s.send('Input.dispatchKeyEvent', { type: 'keyDown', ...ENTER, text: '\r' });
+  for (let k = 0; k < 3; k += 1) {
+    await sleep(40);
+    await s.send('Input.dispatchKeyEvent', { type: 'keyDown', ...ENTER, text: '\r', autoRepeat: true });
+  }
+  await s.send('Input.dispatchKeyEvent', { type: 'keyUp', ...ENTER });
+  await sleep(800);
+  st = await s.ev(`({ value: ${chatValue}, focused: ${chatFocused}, shown: ${chatShown}, messages: ${messageCount} })`);
+  check('hold Enter: no /api/chat request', spy.chat === 0, spy.chat);
+  check('hold Enter: chat shown with the question prefilled', st.shown === true && st.value === sideAskQuestion(hub.name), st);
+  check('hold Enter: no new chat message', st.messages === m0, [m0, st.messages]);
+
+  // (z) positive control: past the guard window a single starter click sends.
+  await sleep(2200);
+  const card = await centreOf(s, `document.querySelector('#messages .starter-card')`);
+  check('control: a visible starter card is there', !!card, card);
+  if (card) await s.click(card.x, card.y);
+  let sent = false;
+  for (const t0 = Date.now(); Date.now() - t0 < 5000 && !sent;) {
+    if (spy.chat > 0) sent = true;
+    else await sleep(100);
+  }
+  await sleep(1000);
+  check('control: a single starter click after the guard window sends exactly once', sent && spy.chat === 1, spy.chat);
+  check('no page errors', s.errors.length === 0, s.errors.slice(0, 3));
+  await s.done();
+}
+
 // The "Ask about this" guards (10-REVIEW rulings): after an Ask, the rest of
 // the user's gesture lands on the Chat panel and must never send anything.
 // Ends with a positive control: a single starter click made after the guard
@@ -1915,6 +2051,7 @@ try {
   else if (MODE === 'ask-about') await askAbout();
   else if (MODE === 'ask-about-findings') await askAboutFindings();
   else if (MODE === 'ask-guard') await askGuard();
+  else if (MODE === 'sidebar-ask') await sidebarAsk();
   else await click();
 } catch (e) {
   check('script completed', false, String(e && e.stack || e));
