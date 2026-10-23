@@ -1,5 +1,7 @@
 """Headless-chromium checks of the live workbench Dashboard: entity click-through and
-the Epistemic health section on the GLP-1 v3 graph and the legacy PICALM graph."""
+the Epistemic health section on the GLP-1 v3 graph and the legacy PICALM graph, and the
+"Ask about this" buttons on every Dashboard card (including Analysis Findings, served
+from a GLP-1 v3 copy with custom findings), which only prefill the chat box."""
 
 from __future__ import annotations
 
@@ -32,6 +34,15 @@ PICALM = ROOT / "tests" / "corpora" / "01_picalm_alzheimers" / "output"
 FDA = ROOT / "tests" / "corpora" / "08_fda_labels" / "output"
 GLP1_FILES = ("graph_data.json", "communities.json", "claims_layer.json")
 
+# Custom rule findings written into a copied claims_layer.json, so the real
+# /api/dashboard path renders the Analysis Findings table: one hostile rule
+# name, one rule with two severities, one rule with an error entry.
+FINDINGS_FIXTURE = {
+    "dosing_window_conflict": [{"severity": "high"}, {"severity": "high"}, {"severity": "low"}],
+    "label_gap": [{"severity": "medium"}, {"status": "error", "error": "rule failed"}],
+    "<img src=x onerror=1>": [{"severity": "low"}],
+}
+
 
 def _log_tail(path: Path, limit: int = 2000) -> str:
     """Return the end of a captured process log for a failure message."""
@@ -42,9 +53,22 @@ def _log_tail(path: Path, limit: int = 2000) -> str:
     return text[-limit:] or "(log is empty)"
 
 
+def _write_findings(work: Path) -> None:
+    """Add FINDINGS_FIXTURE to the copied claims layer (never the committed corpus)."""
+    path = work / "claims_layer.json"
+    claims = json.loads(path.read_text())
+    assert isinstance(claims.get("super_domain"), dict), "claims layer has no super_domain"
+    claims["super_domain"]["custom_findings"] = FINDINGS_FIXTURE
+    path.write_text(json.dumps(claims, indent=2))
+
+
 @contextlib.contextmanager
-def _serve(tmp_path_factory, corpus: Path, name: str):
-    """Serve a copy of `corpus` with the workbench on an ephemeral loopback port."""
+def _serve(tmp_path_factory, corpus: Path, name: str, prepare=None):
+    """Serve a copy of `corpus` with the workbench on an ephemeral loopback port.
+
+    `prepare`, when given, is called with the work directory after the copies
+    and before the server starts.
+    """
     pytest.importorskip("uvicorn")
     work = tmp_path_factory.mktemp(name)
     for fname in GLP1_FILES:
@@ -55,6 +79,8 @@ def _serve(tmp_path_factory, corpus: Path, name: str):
         shutil.copytree(corpus / "ingested", work / "ingested")
     if (corpus / "triage.json").is_file():
         shutil.copy2(corpus / "triage.json", work / "triage.json")
+    if prepare is not None:
+        prepare(work)
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
@@ -107,6 +133,12 @@ def _serve(tmp_path_factory, corpus: Path, name: str):
 @pytest.fixture(scope="module")
 def workbench_url(tmp_path_factory):
     with _serve(tmp_path_factory, GLP1, "glp1-wb") as url:
+        yield url
+
+
+@pytest.fixture(scope="module")
+def findings_workbench_url(tmp_path_factory):
+    with _serve(tmp_path_factory, GLP1, "glp1-findings-wb", prepare=_write_findings) as url:
         yield url
 
 
@@ -237,3 +269,15 @@ def test_dashboard_start_here_glp1(chromium_port, workbench_url):
 def test_dashboard_start_here_before_graph_ready(chromium_port, workbench_url):
     result = _run(chromium_port, workbench_url, "start-here-early")
     assert result["passed"] >= 4, result
+
+
+def test_dashboard_ask_about_glp1(chromium_port, workbench_url):
+    # Every /api/chat request is failed in the browser (Fetch.failRequest), so no
+    # model is called; a positive control proves the stub sees a real send.
+    result = _run(chromium_port, workbench_url, "ask-about")
+    assert result["passed"] >= 80, result
+
+
+def test_dashboard_ask_about_findings(chromium_port, findings_workbench_url):
+    result = _run(chromium_port, findings_workbench_url, "ask-about-findings")
+    assert result["passed"] >= 18, result
