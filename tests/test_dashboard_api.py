@@ -85,7 +85,9 @@ def test_domain_dashboard_html_path_unchanged(tmp_path, monkeypatch):
     out.mkdir()
     (out / "graph_data.json").write_text(json.dumps({"nodes": [], "links": []}), encoding="utf-8")
     app = create_app(out, domain="fakedomain")
-    assert TestClient(app).get("/api/dashboard").json() == {"html": page}
+    body = TestClient(app).get("/api/dashboard").json()
+    assert body == {"html": page}
+    assert "start_here" not in body
 
 
 @pytest.mark.parametrize("domain", [None, "drug-discovery"])
@@ -315,3 +317,79 @@ def test_relative_triage_paths_resolve_against_the_output_dir(tmp_path, monkeypa
     (elsewhere / "originals" / "Rel Doc.pdf").write_bytes(b"%PDF-1.4 stub")
     docs = _assert_flag_matches_endpoint(TestClient(create_app(out, domain=None)))
     assert docs["rel_doc"]["has_pdf"] is False
+
+
+# -- Where to start ----------------------------------------------------------
+
+EXISTING_KEYS = {
+    "html",
+    "auto",
+    "title",
+    "subtitle",
+    "entity_counts",
+    "total_nodes",
+    "total_edges",
+    "findings",
+    "epistemic",
+    "documents",
+}
+
+
+@pytest.mark.parametrize("domain", [None, "drug-discovery"])
+def test_glp1_start_here_matches_graph_groups(glp1_copy, domain):
+    client = TestClient(create_app(glp1_copy, domain=domain))
+    body = client.get("/api/dashboard").json()
+    start = body["start_here"]
+    assert isinstance(start, dict)
+    assert isinstance(start["communities"], list) and isinstance(start["hubs"], list)
+    assert len(start["communities"]) == 10
+    assert len(start["hubs"]) == 10
+    served = client.get("/api/graph/groups").json()["modes"]["cluster"]["groups"]
+    sizes = {g["id"]: g["size"] for g in served if g["id"] != "other"}
+    assert {c["id"] for c in start["communities"]} == set(sizes)
+    assert {c["id"]: c["member_count"] for c in start["communities"]} == sizes
+    # Same order as the Groups list the click lands on.
+    assert [c["id"] for c in start["communities"]] == list(sizes)
+
+
+def test_tied_corpus_start_here_order_matches_graph_groups(tmp_path):
+    corpus = ROOT / "tests" / "corpora" / "07_glp1_phase3_trials" / "output"
+    for name in GLP1_FILES:
+        shutil.copy2(corpus / name, tmp_path / name)
+    client = TestClient(create_app(tmp_path, domain=None))
+    start = client.get("/api/dashboard").json()["start_here"]
+    served = client.get("/api/graph/groups").json()["modes"]["cluster"]["groups"]
+    served_ids = [g["id"] for g in served if g["id"] != "other"]
+    assert len(served_ids) == 8
+    assert [c["id"] for c in start["communities"]] == served_ids
+
+
+def test_existing_dashboard_keys_kept(glp1_copy):
+    body = TestClient(create_app(glp1_copy, domain=None)).get("/api/dashboard").json()
+    assert EXISTING_KEYS <= set(body), EXISTING_KEYS - set(body)
+    assert set(body) == EXISTING_KEYS | {"start_here"}
+    assert body["auto"] is True and body["html"] is None
+
+
+def test_start_here_without_communities(tmp_path):
+    graph = {
+        "nodes": [
+            {"id": "e1", "name": "One", "entity_type": "DRUG"},
+            {"id": "e2", "name": "Two", "entity_type": "DISEASE"},
+            {"id": "e3", "name": "Three", "entity_type": "PROTEIN"},
+            {"id": "doc:a", "name": "a", "entity_type": "DOCUMENT"},
+        ],
+        "links": [
+            {"source": "e1", "target": "e2", "relation_type": "TREATS"},
+            {"source": "e2", "target": "e3", "relation_type": "ASSOCIATED_WITH"},
+            {"source": "e1", "target": "e3", "relation_type": "TARGETS"},
+            {"source": "e1", "target": "doc:a", "relation_type": "MENTIONED_IN"},
+        ],
+    }
+    (tmp_path / "graph_data.json").write_text(json.dumps(graph), encoding="utf-8")
+    body = TestClient(create_app(tmp_path, domain=None)).get("/api/dashboard").json()
+    start = body["start_here"]
+    assert start["communities"] == []
+    assert [h["id"] for h in start["hubs"]] == ["e1", "e3", "e2"]  # One, Three, Two
+    assert [h["connections"] for h in start["hubs"]] == [2, 2, 2]
+    assert all(h["community_id"] is None for h in start["hubs"])

@@ -24,12 +24,13 @@ from __future__ import annotations
 
 from core.graph_display import SOURCE_EDGE_RELATIONS, entity_type_key
 from core.graph_groups import DEFAULT_SOURCE_TYPES
-
-# PUBLISHED_IN is provenance (a link to a publication node) but, unlike
-# MENTIONED_IN, graph_display does not treat it as a source edge.
-EXCLUDED_RELATIONS = SOURCE_EDGE_RELATIONS | {"PUBLISHED_IN"}
-
-DOC_PREFIX = "doc:"
+from core.graph_links import (
+    DOC_PREFIX,
+    EXCLUDED_RELATIONS,
+    endpoint,
+    relation_key,
+    relation_type,
+)
 
 
 def _strings(values: object) -> list[str]:
@@ -39,36 +40,6 @@ def _strings(values: object) -> list[str]:
     if not isinstance(values, list):
         return []
     return [v for v in values if isinstance(v, str) and v]
-
-
-def _endpoint(value: object) -> str:
-    """Return the node id of a link end given as an id or as ``{"id": ...}``."""
-    if isinstance(value, dict):
-        value = value.get("id")
-    return value if isinstance(value, str) else ""
-
-
-def _relation_type(link: dict) -> str:
-    """Return the link's relation type, falling back to the middle of its id."""
-    rtype = link.get("relation_type")
-    if isinstance(rtype, str) and rtype:
-        return rtype
-    rid = link.get("relation_id")
-    if isinstance(rid, str):
-        parts = rid.split("|")
-        if len(parts) >= 3:
-            return parts[1]
-    return ""
-
-
-def _relation_key(link: dict, rtype: str) -> str:
-    rid = link.get("relation_id")
-    if isinstance(rid, str) and rid:
-        return rid
-    source, target = _endpoint(link.get("source")), _endpoint(link.get("target"))
-    if not source or not target:
-        return ""
-    return f"{source}|{rtype}|{target}"
 
 
 def _link_documents(link: dict) -> set[str]:
@@ -136,12 +107,12 @@ def build_document_stats(
     for link in links if isinstance(links, list) else []:
         if not isinstance(link, dict):
             continue
-        rtype = _relation_type(link)
+        rtype = relation_type(link)
         if rtype in SOURCE_EDGE_RELATIONS:
             # Entity -> document provenance: the fallback for entities whose
             # node carries no source_documents.
-            target = _endpoint(link.get("target"))
-            entity = _endpoint(link.get("source"))
+            target = endpoint(link.get("target"))
+            entity = endpoint(link.get("source"))
             if target.startswith(DOC_PREFIX) and len(target) > len(DOC_PREFIX):
                 doc_id = target[len(DOC_PREFIX) :]
                 referenced.add(doc_id)
@@ -150,11 +121,11 @@ def build_document_stats(
             continue
         if rtype in EXCLUDED_RELATIONS:
             continue
-        ends = (_endpoint(link.get("source")), _endpoint(link.get("target")))
+        ends = (endpoint(link.get("source")), endpoint(link.get("target")))
         if any(end in source_ids or end.startswith(DOC_PREFIX) for end in ends):
             # A link that touches a source node is provenance, not knowledge.
             continue
-        key = _relation_key(link, rtype)
+        key = relation_key(link, rtype)
         if not key:
             continue
         for doc_id in _link_documents(link):

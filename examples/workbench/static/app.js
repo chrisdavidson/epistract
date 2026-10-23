@@ -2,7 +2,7 @@
 import { initChat, loadModelSelector, setCitationDocuments } from './chat.js';
 import { initGraph } from './graph.js';
 import { loadDisplay, legendEntries, makeSwatch } from './display.js';
-import { buildDocuments, buildEntitySummary, buildEpistemicHealth } from './dashboard.js';
+import { buildDocuments, buildEntitySummary, buildEpistemicHealth, buildFindings, buildStartHere } from './dashboard.js';
 import { getOrigin, initSourceViewer, setDocuments, subscribeDocuments } from './source_viewer.js';
 
 // SEC-01 / VUL-03: local escapeHtml helper. DOM-based escaping handles every
@@ -244,10 +244,53 @@ function openGraphWith(detail, event) {
     }
 }
 
+// An Ask switches to the Chat panel inside the user's gesture, so the rest of
+// that gesture lands on the Chat panel: the second press of a double-click
+// falls on whatever is now under the pointer (a starter card sends on click).
+// For ASK_GUARD_MS after an Ask, wireAskGuard swallows those follow-up presses
+// (10-REVIEW CR-01). A deliberate single click (detail 1) is never touched.
+const ASK_GUARD_MS = 2000;
+let askGuardUntil = 0;
+
+function askGuardActive() {
+    return performance.now() < askGuardUntil;
+}
+
+function wireAskGuard() {
+    const panel = document.querySelector('.chat-panel');
+    if (!panel) return;
+    // Capture phase on the panel runs before the starter card's or Send's own
+    // listener. mousedown too: its default would move focus off #chat-input.
+    for (const type of ['mousedown', 'mouseup', 'click']) {
+        panel.addEventListener(type, (e) => {
+            if (e.detail >= 2 && askGuardActive()) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }, true);
+    }
+    // Enter held on a focused Ask: the first keydown activated the Ask and
+    // moved focus into #chat-input, where the auto-repeats would hit chat.js's
+    // Enter-to-send (10-REVIEW IN-04). Each swallowed repeat extends the window,
+    // so a long hold never sends; a fresh (non-repeat) Enter still does.
+    panel.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && e.repeat && e.target && e.target.id === 'chat-input' && askGuardActive()) {
+            e.preventDefault();
+            e.stopPropagation();
+            askGuardUntil = performance.now() + ASK_GUARD_MS;
+        }
+    }, true);
+}
+
 // Puts a question in the chat box. Prefill only: chat.js never sends it.
 function askInChat(question) {
+    askGuardUntil = performance.now() + ASK_GUARD_MS;
     switchPanel('chat');
     window.dispatchEvent(new CustomEvent('ask-question', { detail: { question } }));
+    // Lets chat.js's auto-resize size the box to the prefilled question; the
+    // input listener only resizes, nothing is sent.
+    const input = document.getElementById('chat-input');
+    if (input) input.dispatchEvent(new Event('input'));
 }
 
 async function populateDashboard(template) {
@@ -292,7 +335,18 @@ async function populateDashboard(template) {
                 totalEdges: dashData.total_edges,
                 onSelectType: (type, event) => openGraphWith({ types: [type] }, event),
                 onShowAll: (event) => openGraphWith({ reset: true }, event),
+                onAsk: (question) => askInChat(question),
             }));
+            // "Where to start": a community row zooms the graph to its topic
+            // cluster region, an entity row opens focus mode on that entity.
+            const startSection = buildStartHere({
+                startHere: dashData.start_here,
+                totalNodes: dashData.total_nodes,
+                onShowCommunity: (row, event) => openGraphWith({ reset: true, group: row.id }, event),
+                onShowEntity: (row, event) => openGraphWith({ reset: true, focus: { id: row.id, hops: 1 } }, event),
+                onAsk: (question) => askInChat(question),
+            });
+            if (startSection) dashContent.appendChild(startSection);
             dashContent.appendChild(buildEpistemicHealth({
                 epistemic: dashData.epistemic,
                 onShowInGraph: (id, event) => openGraphWith({ reset: true, focus: { id, hops: 1 } }, event),
@@ -308,6 +362,7 @@ async function populateDashboard(template) {
                 onOpen: (doc) => window.dispatchEvent(
                     new CustomEvent('navigate-source', { detail: { docId: doc.doc_id } }),
                 ),
+                onAsk: (question) => askInChat(question),
             });
             if (docsSection) dashContent.appendChild(docsSection);
             setDocuments(dashData.documents);
@@ -315,27 +370,11 @@ async function populateDashboard(template) {
             // rules both land in claims_layer.super_domain.custom_findings.
             // Purely additive: domains that ship no custom rules get an empty
             // list from /api/dashboard and this block renders nothing.
-            const findings = dashData.findings || [];
-            if (findings.length) {
-                let findingsHtml = '<h3>Analysis Findings</h3><div class="dashboard-table-wrap">'
-                    + '<table class="dashboard-table"><thead><tr><th>Rule</th><th>Findings</th><th>By Severity</th></tr></thead><tbody>';
-                for (const f of findings) {
-                    const sev = Object.entries(f.by_severity || {})
-                        .map(([k, v]) => k + ': ' + v).join(', ');
-                    const label = f.errors
-                        ? String(f.rule_name) + ' (' + f.errors + ' rule error(s))'
-                        : String(f.rule_name);
-                    findingsHtml += '<tr><td>' + escapeHtml(label) + '</td><td>'
-                        + escapeHtml(String(f.total || 0)) + '</td><td>'
-                        + escapeHtml(sev) + '</td></tr>';
-                }
-                findingsHtml += '</tbody></table></div>';
-                const findingsBox = document.createElement('div');
-                findingsBox.innerHTML = (typeof DOMPurify !== 'undefined')
-                    ? DOMPurify.sanitize(findingsHtml, { ADD_ATTR: ['id'] })
-                    : findingsHtml;
-                dashContent.appendChild(findingsBox);
-            }
+            const findingsSection = buildFindings({
+                findings: dashData.findings,
+                onAsk: (question) => askInChat(question),
+            });
+            if (findingsSection) dashContent.appendChild(findingsSection);
         }
     } catch (e) {
         const failure = document.createElement('p');
@@ -459,6 +498,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initSourceViewer({ switchPanel, getActivePanel, openGraphWith });
     subscribeDocuments(setCitationDocuments);
     initChat({ template });
+    wireAskGuard();
     loadModelSelector();
     arrangeGraphRail();
     wireSidebarCollapse();

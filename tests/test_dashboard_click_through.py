@@ -31,6 +31,23 @@ SHOW_MODES = [
     "show-focus-source",
     "show-focus-edge-filter",
     "show-focus-isolated",
+    "show-group",
+    "show-group-relayout",
+    "show-group-invalid",
+    "show-group-unavailable",
+    "show-group-queued",
+    "show-group-dropped",
+    "show-group-relayout-fail",
+    "show-group-after-fail",
+    "show-group-panel-refit-focus",
+    "show-group-focus-wins",
+    "show-group-double",
+    "show-group-double-fail",
+    "show-group-drop-groupby-busy",
+    "show-group-drop-groupby-selected",
+    "show-group-drop-groupby-key",
+    "show-group-drop-fit",
+    "show-group-drop-esc",
 ]
 
 
@@ -70,6 +87,34 @@ def test_dashboard_epistemic_harness():
 @pytest.mark.unit
 def test_dashboard_doc_links_harness():
     out = _run(DASHBOARD_HARNESS, "doc-links")
+    assert out["failed"] == [], out["failed"]
+    assert out["passed"], "harness ran no checks"
+
+
+@pytest.mark.unit
+def test_dashboard_start_here_harness():
+    out = _run(DASHBOARD_HARNESS, "start-here")
+    assert out["failed"] == [], out["failed"]
+    assert out["passed"], "harness ran no checks"
+
+
+@pytest.mark.unit
+def test_dashboard_ask_question_harness():
+    out = _run(DASHBOARD_HARNESS, "ask-question")
+    assert out["failed"] == [], out["failed"]
+    assert out["passed"], "harness ran no checks"
+
+
+@pytest.mark.unit
+def test_dashboard_ask_buttons_harness():
+    out = _run(DASHBOARD_HARNESS, "ask-buttons")
+    assert out["failed"] == [], out["failed"]
+    assert out["passed"], "harness ran no checks"
+
+
+@pytest.mark.unit
+def test_dashboard_findings_harness():
+    out = _run(DASHBOARD_HARNESS, "findings")
     assert out["failed"] == [], out["failed"]
     assert out["passed"], "harness ran no checks"
 

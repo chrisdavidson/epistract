@@ -245,7 +245,9 @@ def normalize_communities(raw: object, nodes: list[dict]) -> dict[str, str]:
 # ---------------------------------------------------------------------------
 
 
-def _is_source(node: dict, display: dict | None) -> bool:
+def is_source_node(node: dict, display: dict | None) -> bool:
+    """True when the node's type is a source type: the display's ``is_source``
+    when it describes the type, else DOCUMENT/PUBLICATION."""
     key = entity_type_key(node.get("entity_type"))
     types = display.get("types") if isinstance(display, dict) else None
     if isinstance(types, dict) and isinstance(types.get(key), dict):
@@ -372,7 +374,7 @@ def build_groups(
     source_ids: list[str] = []
     knowledge_nodes: list[dict] = []
     for node in valid:
-        if _is_source(node, display):
+        if is_source_node(node, display):
             source_ids.append(str(node["id"]))
         else:
             knowledge_nodes.append(node)

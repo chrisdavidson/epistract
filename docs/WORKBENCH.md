@@ -54,7 +54,7 @@ uv pip install -r pyproject.toml --extra workbench
 
 ![Workbench Dashboard — drug-discovery summary](screenshots/workbench-01-dashboard.png)
 
-Auto-generated entity summary for the loaded graph — entity types with deduplicated counts, totals at the bottom, top communities. Domains can ship a custom `dashboard.html` under `domains/<name>/workbench/` for richer layouts; otherwise `/api/dashboard` builds the summary from `graph_data.json`.
+Auto-generated entity summary for the loaded graph — entity types with deduplicated counts and totals; select a type to see those nodes in the graph. Below it, **Where to start** lists the topic communities (with member counts and top members) and the 10 most-connected entities; selecting one opens the graph zoomed to that community or focused on that entity. Further down are epistemic health cards, the documents table and analysis findings. Every card has an **Ask about this** button that opens Chat with a ready-made question (for example *"Summarize the Systemic Hypertension community."*) in the input box; nothing is sent until you press Send. Domains can ship a custom `dashboard.html` under `domains/<name>/workbench/` for richer layouts; otherwise `/api/dashboard` builds the summary from `graph_data.json`.
 
 ### Chat — domain-aware analyst
 
@@ -66,7 +66,7 @@ The chat panel reads its title, body text, placeholder, starter questions, and s
 
 ![Workbench Graph Panel — S6 GLP-1](screenshots/workbench-03-graph-glp1.png)
 
-Full knowledge graph rendered in the workbench: nodes colored and shaped per entity type from the domain's `domain.yaml` `display` hints, with source documents hidden until "Show sources" is pressed, hover cards on nodes and edges, an edge key with one color per relation category, "Group by" (Topic cluster by default, Entity family, or None), focus mode (double-click a node, or use the sidebar button, to see its 1- or 2-hop neighborhood; Esc exits), and a search bar for direct entity lookup. Above the graph sit entity-type and epistemic-status filter pills, a confidence threshold slider, a relation-type filter, a minimum-connections slider, and Fit View / Reset Pins buttons. Pan, zoom, click any node to see neighborhood context; toggle entity types and the other filters to isolate sub-graphs.
+Full knowledge graph rendered in the workbench: nodes colored and shaped per entity type from the domain's `domain.yaml` `display` hints, with source documents hidden until "Show sources" is pressed, hover cards on nodes and edges, an edge key with one color per relation category, "Group by" (Topic cluster by default, Entity family, or None), focus mode (double-click a node, or use the sidebar button, to see its 1- or 2-hop neighborhood; Esc exits), and a search bar for direct entity lookup. Above the graph sit entity-type and epistemic-status filter pills, a confidence threshold slider, a relation-type filter, a minimum-connections slider, and Fit View / Reset Pins / Present buttons (Present, or the P key, enlarges labels, nodes and lines for projectors and collapses the sidebar). Pan, zoom, click any node to see neighborhood context; toggle entity types and the other filters to isolate sub-graphs.
 
 ### Chat — epistemic layer in action
 

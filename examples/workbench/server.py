@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from core.dashboard_start import build_start_here
 from core.document_stats import build_document_stats
 from core.domain_resolver import load_domain_schema
 from core.epistemic_health import build_epistemic_health
@@ -410,6 +411,7 @@ def create_app(output_dir: Path, domain: str | None = None) -> FastAPI:
             "findings": finding_summary,
             "epistemic": build_epistemic_health(data.claims_layer, nodes),
             "documents": documents,
+            "start_here": build_start_here(nodes, edges, app.state.groups, app.state.display),
         }
 
     @app.get("/api/health")
