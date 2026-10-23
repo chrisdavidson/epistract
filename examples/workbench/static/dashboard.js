@@ -50,7 +50,9 @@ export function sortEntityRows(entityCounts) {
     return rows;
 }
 
-function buildRow(row) {
+// withAsk: the table has an Ask callback; rows whose question is empty keep
+// the plain markup.
+function buildRow(row, withAsk) {
     const tr = el('tr', 'dashboard-link-row');
     tr.setAttribute('data-entity-type', row.type);
 
@@ -69,24 +71,29 @@ function buildRow(row) {
         text('span', 'dashboard-link-label', row.label),
         chevron,
     );
-    cell.appendChild(btn);
+    if (withAsk && askAboutQuestion('type', row)) {
+        cell.appendChild(askSlot(btn, buildAskButton('type', askAboutLabel('type', row))));
+    } else {
+        cell.appendChild(btn);
+    }
 
     tr.append(cell, text('td', 'dashboard-count', row.count.toLocaleString()));
     return tr;
 }
 
-function buildTable(rows, onSelectType) {
+function buildTable(rows, onSelectType, onAsk) {
     const table = el('table', 'dashboard-table');
     const headRow = el('tr');
     headRow.append(text('th', '', 'Entity Type'), text('th', '', 'Count'));
     const thead = el('thead');
     thead.appendChild(headRow);
     const tbody = el('tbody');
-    for (const row of rows) tbody.appendChild(buildRow(row));
+    for (const row of rows) tbody.appendChild(buildRow(row, typeof onAsk === 'function'));
     table.append(thead, tbody);
 
     // One delegated listener: a click on any part of a row (button or count
-    // cell) selects that row's type.
+    // cell) selects that row's type, except the Ask button, which asks about
+    // the row taken from the closure.
     table.addEventListener('click', (event) => {
         const target = event && event.target;
         const row = target && typeof target.closest === 'function'
@@ -95,6 +102,11 @@ function buildTable(rows, onSelectType) {
         if (!row) return;
         const type = row.dataset.entityType;
         if (typeof type !== 'string') return;
+        if (target.closest('[data-ask]')) {
+            const rowObj = rows.find((r) => r.type === type);
+            if (rowObj && typeof onAsk === 'function') onAsk(askAboutQuestion('type', rowObj), event);
+            return;
+        }
         if (typeof onSelectType === 'function') onSelectType(type, event);
     });
 
@@ -107,8 +119,9 @@ function strongNumber(value) {
     return text('strong', '', value.toLocaleString());
 }
 
-// The totals line is a button: it opens the graph with the default view.
-function buildTotals(totalNodes, totalEdges, onShowAll) {
+// The totals line is a button: it opens the graph with the default view. With
+// an Ask callback an "Ask about this" button follows it.
+function buildTotals(totalNodes, totalEdges, onShowAll, onAsk) {
     const p = el('p', 'dashboard-totals');
     const btn = el('button', 'dashboard-totals-btn');
     btn.setAttribute('type', 'button');
@@ -131,6 +144,11 @@ function buildTotals(totalNodes, totalEdges, onShowAll) {
         if (typeof onShowAll === 'function') onShowAll(event);
     });
     p.appendChild(btn);
+    if (typeof onAsk === 'function') {
+        const ask = buildAskButton('graph', askAboutLabel('graph'));
+        ask.addEventListener('click', (event) => onAsk(askAboutQuestion('graph'), event));
+        p.appendChild(ask);
+    }
     return p;
 }
 
@@ -152,7 +170,9 @@ function buildEmpty() {
 // explanation instead.
 //   onSelectType(rawType, event)  a row was activated
 //   onShowAll(event)              the totals were activated
-export function buildEntitySummary({ entityCounts, totalNodes, totalEdges, onSelectType, onShowAll }) {
+//   onAsk(question, event)        an "Ask about this" button (a type row or the
+//                                 totals); without it no Ask buttons are shown
+export function buildEntitySummary({ entityCounts, totalNodes, totalEdges, onSelectType, onShowAll, onAsk }) {
     const root = el('div', 'dashboard-entity-summary');
     root.appendChild(text('h3', '', 'Entity Summary'));
 
@@ -165,8 +185,8 @@ export function buildEntitySummary({ entityCounts, totalNodes, totalEdges, onSel
     }
 
     root.appendChild(text('p', 'dashboard-hint', 'Select an entity type to see those nodes in the graph.'));
-    root.appendChild(buildTable(rows, onSelectType));
-    root.appendChild(buildTotals(nodes, edges, onShowAll));
+    root.appendChild(buildTable(rows, onSelectType, onAsk));
+    root.appendChild(buildTotals(nodes, edges, onShowAll, onAsk));
     return root;
 }
 
@@ -286,6 +306,44 @@ const ASK_QUESTIONS = {
 export function askAboutQuestion(kind, fields) {
     if (typeof kind !== 'string' || !Object.prototype.hasOwnProperty.call(ASK_QUESTIONS, kind)) return '';
     return ASK_QUESTIONS[kind](isObj(fields) ? fields : {});
+}
+
+// The accessible name of an Ask button: "Ask about this: " and what the card
+// shows, from the same collapsed labels and fallbacks as the question. The
+// epistemic label is the card title shortened as on the card itself.
+function askAboutLabel(kind, fields) {
+    const f = isObj(fields) ? fields : {};
+    switch (kind) {
+    case 'graph': return 'Ask about this: the knowledge graph';
+    case 'type': return `Ask about this: ${firstLabel(f.label, f.type)} entities`;
+    case 'community': return `Ask about this: the ${firstLabel(f.fullLabel, f.label, f.id)} community`;
+    case 'hub': return `Ask about this: ${firstLabel(f.name, f.id)}`;
+    case 'epistemic': return `Ask about this: ${shortTitle(str(f.title))}`;
+    case 'epistemic-status': return 'Ask about this: the epistemic status distribution';
+    case 'document': return `Ask about this: ${firstLabel(f.name, f.doc_id)}`;
+    case 'finding': return `Ask about this: the ${collapse(f.rule_name)} findings`;
+    default: return 'Ask about this';
+    }
+}
+
+// The shared outlined "Ask about this" button. The " about this" part is a
+// span so narrow sections can hide it and show just "Ask". `kind` is always
+// a literal from the builders.
+function buildAskButton(kind, ariaLabel) {
+    const btn = el('button', 'ask-about-btn');
+    btn.setAttribute('type', 'button');
+    btn.setAttribute('data-ask', kind);
+    btn.setAttribute('aria-label', ariaLabel);
+    btn.setAttribute('title', ASK_TITLE);
+    btn.append(document.createTextNode('Ask'), text('span', 'ask-about-btn__more', ' about this'));
+    return btn;
+}
+
+// The row's main control and its Ask button side by side in one cell.
+function askSlot(mainEl, askBtn) {
+    const slot = el('div', 'dashboard-row-actions');
+    slot.append(mainEl, askBtn);
+    return slot;
 }
 
 function statusLabel(status) {
@@ -508,7 +566,8 @@ function buildCard(section, index, item, ctx) {
     const graphEntity = item.entities.find((e) => e.id);
     const actions = el('div', 'epistemic-actions');
     const show = text('button', 'epistemic-btn', 'Show in graph');
-    const ask = text('button', 'epistemic-btn', 'Ask in chat');
+    const ask = buildAskButton('epistemic', askAboutLabel('epistemic', { title }));
+    ask.className = 'epistemic-btn ask-about-btn';
     for (const [b, action] of [[show, 'show-graph'], [ask, 'ask-chat']]) {
         b.setAttribute('type', 'button');
         b.setAttribute('data-action', action);
@@ -516,8 +575,6 @@ function buildCard(section, index, item, ctx) {
         b.setAttribute('data-index', String(index));
     }
     show.setAttribute('aria-label', `Show ${shortTitle(title)} in the graph`);
-    ask.setAttribute('aria-label', `Ask in chat about ${shortTitle(title)}`);
-    ask.setAttribute('title', ASK_TITLE);
     const noteId = `epistemic-note-${key}-${index}`;
     if (graphEntity) {
         show.setAttribute('title', `Focus the graph on ${graphEntity.name} and its direct connections.`);
@@ -598,7 +655,8 @@ function flipToggle(state) {
 // cards for contradictions, conflicts, contested claims, hypotheses, risks and
 // gaps. Anything that is not a well-formed payload renders the not-run message.
 //   onShowInGraph(entityId, event)  "Show in graph" on an item with a graph entity
-//   onAskInChat(question, event)    "Ask in chat" (prefills the chat only)
+//   onAskInChat(question, event)    "Ask about this" on a card or on the status
+//                                   distribution (prefills the chat only)
 //   documents                       the Documents list; only ids in it become links
 //   onOpenDocument(docId, highlight, event)  a document id link; highlight is the
 //                                   cited statement's text when there is one
@@ -627,6 +685,11 @@ export function buildEpistemicHealth({ epistemic, onShowInGraph, onAskInChat, do
     } else {
         root.appendChild(text('p', 'epistemic-hint', NONE_FOUND_COPY));
     }
+    if (counts.length && typeof onAskInChat === 'function') {
+        const statusAsk = buildAskButton('epistemic-status', askAboutLabel('epistemic-status'));
+        statusAsk.setAttribute('data-action', 'ask-status');
+        root.appendChild(statusAsk);
+    }
 
     const known = new Set();
     if (Array.isArray(documents)) {
@@ -650,6 +713,10 @@ export function buildEpistemicHealth({ epistemic, onShowInGraph, onAskInChat, do
         if (action === 'toggle') {
             const state = toggles.get(sectionKey);
             if (state) flipToggle(state);
+            return;
+        }
+        if (action === 'ask-status') {
+            if (typeof onAskInChat === 'function') onAskInChat(askAboutQuestion('epistemic-status'), event);
             return;
         }
         const item = itemsByKey.get(`${sectionKey}:${button.dataset.index}`);
@@ -678,7 +745,7 @@ export function buildEpistemicHealth({ epistemic, onShowInGraph, onAskInChat, do
             const entity = item.entities.find((e) => e.id);
             if (entity && typeof onShowInGraph === 'function') onShowInGraph(entity.id, event);
         } else if (action === 'ask-chat') {
-            const question = item.question || `What does the evidence say about: ${item.title || sectionKey}?`;
+            const question = askAboutQuestion('epistemic', { question: item.question, title: item.title, sectionKey });
             if (typeof onAskInChat === 'function') onAskInChat(question, event);
         }
     });
@@ -719,7 +786,7 @@ function unitLabel(n, one, many) {
     return `${n.toLocaleString()} ${n === 1 ? one : many}`;
 }
 
-function buildDocumentRow(doc, index) {
+function buildDocumentRow(doc, index, withAsk) {
     const tr = el('tr', 'dashboard-link-row dashboard-doc-row');
     tr.setAttribute('data-index', String(index));
     tr.setAttribute('data-doc-id', doc.doc_id);
@@ -743,7 +810,11 @@ function buildDocumentRow(doc, index) {
     btn.appendChild(chevron);
 
     const cell = el('td', 'dashboard-link-cell');
-    cell.appendChild(btn);
+    if (withAsk && askAboutQuestion('document', doc)) {
+        cell.appendChild(askSlot(btn, buildAskButton('document', askAboutLabel('document', doc))));
+    } else {
+        cell.appendChild(btn);
+    }
     const countCell = (n) => text('td', n === 0 ? 'dashboard-count dashboard-count--zero' : 'dashboard-count', n.toLocaleString());
     tr.append(cell, countCell(doc.entities), countCell(doc.relations));
     return { tr, btn };
@@ -753,10 +824,13 @@ function buildDocumentRow(doc, index) {
 // relation counts, the first ten shown and the rest behind a toggle. Returns
 // null when the reply carried no `documents` list, so the caller omits the
 // section.
-//   onOpen(doc, event)  a row was activated; doc is the cleaned row from the list
-export function buildDocuments({ documents, onOpen }) {
+//   onOpen(doc, event)      a row was activated; doc is the cleaned row from the list
+//   onAsk(question, event)  a row's "Ask about this" button; without it no Ask
+//                           buttons are shown
+export function buildDocuments({ documents, onOpen, onAsk }) {
     if (!Array.isArray(documents)) return null;
     const docs = documents.map(cleanDocument).filter(Boolean);
+    const withAsk = typeof onAsk === 'function';
 
     const root = el('section', 'documents-section');
     root.setAttribute('aria-labelledby', 'documents-heading');
@@ -779,7 +853,7 @@ export function buildDocuments({ documents, onOpen }) {
     const thead = el('thead');
     thead.appendChild(headRow);
     const head = el('tbody');
-    docs.slice(0, VISIBLE_DOCUMENTS).forEach((doc, i) => head.appendChild(buildDocumentRow(doc, i).tr));
+    docs.slice(0, VISIBLE_DOCUMENTS).forEach((doc, i) => head.appendChild(buildDocumentRow(doc, i, withAsk).tr));
     table.append(colgroup, thead, head);
 
     let rest = null;
@@ -789,7 +863,7 @@ export function buildDocuments({ documents, onOpen }) {
         rest.setAttribute('id', 'documents-rest');
         rest.setAttribute('hidden', '');
         docs.slice(VISIBLE_DOCUMENTS).forEach((doc, i) => {
-            const built = buildDocumentRow(doc, i + VISIBLE_DOCUMENTS);
+            const built = buildDocumentRow(doc, i + VISIBLE_DOCUMENTS, withAsk);
             if (!firstRevealed) firstRevealed = built.btn;
             rest.appendChild(built.tr);
         });
@@ -806,6 +880,10 @@ export function buildDocuments({ documents, onOpen }) {
         if (!row) return;
         const index = Number(row.getAttribute('data-index'));
         if (!Number.isInteger(index) || index < 0 || index >= docs.length) return;
+        if (target.closest('[data-ask]')) {
+            if (typeof onAsk === 'function') onAsk(askAboutQuestion('document', docs[index]), event);
+            return;
+        }
         if (typeof onOpen === 'function') onOpen(docs[index].raw, event);
     });
 
@@ -927,7 +1005,15 @@ function countCell(n) {
     return text('td', n === 0 ? 'dashboard-count dashboard-count--zero' : 'dashboard-count', n.toLocaleString());
 }
 
-function buildCommunityRow(row, index) {
+// The Ask button joins the main button in the row's .start-action wrapper.
+function appendStartAsk(actions, kind, row) {
+    const ask = buildAskButton(kind, askAboutLabel(kind, row));
+    ask.setAttribute('data-start-action', 'ask');
+    actions.className = 'start-action dashboard-row-actions';
+    actions.appendChild(ask);
+}
+
+function buildCommunityRow(row, index, withAsk) {
     const tr = el('tr', 'dashboard-link-row');
     tr.setAttribute('data-index', String(index));
     tr.setAttribute('data-group-id', row.id);
@@ -936,11 +1022,12 @@ function buildCommunityRow(row, index) {
     if (row.topMembers.length) aria += `, including ${joinNames(row.topMembers)}`;
     const title = membersLine ? `${row.fullLabel}\n${membersLine}` : row.fullLabel;
     const { cell, btn, actions } = buildStartAction(row.label, membersLine, aria, title);
+    if (withAsk && askAboutQuestion('community', row)) appendStartAsk(actions, 'community', row);
     tr.append(cell, countCell(row.members));
     return { tr, btn, actions };
 }
 
-function buildHubRow(row, index, fullLabels, labels) {
+function buildHubRow(row, index, fullLabels, labels, withAsk) {
     const tr = el('tr', 'dashboard-link-row');
     tr.setAttribute('data-index', String(index));
     tr.setAttribute('data-node-id', row.id);
@@ -954,6 +1041,7 @@ function buildHubRow(row, index, fullLabels, labels) {
     const aria = `Show ${row.name} and its connections in the graph: ${typeLabel}, `
         + `${unitLabel(row.connections, 'connection', 'connections')}, ${where}`;
     const { cell, btn, actions } = buildStartAction(row.name, '', aria, row.name);
+    if (withAsk && askAboutQuestion('hub', row)) appendStartAsk(actions, 'hub', row);
 
     const typeCell = el('td', 'start-type');
     typeCell.setAttribute('title', typeLabel);
@@ -986,6 +1074,7 @@ function startTable(tableClass, headingId, headers) {
 // One delegated listener per table: the row comes from the closure by index,
 // never from DOM text; the action from the nearest data-start-action ("show"
 // when the click landed elsewhere in the row). Unknown actions are ignored.
+// Handlers get (payload row, event, cleaned row).
 function delegateStartClicks(table, rows, actions) {
     table.addEventListener('click', (event) => {
         const target = event && event.target;
@@ -998,7 +1087,7 @@ function delegateStartClicks(table, rows, actions) {
         const actionEl = target.closest('[data-start-action]');
         const action = actionEl ? actionEl.getAttribute('data-start-action') : 'show';
         const handler = Object.prototype.hasOwnProperty.call(actions, action) ? actions[action] : null;
-        if (typeof handler === 'function') handler(rows[index].raw, event);
+        if (typeof handler === 'function') handler(rows[index].raw, event, rows[index]);
     });
 }
 
@@ -1008,7 +1097,8 @@ function blockTitle(id, label) {
     return h4;
 }
 
-function buildCommunitiesBlock(communities, status, onShowCommunity) {
+function buildCommunitiesBlock(communities, status, onShowCommunity, onAsk) {
+    const withAsk = typeof onAsk === 'function';
     const block = el('div', 'start-block');
     const total = communities.length;
     block.appendChild(blockTitle(
@@ -1024,7 +1114,7 @@ function buildCommunitiesBlock(communities, status, onShowCommunity) {
         ['Members', 'start-col-count'],
     ]);
     const head = el('tbody');
-    communities.slice(0, VISIBLE_COMMUNITIES).forEach((row, i) => head.appendChild(buildCommunityRow(row, i).tr));
+    communities.slice(0, VISIBLE_COMMUNITIES).forEach((row, i) => head.appendChild(buildCommunityRow(row, i, withAsk).tr));
     table.appendChild(head);
 
     let rest = null;
@@ -1034,13 +1124,18 @@ function buildCommunitiesBlock(communities, status, onShowCommunity) {
         rest.setAttribute('id', 'start-communities-rest');
         rest.setAttribute('hidden', '');
         communities.slice(VISIBLE_COMMUNITIES).forEach((row, i) => {
-            const built = buildCommunityRow(row, i + VISIBLE_COMMUNITIES);
+            const built = buildCommunityRow(row, i + VISIBLE_COMMUNITIES, withAsk);
             if (!firstRevealed) firstRevealed = built.btn;
             rest.appendChild(built.tr);
         });
         table.appendChild(rest);
     }
-    delegateStartClicks(table, communities, { show: onShowCommunity });
+    delegateStartClicks(table, communities, {
+        show: onShowCommunity,
+        ask: (_raw, event, row) => {
+            if (typeof onAsk === 'function') onAsk(askAboutQuestion('community', row), event);
+        },
+    });
 
     const wrap = el('div', 'dashboard-table-wrap');
     wrap.appendChild(table);
@@ -1079,7 +1174,8 @@ function buildCommunitiesBlock(communities, status, onShowCommunity) {
     return block;
 }
 
-function buildHubsBlock(hubs, communities, onShowEntity) {
+function buildHubsBlock(hubs, communities, onShowEntity, onAsk) {
+    const withAsk = typeof onAsk === 'function';
     const block = el('div', 'start-block');
     block.appendChild(blockTitle('start-hubs-heading', 'Most-connected entities'));
     if (hubs.length === 0) {
@@ -1095,9 +1191,14 @@ function buildHubsBlock(hubs, communities, onShowEntity) {
         ['Community', 'start-col-community'],
     ]);
     const body = el('tbody');
-    hubs.forEach((row, i) => body.appendChild(buildHubRow(row, i, fullLabels, labels).tr));
+    hubs.forEach((row, i) => body.appendChild(buildHubRow(row, i, fullLabels, labels, withAsk).tr));
     table.appendChild(body);
-    delegateStartClicks(table, hubs, { show: onShowEntity });
+    delegateStartClicks(table, hubs, {
+        show: onShowEntity,
+        ask: (_raw, event, row) => {
+            if (typeof onAsk === 'function') onAsk(askAboutQuestion('hub', row), event);
+        },
+    });
     const wrap = el('div', 'dashboard-table-wrap');
     wrap.appendChild(table);
     block.appendChild(wrap);
@@ -1110,7 +1211,9 @@ function buildHubsBlock(hubs, communities, onShowEntity) {
 // empty and the graph has no nodes, so the caller omits the section.
 //   onShowCommunity(row, event)  a community row was activated (payload row)
 //   onShowEntity(row, event)     an entity row was activated (payload row)
-export function buildStartHere({ startHere, totalNodes, onShowCommunity, onShowEntity }) {
+//   onAsk(question, event)       a row's "Ask about this" button; without it
+//                                no Ask buttons are shown
+export function buildStartHere({ startHere, totalNodes, onShowCommunity, onShowEntity, onAsk }) {
     if (!isObj(startHere)) return null;
     const communities = (Array.isArray(startHere.communities) ? startHere.communities : [])
         .map(cleanCommunity).filter(Boolean);
@@ -1130,8 +1233,71 @@ export function buildStartHere({ startHere, totalNodes, onShowCommunity, onShowE
     status.setAttribute('role', 'status');
     status.setAttribute('aria-live', 'polite');
 
-    root.appendChild(buildCommunitiesBlock(communities, status, onShowCommunity));
-    root.appendChild(buildHubsBlock(hubs, communities, onShowEntity));
+    root.appendChild(buildCommunitiesBlock(communities, status, onShowCommunity, onAsk));
+    root.appendChild(buildHubsBlock(hubs, communities, onShowEntity, onAsk));
     root.appendChild(status);
+    return root;
+}
+
+// --- Analysis findings -------------------------------------------------------
+
+// The "Analysis Findings" section for a domain's custom rule findings: one row
+// per rule with its finding count and per-severity counts. Returns null unless
+// `findings` holds at least one entry with a non-empty string rule_name;
+// entries without one are skipped.
+//   onAsk(question, event)  a row's "Ask about this" button; without it no Ask
+//                           buttons are shown
+export function buildFindings({ findings, onAsk }) {
+    if (!Array.isArray(findings)) return null;
+    const kept = findings.filter((f) => isObj(f) && typeof f.rule_name === 'string' && f.rule_name !== '');
+    if (kept.length === 0) return null;
+    const withAsk = typeof onAsk === 'function';
+
+    const root = el('section', 'findings-section');
+    root.setAttribute('aria-labelledby', 'findings-heading');
+    const heading = text('h3', '', 'Analysis Findings');
+    heading.setAttribute('id', 'findings-heading');
+    root.appendChild(heading);
+
+    const table = el('table', 'dashboard-table findings-table');
+    table.setAttribute('aria-labelledby', 'findings-heading');
+    const headRow = el('tr');
+    headRow.append(text('th', '', 'Rule'), text('th', '', 'Findings'), text('th', '', 'By Severity'));
+    const thead = el('thead');
+    thead.appendChild(headRow);
+    const tbody = el('tbody');
+    kept.forEach((f, i) => {
+        const tr = el('tr');
+        tr.setAttribute('data-index', String(i));
+        const label = f.errors ? `${String(f.rule_name)} (${f.errors} rule error(s))` : String(f.rule_name);
+        const rule = text('span', 'findings-rule', label);
+        const cell = el('td', 'findings-rule-cell');
+        if (withAsk && askAboutQuestion('finding', f)) {
+            cell.appendChild(askSlot(rule, buildAskButton('finding', askAboutLabel('finding', f))));
+        } else {
+            cell.appendChild(rule);
+        }
+        const severity = Object.entries(isObj(f.by_severity) ? f.by_severity : {})
+            .map(([k, v]) => `${k}: ${v}`)
+            .join(', ');
+        tr.append(cell, text('td', '', String(f.total || 0)), text('td', '', severity));
+        tbody.appendChild(tr);
+    });
+    table.append(thead, tbody);
+
+    // One delegated listener: only the Ask buttons act; the finding comes from
+    // the closure by row index, never from the DOM text.
+    table.addEventListener('click', (event) => {
+        const target = event && event.target;
+        if (!target || typeof target.closest !== 'function' || !target.closest('[data-ask]')) return;
+        const tr = target.closest('tr[data-index]');
+        const index = tr ? Number(tr.getAttribute('data-index')) : NaN;
+        if (!Number.isInteger(index) || index < 0 || index >= kept.length) return;
+        if (typeof onAsk === 'function') onAsk(askAboutQuestion('finding', kept[index]), event);
+    });
+
+    const wrap = el('div', 'dashboard-table-wrap');
+    wrap.appendChild(table);
+    root.appendChild(wrap);
     return root;
 }

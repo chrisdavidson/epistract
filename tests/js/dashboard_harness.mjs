@@ -515,14 +515,14 @@ if (MODE === 'epistemic') {
       const first = cardsOf(sectionOf(root, 'contradictions'))[0];
       const acts = byClass(first, 'epistemic-actions')[0];
       const [g, a] = byClass(acts, 'epistemic-btn');
-      check('actions: Show in graph then Ask in chat', g && a && g.textContent === 'Show in graph' && a.textContent === 'Ask in chat'
+      check('actions: Show in graph then Ask about this', g && a && g.textContent === 'Show in graph' && textOf(a) === 'Ask about this'
         && g.getAttribute('type') === 'button' && a.getAttribute('type') === 'button'
         && g.getAttribute('data-action') === 'show-graph' && a.getAttribute('data-action') === 'ask-chat', [g && g.textContent, a && a.textContent]);
       check('actions: data-section and data-index', g.getAttribute('data-section') === 'contradictions' && g.getAttribute('data-index') === '0'
         && cardsOf(sectionOf(root, 'contradictions'))[1].children.length > 0
         && byClass(cardsOf(sectionOf(root, 'contradictions'))[1], 'epistemic-btn')[0].getAttribute('data-index') === '1');
       check('actions: aria-labels', g.getAttribute('aria-label') === 'Show semaglutide is indicated for Obesity in the graph'
-        && a.getAttribute('aria-label') === 'Ask in chat about semaglutide is indicated for Obesity', [g.getAttribute('aria-label'), a.getAttribute('aria-label')]);
+        && a.getAttribute('aria-label') === 'Ask about this: semaglutide is indicated for Obesity', [g.getAttribute('aria-label'), a.getAttribute('aria-label')]);
       check('actions: titles', g.getAttribute('title') === 'Focus the graph on semaglutide and its direct connections.'
         && a.getAttribute('title') === 'Puts a question in the chat box. Nothing is sent until you press Send.', [g.getAttribute('title'), a.getAttribute('title')]);
       const longTitle = 'T'.repeat(130);
@@ -542,7 +542,7 @@ if (MODE === 'epistemic') {
       check('dispatch: Show in graph passes the first entity id and the event', shown.length === 1 && shown[0].id === 'compound:semaglutide'
         && shown[0].event && shown[0].event.detail === 0 && asked.length === 0, shown);
       root.dispatch('click', { target: a, detail: 1 });
-      check('dispatch: Ask in chat passes the question and the event', asked.length === 1 && asked[0].question === GLP.sections[0].items[0].question
+      check('dispatch: Ask about this passes the question and the event', asked.length === 1 && asked[0].question === GLP.sections[0].items[0].question
         && asked[0].event.detail === 1 && shown.length === 1, asked);
       root.dispatch('click', { target: byTag(first, 'blockquote')[0] });
       root.dispatch('click', { target: root });
@@ -582,7 +582,7 @@ if (MODE === 'epistemic') {
       root.dispatch('click', { target: g });
       check('disabled: click does nothing', shown.length === 0, shown);
       root.dispatch('click', { target: a });
-      check('disabled: Ask in chat still works', asked.length === 1 && asked[0].question === 'What is behind this conflict?');
+      check('disabled: Ask about this still works', asked.length === 1 && asked[0].question === 'What is behind this conflict?');
       const enabled = btn(cardsOf(buildEpi(GLP))[0], 'show-graph');
       check('disabled: enabled buttons have no aria-disabled or note', !enabled.hasAttribute('aria-disabled')
         && byClass(cardsOf(buildEpi(GLP))[0], 'epistemic-note').length === 0);
