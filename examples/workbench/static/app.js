@@ -269,6 +269,17 @@ function wireAskGuard() {
             }
         }, true);
     }
+    // Enter held on a focused Ask: the first keydown activated the Ask and
+    // moved focus into #chat-input, where the auto-repeats would hit chat.js's
+    // Enter-to-send (10-REVIEW IN-04). Each swallowed repeat extends the window,
+    // so a long hold never sends; a fresh (non-repeat) Enter still does.
+    panel.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && e.repeat && e.target && e.target.id === 'chat-input' && askGuardActive()) {
+            e.preventDefault();
+            e.stopPropagation();
+            askGuardUntil = performance.now() + ASK_GUARD_MS;
+        }
+    }, true);
 }
 
 // Puts a question in the chat box. Prefill only: chat.js never sends it.

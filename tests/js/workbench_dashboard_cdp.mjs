@@ -17,7 +17,7 @@
 //                          widths, styles, Present mode; no chat request is ever sent
 //         ask-about-findings  GLP-1 v3 copy with custom findings: the Analysis Findings
 //                          table and its Ask about this buttons
-//         ask-guard        GLP-1 v3 "Ask about this" guards: a double-click on Ask sends
+//         ask-guard        GLP-1 v3 "Ask about this" guards: a double-click or held Enter on Ask sends
 //                          nothing; a single starter click after the guard window still sends
 //
 // A run that cannot be judged because a third-party script did not load ends with
@@ -1674,6 +1674,31 @@ async function askGuard() {
   }
   await s.viewport(1440, 1000);
 
+  // (b) IN-04: Enter held on a focused Ask button. The first keydown activates
+  // the Ask and moves focus into #chat-input; the auto-repeats land there.
+  const ENTER = { key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 };
+  for (const [label, expr, expected] of [['second hub', hubAsk(1), Q_HUB2], ['first document', docAsk('pmid_38851997'), Q_DOC1]]) {
+    await openDashboard(s);
+    await s.ev(`(() => { document.getElementById('chat-input').value = ''; return true; })()`);
+    const focused = await s.ev(`(() => { const b = ${expr}; if (!b) return false;
+      b.scrollIntoView({ block: 'center', behavior: 'instant' }); b.focus(); return document.activeElement === b; })()`);
+    check(`hold Enter ${label}: the Ask button has focus`, focused === true);
+    if (!focused) continue;
+    await s.send('Input.dispatchKeyEvent', { type: 'keyDown', ...ENTER, text: '\r' });
+    for (let i = 0; i < 3; i += 1) {
+      await sleep(40);
+      await s.send('Input.dispatchKeyEvent', { type: 'keyDown', ...ENTER, text: '\r', autoRepeat: true });
+    }
+    await s.send('Input.dispatchKeyEvent', { type: 'keyUp', ...ENTER });
+    await sleep(1000);
+    const st = await s.ev(`({ value: ${chatValue}, focused: ${chatFocused}, shown: ${chatShown}, messages: ${messageCount} })`);
+    check(`hold Enter ${label}: no /api/chat request`, spy.chat === 0 && !spy.urls.some((u) => u.includes('/api/chat')), spy.chat);
+    check(`hold Enter ${label}: the question is still prefilled, unchanged`, st.shown === true && st.value === expected,
+      { got: st.value, want: expected });
+    check(`hold Enter ${label}: focus is in the chat input`, st.focused === true);
+    check(`hold Enter ${label}: no new chat message`, st.messages === m0, [m0, st.messages]);
+  }
+
   // (z) positive control: past the guard window a single starter click sends.
   await sleep(800);
   await s.ev(`document.querySelector('.nav-link[data-panel=chat]').click()`);
@@ -1690,6 +1715,17 @@ async function askGuard() {
   await sleep(1000);
   check('control: a single starter click after the guard window sends exactly once', sent && spy.chat === before + 1,
     [before, spy.chat]);
+  // Only repeated Enters are guarded: a fresh Enter in the chat box still sends.
+  const beforeEnter = spy.chat;
+  await s.ev(`(() => { const i = document.getElementById('chat-input'); i.value = 'enter control'; i.focus(); return true; })()`);
+  await s.key('Enter');
+  let enterSent = false;
+  for (const t0 = Date.now(); Date.now() - t0 < 5000 && !enterSent;) {
+    if (spy.chat > beforeEnter) enterSent = true;
+    else await sleep(100);
+  }
+  await sleep(1000);
+  check('control: a fresh Enter in the chat box sends exactly once', enterSent && spy.chat === beforeEnter + 1, [beforeEnter, spy.chat]);
 
   check('no script exceptions from the workbench', s.errors.length === 0, s.errors.slice(0, 3));
   await s.send('Fetch.disable');
