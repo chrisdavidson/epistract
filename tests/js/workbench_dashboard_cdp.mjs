@@ -1535,6 +1535,14 @@ async function askAbout() {
       return { h: i.offsetHeight, style: i.style.height, want: Math.min(i.scrollHeight, 120) + 'px' }; })()`);
     check('the textarea grew past its one-row height', grown.h > h0, [h0, grown]);
     check('the textarea height follows the auto-resize rule', grown.style === grown.want, grown);
+    // The click leaves the pointer over a starter card (a hover border, not
+    // focus): move it off the chat panel so the shot shows only the prefill.
+    const hoveredBefore = await s.ev(`document.querySelectorAll('.starter-card:hover').length`);
+    await s.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: 990, button: 'none', buttons: 0 });
+    await sleep(300);
+    const shotState = await s.ev(`({ hovered: document.querySelectorAll('.starter-card:hover').length, focused: ${chatFocused} })`);
+    check('screenshot: no starter card is hovered and focus is still in the chat input', shotState.hovered === 0
+      && shotState.focused === true, { hoveredBefore, ...shotState });
     await s.shot('chat-ask-prefilled.png');
   }
   await s.viewport(1440, 1000);
