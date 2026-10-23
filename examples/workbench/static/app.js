@@ -249,7 +249,7 @@ function openGraphWith(detail, event) {
 // falls on whatever is now under the pointer (a starter card sends on click).
 // For ASK_GUARD_MS after an Ask, wireAskGuard swallows those follow-up presses
 // (10-REVIEW CR-01). A deliberate single click (detail 1) is never touched.
-const ASK_GUARD_MS = 600;
+const ASK_GUARD_MS = 2000;
 let askGuardUntil = 0;
 
 function askGuardActive() {

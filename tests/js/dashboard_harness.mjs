@@ -1372,9 +1372,10 @@ if (MODE === 'ask-question') {
     eq('finding: non-string rule gives empty', q('finding', { rule_name: 7 }), '');
     // 10-REVIEW IN-03 ruling: a rule whose every entry failed (total 0, errors > 0)
     // gets the failure question instead of asking which of zero findings matter.
-    const failQ = (rule, errors) => `Why did the ${rule} rule fail (${errors} errors)?`;
+    const failQ = (rule, errors) => `Why did the ${rule} rule fail (${errors} ${errors === 1 ? 'error' : 'errors'})?`;
     eq('finding: total 0 with errors asks why the rule failed', q('finding', { rule_name: 'label_gap', total: 0, errors: 2 }), failQ('label_gap', 2));
     eq('finding: missing total with errors asks why the rule failed', q('finding', { rule_name: ' r \n', errors: 1 }), failQ('r', 1));
+    eq('finding: one error reads "1 error"', q('finding', { rule_name: 'r', total: 0, errors: 1 }), 'Why did the r rule fail (1 error)?');
     eq('finding: findings plus errors keep the findings question', q('finding', { rule_name: 'r', total: 2, errors: 1 }), findQ('r', 2));
     eq('finding: total 0 and errors 0 keep the findings question', q('finding', { rule_name: 'r', total: 0, errors: 0 }), findQ('r', 0));
     eq('finding: non-numeric errors keep the findings question', q('finding', { rule_name: 'r', total: 0, errors: 'x' }), findQ('r', 0));
@@ -2059,6 +2060,11 @@ if (MODE === 'findings') {
       const rule0 = byClass(rows[0], 'findings-rule')[0];
       check('findings all errors: the row still reads "broken_rule (2 rule error(s))" and 0', !!rule0
         && textOf(rule0) === 'broken_rule (2 rule error(s))' && textOf(rows[0].children[1]) === '0', rule0 && textOf(rule0));
+      check('findings all errors: the failed rule\'s Ask is named for the failure', !!askIn(rows[0])
+        && askIn(rows[0]).getAttribute('aria-label') === 'Ask about this: why the broken_rule rule failed',
+        askIn(rows[0]) && askIn(rows[0]).getAttribute('aria-label'));
+      check('findings all errors: a rule with findings keeps its label', !!askIn(rows[1])
+        && askIn(rows[1]).getAttribute('aria-label') === 'Ask about this: the label_gap findings');
       table.dispatch('click', { target: askIn(rows[0]) || table, detail: 1 });
       table.dispatch('click', { target: askIn(rows[1]) || table, detail: 1 });
       check('findings all errors: the Ask asks why the rule failed; a rule with findings is unchanged', JSON.stringify(asked) === JSON.stringify([

@@ -1676,6 +1676,9 @@ async function askGuard() {
     const st = await s.ev(`(() => { const u = document.elementFromPoint(${pt.x}, ${pt.y}); return {
       value: ${chatValue}, focused: ${chatFocused}, shown: ${chatShown}, messages: ${messageCount},
       under: u ? String(u.className || u.tagName) : null }; })()`);
+    // Precondition: the second press really lands on a starter card, so the
+    // guard is what keeps it from sending (10 branch review IN-04).
+    check(`double-click ${label}: the pointer rests on a starter card`, !!st.under && st.under.includes('starter-card'), st.under);
     check(`double-click ${label}: no /api/chat request`, spy.chat === 0 && !spy.urls.some((u) => u.includes('/api/chat')),
       { chat: spy.chat, under: st.under });
     check(`double-click ${label}: chat shown with the question prefilled`, st.shown === true && st.value === expected,
@@ -1777,8 +1780,8 @@ async function askGuard() {
   check('press control: the DISEASE main button pressed and dragged off darkens the row', !!ctlPress && ctlPress.bg === PRESSED, ctlPress);
   check('press: no /api/chat request', spy.chat === 0, spy.chat);
 
-  // (z) positive control: past the guard window a single starter click sends.
-  await sleep(800);
+  // (z) positive control: past the guard window (2000 ms) a single starter click sends.
+  await sleep(2200);
   await s.ev(`document.querySelector('.nav-link[data-panel=chat]').click()`);
   check('control: chat shown', await s.waitFor(chatShown, 5000));
   const before = spy.chat;

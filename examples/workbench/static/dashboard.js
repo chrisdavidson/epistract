@@ -303,7 +303,7 @@ const ASK_QUESTIONS = {
         // it failed instead (10-REVIEW IN-03 ruling, R-01 amendment).
         const total = f.total || 0;
         const errors = typeof f.errors === 'number' && Number.isFinite(f.errors) ? f.errors : 0;
-        if (total === 0 && errors > 0) return `Why did the ${rule} rule fail (${errors} errors)?`;
+        if (total === 0 && errors > 0) return `Why did the ${rule} rule fail (${errors} ${errors === 1 ? 'error' : 'errors'})?`;
         return `Explain the ${rule} findings (${String(total)}): which ones matter most and why?`;
     },
 };
@@ -330,7 +330,10 @@ function askAboutLabel(kind, fields) {
     case 'epistemic': return `Ask about this: ${shortTitle(collapse(f.title))}`;
     case 'epistemic-status': return 'Ask about this: the epistemic status distribution';
     case 'document': return `Ask about this: ${firstLabel(f.name, f.doc_id)}`;
-    case 'finding': return `Ask about this: the ${collapse(f.rule_name)} findings`;
+    case 'finding': {
+        const failed = !(f.total > 0) && typeof f.errors === 'number' && f.errors > 0;
+        return `Ask about this: ${failed ? 'why the' : 'the'} ${collapse(f.rule_name)} ${failed ? 'rule failed' : 'findings'}`;
+    }
     default: return 'Ask about this';
     }
 }
