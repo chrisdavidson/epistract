@@ -310,7 +310,8 @@ export function askAboutQuestion(kind, fields) {
 
 // The accessible name of an Ask button: "Ask about this: " and what the card
 // shows, from the same collapsed labels and fallbacks as the question. The
-// epistemic label is the card title shortened as on the card itself.
+// epistemic label is the card title, collapsed and then shortened as on the
+// card itself.
 function askAboutLabel(kind, fields) {
     const f = isObj(fields) ? fields : {};
     switch (kind) {
@@ -318,7 +319,7 @@ function askAboutLabel(kind, fields) {
     case 'type': return `Ask about this: ${firstLabel(f.label, f.type)} entities`;
     case 'community': return `Ask about this: the ${firstLabel(f.fullLabel, f.label, f.id)} community`;
     case 'hub': return `Ask about this: ${firstLabel(f.name, f.id)}`;
-    case 'epistemic': return `Ask about this: ${shortTitle(str(f.title))}`;
+    case 'epistemic': return `Ask about this: ${shortTitle(collapse(f.title))}`;
     case 'epistemic-status': return 'Ask about this: the epistemic status distribution';
     case 'document': return `Ask about this: ${firstLabel(f.name, f.doc_id)}`;
     case 'finding': return `Ask about this: the ${collapse(f.rule_name)} findings`;

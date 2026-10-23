@@ -1713,6 +1713,30 @@ if (MODE === 'ask-buttons') {
       && asked[0].question === 'What does the evidence say about: risks?', asked.map((a) => a.question));
     check('epistemic-status: no status Ask without status counts', find(long, (n) => n.matches('[data-ask="epistemic-status"]')).length === 0);
 
+    // 10-REVIEW IN-02: the epistemic aria-label is whitespace-collapsed, then
+    // truncated (the collapse comes first, so the 100 characters are visible ones).
+    const spacedTitle = ('Wide   \n ').repeat(30);
+    const spacedCollapsed = spacedTitle.replace(/\s+/g, ' ').trim();
+    const spaced = dash.buildEpistemicHealth({
+      epistemic: {
+        available: true, status_counts: [], sections: [{
+          key: 'risks', label: 'Risks', description: 'd', count: 2,
+          items: [
+            { title: '  semaglutide \n  is   indicated\tfor  Obesity ', entities: [], statements: [], documents: [], question: 'q' },
+            { title: spacedTitle, entities: [], statements: [], documents: [], question: 'q' },
+          ],
+        }],
+      },
+      onAskInChat: () => {},
+    });
+    const spacedAsks = find(spaced, (n) => n.matches('button[data-action="ask-chat"]'));
+    check('epistemic: the Ask aria-label collapses whitespace in the title', !!spacedAsks[0]
+      && spacedAsks[0].getAttribute('aria-label') === 'Ask about this: semaglutide is indicated for Obesity',
+    spacedAsks[0] && spacedAsks[0].getAttribute('aria-label'));
+    check('epistemic: the Ask aria-label collapses before truncating', spacedCollapsed.length > 100 && !!spacedAsks[1]
+      && spacedAsks[1].getAttribute('aria-label') === `Ask about this: ${spacedCollapsed.slice(0, 100)}...`,
+    spacedAsks[1] && spacedAsks[1].getAttribute('aria-label'));
+
     const noSections = dash.buildEpistemicHealth({
       epistemic: { available: true, status_counts: [{ status: 'asserted', count: 4 }], sections: [] },
       onAskInChat: () => {},
