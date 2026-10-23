@@ -9,6 +9,8 @@
 // with its topic communities and most-connected entities tables
 // (run: node dashboard_harness.mjs start-here).
 // Prints one JSON line {"passed": [...], "failed": [...]} and exits 1 on failure.
+// The `ask-question` mode covers askAboutQuestion, the "Ask about this" question
+// templates for every card kind (run: node dashboard_harness.mjs ask-question).
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -1285,6 +1287,126 @@ if (MODE === 'start-here') {
       check('hostile: no data-derived class names', !badClass);
       commTable(root).dispatch('click', { target: mainBtn(crow) });
       check('hostile: the raw row reaches the callback', shown.length === 1 && shown[0].row.id === hostile[1]);
+    }
+  }
+}
+
+if (MODE === 'ask-question') {
+  if (typeof dash.askAboutQuestion !== 'function') {
+    check('askAboutQuestion is exported by dashboard.js', false, typeof dash.askAboutQuestion);
+  } else {
+    const q = dash.askAboutQuestion;
+    const GRAPH_Q = 'Give me an overview of this knowledge graph: what are its main topics and most important entities?';
+    const STATUS_Q = "What does the epistemic status distribution say about how well supported this graph's claims are?";
+    const typeQ = (label) => `What are the most important ${label} entities in this graph, and how do they connect?`;
+    const commQ = (label) => `Summarize the ${label} community.`;
+    const hubQ = (name) => `What is ${name}, and why is it so connected in this graph?`;
+    const docQ = (inner) => `Summarize the document ${inner}: what are its key findings?`;
+    const findQ = (rule, total) => `Explain the ${rule} findings (${total}): which ones matter most and why?`;
+    const eq = (name, got, want) => check(name, got === want, { got, want });
+
+    // --- graph ---
+    eq('graph: no fields', q('graph'), GRAPH_Q);
+    eq('graph: null fields', q('graph', null), GRAPH_Q);
+    eq('graph: number fields', q('graph', 5), GRAPH_Q);
+
+    // --- type ---
+    eq('type: display label', q('type', { label: 'Disease', type: 'DISEASE' }), typeQ('Disease'));
+    eq('type: whitespace collapsed', q('type', { label: '  Beta \n Things ', type: 'B' }), typeQ('Beta Things'));
+    eq('type: empty label falls back to the type key', q('type', { label: '', type: 'MYSTERY_TYPE' }), typeQ('MYSTERY_TYPE'));
+    eq('type: whitespace-only label and key give empty', q('type', { label: '   ', type: '  ' }), '');
+
+    // --- community ---
+    eq('community: full label collapsed', q('community', { fullLabel: '  Tau\n  protein ', label: 'x', id: 'c1' }), commQ('Tau protein'));
+    eq('community: empty full label falls back to label', q('community', { fullLabel: '', label: 'Tau', id: 'c1' }), commQ('Tau'));
+    eq('community: id is the last fallback', q('community', { id: 'c9' }), commQ('c9'));
+    eq('community: GLP-1 v3 label with dash and parens', q('community', { fullLabel: 'Systemic Hypertension — Glp-1(7-37)' }),
+      commQ('Systemic Hypertension — Glp-1(7-37)'));
+    eq('community: all empty give empty', q('community', { fullLabel: ' ', label: '', id: '\n' }), '');
+
+    // --- hub ---
+    eq('hub: name', q('hub', { name: 'semaglutide', id: 'compound:semaglutide' }), hubQ('semaglutide'));
+    eq('hub: empty name falls back to id', q('hub', { name: '', id: 'compound:x' }), hubQ('compound:x'));
+    eq('hub: both empty give empty', q('hub', { name: '', id: '' }), '');
+
+    // --- epistemic ---
+    eq('epistemic: payload question verbatim',
+      q('epistemic', { question: 'Why do sources disagree on whether semaglutide is indicated for Obesity?', title: 't', sectionKey: 'contradictions' }),
+      'Why do sources disagree on whether semaglutide is indicated for Obesity?');
+    eq('epistemic: question is not collapsed', q('epistemic', { question: '  spaced   question  ', title: 't', sectionKey: 'risks' }),
+      '  spaced   question  ');
+    eq('epistemic: fallback names the title', q('epistemic', { question: '', title: 'A title', sectionKey: 'risks' }),
+      'What does the evidence say about: A title?');
+    eq('epistemic: fallback names the section key', q('epistemic', { question: '', title: '', sectionKey: 'hypotheses' }),
+      'What does the evidence say about: hypotheses?');
+
+    // --- epistemic-status ---
+    eq('epistemic-status: fixed question', q('epistemic-status'), STATUS_Q);
+    eq('epistemic-status: fields are ignored', q('epistemic-status', { label: 'x', question: 'y' }), STATUS_Q);
+
+    // --- document ---
+    eq('document: name and id', q('document', { name: 'Doc 1', doc_id: 'doc_1' }), docQ('Doc 1 (doc_1)'));
+    eq('document: name equal to id omits the parenthetical', q('document', { name: 'pmid_38851997', doc_id: 'pmid_38851997' }),
+      docQ('pmid_38851997'));
+    eq('document: names differing only by case keep the id',
+      q('document', { name: 'patent_06_US10370426B2_triple_agonist', doc_id: 'patent_06_us10370426b2_triple_agonist' }),
+      docQ('patent_06_US10370426B2_triple_agonist (patent_06_us10370426b2_triple_agonist)'));
+    eq('document: empty name uses the id once', q('document', { name: '', doc_id: 'd' }), docQ('d'));
+    eq('document: empty id omits the parenthetical', q('document', { name: 'X', doc_id: '' }), docQ('X'));
+    eq('document: both empty give empty', q('document', { name: '', doc_id: '' }), '');
+
+    // --- finding ---
+    eq('finding: rule and total', q('finding', { rule_name: 'label_gap', total: 1 }), findQ('label_gap', 1));
+    eq('finding: zero total', q('finding', { rule_name: 'r', total: 0 }), findQ('r', 0));
+    eq('finding: missing total is 0', q('finding', { rule_name: 'r' }), findQ('r', 0));
+    eq('finding: whitespace rule gives empty', q('finding', { rule_name: '   ', total: 2 }), '');
+    eq('finding: non-string rule gives empty', q('finding', { rule_name: 7 }), '');
+
+    // --- hostile ---
+    for (const h of ['<img src=x onerror=1>', '"><script>alert(1)</script>']) {
+      eq(`hostile ${h}: community`, q('community', { fullLabel: h, label: 'x', id: 'c' }), commQ(h));
+      eq(`hostile ${h}: hub`, q('hub', { name: h, id: 'e' }), hubQ(h));
+      eq(`hostile ${h}: document`, q('document', { name: h, doc_id: 'd' }), docQ(`${h} (d)`));
+      eq(`hostile ${h}: finding`, q('finding', { rule_name: h, total: 3 }), findQ(h, 3));
+    }
+
+    // --- no truncation ---
+    {
+      const long = 'L'.repeat(300);
+      eq('no truncation: a 300-character community label is whole', q('community', { fullLabel: long }), commQ(long));
+    }
+
+    // --- unknown kinds and odd fields ---
+    for (const kind of ['nope', undefined, 7, '__proto__', 'constructor', 'toString', 'hasOwnProperty', null]) {
+      eq(`unknown kind ${String(kind)} gives empty`, q(kind, { label: 'x', name: 'x', fullLabel: 'x', rule_name: 'x' }), '');
+    }
+    {
+      const kinds = ['graph', 'type', 'community', 'hub', 'epistemic', 'epistemic-status', 'document', 'finding'];
+      let threw = null;
+      let nonString = null;
+      for (const kind of kinds) {
+        for (const fields of [null, undefined, 3, 's', [], { label: 5, name: {}, fullLabel: [], doc_id: 9, question: 4 }]) {
+          try {
+            const out = q(kind, fields);
+            if (typeof out !== 'string') nonString = { kind, fields, out };
+          } catch (e) {
+            threw = { kind, fields, error: String(e) };
+          }
+        }
+      }
+      check('odd fields: never throws', threw === null, threw);
+      check('odd fields: always returns a string', nonString === null, nonString);
+    }
+
+    // --- purity ---
+    {
+      const fields = { name: ' Doc  A ', doc_id: 'doc_a', fullLabel: 'F', label: 'L', id: 'i', rule_name: 'r', total: 2 };
+      const before = JSON.stringify(fields);
+      const kinds = ['graph', 'type', 'community', 'hub', 'epistemic', 'epistemic-status', 'document', 'finding'];
+      const first = kinds.map((k) => q(k, fields));
+      const second = kinds.map((k) => q(k, fields));
+      check('purity: same input gives the same output', JSON.stringify(first) === JSON.stringify(second), [first, second]);
+      check('purity: the fields object is not mutated', JSON.stringify(fields) === before, fields);
     }
   }
 }
