@@ -39,6 +39,7 @@ export function initSidebar() {
 // opts: {isSourceNode(id), isSourceEdge(edge)} — graph.js passes the same
 // predicates that drive sizing, labels and the hover card, so every surface
 // counts links the same way. The defaults classify from display data alone.
+// opts.onAsk(question), when given, handles the Ask about this button.
 export function showNodeDetail(nodeId, allNodes, allEdges, opts = {}) {
     const nodeById = new Map(allNodes.map(n => [n.id, n]));
     const node = nodeById.get(nodeId);
@@ -162,15 +163,22 @@ export function showNodeDetail(nodeId, allNodes, allEdges, opts = {}) {
     bodyFrag.appendChild(docsSection);
 
     // --- Ask About This button (D-03: node sidebar only) ---
+    // opts.onAsk (the workbench's askInChat) opens Chat with the question and
+    // guards the rest of the click, like the Dashboard Asks. Without it the
+    // question is only handed to the chat box.
     const askBtn = document.createElement('button');
+    askBtn.type = 'button';
     askBtn.className = 'graph-detail-sidebar__ask-btn';
     askBtn.textContent = 'Ask about this';
+    askBtn.title = 'Puts a question in the chat box. Nothing is sent until you press Send.';
+    askBtn.setAttribute('aria-label', 'Ask about this: ' + displayName);
     askBtn.addEventListener('click', () => {
-        window.dispatchEvent(new CustomEvent('ask-question', {
-            detail: {
-                question: 'Tell me about ' + displayName + '. What are the key details and relationships?',
-            },
-        }));
+        const question = 'Tell me about ' + displayName + '. What are the key details and relationships?';
+        if (typeof opts.onAsk === 'function') {
+            opts.onAsk(question);
+            return;
+        }
+        window.dispatchEvent(new CustomEvent('ask-question', { detail: { question } }));
     });
     bodyFrag.appendChild(askBtn);
 

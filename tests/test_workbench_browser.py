@@ -291,3 +291,12 @@ def test_dashboard_ask_guard_glp1(chromium_port, workbench_url):
     # starter click after the guard window and a fresh Enter still reach the stub.
     result = _run(chromium_port, workbench_url, "ask-guard")
     assert result["passed"] >= 53, result
+
+
+def test_graph_sidebar_ask_glp1(chromium_port, workbench_url):
+    # The graph detail sidebar's Ask about this works like the Dashboard Asks:
+    # it opens Chat with the question prefilled (nothing sent, a draft replaced
+    # as an undoable edit), and a double-click or held Enter sends nothing. The
+    # positive control proves a single starter click afterwards still sends.
+    result = _run(chromium_port, workbench_url, "sidebar-ask")
+    assert result["passed"] >= 25, result
