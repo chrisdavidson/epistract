@@ -280,13 +280,13 @@ def test_dashboard_ask_about_glp1(chromium_port, workbench_url):
 
 def test_dashboard_ask_about_findings(chromium_port, findings_workbench_url):
     result = _run(chromium_port, findings_workbench_url, "ask-about-findings")
-    assert result["passed"] >= 29, result
+    assert result["passed"] >= 39, result
 
 
 def test_dashboard_ask_guard_glp1(chromium_port, workbench_url):
-    # A double-click or a held Enter on Ask sends nothing (10-REVIEW CR-01, IN-04).
-    # Every /api/chat request is failed in the browser, and the positive controls
-    # prove a single starter click after the guard window and a fresh Enter still
-    # reach the stub.
+    # A double-click or a held Enter on Ask sends nothing (10-REVIEW CR-01, IN-04),
+    # and a near miss beside an Ask runs no row action (WR-01). Every /api/chat
+    # request is failed in the browser, and the positive controls prove a single
+    # starter click after the guard window and a fresh Enter still reach the stub.
     result = _run(chromium_port, workbench_url, "ask-guard")
-    assert result["passed"] >= 29, result
+    assert result["passed"] >= 39, result

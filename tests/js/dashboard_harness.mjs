@@ -1802,6 +1802,78 @@ if (MODE === 'ask-buttons') {
       && byClass(plain, 'dashboard-link-cell').every((c) => c.children.length === 1 && c.children[0].matches('button.dashboard-doc-btn')));
   });
 
+  // --- Near misses (10-REVIEW WR-01) ---
+  // A click that lands on the row-actions wrapper itself (the Ask button's
+  // margin, or the empty line beside a wrapped Ask) is not on any button: it
+  // does nothing, in every table. Clicks elsewhere in the row still act.
+  guarded('near miss', () => {
+    const asked = [];
+    const picked = [];
+    const shown = [];
+    const opened = [];
+    const onAsk = (question) => asked.push(question);
+
+    const summary = dash.buildEntitySummary({
+      entityCounts: { A: 3, B: 10 }, totalNodes: 13, totalEdges: 2,
+      onSelectType: (type) => picked.push(type), onShowAll: () => {}, onAsk,
+    });
+    const st = byTag(summary, 'table')[0];
+    const sWrap = byClass(st, 'dashboard-row-actions')[0];
+    st.dispatch('click', { target: sWrap || st, detail: 1 });
+    check('near miss: the Entity Summary wrapper selects no type and asks nothing', !!sWrap && picked.length === 0 && asked.length === 0,
+      { picked, asked });
+    picked.length = 0;
+    st.dispatch('click', { target: byClass(st, 'dashboard-count')[0], detail: 1 });
+    check('near miss control: the Entity Summary count cell still selects its type', picked.length === 1, picked);
+
+    const start = dash.buildStartHere({
+      startHere: { communities: [community(1), community(2)], hubs: [hub(1), hub(2)] },
+      totalNodes: 50,
+      onShowCommunity: (row) => shown.push(['community', row.id]),
+      onShowEntity: (row) => shown.push(['entity', row.id]),
+      onAsk,
+    });
+    const ct = byClass(start, 'start-communities-table')[0];
+    const ht = byClass(start, 'start-hubs-table')[0];
+    const cWrap = byClass(ct, 'start-action')[0];
+    const hWrap = byClass(ht, 'start-action')[0];
+    ct.dispatch('click', { target: cWrap || ct, detail: 1 });
+    ht.dispatch('click', { target: hWrap || ht, detail: 1 });
+    check('near miss: the community and hub wrappers show nothing and ask nothing', !!cWrap && !!hWrap && shown.length === 0
+      && asked.length === 0, { shown, asked });
+    shown.length = 0;
+    ht.dispatch('click', { target: byClass(ht, 'dashboard-count')[0], detail: 1 });
+    check('near miss control: the hub count cell still shows the entity', shown.length === 1 && shown[0][0] === 'entity', shown);
+
+    // The Phase 9 .start-action wrapper (no Ask) is a wrapper too.
+    shown.length = 0;
+    const plain = dash.buildStartHere({
+      startHere: { communities: [community(1)], hubs: [] },
+      totalNodes: 50,
+      onShowCommunity: (row) => shown.push(['community', row.id]),
+    });
+    const pt = byClass(plain, 'start-communities-table')[0];
+    pt.dispatch('click', { target: byClass(pt, 'start-action')[0] || pt, detail: 1 });
+    check('near miss: a plain .start-action wrapper shows nothing', shown.length === 0, shown);
+    shown.length = 0;
+    pt.dispatch('click', { target: byClass(pt, 'dashboard-link-btn')[0], detail: 1 });
+    check('near miss control: the plain community main button still shows', shown.length === 1, shown);
+
+    const docs = dash.buildDocuments({
+      documents: [{ doc_id: 'doc_1', display_name: 'Doc 1', filename: 'Doc 1.txt', entity_count: 3, relation_count: 1, has_text: true }],
+      onOpen: (doc) => opened.push(doc.doc_id),
+      onAsk,
+    });
+    const dt = byTag(docs, 'table')[0];
+    const dWrap = byClass(dt, 'dashboard-row-actions')[0];
+    dt.dispatch('click', { target: dWrap || dt, detail: 1 });
+    check('near miss: the Documents wrapper opens nothing and asks nothing', !!dWrap && opened.length === 0 && asked.length === 0,
+      { opened, asked });
+    opened.length = 0;
+    dt.dispatch('click', { target: byClass(dt, 'dashboard-count')[0], detail: 1 });
+    check('near miss control: the Documents count cell still opens the document', opened.length === 1 && opened[0] === 'doc_1', opened);
+  });
+
   // --- Hostile strings in every builder ---
   guarded('hostile', () => {
     const H = ['<img src=x onerror=1>', '"><script>alert(1)</script>'];

@@ -99,7 +99,7 @@ function buildTable(rows, onSelectType, onAsk) {
         const row = target && typeof target.closest === 'function'
             ? target.closest('tr.dashboard-link-row')
             : null;
-        if (!row) return;
+        if (!row || inActionsGap(target)) return;
         const type = row.dataset.entityType;
         if (typeof type !== 'string') return;
         if (target.closest('[data-ask]')) {
@@ -337,6 +337,15 @@ function buildAskButton(kind, ariaLabel) {
     btn.setAttribute('title', ASK_TITLE);
     btn.append(document.createTextNode('Ask'), text('span', 'ask-about-btn__more', ' about this'));
     return btn;
+}
+
+// True when a click landed inside a row's action wrapper (.start-action or
+// .dashboard-row-actions) but on none of its buttons: a near miss beside the
+// Ask button, or the empty line next to a wrapped Ask. The row's own action
+// must not run then (10-REVIEW WR-01). Single-selector closest() calls only.
+function inActionsGap(target) {
+    const slot = target.closest('.start-action') || target.closest('.dashboard-row-actions');
+    return !!slot && !target.closest('button');
 }
 
 // The row's main control and its Ask button side by side in one cell.
@@ -877,7 +886,7 @@ export function buildDocuments({ documents, onOpen, onAsk }) {
         const row = target && typeof target.closest === 'function'
             ? target.closest('tr.dashboard-link-row')
             : null;
-        if (!row) return;
+        if (!row || inActionsGap(target)) return;
         const index = Number(row.getAttribute('data-index'));
         if (!Number.isInteger(index) || index < 0 || index >= docs.length) return;
         if (target.closest('[data-ask]')) {
@@ -1081,7 +1090,7 @@ function delegateStartClicks(table, rows, actions) {
         const tr = target && typeof target.closest === 'function'
             ? target.closest('tr.dashboard-link-row')
             : null;
-        if (!tr) return;
+        if (!tr || inActionsGap(target)) return;
         const index = Number(tr.getAttribute('data-index'));
         if (!Number.isInteger(index) || index < 0 || index >= rows.length) return;
         const actionEl = target.closest('[data-start-action]');

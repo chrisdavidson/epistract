@@ -17,8 +17,9 @@
 //                          widths, styles, Present mode; no chat request is ever sent
 //         ask-about-findings  GLP-1 v3 copy with custom findings: the Analysis Findings
 //                          table and its Ask about this buttons
-//         ask-guard        GLP-1 v3 "Ask about this" guards: a double-click or held Enter on Ask sends
-//                          nothing; a single starter click after the guard window still sends
+//         ask-guard        GLP-1 v3 "Ask about this" guards: a double-click, held Enter or near miss on Ask
+//                          sends nothing and runs no row action; a single starter click after the
+//                          guard window still sends
 //
 // A run that cannot be judged because a third-party script did not load ends with
 // a "skipped" reason in the final line instead of failures.
@@ -1698,6 +1699,33 @@ async function askGuard() {
     check(`hold Enter ${label}: focus is in the chat input`, st.focused === true);
     check(`hold Enter ${label}: no new chat message`, st.messages === m0, [m0, st.messages]);
   }
+
+  // (c) WR-01: a near miss 2px left of an Ask button lands in the row-actions
+  // wrapper (the Ask's margin), not on a button: nothing happens.
+  for (const [label, expr] of [['DISEASE row', typeAsk('DISEASE')], ['first hub', hubAsk(0)], ['first document', docAsk('pmid_38851997')]]) {
+    await openDashboard(s);
+    await s.ev(`(() => { window.__rowEvents = []; return true; })()`);
+    const pt = await s.ev(`(() => { const b = ${expr}; if (!b) return null;
+      b.scrollIntoView({ block: 'center', behavior: 'instant' });
+      const r = b.getBoundingClientRect(); const x = r.left - 2; const y = r.top + r.height / 2;
+      const u = document.elementFromPoint(x, y);
+      return { x, y, wrapper: !!u && u.classList.contains('dashboard-row-actions') && u === b.parentElement }; })()`);
+    check(`near miss ${label}: the point 2px left of Ask is the row-actions wrapper`, !!pt && pt.wrapper === true, pt);
+    if (!pt) continue;
+    await s.click(pt.x, pt.y);
+    await sleep(600);
+    const st = await s.ev(`({
+      rowEvents: (window.__rowEvents || []).slice(),
+      dash: document.querySelector('.nav-link[data-panel="dashboard"]').classList.contains('active'),
+      side: getComputedStyle(document.getElementById('side-panel')).display,
+      source: getComputedStyle(document.getElementById('source-panel')).display,
+      chat: ${chatShown},
+    })`);
+    check(`near miss ${label}: no graph-show-types / navigate-source / focus event`, st.rowEvents.length === 0, st.rowEvents);
+    check(`near miss ${label}: still on the Dashboard (no graph, viewer or chat)`, st.dash === true && st.side === 'none'
+      && st.source === 'none' && st.chat === false, st);
+  }
+  check('near miss: no /api/chat request', spy.chat === 0, spy.chat);
 
   // (z) positive control: past the guard window a single starter click sends.
   await sleep(800);
