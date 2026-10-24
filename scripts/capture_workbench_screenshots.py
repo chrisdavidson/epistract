@@ -14,6 +14,9 @@ Usage:
 Set CAPTURE_MODEL to a model id from the picker (for example a ``:free``
 OpenRouter model) to answer the chat question with that model, and
 CAPTURE_STARTER to the 0-based starter question to ask (default 0).
+Set CAPTURE_ANSWER_VIEW=top to frame the question and the start of the answer
+instead of its end. Only pick models whose id ends in ``:free`` unless you mean
+to pay for the capture.
 """
 from __future__ import annotations
 
@@ -45,6 +48,23 @@ def main(port: int, prefix: str) -> int:
             browser = pw.chromium.launch(headless=True, executable_path=system)
         ctx = browser.new_context(viewport=VIEWPORT, device_scale_factor=2)
         page = ctx.new_page()
+        # Flag the end of each /api/chat stream: read a clone of the response
+        # to completion so the capture can wait for the whole answer.
+        page.add_init_script(
+            """(() => {
+                const origFetch = window.fetch;
+                window.__chatDone = false;
+                window.fetch = async (...args) => {
+                    const resp = await origFetch(...args);
+                    const target = String(args[0] && args[0].url || args[0]);
+                    if (target.includes('/api/chat')) {
+                        window.__chatDone = false;
+                        resp.clone().text().finally(() => { window.__chatDone = true; });
+                    }
+                    return resp;
+                };
+            })();"""
+        )
 
         page.goto(url, wait_until="networkidle", timeout=20000)
         page.wait_for_selector("#sidebar-title", timeout=15000)
@@ -64,6 +84,11 @@ def main(port: int, prefix: str) -> int:
         page.click('.nav-link[data-panel="chat"]')
         page.wait_for_selector("#welcome #welcome-title", timeout=10000)
         page.wait_for_selector(".starter-card", timeout=10000)
+        model = os.environ.get("CAPTURE_MODEL")
+        if model:
+            # Show the capture model in the picker, not the provider default.
+            page.wait_for_selector(f'#model-select option[value="{model}"]', state="attached", timeout=15000)
+            page.select_option("#model-select", model)
         page.wait_for_timeout(400)
         dst = OUT / f"{prefix}-02-chat-welcome.png"
         page.screenshot(path=str(dst), full_page=False)
@@ -97,6 +122,9 @@ def main(port: int, prefix: str) -> int:
 
         # Wait for an assistant message bubble to appear (chat.js uses .chat-msg--assistant)
         page.wait_for_selector(".chat-msg--assistant", timeout=25000)
+        # Free models can pause mid-stream for longer than the stability window
+        # below; wait (bounded) for the SSE body to finish.
+        page.wait_for_function("() => window.__chatDone === true", timeout=300000)
 
         # Wait for the stream to stabilize: poll DOM for 20s and snapshot when
         # the message text length stops growing for 2s in a row.
@@ -120,7 +148,11 @@ def main(port: int, prefix: str) -> int:
                 last_len = cur_len
             page.wait_for_timeout(500)
 
-        # Scroll to top of the message to anchor the screenshot on the answer
+        # The chat keeps the end of the answer in view. CAPTURE_ANSWER_VIEW=top
+        # frames the question and the start of the answer instead, for answers
+        # long enough to reach the reply token limit.
+        if os.environ.get("CAPTURE_ANSWER_VIEW") == "top":
+            page.evaluate("() => { document.getElementById('messages').scrollTop = 0; }")
         page.wait_for_timeout(800)
         dst = OUT / f"{prefix}-04-chat-epistemic.png"
         page.screenshot(path=str(dst), full_page=False)
