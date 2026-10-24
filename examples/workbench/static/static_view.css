@@ -19,18 +19,21 @@ body.static-view {
   align-items: baseline;
   gap: 16px;
   flex-wrap: wrap;
-  padding: 8px 16px;
-  border-bottom: 1px solid #e5e7eb;
-  background: #ffffff;
+  padding: 12px 16px;
+  background: var(--color-primary);
+  color: var(--on-primary);
+  box-shadow: var(--shadow-2);
+  position: relative;
+  z-index: 2;
 }
 
 .static-header h1 {
   margin: 0;
   max-width: 100%;
   font-size: 20px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.2;
-  color: #1a1a1a;
+  color: var(--on-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -40,7 +43,7 @@ body.static-view {
   margin: 0;
   font-size: 13px;
   font-weight: 400;
-  color: #666666;
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .static-main {
@@ -90,8 +93,8 @@ body.static-view .graph-detail-sidebar__ask-btn {
   padding: 8px 16px;
   font-size: 13px;
   line-height: 1.5;
-  background: rgba(26, 26, 46, 0.04);
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--color-primary-50);
+  border-bottom: 1px solid var(--divider);
 }
 
 .static-notice strong {
@@ -104,7 +107,7 @@ body.static-view .graph-detail-sidebar__ask-btn {
 }
 
 .static-notice__hint {
-  color: #666666;
+  color: var(--text-secondary);
 }
 
 /* Skip link --------------------------------------------------------------- */
@@ -115,10 +118,10 @@ body.static-view .graph-detail-sidebar__ask-btn {
   top: 8px;
   z-index: 300;
   padding: 4px 8px;
-  border: 1px solid #1a1a2e;
+  border: 1px solid var(--color-primary);
   border-radius: 14px;
-  background: #ffffff;
-  color: #1a1a2e;
+  background: var(--paper);
+  color: var(--color-primary-700);
   font-size: 13px;
   font-weight: 600;
   line-height: 18px;
@@ -136,7 +139,7 @@ body.static-view .graph-detail-sidebar__ask-btn {
   width: auto;
   height: auto;
   overflow: visible;
-  outline: 2px solid #4a6cf7;
+  outline: 2px solid var(--color-accent);
   outline-offset: 1px;
 }
 
@@ -197,7 +200,7 @@ body.static-view #graph-groups {
 }
 
 #static-filters-btn.static-filters-btn--open {
-  border-color: #1a1a2e;
+  border-color: var(--color-primary);
 }
 
 #static-filters-btn .count {
@@ -225,10 +228,10 @@ body.static-view #graph-groups {
   grid-template-columns: repeat(2, minmax(280px, 1fr));
   gap: 8px 24px;
   align-items: start;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background: var(--paper);
+  border: 1px solid var(--divider);
+  border-radius: var(--radius-paper);
+  box-shadow: var(--shadow-3);
 }
 
 .static-filters[hidden] {
@@ -237,7 +240,7 @@ body.static-view #graph-groups {
 
 #static-filters-btn:focus-visible,
 .static-filters :focus-visible {
-  outline: 2px solid #4a6cf7;
+  outline: 2px solid var(--color-accent);
   outline-offset: 1px;
 }
 
@@ -320,9 +323,9 @@ body.static-view #graph-detail-sidebar.graph-detail-sidebar--closed {
     max-width: 480px;
     margin: 48px auto;
     padding: 24px;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    color: #1a1a1a;
+    border: 1px solid var(--divider);
+    border-radius: var(--radius-paper);
+    color: var(--text-primary);
     text-align: center;
 }
 .static-card h2 {
@@ -340,7 +343,7 @@ body.static-view #graph-detail-sidebar.graph-detail-sidebar--closed {
     margin: 4px 0 0;
     font-size: 13px;
     font-weight: 400;
-    color: #666666;
+    color: var(--text-secondary);
 }
 
 /* Present mode keeps the legend strip at desktop size: larger chips wrap to
