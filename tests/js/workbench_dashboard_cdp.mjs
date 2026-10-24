@@ -1502,7 +1502,7 @@ async function askAbout() {
     return { onAsk: !!a && f === a, style: cs && cs.outlineStyle, width: cs && cs.outlineWidth, color: cs && cs.outlineColor }; })()`);
   check('Tab moves from the DISEASE main button to its Ask', ring.onAsk === true, ring);
   check('the focused Ask shows a 2px solid accent outline', ring.onAsk === true && ring.style === 'solid' && ring.width === '2px'
-    && ring.color === 'rgb(74, 108, 247)', ring);
+    && ring.color === 'rgb(63, 81, 181)', ring);
 
   // (f) a typed draft is replaced and Undo restores it; a previous prefill too
   const draft = 'my own unsent draft';
@@ -1600,7 +1600,7 @@ async function askAbout() {
       cardMin: c ? getComputedStyle(c).minHeight : null }; })()`;
   const st = await s.ev(STYLE);
   check('style: a type-row Ask is 13px / 400 / min-height 28px', !!st && st.fontSize === '13px' && st.fontWeight === '400' && st.minHeight === '28px', st);
-  check('style: 1px #e5e7eb border on white', !!st && st.borderWidth === '1px' && st.borderColor === 'rgb(229, 231, 235)'
+  check('style: 1px divider border on white', !!st && st.borderWidth === '1px' && st.borderColor === 'rgb(224, 224, 224)'
     && st.background === 'rgb(255, 255, 255)', st);
   // A flex item's computed display is always blockified, so the width is the
   // proof that the legacy full-width block rule no longer applies.
@@ -1895,7 +1895,7 @@ async function askGuard() {
   // button followed by a drag off the row with the button still held (the
   // :active chain stays, :hover goes). The release lands outside the row, so
   // no Ask and no row action runs.
-  const HOVER_TINT = 'rgb(248, 250, 252)';
+  const HOVER_TINT = 'rgb(245, 245, 245)';  // style.css --surface-tint
   const PRESSED = 'rgba(0, 0, 0, 0.08)';
   const OFF = { x: 1435, y: 995 };
   const pressAndDragOff = async (expr) => {

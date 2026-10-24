@@ -6,6 +6,9 @@
   <title>Knowledge Graph Explorer</title>
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -18,13 +21,13 @@
 
     <div class="nav-links">
       <button class="nav-link" data-panel="dashboard" title="Dashboard">
-        <span class="nav-icon">&#x1F4CA;</span> Dashboard
+        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg></span> Dashboard
       </button>
       <button class="nav-link active" data-panel="chat" title="Chat">
-        <span class="nav-icon">&#x1F4AC;</span> Chat
+        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/></svg></span> Chat
       </button>
       <button class="nav-link" data-panel="graph" title="Graph">
-        <span class="nav-icon">&#x25C9;</span> Graph
+        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="7.2" cy="14.4" r="3.2"/><circle cx="14.8" cy="18" r="2"/><circle cx="15.2" cy="8.8" r="4.8"/></svg></span> Graph
       </button>
     </div>
 
@@ -51,7 +54,7 @@
     </div>
 
     <div class="sidebar-section" id="entity-legend-section">
-      <h3 class="sidebar-section-title">Entity Types</h3>
+      <h3 class="sidebar-section-title">Entity types</h3>
       <div class="legend" id="entity-legend">
         <!-- Populated dynamically from /api/template + /api/graph/entity-types -->
       </div>
@@ -98,7 +101,7 @@
       <button type="button" id="model-sort-btn" class="model-sort-btn" title="Sort by cost (cheapest first)" style="display:none">$&uarr;</button>
       <select id="model-select" class="model-select" title="Select model" style="display:none"></select>
       <textarea id="chat-input" placeholder="Ask a question..." rows="1"></textarea>
-      <button type="submit" class="send-btn">Send</button>
+      <button type="submit" class="send-btn" aria-label="Send" title="Send"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/></svg><span class="visually-hidden">Send</span></button>
     </form>
   </main>
 
@@ -116,7 +119,7 @@
         </div>
 
         <div id="epistemic-filter">
-          <p class="filter-section-label">Epistemic Status</p>
+          <p class="filter-section-label">Epistemic status</p>
           <div id="epistemic-toggles">
             <!-- Populated dynamically by graph.js buildEpistemicChips() -->
           </div>
@@ -131,7 +134,7 @@
 
         <div id="relation-type-filter">
           <details id="relation-type-details">
-            <summary class="filter-section-label relation-type-summary">Relation Types</summary>
+            <summary class="filter-section-label relation-type-summary">Relation types</summary>
             <div class="relation-type-actions">
               <button type="button" class="toggle-btn active" id="relation-select-all">Select All</button>
               <button type="button" class="toggle-btn" id="relation-clear-all">Clear All</button>

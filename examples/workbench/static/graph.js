@@ -55,7 +55,7 @@ const NODE_FONT_BASE = {              // non-size font properties — single sou
 const PRESENT_LABEL_BACKGROUND = '#ffffff';  // opaque label pills in present mode; edges behind a label blur it on a projector
 const PRESENT_STORAGE_KEY = 'epistract.presentMode';
 const NODE_BORDER = 'rgba(0,0,0,0.25)';       // neutral node outline; the type is carried by fill + shape
-const NODE_SELECTED_BORDER = '#1a1a2e';
+const NODE_SELECTED_BORDER = '#303F9F';   // Material Paper indigo 700 (style.css --color-primary-700)
 const EDGE_SMOOTH_MAX_EDGES = 400;              // above this edge count, render straight edges — curved edges are visual mud and a per-frame render cost at scale
 const PHYSICS_STABILIZATION_ITERATIONS = 400;   // raise for a better-separated layout at the cost of a longer time-to-stabilize
 const PHYSICS_STABILIZATION_UPDATE_INTERVAL = 50; // how often vis reports stabilization progress and redraws while settling
@@ -1784,8 +1784,8 @@ function buildGraph() {
                 fixed: { x: true, y: true },
                 borderWidth: 2,
                 color: {
-                    border: '#4a6cf7',
-                    highlight: { border: '#4a6cf7' },
+                    border: '#3F51B5',
+                    highlight: { border: '#3F51B5' },
                 },
             };
         });
