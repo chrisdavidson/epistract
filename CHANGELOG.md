@@ -2,12 +2,16 @@
 
 All notable changes to epistract are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] — 2026-10-20
+## [3.3.0] — 2026-10-24
 
-**`/epistract:view` now writes the workbench graph as a single offline page.** `graph.html` is built from the workbench graph renderer instead of sift-kg/pyvis, so the standalone page and the workbench look and behave alike.
+**Workbench refresh: Material Paper theme, a richer Dashboard, and an offline `graph.html`.** The workbench gets a new visual identity, a Dashboard that shows where to start and the health of the evidence, a source viewer, and `/epistract:view` now writes the workbench graph as a single offline page. `graph.html` is built from the workbench graph renderer instead of sift-kg/pyvis, so the standalone page and the workbench look and behave alike.
 
 ### Added
 
+- Workbench Dashboard: Where to start (largest topic communities and most-connected entities), an Epistemic health section with contradictions and contested claims, a documents table, and Ask about this on every card (fork PRs #8, #10).
+- Source viewer: open a document from the Dashboard, a citation or the graph, with the cited passage highlighted (fork PR #8).
+- Graph sidebar Ask about this opens Chat with the same double-press guard as the Dashboard (fork PR #11).
+- Workbench Clear chat control, and an Epistract favicon instead of a 404 (fork PR #9).
 - Self-contained `graph.html` built from the workbench renderer (`examples/workbench/static_export.py`, payloads from `core/graph_payloads.py`); works offline from disk with no external scripts.
 - `--depth <d>` (hop radius for `--neighborhood`) and `--no-open` (write without opening a browser) flags.
 - Subset notice for `--neighborhood` / `--top` views and a metadata line on every page.
@@ -15,6 +19,7 @@ All notable changes to epistract are documented here. This project follows [Sema
 
 ### Changed
 
+- Workbench and `graph.html` use the Material Paper theme: a white navigation drawer with an indigo header, paper cards with shadows on a blue-grey background, Roboto type, and a round Send button. Theme colors, elevation and shape are tokens on `:root` in `style.css`; severity, epistemic-status and entity-type colors are unchanged (fork PR #12).
 - `/epistract:view` no longer uses sift-kg/pyvis to render. Node colors and shapes come from the same `domain.yaml` display hints as the workbench; grouping defaults to Topic cluster; sources are hidden until "Show sources".
 
 ### Removed
