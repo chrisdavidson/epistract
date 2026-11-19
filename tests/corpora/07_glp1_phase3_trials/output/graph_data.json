@@ -2526,7 +2526,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct01720446_sustain_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct01720446",
@@ -2551,7 +2557,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct01720446_sustain_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct01720446",
@@ -2576,7 +2588,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct01720446_sustain_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct01720446",
@@ -2607,7 +2625,17 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct01720446_sustain_6",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct01720446_sustain_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct01720446",
@@ -2632,7 +2660,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct01720446_sustain_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct01720446",
@@ -2657,7 +2691,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct01720446_sustain_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct01720446",
@@ -2682,7 +2722,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct01720446_sustain_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct01720446",
@@ -2707,7 +2753,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct01720446_sustain_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct01720446",
@@ -2732,7 +2784,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct01720446_sustain_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct01720446",
@@ -2757,7 +2815,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct01720446_sustain_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct01720446",
@@ -2782,7 +2846,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct01720446_sustain_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct01720446",
@@ -2807,7 +2877,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct01720446_sustain_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct01720446",
@@ -2832,7 +2908,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct01720446_sustain_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct01720446",
@@ -2857,7 +2939,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct01720446_sustain_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct01720446",
@@ -2882,7 +2970,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct01720446_sustain_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct01720446",
@@ -2907,7 +3001,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct01720446_sustain_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct01720446",
@@ -2938,7 +3038,17 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct01720446_sustain_6",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct01720446_sustain_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct01720446",
@@ -2969,7 +3079,17 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct01720446_sustain_6",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct01720446_sustain_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trialphase:phase_3",
@@ -3407,8 +3527,23 @@
           "relation_id": "compound:semaglutide|treats|condition:diabetes_mellitus_type_2|nct02906930_pioneer_1"
         }
       ],
-      "evidence_tier": "unclassified",
-      "epistemic_status": "asserted"
+      "evidence_tier": "high_evidence",
+      "epistemic_status": "hypothesized",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct01720446_sustain_6",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct02692716_pioneer_6",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct02906930_pioneer_1",
+          "tier": "high_evidence"
+        }
+      ],
+      "status_reason": "efficacy claim supported only by protocol intent language"
     },
     {
       "source": "compound:semaglutide",
@@ -3507,8 +3642,15 @@
           "relation_id": "compound:semaglutide|treats|condition:overweight_or_obesity|nct03548935_step_1"
         }
       ],
-      "evidence_tier": "unclassified",
-      "epistemic_status": "asserted"
+      "evidence_tier": "high_evidence",
+      "epistemic_status": "hypothesized",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03548935_step_1",
+          "tier": "high_evidence"
+        }
+      ],
+      "status_reason": "efficacy claim supported only by protocol intent language"
     },
     {
       "source": "compound:semaglutide",
@@ -3571,8 +3713,23 @@
           "relation_id": "compound:semaglutide|treats|condition:obesity|nct05822830_surmount_5"
         }
       ],
-      "evidence_tier": "unclassified",
-      "epistemic_status": "asserted"
+      "evidence_tier": "high_evidence",
+      "epistemic_status": "hypothesized",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03552757_step_2",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct03611582_step_3",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct05822830_surmount_5",
+          "tier": "high_evidence"
+        }
+      ],
+      "status_reason": "efficacy claim supported only by protocol intent language"
     },
     {
       "source": "compound:semaglutide",
@@ -3603,8 +3760,18 @@
           "relation_id": "compound:semaglutide|treats|condition:type_2_diabetes_mellitus|nct03987919_surpass_2"
         }
       ],
-      "evidence_tier": "unclassified",
-      "epistemic_status": "asserted"
+      "evidence_tier": "high_evidence",
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03552757_step_2",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct03987919_surpass_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "compound:semaglutide",
@@ -3660,8 +3827,19 @@
           "relation_id": "compound:semaglutide|treats|condition:overweight|nct05822830_surmount_5"
         }
       ],
-      "evidence_tier": "unclassified",
-      "epistemic_status": "asserted"
+      "evidence_tier": "high_evidence",
+      "epistemic_status": "hypothesized",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03611582_step_3",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct05822830_surmount_5",
+          "tier": "high_evidence"
+        }
+      ],
+      "status_reason": "efficacy claim supported only by protocol intent language"
     },
     {
       "source": "compound:semaglutide",
@@ -3685,8 +3863,14 @@
           "relation_id": "compound:semaglutide|co_intervention|intervention:intensive_behavioural_therapy|nct03611582_step_3"
         }
       ],
-      "evidence_tier": "unclassified",
-      "epistemic_status": "asserted"
+      "evidence_tier": "high_evidence",
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03611582_step_3",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "compound:semaglutide",
@@ -4516,7 +4700,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02692716_pioneer_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02692716",
@@ -4541,7 +4731,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02692716_pioneer_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02692716",
@@ -4566,7 +4762,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02692716_pioneer_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02692716",
@@ -4591,7 +4793,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02692716_pioneer_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02692716",
@@ -4616,7 +4824,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02692716_pioneer_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02692716",
@@ -4641,7 +4855,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02692716_pioneer_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02692716",
@@ -4666,7 +4886,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02692716_pioneer_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02692716",
@@ -4691,7 +4917,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02692716_pioneer_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02692716",
@@ -4716,7 +4948,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02692716_pioneer_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02692716",
@@ -4741,7 +4979,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02692716_pioneer_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02692716",
@@ -4766,7 +5010,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02692716_pioneer_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02692716",
@@ -4791,7 +5041,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02692716_pioneer_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02692716",
@@ -4816,7 +5072,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02692716_pioneer_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02692716",
@@ -4841,7 +5103,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02692716_pioneer_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02692716",
@@ -4866,7 +5134,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02692716_pioneer_6",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "intervention:oral_semaglutide_experimental_arm",
@@ -5216,7 +5490,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02906930_pioneer_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02906930",
@@ -5241,7 +5521,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02906930_pioneer_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02906930",
@@ -5266,7 +5552,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02906930_pioneer_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02906930",
@@ -5291,7 +5583,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02906930_pioneer_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02906930",
@@ -5328,7 +5626,21 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02906930_pioneer_1",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct02906930_pioneer_1",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct02906930_pioneer_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02906930",
@@ -5353,7 +5665,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02906930_pioneer_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02906930",
@@ -5378,7 +5696,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02906930_pioneer_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02906930",
@@ -5403,7 +5727,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02906930_pioneer_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02906930",
@@ -5428,7 +5758,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02906930_pioneer_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02906930",
@@ -5453,7 +5789,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02906930_pioneer_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02906930",
@@ -5478,7 +5820,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02906930_pioneer_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02906930",
@@ -5503,7 +5851,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02906930_pioneer_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02906930",
@@ -5528,7 +5882,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02906930_pioneer_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02906930",
@@ -5553,7 +5913,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02906930_pioneer_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02906930",
@@ -5578,7 +5944,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02906930_pioneer_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02906930",
@@ -5603,7 +5975,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02906930_pioneer_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02906930",
@@ -5628,7 +6006,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02906930_pioneer_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02906930",
@@ -5653,7 +6037,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02906930_pioneer_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02906930",
@@ -5678,7 +6068,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02906930_pioneer_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02906930",
@@ -5715,7 +6111,21 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02906930_pioneer_1",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct02906930_pioneer_1",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct02906930_pioneer_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct02906930",
@@ -5740,7 +6150,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct02906930_pioneer_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "intervention:3_mg_oral_semaglutide_qd",
@@ -6339,7 +6755,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03548935_step_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03548935",
@@ -6364,7 +6786,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03548935_step_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03548935",
@@ -6389,7 +6817,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03548935_step_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03548935",
@@ -6414,7 +6848,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03548935_step_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03548935",
@@ -6439,7 +6879,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03548935_step_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03548935",
@@ -6464,7 +6910,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03548935_step_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03548935",
@@ -6489,7 +6941,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03548935_step_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03548935",
@@ -6514,7 +6972,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03548935_step_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03548935",
@@ -6557,7 +7021,25 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03548935_step_1",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct03548935_step_1",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct03548935_step_1",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct03548935_step_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03548935",
@@ -6582,7 +7064,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03548935_step_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03548935",
@@ -6607,7 +7095,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03548935_step_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03548935",
@@ -6632,7 +7126,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03548935_step_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03548935",
@@ -6657,7 +7157,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03548935_step_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03548935",
@@ -6682,7 +7188,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03548935_step_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03548935",
@@ -6707,7 +7219,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03548935_step_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03548935",
@@ -6732,7 +7250,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03548935_step_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03548935",
@@ -6757,7 +7281,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03548935_step_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03548935",
@@ -6782,7 +7312,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03548935_step_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03548935",
@@ -6807,7 +7343,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03548935_step_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03548935",
@@ -6832,7 +7374,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03548935_step_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03548935",
@@ -6857,7 +7405,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03548935_step_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "intervention:semaglutide_s_c_2_4_mg_once_weekly",
@@ -7525,7 +8079,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03552757_step_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03552757",
@@ -7550,7 +8110,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03552757_step_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03552757",
@@ -7575,7 +8141,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03552757_step_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03552757",
@@ -7606,7 +8178,17 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03552757_step_2",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct03552757_step_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03552757",
@@ -7631,7 +8213,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03552757_step_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03552757",
@@ -7656,7 +8244,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03552757_step_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03552757",
@@ -7681,7 +8275,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03552757_step_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03552757",
@@ -7706,7 +8306,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03552757_step_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03552757",
@@ -7749,7 +8355,25 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03552757_step_2",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct03552757_step_2",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct03552757_step_2",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct03552757_step_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03552757",
@@ -7774,7 +8398,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03552757_step_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03552757",
@@ -7799,7 +8429,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03552757_step_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03552757",
@@ -7824,7 +8460,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03552757_step_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03552757",
@@ -7849,7 +8491,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03552757_step_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03552757",
@@ -7874,7 +8522,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03552757_step_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03552757",
@@ -7899,7 +8553,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03552757_step_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03552757",
@@ -7924,7 +8584,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03552757_step_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03552757",
@@ -7955,7 +8621,17 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03552757_step_2",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct03552757_step_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03552757",
@@ -7980,7 +8656,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03552757_step_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "condition:obesity",
@@ -8398,7 +9080,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03611582_step_3",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03611582",
@@ -8423,7 +9111,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03611582_step_3",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03611582",
@@ -8448,7 +9142,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03611582_step_3",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03611582",
@@ -8473,7 +9173,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03611582_step_3",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03611582",
@@ -8498,7 +9204,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03611582_step_3",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03611582",
@@ -8523,7 +9235,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03611582_step_3",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03611582",
@@ -8548,7 +9266,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03611582_step_3",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03611582",
@@ -8573,7 +9297,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03611582_step_3",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03611582",
@@ -8616,7 +9346,25 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03611582_step_3",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct03611582_step_3",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct03611582_step_3",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct03611582_step_3",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03611582",
@@ -8641,7 +9389,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03611582_step_3",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03611582",
@@ -8666,7 +9420,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03611582_step_3",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03611582",
@@ -8691,7 +9451,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03611582_step_3",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03611582",
@@ -8716,7 +9482,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03611582_step_3",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03611582",
@@ -8741,7 +9513,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03611582_step_3",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03611582",
@@ -8766,7 +9544,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03611582_step_3",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03611582",
@@ -8791,7 +9575,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03611582_step_3",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03611582",
@@ -8816,7 +9606,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03611582_step_3",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03611582",
@@ -8841,7 +9637,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03611582_step_3",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03611582",
@@ -8866,7 +9668,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03611582_step_3",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03611582",
@@ -8891,7 +9699,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03611582_step_3",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "intervention:semaglutide_2_4_mg_qw_s_c_intensive_behavioural_therapy",
@@ -9209,7 +10023,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03987919_surpass_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03987919",
@@ -9234,7 +10054,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03987919_surpass_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03987919",
@@ -9259,7 +10085,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03987919_surpass_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03987919",
@@ -9284,7 +10116,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03987919_surpass_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03987919",
@@ -9309,7 +10147,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03987919_surpass_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03987919",
@@ -9346,7 +10190,21 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03987919_surpass_2",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct03987919_surpass_2",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct03987919_surpass_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03987919",
@@ -9371,7 +10229,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03987919_surpass_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03987919",
@@ -9396,7 +10260,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03987919_surpass_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03987919",
@@ -9421,7 +10291,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03987919_surpass_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03987919",
@@ -9446,7 +10322,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03987919_surpass_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03987919",
@@ -9471,7 +10353,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03987919_surpass_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03987919",
@@ -9496,7 +10384,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03987919_surpass_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03987919",
@@ -9521,7 +10415,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03987919_surpass_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03987919",
@@ -9546,7 +10446,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03987919_surpass_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03987919",
@@ -9571,7 +10477,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03987919_surpass_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03987919",
@@ -9608,7 +10520,21 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03987919_surpass_2",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct03987919_surpass_2",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct03987919_surpass_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct03987919",
@@ -9633,7 +10559,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03987919_surpass_2",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "compound:tirzepatide",
@@ -9682,8 +10614,15 @@
           "relation_id": "compound:tirzepatide|treats|condition:type_2_diabetes_mellitus|nct03987919_surpass_2"
         }
       ],
-      "evidence_tier": "unclassified",
-      "epistemic_status": "asserted"
+      "evidence_tier": "high_evidence",
+      "epistemic_status": "hypothesized",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct03987919_surpass_2",
+          "tier": "high_evidence"
+        }
+      ],
+      "status_reason": "efficacy claim supported only by protocol intent language"
     },
     {
       "source": "compound:tirzepatide",
@@ -9739,8 +10678,19 @@
           "relation_id": "compound:tirzepatide|treats|condition:obesity|nct05822830_surmount_5"
         }
       ],
-      "evidence_tier": "unclassified",
-      "epistemic_status": "asserted"
+      "evidence_tier": "high_evidence",
+      "epistemic_status": "hypothesized",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct04184622_surmount_1",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct05822830_surmount_5",
+          "tier": "high_evidence"
+        }
+      ],
+      "status_reason": "efficacy claim supported only by protocol intent language"
     },
     {
       "source": "compound:tirzepatide",
@@ -9771,8 +10721,19 @@
           "relation_id": "compound:tirzepatide|treats|condition:overweight|nct05822830_surmount_5"
         }
       ],
-      "evidence_tier": "unclassified",
-      "epistemic_status": "asserted"
+      "evidence_tier": "high_evidence",
+      "epistemic_status": "hypothesized",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct04184622_surmount_1",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct05822830_surmount_5",
+          "tier": "high_evidence"
+        }
+      ],
+      "status_reason": "efficacy claim supported only by protocol intent language"
     },
     {
       "source": "compound:tirzepatide",
@@ -9821,8 +10782,14 @@
           "relation_id": "compound:tirzepatide|co_intervention|compound:semaglutide|nct05822830_surmount_5"
         }
       ],
-      "evidence_tier": "unclassified",
-      "epistemic_status": "asserted"
+      "evidence_tier": "high_evidence",
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05822830_surmount_5",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "intervention:5_mg_tirzepatide_sc_qw",
@@ -10270,7 +11237,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct04184622_surmount_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct04184622",
@@ -10295,7 +11268,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct04184622_surmount_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct04184622",
@@ -10320,7 +11299,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct04184622_surmount_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct04184622",
@@ -10357,7 +11342,21 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct04184622_surmount_1",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct04184622_surmount_1",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct04184622_surmount_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct04184622",
@@ -10382,7 +11381,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct04184622_surmount_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct04184622",
@@ -10407,7 +11412,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct04184622_surmount_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct04184622",
@@ -10432,7 +11443,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct04184622_surmount_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct04184622",
@@ -10457,7 +11474,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct04184622_surmount_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct04184622",
@@ -10500,7 +11523,25 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct04184622_surmount_1",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct04184622_surmount_1",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct04184622_surmount_1",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct04184622_surmount_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct04184622",
@@ -10525,7 +11566,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct04184622_surmount_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct04184622",
@@ -10550,7 +11597,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct04184622_surmount_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct04184622",
@@ -10575,7 +11628,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct04184622_surmount_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct04184622",
@@ -10600,7 +11659,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct04184622_surmount_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct04184622",
@@ -10625,7 +11690,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct04184622_surmount_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct04184622",
@@ -10650,7 +11721,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct04184622_surmount_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct04184622",
@@ -10675,7 +11752,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct04184622_surmount_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct04184622",
@@ -10700,7 +11783,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct04184622_surmount_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct04184622",
@@ -10725,7 +11814,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct04184622_surmount_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct04184622",
@@ -10750,7 +11845,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct04184622_surmount_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct04184622",
@@ -10787,7 +11888,21 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct04184622_surmount_1",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct04184622_surmount_1",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct04184622_surmount_1",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "intervention:placebo_arm_sc_qw",
@@ -11155,7 +12270,13 @@
         }
       ],
       "evidence_tier": "medium_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05715307_achieve_1",
+          "tier": "medium_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05715307",
@@ -11180,7 +12301,13 @@
         }
       ],
       "evidence_tier": "medium_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05715307_achieve_1",
+          "tier": "medium_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05715307",
@@ -11205,7 +12332,13 @@
         }
       ],
       "evidence_tier": "medium_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05715307_achieve_1",
+          "tier": "medium_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05715307",
@@ -11230,7 +12363,13 @@
         }
       ],
       "evidence_tier": "medium_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05715307_achieve_1",
+          "tier": "medium_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05715307",
@@ -11255,7 +12394,13 @@
         }
       ],
       "evidence_tier": "medium_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05715307_achieve_1",
+          "tier": "medium_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05715307",
@@ -11280,7 +12425,13 @@
         }
       ],
       "evidence_tier": "medium_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05715307_achieve_1",
+          "tier": "medium_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05715307",
@@ -11305,7 +12456,13 @@
         }
       ],
       "evidence_tier": "medium_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05715307_achieve_1",
+          "tier": "medium_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05715307",
@@ -11330,7 +12487,13 @@
         }
       ],
       "evidence_tier": "medium_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05715307_achieve_1",
+          "tier": "medium_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05715307",
@@ -11355,7 +12518,13 @@
         }
       ],
       "evidence_tier": "medium_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05715307_achieve_1",
+          "tier": "medium_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05715307",
@@ -11380,7 +12549,13 @@
         }
       ],
       "evidence_tier": "medium_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05715307_achieve_1",
+          "tier": "medium_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05715307",
@@ -11405,7 +12580,13 @@
         }
       ],
       "evidence_tier": "medium_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05715307_achieve_1",
+          "tier": "medium_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05715307",
@@ -11430,7 +12611,13 @@
         }
       ],
       "evidence_tier": "medium_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05715307_achieve_1",
+          "tier": "medium_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05715307",
@@ -11455,7 +12642,13 @@
         }
       ],
       "evidence_tier": "medium_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05715307_achieve_1",
+          "tier": "medium_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05715307",
@@ -11480,7 +12673,13 @@
         }
       ],
       "evidence_tier": "medium_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05715307_achieve_1",
+          "tier": "medium_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05715307",
@@ -11505,7 +12704,13 @@
         }
       ],
       "evidence_tier": "medium_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05715307_achieve_1",
+          "tier": "medium_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05715307",
@@ -11530,7 +12735,13 @@
         }
       ],
       "evidence_tier": "medium_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05715307_achieve_1",
+          "tier": "medium_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05715307",
@@ -11555,7 +12766,13 @@
         }
       ],
       "evidence_tier": "medium_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05715307_achieve_1",
+          "tier": "medium_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05715307",
@@ -11580,7 +12797,13 @@
         }
       ],
       "evidence_tier": "medium_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05715307_achieve_1",
+          "tier": "medium_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05715307",
@@ -11605,7 +12828,13 @@
         }
       ],
       "evidence_tier": "medium_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05715307_achieve_1",
+          "tier": "medium_evidence"
+        }
+      ]
     },
     {
       "source": "trialphase:observational",
@@ -11704,8 +12933,14 @@
           "relation_id": "intervention:intensive_training_for_endocrinologists_in_t2dm_management|co_intervention|intervention:regular_training_for_endocrinologists_in_t2dm_management|nct05715307_achieve_1"
         }
       ],
-      "evidence_tier": "unclassified",
-      "epistemic_status": "asserted"
+      "evidence_tier": "medium_evidence",
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05715307_achieve_1",
+          "tier": "medium_evidence"
+        }
+      ]
     },
     {
       "source": "intervention:regular_training_for_endocrinologists_in_t2dm_management",
@@ -12080,7 +13315,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05822830_surmount_5",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05822830",
@@ -12105,7 +13346,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05822830_surmount_5",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05822830",
@@ -12130,7 +13377,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05822830_surmount_5",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05822830",
@@ -12155,7 +13408,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05822830_surmount_5",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05822830",
@@ -12180,7 +13439,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05822830_surmount_5",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05822830",
@@ -12205,7 +13470,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05822830_surmount_5",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05822830",
@@ -12230,7 +13501,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05822830_surmount_5",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05822830",
@@ -12255,7 +13532,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05822830_surmount_5",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05822830",
@@ -12280,7 +13563,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05822830_surmount_5",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05822830",
@@ -12329,7 +13618,29 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05822830_surmount_5",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct05822830_surmount_5",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct05822830_surmount_5",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct05822830_surmount_5",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct05822830_surmount_5",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05822830",
@@ -12354,7 +13665,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05822830_surmount_5",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05822830",
@@ -12379,7 +13696,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05822830_surmount_5",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05822830",
@@ -12404,7 +13727,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05822830_surmount_5",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05822830",
@@ -12429,7 +13758,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05822830_surmount_5",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05822830",
@@ -12454,7 +13789,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05822830_surmount_5",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05822830",
@@ -12479,7 +13820,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05822830_surmount_5",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05822830",
@@ -12504,7 +13851,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05822830_surmount_5",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "trial:nct05822830",
@@ -12529,7 +13882,13 @@
         }
       ],
       "evidence_tier": "high_evidence",
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05822830_surmount_5",
+          "tier": "high_evidence"
+        }
+      ]
     },
     {
       "source": "intervention:15_mg_or_mtd_tirzepatide",

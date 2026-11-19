@@ -3,34 +3,155 @@
     "description": "Clinical-trial epistemic layer \u2014 phase-based evidence grading",
     "domain": "clinicaltrials",
     "generated_from": "tests/corpora/07_glp1_phase3_trials/output/graph_data.json",
-    "total_relations": 395,
+    "total_relations": 198,
     "trial_count": 10
   },
   "summary": {
     "evidence_tier_counts": {
-      "high_evidence": 177,
-      "unclassified": 198,
+      "high_evidence": 178,
       "medium_evidence": 20
     },
     "epistemic_status_counts": {
-      "asserted": 394,
-      "unclassified": 1
+      "asserted": 191,
+      "hypothesized": 7
     },
     "contradictions_found": 0,
     "contested_found": 0,
-    "hypothesized_found": 0,
+    "hypothesized_found": 7,
+    "hypotheses_found": 7,
     "trials_with_phase": 9,
     "trials_with_enrollment": 10
   },
   "base_domain": {
     "description": "High-evidence relations from Phase 3, randomized, or large-enrollment trials",
-    "relation_count": 177
+    "relation_count": 178
   },
   "super_domain": {
     "description": "Medium/low/unclassified-evidence relations \u2014 smaller trials, early phase, or unclassifiable",
-    "relation_count": 218,
+    "relation_count": 20,
     "contradictions": [],
     "contested_claims": [],
-    "hypotheses": []
-  }
+    "hypotheses": [
+      {
+        "label": "semaglutide treats Diabetes Mellitus, Type 2",
+        "member_entities": [
+          "compound:semaglutide",
+          "condition:diabetes_mellitus_type_2"
+        ],
+        "support_documents": [
+          "nct01720446_sustain_6",
+          "nct02692716_pioneer_6",
+          "nct02906930_pioneer_1"
+        ],
+        "source_entity": "compound:semaglutide",
+        "target_entity": "condition:diabetes_mellitus_type_2",
+        "relation_type": "treats",
+        "confidence": 0.999875,
+        "evidence_tier": "high_evidence",
+        "reason": "efficacy claim supported only by protocol intent language"
+      },
+      {
+        "label": "semaglutide treats Overweight or Obesity",
+        "member_entities": [
+          "compound:semaglutide",
+          "condition:overweight_or_obesity"
+        ],
+        "support_documents": [
+          "nct03548935_step_1"
+        ],
+        "source_entity": "compound:semaglutide",
+        "target_entity": "condition:overweight_or_obesity",
+        "relation_type": "treats",
+        "confidence": 0.95,
+        "evidence_tier": "high_evidence",
+        "reason": "efficacy claim supported only by protocol intent language"
+      },
+      {
+        "label": "semaglutide treats Obesity",
+        "member_entities": [
+          "compound:semaglutide",
+          "condition:obesity"
+        ],
+        "support_documents": [
+          "nct03552757_step_2",
+          "nct03611582_step_3",
+          "nct05822830_surmount_5"
+        ],
+        "source_entity": "compound:semaglutide",
+        "target_entity": "condition:obesity",
+        "relation_type": "treats",
+        "confidence": 0.999755,
+        "evidence_tier": "high_evidence",
+        "reason": "efficacy claim supported only by protocol intent language"
+      },
+      {
+        "label": "semaglutide treats Overweight",
+        "member_entities": [
+          "compound:semaglutide",
+          "condition:overweight"
+        ],
+        "support_documents": [
+          "nct03611582_step_3",
+          "nct05822830_surmount_5"
+        ],
+        "source_entity": "compound:semaglutide",
+        "target_entity": "condition:overweight",
+        "relation_type": "treats",
+        "confidence": 0.993,
+        "evidence_tier": "high_evidence",
+        "reason": "efficacy claim supported only by protocol intent language"
+      },
+      {
+        "label": "tirzepatide treats Type 2 Diabetes Mellitus",
+        "member_entities": [
+          "compound:tirzepatide",
+          "condition:type_2_diabetes_mellitus"
+        ],
+        "support_documents": [
+          "nct03987919_surpass_2"
+        ],
+        "source_entity": "compound:tirzepatide",
+        "target_entity": "condition:type_2_diabetes_mellitus",
+        "relation_type": "treats",
+        "confidence": 0.93,
+        "evidence_tier": "high_evidence",
+        "reason": "efficacy claim supported only by protocol intent language"
+      },
+      {
+        "label": "tirzepatide treats Obesity",
+        "member_entities": [
+          "compound:tirzepatide",
+          "condition:obesity"
+        ],
+        "support_documents": [
+          "nct04184622_surmount_1",
+          "nct05822830_surmount_5"
+        ],
+        "source_entity": "compound:tirzepatide",
+        "target_entity": "condition:obesity",
+        "relation_type": "treats",
+        "confidence": 0.9965,
+        "evidence_tier": "high_evidence",
+        "reason": "efficacy claim supported only by protocol intent language"
+      },
+      {
+        "label": "tirzepatide treats Overweight",
+        "member_entities": [
+          "compound:tirzepatide",
+          "condition:overweight"
+        ],
+        "support_documents": [
+          "nct04184622_surmount_1",
+          "nct05822830_surmount_5"
+        ],
+        "source_entity": "compound:tirzepatide",
+        "target_entity": "condition:overweight",
+        "relation_type": "treats",
+        "confidence": 0.993,
+        "evidence_tier": "high_evidence",
+        "reason": "efficacy claim supported only by protocol intent language"
+      }
+    ]
+  },
+  "generator": "label_epistemic"
 }

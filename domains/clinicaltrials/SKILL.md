@@ -136,6 +136,12 @@ biologic gets BOTH a Compound entity (with INN as name) AND an Intervention enti
 The disease, disorder, or indication being studied. Prefer MeSH disease terms as
 the canonical name. Include disease subtypes and staging information when specified.
 
+Use **one canonical name per disease across the whole corpus**, so that support from
+different trials lands on the same node. Write "Type 2 Diabetes Mellitus", never
+"Diabetes Mellitus, Type 2" or "T2DM" as the name (put variants in attributes). Split
+combined labels: "overweight or obesity" becomes two Conditions, "Overweight" and
+"Obesity".
+
 ```json
 {
   "name": "Non-Small Cell Lung Carcinoma",
@@ -353,16 +359,55 @@ relations to both the Compound (INN name) and the Intervention (arm label).
 
 **Source:** Compound or Intervention | **Target:** Condition
 
-A Compound or Intervention treats a Condition. Use for established or investigational
-therapeutic use. Distinguish from `investigates` (Trial->Condition).
+A Compound or Intervention has **shown or approved** efficacy for a Condition. Use
+only when the text reports an observed result ("reduced HbA1c by 2.0%", "met its
+primary endpoint") or an approved indication. A protocol that plans to test a
+treatment is `evaluated_for`, not `treats`. Distinguish from `investigates`
+(Trial->Condition).
+
+```json
+{
+  "source_entity": "semaglutide",
+  "target_entity": "Type 2 Diabetes Mellitus",
+  "relation_type": "treats",
+  "confidence": 0.92,
+  "evidence": "Semaglutide is approved as an adjunct to diet and exercise to improve glycemic control in adults with type 2 diabetes"
+}
+```
+
+### evaluated_for
+
+**Source:** Compound or Intervention | **Target:** Condition
+
+A Compound or Intervention is being tested as a treatment for a Condition. This is
+the normal relation for protocol and registry text, which states intent rather than
+results.
 
 ```json
 {
   "source_entity": "sotorasib",
   "target_entity": "Non-Small Cell Lung Carcinoma",
-  "relation_type": "treats",
+  "relation_type": "evaluated_for",
   "confidence": 0.93,
   "evidence": "Sotorasib evaluated for treatment of previously treated NSCLC"
+}
+```
+
+### compared_with
+
+**Source:** Compound or Intervention | **Target:** Compound or Intervention
+
+Two Compounds or Interventions are given in **separate arms** and compared against
+each other: an active comparator, a head-to-head design, or a placebo control. Do
+not use `co_intervention` for this.
+
+```json
+{
+  "source_entity": "tirzepatide",
+  "target_entity": "semaglutide",
+  "relation_type": "compared_with",
+  "confidence": 0.95,
+  "evidence": "Tirzepatide 5, 10 or 15 mg once weekly versus semaglutide 1 mg once weekly"
 }
 ```
 
@@ -492,7 +537,9 @@ names (Phase 1, Phase 2, Phase 2/3, Phase 3, Phase 4, Observational).
 **Source:** Compound or Intervention | **Target:** Compound or Intervention
 
 Two Interventions or Compounds are co-administered in the same Cohort. Use for
-combination therapy arms where multiple agents are administered together.
+combination therapy arms where multiple agents are administered together. If the
+agents are in separate arms being compared, use `compared_with` instead. Do not
+force a comparison into this relation at low confidence.
 
 ```json
 {
@@ -506,12 +553,31 @@ combination therapy arms where multiple agents are administered together.
 
 ## Confidence Calibration
 
+The score says how strongly the text supports the extraction. It does not say
+whether a treatment works; that is the job of `treats` versus `evaluated_for`.
+Use the whole scale. Registry fields are often explicit, but eligibility criteria,
+inferred arms and implied phases are not.
+
 | Tier | Range | When to Use |
 |------|-------|-------------|
-| Explicit | 0.9–1.0 | Directly stated with a clear citation (e.g. "NCT04303780", stated phase, named sponsor) |
-| Supported | 0.7–0.89 | Strongly supported by context but not directly quoted (e.g. inferred from arm label) |
+| Explicit | 0.9–1.0 | Directly stated with a clear citation (e.g. "NCT04303780", stated phase, named sponsor, listed primary endpoint) |
+| Supported | 0.7–0.89 | Strongly supported by context but not directly stated |
 | Inferred | 0.5–0.69 | Inferred from indirect evidence or background knowledge |
 | Speculative | < 0.5 | Speculative; flag for review; do not use if NCT ID is absent and title is vague |
+
+Mid-range examples:
+
+- **0.85, `uses_biomarker`:** an inclusion criterion ("BMI ≥30 kg/m²") read as a
+  selection biomarker. The criterion is explicit; treating it as a biomarker is an
+  interpretation.
+- **0.80, `enrolls`:** a Cohort inferred from an arm label ("Arm B") when the
+  document does not describe the arm's population.
+- **0.75, `evaluated_for`:** a Condition named only in the eligibility criteria,
+  not in the title, summary or conditions list.
+- **0.65, `is_phase`:** phase implied by design ("randomized, 72-week,
+  event-driven") but not stated, or listed as "NA".
+- **0.55, `targets`:** a mechanism mentioned only in the background section as
+  prior knowledge.
 
 ## Quality Checks
 
@@ -526,4 +592,7 @@ Before returning your extraction, verify:
 - Drug interventions MUST appear as BOTH a Compound entity AND an Intervention entity (the arm label), connected via a `tests` relation from the Trial.
 - TrialPhase names MUST be normalized: use `Phase 1`, `Phase 2`, `Phase 2/3`, `Phase 3`, `Phase 4`, or `Observational` — never Roman numerals.
 - No duplicate entities: if the same NCT ID appears multiple times, extract only one Trial entity.
+- Protocol intent ("will evaluate", "to assess", "active comparator") produces `evaluated_for`, never `treats`.
+- Comparator arms produce `compared_with`, never `co_intervention`.
+- Condition names are canonical across the corpus (one name per disease).
 - Missing NCT ID: if no NCT ID is found, set Trial confidence <= 0.6 and use the study acronym as the name with a note in context.

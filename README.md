@@ -164,7 +164,7 @@ Full briefing, graph, extractions, and validation: **[docs/SHOWCASE-FDA.md](docs
 A domain is a ready-made package for one subject area: the list of entity and relation types to look for, instructions for the AI reader, and the rules for the epistemic layer. Five domains come with the framework:
 
 - **drug-discovery** — research papers and patents about medicines · 17 entity / 30 relation types · tested on 6 scenarios (from PICALM/Alzheimer's to GLP-1 competitive intelligence)
-- **clinicaltrials** — study plans registered on ClinicalTrials.gov · 12 entity / 10 relation types · tested on 1 scenario · `--enrich` adds extra detail from the ClinicalTrials.gov v2 API and PubChem
+- **clinicaltrials** — study plans registered on ClinicalTrials.gov · 12 entity / 12 relation types · tested on 1 scenario · `--enrich` adds extra detail from the ClinicalTrials.gov v2 API and PubChem
 - **fda-product-labels** — FDA drug labels (SPLs) · 17 entity / 16 relation types · tested on 1 scenario · includes the four-level FDA evidence scale
 - **pharmacovigilance** — reports of side effects after a drug is on the market (from FAERS, VAERS, MedWatch) · 12 entity / 12 relation types · uses the Bradford-Hill criteria (a standard checklist for judging whether a drug caused a side effect), MedDRA PT (standard side-effect names), and WHO ATC (standard drug codes) · ships a FAERS document downloader
 - **contracts** — event and vendor contract analysis · 9 entity / 9 relation types · a starter schema (bring your own documents)

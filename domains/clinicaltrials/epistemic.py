@@ -37,6 +37,26 @@ BLINDING_RE = re.compile(
 
 EVIDENCE_TIERS = ("low_evidence", "medium_evidence", "high_evidence")
 
+# Provenance links written by the graph builder; not claims.
+MENTIONED_IN = "MENTIONED_IN"
+
+# Relations that assert a drug or intervention works for a condition.
+EFFICACY_RELATIONS = {"treats"}
+
+# Protocol language describes what a trial will test, not what it showed.
+PROTOCOL_INTENT_RE = re.compile(
+    r"\b(evaluat\w*|assess\w*|investigat\w*|will (?:receive|be)|to (?:compare|determine|test)|"
+    r"being (?:studied|tested)|under study|compar\w* (?:to|with|against)|active comparator)\b",
+    re.IGNORECASE,
+)
+
+# Language that reports an observed result rather than intent.
+RESULT_RE = re.compile(
+    r"\b(reduced|improved|demonstrated|showed|resulted in|significantly|superior|non-?inferior|"
+    r"approved for|indicated for|hazard ratio|p\s*[<=])",
+    re.IGNORECASE,
+)
+
 
 # ---------------------------------------------------------------------------
 # Helper functions
@@ -114,36 +134,23 @@ def _bump_tier(tier: str, delta: int) -> str:
     return EVIDENCE_TIERS[new_idx]
 
 
-def _grade_relation(link: dict, trial_lookup: dict) -> str:
-    """Return evidence tier for one relation.
+def _grade_trial(trial_node: dict, evidence_text: str) -> str:
+    """Return the evidence tier one trial lends to one piece of evidence.
 
     Apply phase -> blinding -> enrollment bumps in that order.
-    If no connected Trial node is found, return 'unclassified'.
     """
-    # Find a connected Trial node by checking source and target
-    source = link.get("source", "")
-    target = link.get("target", "")
-
-    trial_node: dict | None = trial_lookup.get(source) or trial_lookup.get(target)
-
-    if trial_node is None:
-        return "unclassified"
-
     # Step 1: Determine starting tier from trial phase
     phase = _trial_phase(trial_node)
     if phase == "PHASE3":
         tier = "high_evidence"
     elif phase == "PHASE2":
         tier = "medium_evidence"
-    elif phase in ("PHASE1", "OBSERVATIONAL"):
-        tier = "low_evidence"
     else:
-        # No phase info available — start at low
+        # Phase 1, observational, or no phase info — start at low
         tier = "low_evidence"
 
     # Step 2: Apply blinding/randomization bump
-    evidence_text = link.get("evidence", "") or ""
-    if BLINDING_RE.search(evidence_text):
+    if BLINDING_RE.search(evidence_text or ""):
         tier = _bump_tier(tier, +1)
 
     # Step 3: Apply enrollment bump
@@ -157,6 +164,74 @@ def _grade_relation(link: dict, trial_lookup: dict) -> str:
     return tier
 
 
+def _grade_relation(link: dict, trial_lookup: dict) -> str:
+    """Return evidence tier for one relation that touches a Trial node.
+
+    If no connected Trial node is found, return 'unclassified'. Kept for
+    callers that grade a single link; analyze_clinicaltrials_epistemic grades
+    per mention so links between non-trial entities can be graded too.
+    """
+    trial_node = trial_lookup.get(link.get("source", "")) or trial_lookup.get(link.get("target", ""))
+    if trial_node is None:
+        return "unclassified"
+    return _grade_trial(trial_node, link.get("evidence", "") or "")
+
+
+def _best_tier(tiers: list[str]) -> str:
+    """Highest evidence tier in the list; 'unclassified' if none are graded."""
+    graded = [t for t in tiers if t in EVIDENCE_TIERS]
+    if not graded:
+        return "unclassified"
+    return max(graded, key=EVIDENCE_TIERS.index)
+
+
+def _link_mentions(link: dict) -> list[dict]:
+    """Per-source mentions of a merged link, or the link itself if unmerged."""
+    mentions = link.get("mentions")
+    if mentions:
+        return mentions
+    return [{
+        "source_document": link.get("source_document", ""),
+        "evidence": link.get("evidence", ""),
+        "confidence": link.get("confidence"),
+    }]
+
+
+def _doc_trial_map(links: list[dict], trial_lookup: dict) -> dict[str, list[str]]:
+    """Map document id (without 'doc:' prefix) -> Trial node ids it mentions.
+
+    Built from the Trial MENTIONED_IN Document links the graph builder writes,
+    so a mention's source_document can be traced back to its trial even when
+    the relation itself does not touch a Trial node (e.g. Compound treats
+    Condition).
+    """
+    doc_trials: dict[str, list[str]] = defaultdict(list)
+    for link in links:
+        if link.get("relation_type") != MENTIONED_IN:
+            continue
+        source = link.get("source", "")
+        if source in trial_lookup:
+            doc_id = str(link.get("target", "")).removeprefix("doc:")
+            if source not in doc_trials[doc_id]:
+                doc_trials[doc_id].append(source)
+    return doc_trials
+
+
+def _confidence(link: dict) -> float:
+    """Link confidence, defaulting to 0.8 only when missing or null.
+
+    An explicit 0.0 is a real score and must stay 0.0 (it previously
+    became 0.8 through a falsy `or` default and was labeled asserted).
+    """
+    value = link.get("confidence")
+    if value is None:
+        return 0.8
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.8
+
+
 # ---------------------------------------------------------------------------
 # Main epistemic analysis function
 # ---------------------------------------------------------------------------
@@ -164,6 +239,15 @@ def _grade_relation(link: dict, trial_lookup: dict) -> str:
 
 def analyze_clinicaltrials_epistemic(output_dir: Path, graph_data: dict) -> dict:
     """Run clinical-trial epistemic analysis on a built graph.
+
+    Every non-bookkeeping relation is graded per mention: each mention's
+    source document is traced to the Trial(s) it describes, and that trial's
+    phase, blinding and enrollment set the mention's tier. The relation's
+    tier is the best tier among its mentions. Contradictions and contested
+    claims compare those per-source tiers inside one merged relation.
+
+    MENTIONED_IN links are provenance bookkeeping, not claims: they are not
+    graded, labeled, or counted.
 
     Args:
         output_dir: directory containing graph_data.json (used for metadata paths only).
@@ -180,6 +264,8 @@ def analyze_clinicaltrials_epistemic(output_dir: Path, graph_data: dict) -> dict
         n["id"]: n for n in nodes
         if str(n.get("entity_type", "")).lower() == "trial"
     }
+    doc_trials = _doc_trial_map(links, trial_lookup)
+    names = {n["id"]: str(n.get("name") or n["id"]) for n in nodes if "id" in n}
 
     evidence_counts: dict[str, int] = defaultdict(int)
     status_counts: dict[str, int] = defaultdict(int)
@@ -194,54 +280,103 @@ def analyze_clinicaltrials_epistemic(output_dir: Path, graph_data: dict) -> dict
         _HAVE_CLASSIFIER = False
 
     hypothesized_links: list[dict] = []
-    for link in links:
-        tier = _grade_relation(link, trial_lookup)
-        link["evidence_tier"] = tier
-        evidence_counts[tier] += 1
+    contradictions: list[dict] = []
+    contested: list[dict] = []
+    claim_count = 0
 
+    for link in links:
+        relation_type = link.get("relation_type")
+        if relation_type == MENTIONED_IN:
+            continue
+        claim_count += 1
+
+        # --- Evidence tier, graded per mention -------------------------------
+        direct_trial = trial_lookup.get(link.get("source", "")) or trial_lookup.get(link.get("target", ""))
+        mention_tiers: list[dict] = []
+        for mention in _link_mentions(link):
+            evidence = mention.get("evidence", "") or ""
+            doc_id = str(mention.get("source_document", "") or "")
+            if direct_trial is not None:
+                trials = [direct_trial]
+            else:
+                trials = [trial_lookup[t] for t in doc_trials.get(doc_id, [])]
+            tier = _best_tier([_grade_trial(t, evidence) for t in trials])
+            mention_tiers.append({"source_document": doc_id, "tier": tier})
+
+        tiers = [m["tier"] for m in mention_tiers]
+        link_tier = _best_tier(tiers)
+        link["evidence_tier"] = link_tier
+        link["mention_evidence_tiers"] = mention_tiers
+        evidence_counts[link_tier] += 1
+
+        unique_tiers = set(tiers)
+        finding_base = {
+            "source_entity": link.get("source"),
+            "target_entity": link.get("target"),
+            "relation_type": relation_type,
+            "tiers": tiers,
+            "sources": mention_tiers,
+            # Standard fields read by core/epistemic_health.py
+            "mentions": _link_mentions(link),
+            "support_documents": [m["source_document"] for m in mention_tiers if m["source_document"]],
+        }
+        if "high_evidence" in unique_tiers and "low_evidence" in unique_tiers:
+            contradictions.append(dict(finding_base))
+        if "high_evidence" in unique_tiers and "medium_evidence" in unique_tiers:
+            contested.append({**finding_base, "epistemic_status": "contested"})
+
+        # --- Epistemic status ---------------------------------------------------
         if _HAVE_CLASSIFIER:
             evidence = link.get("evidence", "") or ""
-            confidence = float(link.get("confidence", 0.8) or 0.8)
-            # doc_type for trial protocols: "paper" (not patent). Phase III
-            # with randomized blinding tokens already pushed tier high; keep
-            # this as pure language classification.
+            confidence = _confidence(link)
+            # doc_type for trial protocols: "paper" (not patent).
             status = classify_epistemic_status(evidence, confidence, "paper")
+            # A protocol says what a trial will test, not what works. A
+            # treats claim supported only by intent language ("evaluated",
+            # "will receive", "to assess") is a hypothesis under test.
+            if relation_type in EFFICACY_RELATIONS and status == "asserted":
+                mention_evidence = [m.get("evidence", "") or "" for m in _link_mentions(link)]
+                if mention_evidence and all(
+                    PROTOCOL_INTENT_RE.search(e) and not RESULT_RE.search(e)
+                    for e in mention_evidence
+                ):
+                    status = "hypothesized"
+                    link["status_reason"] = "efficacy claim supported only by protocol intent language"
             link["epistemic_status"] = status
             status_counts[status] += 1
             if status in ("hypothesized", "speculative"):
                 hypothesized_links.append(link)
 
-    # Contradiction detection: same (source, target, relation_type) with conflicting tiers
-    triple_to_tiers: dict[tuple, list[str]] = defaultdict(list)
-    for link in links:
-        key = (link.get("source"), link.get("target"), link.get("relation_type"))
-        triple_to_tiers[key].append(link.get("evidence_tier", "unclassified"))
-    contradictions = []
-    for key, tiers in triple_to_tiers.items():
-        if "high_evidence" in tiers and "low_evidence" in tiers:
-            contradictions.append({
-                "source_entity": key[0], "target_entity": key[1], "relation_type": key[2],
-                "tiers": tiers,
-            })
-
-    # "Contested" = relations that appear at both high_evidence and medium_evidence —
-    # same claim surfaces across trials with meaningfully different design rigor.
-    contested: list[dict] = []
-    for key, tiers in triple_to_tiers.items():
-        unique_tiers = set(tiers)
-        if "high_evidence" in unique_tiers and "medium_evidence" in unique_tiers:
-            contested.append({
-                "source_entity": key[0], "target_entity": key[1], "relation_type": key[2],
-                "tiers": tiers,
-                "epistemic_status": "contested",
-            })
+    # Same envelope as the drug-discovery hypothesis groups (label,
+    # member_entities, support_documents) so the health report and narrator
+    # render them; one group per hypothesized relation.
+    hypotheses = [
+        {
+            "label": " ".join([
+                names.get(link.get("source"), str(link.get("source"))),
+                str(link.get("relation_type", "")).replace("_", " "),
+                names.get(link.get("target"), str(link.get("target"))),
+            ]),
+            "member_entities": [link.get("source"), link.get("target")],
+            "support_documents": [
+                str(m.get("source_document", "")) for m in _link_mentions(link) if m.get("source_document")
+            ],
+            "source_entity": link.get("source"),
+            "target_entity": link.get("target"),
+            "relation_type": link.get("relation_type"),
+            "confidence": link.get("confidence"),
+            "evidence_tier": link.get("evidence_tier"),
+            "reason": link.get("status_reason", "hedged or low-confidence evidence"),
+        }
+        for link in hypothesized_links
+    ]
 
     return {
         "metadata": {
             "description": "Clinical-trial epistemic layer — phase-based evidence grading",
             "domain": "clinicaltrials",
             "generated_from": str(output_dir / "graph_data.json"),
-            "total_relations": len(links),
+            "total_relations": claim_count,
             "trial_count": len(trial_lookup),
         },
         "summary": {
@@ -251,6 +386,8 @@ def analyze_clinicaltrials_epistemic(output_dir: Path, graph_data: dict) -> dict
             "contradictions_found": len(contradictions),
             "contested_found": len(contested),
             "hypothesized_found": len(hypothesized_links),
+            # v3 standard key shared with drug-discovery (hypothesis groups).
+            "hypotheses_found": len(hypotheses),
             "trials_with_phase": sum(1 for n in trial_lookup.values() if _trial_phase(n)),
             "trials_with_enrollment": sum(1 for n in trial_lookup.values() if _enrollment(n) is not None),
         },
@@ -263,8 +400,6 @@ def analyze_clinicaltrials_epistemic(output_dir: Path, graph_data: dict) -> dict
             "relation_count": sum(v for k, v in evidence_counts.items() if k != "high_evidence"),
             "contradictions": contradictions,
             "contested_claims": contested,
-            # narrator looks for super_domain.hypotheses — clinicaltrials has no
-            # hypothesis grouping yet, so leave this empty (clean-contract).
-            "hypotheses": [],
+            "hypotheses": hypotheses,
         },
     }

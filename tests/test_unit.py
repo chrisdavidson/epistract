@@ -2680,7 +2680,7 @@ CT_FIXTURES = FIXTURES_DIR / "clinicaltrials"
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
 def test_ctdm01_clinicaltrials_domain_yaml():
-    """CTDM-01: domain.yaml declares 12 entity types and 10 relation types."""
+    """CTDM-01: domain.yaml declares 12 entity types and 12 relation types."""
     from sift_kg import load_domain
 
     yaml_path = CLINICALTRIALS_DIR / "domain.yaml"
@@ -2689,9 +2689,11 @@ def test_ctdm01_clinicaltrials_domain_yaml():
     assert len(domain.entity_types) == 12, (
         f"Expected 12 entity types, got {len(domain.entity_types)}"
     )
-    assert len(domain.relation_types) == 10, (
-        f"Expected 10 relation types, got {len(domain.relation_types)}"
+    assert len(domain.relation_types) == 12, (
+        f"Expected 12 relation types, got {len(domain.relation_types)}"
     )
+    for rel in ("evaluated_for", "compared_with"):
+        assert rel in domain.relation_types, f"Missing relation type {rel}"
 
 
 @pytest.mark.unit
@@ -2744,6 +2746,116 @@ def test_ctdm03_clinicaltrials_epistemic_callable(tmp_path):
     assert isinstance(result, dict)
     for key in ("metadata", "summary", "base_domain", "super_domain"):
         assert key in result, f"claims layer missing '{key}'"
+
+
+def _ct_graph():
+    """Two trials (Phase 3 large, Phase 2 small) and claims linking them."""
+    nodes = [
+        {"id": "trial:nct1", "entity_type": "Trial", "ct_phase": "PHASE3", "ct_enrollment": 1200},
+        {"id": "trial:nct2", "entity_type": "Trial", "ct_phase": "PHASE2", "ct_enrollment": 120},
+        {"id": "compound:drug_a", "entity_type": "Compound"},
+        {"id": "condition:disease_x", "entity_type": "Condition"},
+        {"id": "sponsor:acme", "entity_type": "Sponsor"},
+    ]
+    links = [
+        {"source": "trial:nct1", "target": "doc:nct1_doc", "relation_type": "MENTIONED_IN",
+         "confidence": 0.95, "evidence": ""},
+        {"source": "trial:nct2", "target": "doc:nct2_doc", "relation_type": "MENTIONED_IN",
+         "confidence": 0.95, "evidence": ""},
+        {"source": "trial:nct1", "target": "sponsor:acme", "relation_type": "sponsored_by",
+         "confidence": 0.99, "evidence": "Sponsor: Acme"},
+        {"source": "compound:drug_a", "target": "condition:disease_x", "relation_type": "treats",
+         "confidence": 0.99, "evidence": "Drug A evaluated for treatment of disease X",
+         "mentions": [
+             {"source_document": "nct1_doc", "confidence": 0.95,
+              "evidence": "Drug A evaluated for treatment of disease X"},
+             {"source_document": "nct2_doc", "confidence": 0.93,
+              "evidence": "Drug A will be assessed in disease X"},
+         ]},
+    ]
+    return {"nodes": nodes, "links": links}
+
+
+@pytest.mark.unit
+def test_ctdm03_mentioned_in_not_counted_as_claims(tmp_path):
+    """MENTIONED_IN provenance links are not graded, labeled or counted."""
+    from core.label_epistemic import _load_domain_epistemic
+
+    mod = _load_domain_epistemic("clinicaltrials")
+    graph = _ct_graph()
+    result = mod.analyze_clinicaltrials_epistemic(tmp_path, graph)
+    assert result["metadata"]["total_relations"] == 2, result["metadata"]
+    assert sum(result["summary"]["epistemic_status_counts"].values()) == 2
+    assert sum(result["summary"]["evidence_tier_counts"].values()) == 2
+    mentioned = [lk for lk in graph["links"] if lk["relation_type"] == "MENTIONED_IN"]
+    assert all("epistemic_status" not in lk for lk in mentioned)
+
+
+@pytest.mark.unit
+def test_ctdm03_non_trial_relation_graded_via_mentions(tmp_path):
+    """Compound->Condition links are graded through their source documents' trials."""
+    from core.label_epistemic import _load_domain_epistemic
+
+    mod = _load_domain_epistemic("clinicaltrials")
+    graph = _ct_graph()
+    mod.analyze_clinicaltrials_epistemic(tmp_path, graph)
+    treats = next(lk for lk in graph["links"] if lk["relation_type"] == "treats")
+    assert treats["evidence_tier"] == "high_evidence", treats
+    tiers = {m["source_document"]: m["tier"] for m in treats["mention_evidence_tiers"]}
+    assert tiers == {"nct1_doc": "high_evidence", "nct2_doc": "medium_evidence"}, tiers
+
+
+@pytest.mark.unit
+def test_ctdm03_contested_detected_across_merged_mentions(tmp_path):
+    """One merged relation backed by a Phase 3 and a Phase 2 trial is contested."""
+    from core.label_epistemic import _load_domain_epistemic
+
+    mod = _load_domain_epistemic("clinicaltrials")
+    result = mod.analyze_clinicaltrials_epistemic(tmp_path, _ct_graph())
+    assert result["summary"]["contested_found"] == 1, result["summary"]
+    claim = result["super_domain"]["contested_claims"][0]
+    assert claim["relation_type"] == "treats"
+    assert set(claim["tiers"]) == {"high_evidence", "medium_evidence"}
+
+
+@pytest.mark.unit
+def test_ctdm03_protocol_intent_treats_is_hypothesized(tmp_path):
+    """A treats claim backed only by protocol intent language is hypothesized."""
+    from core.label_epistemic import _load_domain_epistemic
+
+    mod = _load_domain_epistemic("clinicaltrials")
+    graph = _ct_graph()
+    result = mod.analyze_clinicaltrials_epistemic(tmp_path, graph)
+    treats = next(lk for lk in graph["links"] if lk["relation_type"] == "treats")
+    assert treats["epistemic_status"] == "hypothesized", treats
+    assert result["summary"]["hypothesized_found"] == 1
+    assert result["super_domain"]["hypotheses"][0]["relation_type"] == "treats"
+
+
+@pytest.mark.unit
+def test_ctdm03_treats_with_result_language_stays_asserted(tmp_path):
+    """A treats claim with an observed result keeps its asserted status."""
+    from core.label_epistemic import _load_domain_epistemic
+
+    mod = _load_domain_epistemic("clinicaltrials")
+    graph = _ct_graph()
+    treats = next(lk for lk in graph["links"] if lk["relation_type"] == "treats")
+    treats["mentions"][1]["evidence"] = "Drug A significantly reduced HbA1c versus placebo"
+    mod.analyze_clinicaltrials_epistemic(tmp_path, graph)
+    assert treats["epistemic_status"] == "asserted", treats
+
+
+@pytest.mark.unit
+def test_ctdm03_zero_confidence_not_promoted(tmp_path):
+    """An explicit 0.0 confidence stays low; it must not default to 0.8 / asserted."""
+    from core.label_epistemic import _load_domain_epistemic
+
+    mod = _load_domain_epistemic("clinicaltrials")
+    graph = _ct_graph()
+    sponsor = next(lk for lk in graph["links"] if lk["relation_type"] == "sponsored_by")
+    sponsor["confidence"] = 0.0
+    mod.analyze_clinicaltrials_epistemic(tmp_path, graph)
+    assert sponsor["epistemic_status"] != "asserted", sponsor
 
 
 @pytest.mark.unit

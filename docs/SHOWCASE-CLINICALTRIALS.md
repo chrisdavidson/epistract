@@ -49,11 +49,12 @@ S7 is the answer. Same molecular targets, same companies, but instead of patents
 | Cohorts | 13 |
 | Populations | 10 |
 | Biomarkers | 5 |
-| `asserted` relations (v3 status) | 394 |
-| `unclassified` relations (v3 status) | 1 |
-| `high_evidence` relations (phase-tier) | 177 (after `--enrich`) |
-| `medium_evidence` relations (phase-tier) | 20 (after `--enrich`) |
-| `unclassified` relations (phase-tier) | 198 (not connected to Trial nodes) |
+| Claims (relations excluding `MENTIONED_IN` provenance links) | 198 |
+| `asserted` claims (v3 status) | 191 |
+| `hypothesized` claims (v3 status) | 7 (`treats` claims backed only by protocol intent language) |
+| `high_evidence` claims (phase-tier) | 178 (after `--enrich`) |
+| `medium_evidence` claims (phase-tier) | 20 (after `--enrich`) |
+| `unclassified` claims (phase-tier) | 0 (every claim is traced to its source trial) |
 | Enrichment hit rate | 10/10 trials (100%), 2/2 compounds (100%) |
 | Contradictions | 0 |
 | Contested claims | 0 |
@@ -66,15 +67,17 @@ S7 is the answer. Same molecular targets, same companies, but instead of patents
 
 **Cohort and population stratification is richly captured.** 13 Cohort nodes + 10 Population nodes across 10 trials means the arm-level structure is visible — SURMOUNT-1's 4 active arms (5/10/15mg tirzepatide + placebo) and SURPASS-2's 4 arms (tirzepatide 5/10/15mg + semaglutide 1mg) are there. The clinicaltrials persona's arm/cohort-stratification guidance has structured data to work with.
 
-**All 394 text-classified relations are `asserted`.** CT.gov protocol language is declarative ("participants will receive", "primary endpoint is measured at week 24") — no hedging, no prophetic patent-style forward claims, no contradictions across this corpus (single-source per trial). The v3 classifier correctly reads this as asserted. This is the right answer for trial protocols, and it contrasts cleanly with S6 where 61 prophetic claims surfaced from the same molecular space viewed through patents + literature.
+**191 of 198 claims are `asserted`; 7 are `hypothesized`.** CT.gov protocol language is declarative ("participants will receive", "primary endpoint is measured at week 24"), so structural facts (sponsor, phase, endpoints, arms) are correctly asserted. The exception is efficacy: a protocol says a drug *will be evaluated* for a condition, not that it works. The seven `treats` claims whose every source is intent language ("semaglutide evaluated as treatment for type 2 diabetes") are labeled `hypothesized`. One `treats` claim stays asserted because one source cites prior results ("shown to have beneficial impact on blood sugar"). Earlier versions of this page reported 394 asserted relations; that count included 196 `MENTIONED_IN` provenance links, which are not claims.
 
-**Phase tagging is a structural gap — resolved via `--enrich`.** Pre-enrichment, only 2 `TrialPhase` entity nodes were extracted for 10 trials (the extractor captured Phase as an attribute rather than a standalone entity). Phase-tier grading defaulted to `medium_evidence` (197) and `unclassified` (198). **After running `domains/clinicaltrials/enrich.py`**, all 10 Trial nodes now carry `ct_phase: PHASE3` from the CT.gov v2 API, plus `ct_enrollment`, `ct_overall_status`, `ct_start_date`, `ct_completion_date`, `ct_brief_title`. `_trial_phase()` reads the new attribute, flipping **177 relations to `high_evidence`** (Phase 3 + enrollment ≥300) — an 89% uplift to the top tier. 198 relations remain `unclassified` because they are document-level or compound-level, not connected to Trial nodes.
+**No contradictions or contested claims, for a real reason now.** Contradiction and contested detection compare the per-source evidence tiers inside each merged claim. Earlier versions compared merged links with each other, which can never disagree, so a zero there was not a finding. In this corpus all supporting trials but one are large Phase 3 studies, so per-source tiers agree; a corpus mixing Phase 2 and Phase 3 trials would surface contested claims.
+
+**Phase tagging is a structural gap — resolved via `--enrich`.** Pre-enrichment, only 2 `TrialPhase` entity nodes were extracted for 10 trials (the extractor captured Phase as an attribute rather than a standalone entity). Phase-tier grading defaulted to `medium_evidence` (197) and `unclassified` (198). **After running `domains/clinicaltrials/enrich.py`**, all 10 Trial nodes now carry `ct_phase: PHASE3` from the CT.gov v2 API, plus `ct_enrollment`, `ct_overall_status`, `ct_start_date`, `ct_completion_date`, `ct_brief_title`. `_trial_phase()` reads the new attribute, flipping **177 relations to `high_evidence`** (Phase 3 + enrollment ≥300). Claims that do not touch a Trial node, such as `semaglutide treats obesity`, are now graded through the trials their source documents describe, so none remain `unclassified`.
 
 **Compound enrichment from PubChem.** Both `Compound` nodes (semaglutide, tirzepatide) now carry `pubchem_cid`, `molecular_formula`, `molecular_weight`, `canonical_smiles`, `inchi`. No new nodes; existing nodes got richer.
 
 ## What V3.1 delivers on clinical trials that V3.0 did not
 
-- **Dedicated clinicaltrials domain** — 12 entity types + 10 relation types purpose-built for trial protocol shape (Trials, Interventions, Conditions, Sponsors, Investigators, Outcomes, Compounds, Biomarkers, Cohorts, Populations, TrialPhases, Sites).
+- **Dedicated clinicaltrials domain** — 12 entity types + 12 relation types (10 at release; `evaluated_for` and `compared_with` added later) purpose-built for trial protocol shape (Trials, Interventions, Conditions, Sponsors, Investigators, Outcomes, Compounds, Biomarkers, Cohorts, Populations, TrialPhases, Sites).
 - **Phase-based evidence grading** — `domains/clinicaltrials/epistemic.py` grades every Trial-connected relation by trial design (Phase, enrollment, randomization, blinding). The narrator combines this *with* v3's epistemic status vocabulary so a `high_evidence + contested` claim is flagged differently than a `high_evidence + asserted` one.
 - **Optional `--enrich` flag** — `/epistract:ingest --enrich` runs `domains/clinicaltrials/enrich.py` after graph build, pulling live metadata:
   - ClinicalTrials.gov v2 API → `ct_overall_status`, `ct_phase`, `ct_enrollment`, `ct_start_date`, `ct_completion_date`, `ct_brief_title`
@@ -84,7 +87,7 @@ S7 is the answer. Same molecular targets, same companies, but instead of patents
 
 ## Analyst briefing excerpt
 
-From the auto-generated `epistemic_narrative.md` (full 1,197 words in `tests/corpora/07_glp1_phase3_trials/output/`):
+From the auto-generated `epistemic_narrative.md` (full 1,197 words in `tests/corpora/07_glp1_phase3_trials/output/`). This briefing was generated before the evidence-grading fixes and quotes the old counts (394 of 395 asserted, which included provenance links); regenerate it with `/epistract:epistemic` to refresh:
 
 > **Executive Summary**
 >
