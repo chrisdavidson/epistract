@@ -265,6 +265,7 @@ Full walkthrough: **[docs/PROJECTS.md](docs/PROJECTS.md)**.
 - [docs/WORKBENCH.md](docs/WORKBENCH.md) — using the workbench, AI provider setup (Azure / Anthropic / OpenRouter), install troubleshooting
 - [docs/ADDING-DOMAINS.md](docs/ADDING-DOMAINS.md) — domain wizard, building a domain by hand, crosswalk setup
 - [docs/PIPELINE-CAPACITY.md](docs/PIPELINE-CAPACITY.md) — supported file types, limits, what works and what doesn't
+- [docs/CONFIDENCE-SCORING.md](docs/CONFIDENCE-SCORING.md) — how confidence scores are assigned, combined and interpreted
 - [docs/known-limitations.md](docs/known-limitations.md) — current guarantees and known gaps
 - [docs/OKF-MAPPING.md](docs/OKF-MAPPING.md) — how the Open Knowledge Format export is laid out
 - [DEVELOPER.md](DEVELOPER.md) — contributing and internals
