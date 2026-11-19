@@ -34,7 +34,7 @@ S6 surfaced these as coverage gaps in the **literature** corpus. S7 feeds the sa
 | NCT05971940 | ACHIEVE-1 | orforglipron | T2D | Eli Lilly |
 | NCT05822830 | SURMOUNT-5 | tirzepatide vs semaglutide | Obesity | Eli Lilly |
 
-**Corpus correction (2026-11-18):** the original corpus fetched `NCT05715307` as ACHIEVE-1. That ID is CREATION, a training study for Chinese endocrinologists with no drug arm and phase "NA". It was replaced with the real ACHIEVE-1, `NCT05971940`, and `scripts/fetch_ct_protocols.py` now refuses to write a record whose registry acronym does not match the expected one. The committed `output/` was built from the original corpus and still contains CREATION; `output-v2/` uses the corrected corpus.
+**Corpus correction (2026-11-18):** the original corpus fetched `NCT05715307` as ACHIEVE-1. That ID is CREATION, a training study for Chinese endocrinologists with no drug arm and phase "NA". It was replaced with the real ACHIEVE-1, `NCT05971940`, and `scripts/fetch_ct_protocols.py` now refuses to write a record whose registry acronym does not match the expected one. The committed `output/` was built from the original corpus and still contains CREATION. A verification build from the corrected corpus is described in `docs/SHOWCASE-CLINICALTRIALS.md`; only its analyst briefing is committed, under `output-v2/`.
 
 Total: **~60KB** across 10 trial records, each with structured arms/cohorts, primary/secondary outcomes, eligibility criteria, enrollment counts, and phase designations.
 

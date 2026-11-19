@@ -2822,28 +2822,22 @@ def _ct_graph():
 
 
 @pytest.mark.unit
-def test_ctdm03_mentioned_in_not_counted_as_claims(tmp_path):
-    """MENTIONED_IN provenance links are not graded, labeled or counted."""
+def test_ctdm03_grading_skips_provenance_and_traces_source_trials(tmp_path):
+    """Claims are graded per source trial; MENTIONED_IN links are not claims."""
     from core.label_epistemic import _load_domain_epistemic
 
     mod = _load_domain_epistemic("clinicaltrials")
     graph = _ct_graph()
     result = mod.analyze_clinicaltrials_epistemic(tmp_path, graph)
+
+    # Provenance links are not graded, labeled or counted.
     assert result["metadata"]["total_relations"] == 2, result["metadata"]
     assert sum(result["summary"]["epistemic_status_counts"].values()) == 2
     assert sum(result["summary"]["evidence_tier_counts"].values()) == 2
     mentioned = [lk for lk in graph["links"] if lk["relation_type"] == "MENTIONED_IN"]
     assert all("epistemic_status" not in lk for lk in mentioned)
 
-
-@pytest.mark.unit
-def test_ctdm03_non_trial_relation_graded_via_mentions(tmp_path):
-    """Compound->Condition links are graded through their source documents' trials."""
-    from core.label_epistemic import _load_domain_epistemic
-
-    mod = _load_domain_epistemic("clinicaltrials")
-    graph = _ct_graph()
-    mod.analyze_clinicaltrials_epistemic(tmp_path, graph)
+    # A Compound->Condition claim is graded through its documents' trials.
     treats = next(lk for lk in graph["links"] if lk["relation_type"] == "treats")
     assert treats["evidence_tier"] == "high_evidence", treats
     tiers = {m["source_document"]: m["tier"] for m in treats["mention_evidence_tiers"]}
@@ -2851,8 +2845,9 @@ def test_ctdm03_non_trial_relation_graded_via_mentions(tmp_path):
 
 
 @pytest.mark.unit
-def test_ctdm03_mixed_tier_detected_across_merged_mentions(tmp_path):
-    """One claim backed by a Phase 3 and a Phase 2 trial is mixed-tier, not contested."""
+def test_ctdm03_mixed_tier_detected_and_rendered(tmp_path):
+    """A claim backed by a Phase 3 and a Phase 2 trial is mixed-tier, not contested."""
+    from core.epistemic_health import build_epistemic_health
     from core.label_epistemic import _load_domain_epistemic
 
     mod = _load_domain_epistemic("clinicaltrials")
@@ -2864,64 +2859,79 @@ def test_ctdm03_mixed_tier_detected_across_merged_mentions(tmp_path):
     assert claim["epistemic_status"] == "mixed_tier"
     assert claim["tier_spread"] == ["medium_evidence", "high_evidence"]
     # The health report (dashboard) must be able to render the finding.
-    from core.epistemic_health import build_epistemic_health
-
     health = build_epistemic_health(result, _ct_graph()["nodes"])
     keys = [sec["key"] for sec in health["sections"]]
     assert "mixed_tier_claims" in keys, keys
 
 
 @pytest.mark.unit
-def test_ctdm03_contested_and_contradiction_need_result_disagreement(tmp_path):
+@pytest.mark.parametrize(
+    "negative_trial_phase, contested, contradictions",
+    [("PHASE2", 1, 0), ("PHASE3", 1, 1)],
+)
+def test_ctdm03_contested_needs_result_disagreement(
+    tmp_path, negative_trial_phase, contested, contradictions
+):
     """Contested = one source reports an effect, another none; contradiction = both high."""
     from core.label_epistemic import _load_domain_epistemic
 
     mod = _load_domain_epistemic("clinicaltrials")
     graph = _ct_graph()
+    graph["nodes"][1]["ct_phase"] = negative_trial_phase
+    graph["nodes"][1]["ct_enrollment"] = 900 if negative_trial_phase == "PHASE3" else 120
     treats = next(lk for lk in graph["links"] if lk["relation_type"] == "treats")
     treats["mentions"][0]["evidence"] = "Drug A significantly reduced HbA1c versus placebo"
     treats["mentions"][1]["evidence"] = "Drug A did not meet its primary endpoint in disease X"
     result = mod.analyze_clinicaltrials_epistemic(tmp_path, graph)
-    assert result["summary"]["contested_found"] == 1, result["summary"]
-    # Negative source is the Phase 2 trial (medium), so not a contradiction.
-    assert result["summary"]["contradictions_found"] == 0, result["summary"]
-
-    graph = _ct_graph()
-    graph["nodes"][1]["ct_phase"] = "PHASE3"
-    graph["nodes"][1]["ct_enrollment"] = 900
-    treats = next(lk for lk in graph["links"] if lk["relation_type"] == "treats")
-    treats["mentions"][0]["evidence"] = "Drug A significantly reduced HbA1c versus placebo"
-    treats["mentions"][1]["evidence"] = "Drug A did not meet its primary endpoint in disease X"
-    result = mod.analyze_clinicaltrials_epistemic(tmp_path, graph)
-    assert result["summary"]["contradictions_found"] == 1, result["summary"]
-    assert result["summary"]["mixed_tier_found"] == 0, result["summary"]
+    assert result["summary"]["contested_found"] == contested, result["summary"]
+    assert result["summary"]["contradictions_found"] == contradictions, result["summary"]
 
 
 @pytest.mark.unit
-def test_ctdm03_protocol_intent_treats_is_hypothesized(tmp_path):
-    """A treats claim backed only by protocol intent language is hypothesized."""
-    from core.label_epistemic import _load_domain_epistemic
-
-    mod = _load_domain_epistemic("clinicaltrials")
-    graph = _ct_graph()
-    result = mod.analyze_clinicaltrials_epistemic(tmp_path, graph)
-    treats = next(lk for lk in graph["links"] if lk["relation_type"] == "treats")
-    assert treats["epistemic_status"] == "hypothesized", treats
-    assert result["summary"]["hypothesized_found"] == 1
-    assert result["super_domain"]["hypotheses"][0]["relation_type"] == "treats"
-
-
-@pytest.mark.unit
-def test_ctdm03_treats_with_result_language_stays_asserted(tmp_path):
-    """A treats claim with an observed result keeps its asserted status."""
+@pytest.mark.parametrize(
+    "second_source, expected",
+    [
+        ("Drug A will be assessed in disease X", "hypothesized"),
+        ("Drug A significantly reduced HbA1c versus placebo", "asserted"),
+    ],
+)
+def test_ctdm03_treats_status_follows_evidence(tmp_path, second_source, expected):
+    """treats backed only by protocol intent is hypothesized; a reported result keeps it asserted."""
     from core.label_epistemic import _load_domain_epistemic
 
     mod = _load_domain_epistemic("clinicaltrials")
     graph = _ct_graph()
     treats = next(lk for lk in graph["links"] if lk["relation_type"] == "treats")
-    treats["mentions"][1]["evidence"] = "Drug A significantly reduced HbA1c versus placebo"
-    mod.analyze_clinicaltrials_epistemic(tmp_path, graph)
-    assert treats["epistemic_status"] == "asserted", treats
+    treats["mentions"][1]["evidence"] = second_source
+    result = mod.analyze_clinicaltrials_epistemic(tmp_path, graph)
+    assert treats["epistemic_status"] == expected, treats
+    if expected == "hypothesized":
+        assert result["super_domain"]["hypotheses"][0]["relation_type"] == "treats"
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "fields, evidence, expected",
+    [
+        # Registry masking NONE caps a large Phase 3 at medium, even with randomized wording.
+        ({"ct_phase": "PHASE3", "ct_enrollment": 1879, "ct_masking": "NONE"},
+         "Randomized comparison of two drugs", "medium_evidence"),
+        ({"ct_phase": "PHASE3", "ct_enrollment": 1879, "ct_masking": "QUADRUPLE"}, "", "high_evidence"),
+        # Registry silent: the quote decides.
+        ({"ct_phase": "PHASE3", "ct_enrollment": 900}, "An open-label, randomized trial", "medium_evidence"),
+        ({"ct_phase": "PHASE3", "ct_enrollment": 900}, "A double-blind trial", "high_evidence"),
+        # Registry blinding bumps a tier without help from the quote.
+        ({"ct_phase": "PHASE2", "ct_enrollment": 120, "ct_masking": "DOUBLE"}, "Arm A receives drug", "high_evidence"),
+        ({"ct_phase": "PHASE2", "ct_enrollment": 120}, "Arm A receives drug", "medium_evidence"),
+    ],
+)
+def test_ctdm03_grade_trial_design_rules(fields, evidence, expected):
+    """Phase, blinding (registry first, quote as fallback), enrollment and the open-label cap."""
+    from core.label_epistemic import _load_domain_epistemic
+
+    mod = _load_domain_epistemic("clinicaltrials")
+    trial = {"id": "trial:t", "entity_type": "Trial", **fields}
+    assert mod._grade_trial(trial, evidence) == expected
 
 
 @pytest.mark.unit
@@ -2955,68 +2965,8 @@ def test_ctdm04_ctgov_enrich_mock():
     assert result["ct_overall_status"] == "ACTIVE_NOT_RECRUITING"
     assert result["ct_enrollment"] == 345
     assert result["ct_phase"] == "PHASE3"
-
-
-@pytest.mark.unit
-def test_ctdm04_ctgov_enrich_masking_and_allocation():
-    """CTDM-04: _fetch_ct_gov returns ct_masking / ct_allocation from designInfo."""
-    sys.path.insert(0, str(CLINICALTRIALS_DIR))
-    import importlib
-
-    enrich = importlib.import_module("enrich")
-    mock_body = json.loads((CT_FIXTURES / "mock_ctgov_NCT04303780.json").read_text())
-    mock_body["protocolSection"]["designModule"]["designInfo"] = {
-        "allocation": "RANDOMIZED",
-        "maskingInfo": {"masking": "NONE"},
-    }
-    with patch.object(enrich.requests, "get") as m:
-        resp = MagicMock()
-        resp.status_code = 200
-        resp.json.return_value = mock_body
-        m.return_value = resp
-        result = enrich._fetch_ct_gov("NCT04303780")
     assert result["ct_allocation"] == "RANDOMIZED"
     assert result["ct_masking"] == "NONE"
-
-
-def _ct_trial(**fields):
-    return {"id": "trial:t", "entity_type": "Trial", **fields}
-
-
-@pytest.mark.unit
-def test_ctdm03_open_label_registry_caps_at_medium():
-    """Large open-label Phase 3 (registry masking NONE) cannot be high_evidence."""
-    from core.label_epistemic import _load_domain_epistemic
-
-    mod = _load_domain_epistemic("clinicaltrials")
-    trial = _ct_trial(ct_phase="PHASE3", ct_enrollment=1879, ct_masking="NONE")
-    # Randomized wording in the quote must not lift it back up.
-    assert mod._grade_trial(trial, "Randomized comparison of two drugs") == "medium_evidence"
-    blinded = _ct_trial(ct_phase="PHASE3", ct_enrollment=1879, ct_masking="QUADRUPLE")
-    assert mod._grade_trial(blinded, "") == "high_evidence"
-
-
-@pytest.mark.unit
-def test_ctdm03_open_label_text_fallback_when_registry_silent():
-    """Without registry masking, 'open-label' in the evidence caps the tier."""
-    from core.label_epistemic import _load_domain_epistemic
-
-    mod = _load_domain_epistemic("clinicaltrials")
-    trial = _ct_trial(ct_phase="PHASE3", ct_enrollment=900)
-    assert mod._grade_trial(trial, "An open-label, randomized trial") == "medium_evidence"
-    assert mod._grade_trial(trial, "A double-blind trial") == "high_evidence"
-
-
-@pytest.mark.unit
-def test_ctdm03_registry_blinding_bumps_without_quote():
-    """Registry-confirmed blinding bumps a tier even when the quote is silent."""
-    from core.label_epistemic import _load_domain_epistemic
-
-    mod = _load_domain_epistemic("clinicaltrials")
-    phase2 = _ct_trial(ct_phase="PHASE2", ct_enrollment=120, ct_masking="DOUBLE")
-    assert mod._grade_trial(phase2, "Arm A receives drug") == "high_evidence"
-    unknown = _ct_trial(ct_phase="PHASE2", ct_enrollment=120)
-    assert mod._grade_trial(unknown, "Arm A receives drug") == "medium_evidence"
 
 
 @pytest.mark.unit

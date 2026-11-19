@@ -77,7 +77,7 @@ S7 is the answer. Same molecular targets, same companies, but instead of patents
 
 ## Re-extraction with the updated schema (`output-v2/`)
 
-`tests/corpora/07_glp1_phase3_trials/output-v2/` is a fresh build of the corrected corpus with the updated domain (`evaluated_for`, `compared_with`, canonical Condition names, mid-range calibration examples). The corpus correction replaces `NCT05715307` (CREATION, an endocrinologist training study that had been fetched as "ACHIEVE-1") with the real ACHIEVE-1, `NCT05971940` (orforglipron, Phase 3, n=559). Extraction used Claude Code extractor agents (claude-opus-5-5) rather than the Sonnet 4.6 OpenRouter run behind `output/`, so differences mix schema and model effects.
+A fresh verification build of the corrected corpus was made with the updated domain (`evaluated_for`, `compared_with`, canonical Condition names, mid-range calibration examples). The corpus correction replaces `NCT05715307` (CREATION, an endocrinologist training study that had been fetched as "ACHIEVE-1") with the real ACHIEVE-1, `NCT05971940` (orforglipron, Phase 3, n=559). Extraction used Claude Code extractor agents (claude-opus-5-5) rather than the Sonnet 4.6 OpenRouter run behind `output/`, so differences mix schema and model effects. To keep the repository lean, only its analyst briefing is committed (`output-v2/epistemic_narrative.md`). Rebuild the rest by ingesting `tests/corpora/07_glp1_phase3_trials/docs` with `--domain clinicaltrials --enrich` into `output-v2/`.
 
 | | `output/` | `output-v2/` |
 |---|---|---|
