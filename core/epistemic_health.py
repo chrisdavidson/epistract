@@ -43,6 +43,12 @@ SECTIONS: tuple[tuple[str, str, str], ...] = (
         "Claims whose support or confidence differs across the sources.",
     ),
     (
+        "mixed_tier_claims",
+        "Mixed-evidence claims",
+        "Claims backed by sources of different design rigor, such as blinded and "
+        "open-label trials. The sources agree; their weight differs.",
+    ),
+    (
         "hypotheses",
         "Hypotheses",
         "Groups of related claims that the sources present as unconfirmed.",
@@ -292,6 +298,13 @@ def _contested_item(raw: object, index: dict[str, dict]) -> dict | None:
     return _relation_item(raw, "contested_claim", index)
 
 
+def _mixed_tier_item(raw: object, index: dict[str, dict]) -> dict | None:
+    item = _relation_item(raw, "mixed_tier_claim", index)
+    if item is not None:
+        item["question"] = _question("How much does the weaker evidence change whether {}?", item["title"])
+    return item
+
+
 def _hypothesis_item(raw: object, index: dict[str, dict]) -> dict | None:
     if not isinstance(raw, dict):
         return None
@@ -479,6 +492,7 @@ _BUILDERS = {
     "contradictions": _contradiction_item,
     "conflicts": _conflict_item,
     "contested_claims": _contested_item,
+    "mixed_tier_claims": _mixed_tier_item,
     "hypotheses": _hypothesis_item,
     "risks": _risk_item,
     "coverage_gaps": _gap_item,

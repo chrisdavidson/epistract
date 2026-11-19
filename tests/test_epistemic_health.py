@@ -507,3 +507,33 @@ def test_question_truncation():
     item = build_epistemic_health(claims, [])["sections"][0]["items"][0]
     assert len(item["question"]) < 260
     assert item["question"].endswith("?")
+
+
+def test_mixed_tier_claims_section():
+    """clinicaltrials mixed_tier_claims render as their own section."""
+    from core.epistemic_health import build_epistemic_health
+
+    claims = {
+        "super_domain": {
+            "mixed_tier_claims": [{
+                "source": "compound:a",
+                "target": "condition:x",
+                "relation_type": "evaluated_for",
+                "epistemic_status": "mixed_tier",
+                "mentions": [
+                    {"source_document": "d1", "confidence": 0.95, "evidence": "Drug A versus placebo"},
+                ],
+                "support_documents": ["d1", "d2"],
+            }]
+        }
+    }
+    nodes = [
+        {"id": "compound:a", "name": "drug a", "entity_type": "Compound"},
+        {"id": "condition:x", "name": "Disease X", "entity_type": "Condition"},
+    ]
+    result = build_epistemic_health(claims, nodes)
+    section = next(s for s in result["sections"] if s["key"] == "mixed_tier_claims")
+    assert section["label"] == "Mixed-evidence claims"
+    item = section["items"][0]
+    assert item["kind"] == "mixed_tier_claim"
+    assert item["documents"] == ["d1", "d2"]

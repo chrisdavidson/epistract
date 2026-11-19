@@ -524,6 +524,7 @@ def _summarize_graph_for_narrator(graph_data: dict, claims_layer: dict) -> str:
     contradictions = super_domain.get("contradictions", []) or []
     hypotheses = super_domain.get("hypotheses", []) or []
     contested = super_domain.get("contested_claims", []) or []
+    mixed_tier = super_domain.get("mixed_tier_claims", []) or []
     custom = super_domain.get("custom_findings", {}) or {}
 
     prophetic = [
@@ -655,6 +656,26 @@ def _summarize_graph_for_narrator(graph_data: dict, claims_layer: dict) -> str:
                 for sv in sources
                 if isinstance(sv, dict) and sv.get("source_document")
             ]
+            if graded:
+                line += f"\n  per-source evidence tiers: {', '.join(graded)}"
+            parts.append(line)
+
+    if mixed_tier:
+        parts.append("")
+        parts.append(
+            f"## MIXED-TIER CLAIMS ({len(mixed_tier)} total; first 10 shown; sources agree "
+            f"but differ in design rigor, so these are not disputes)"
+        )
+        for c in mixed_tier[:10]:
+            src = c.get("source_entity") or c.get("source") or "?"
+            tgt = c.get("target_entity") or c.get("target") or "?"
+            rt = c.get("relation_type") or "?"
+            graded = [
+                f"{sv.get('source_document')}={sv.get('tier')}"
+                for sv in (c.get("sources") or [])
+                if isinstance(sv, dict) and sv.get("source_document")
+            ]
+            line = f"- `{src}` --[{rt}]--> `{tgt}`"
             if graded:
                 line += f"\n  per-source evidence tiers: {', '.join(graded)}"
             parts.append(line)

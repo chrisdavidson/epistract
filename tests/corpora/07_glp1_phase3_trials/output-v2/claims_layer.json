@@ -15,7 +15,8 @@
       "asserted": 269
     },
     "contradictions_found": 0,
-    "contested_found": 5,
+    "contested_found": 0,
+    "mixed_tier_found": 5,
     "hypothesized_found": 0,
     "hypotheses_found": 0,
     "trials_with_phase": 10,
@@ -29,8 +30,11 @@
     "description": "Medium/low/unclassified-evidence relations \u2014 smaller trials, early phase, or unclassifiable",
     "relation_count": 49,
     "contradictions": [],
-    "contested_claims": [
+    "contested_claims": [],
+    "mixed_tier_claims": [
       {
+        "source": "compound:semaglutide",
+        "target": "condition:type_2_diabetes_mellitus",
         "source_entity": "compound:semaglutide",
         "target_entity": "condition:type_2_diabetes_mellitus",
         "relation_type": "evaluated_for",
@@ -102,9 +106,15 @@
           "nct03552757_step_2",
           "nct03987919_surpass_2"
         ],
-        "epistemic_status": "contested"
+        "epistemic_status": "mixed_tier",
+        "tier_spread": [
+          "medium_evidence",
+          "high_evidence"
+        ]
       },
       {
+        "source": "compound:semaglutide",
+        "target": "condition:obesity",
         "source_entity": "compound:semaglutide",
         "target_entity": "condition:obesity",
         "relation_type": "evaluated_for",
@@ -152,9 +162,15 @@
           "nct03552757_step_2",
           "nct05822830_surmount_5"
         ],
-        "epistemic_status": "contested"
+        "epistemic_status": "mixed_tier",
+        "tier_spread": [
+          "medium_evidence",
+          "high_evidence"
+        ]
       },
       {
+        "source": "compound:semaglutide",
+        "target": "condition:overweight",
         "source_entity": "compound:semaglutide",
         "target_entity": "condition:overweight",
         "relation_type": "evaluated_for",
@@ -202,9 +218,15 @@
           "nct03552757_step_2",
           "nct05822830_surmount_5"
         ],
-        "epistemic_status": "contested"
+        "epistemic_status": "mixed_tier",
+        "tier_spread": [
+          "medium_evidence",
+          "high_evidence"
+        ]
       },
       {
+        "source": "compound:tirzepatide",
+        "target": "condition:obesity",
         "source_entity": "compound:tirzepatide",
         "target_entity": "condition:obesity",
         "relation_type": "evaluated_for",
@@ -240,9 +262,15 @@
           "nct04184622_surmount_1",
           "nct05822830_surmount_5"
         ],
-        "epistemic_status": "contested"
+        "epistemic_status": "mixed_tier",
+        "tier_spread": [
+          "medium_evidence",
+          "high_evidence"
+        ]
       },
       {
+        "source": "compound:tirzepatide",
+        "target": "condition:overweight",
         "source_entity": "compound:tirzepatide",
         "target_entity": "condition:overweight",
         "relation_type": "evaluated_for",
@@ -278,7 +306,11 @@
           "nct04184622_surmount_1",
           "nct05822830_surmount_5"
         ],
-        "epistemic_status": "contested"
+        "epistemic_status": "mixed_tier",
+        "tier_spread": [
+          "medium_evidence",
+          "high_evidence"
+        ]
       }
     ],
     "hypotheses": []

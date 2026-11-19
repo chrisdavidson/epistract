@@ -2650,6 +2650,16 @@ def test_ut056b_narrator_summary_separates_provenance_and_names_entities():
     summary = _summarize_graph_for_narrator(graph_data, claims_layer)
     assert "per-source evidence tiers: d1=high_evidence, d2=medium_evidence" in summary
 
+    claims_layer["super_domain"] = {"mixed_tier_claims": [{
+        "source_entity": "compound:a", "target_entity": "condition:x",
+        "relation_type": "evaluated_for", "epistemic_status": "mixed_tier",
+        "sources": [{"source_document": "d1", "tier": "high_evidence"},
+                    {"source_document": "d2", "tier": "medium_evidence"}],
+    }]}
+    summary = _summarize_graph_for_narrator(graph_data, claims_layer)
+    assert "## MIXED-TIER CLAIMS (1 total" in summary
+    assert "not disputes" in summary
+
 
 def test_ut057_narrator_non_blocking_on_missing_credentials(tmp_path, monkeypatch):
     """UT-057: narrator failure never blocks claims_layer.json.
@@ -2841,16 +2851,50 @@ def test_ctdm03_non_trial_relation_graded_via_mentions(tmp_path):
 
 
 @pytest.mark.unit
-def test_ctdm03_contested_detected_across_merged_mentions(tmp_path):
-    """One merged relation backed by a Phase 3 and a Phase 2 trial is contested."""
+def test_ctdm03_mixed_tier_detected_across_merged_mentions(tmp_path):
+    """One claim backed by a Phase 3 and a Phase 2 trial is mixed-tier, not contested."""
     from core.label_epistemic import _load_domain_epistemic
 
     mod = _load_domain_epistemic("clinicaltrials")
     result = mod.analyze_clinicaltrials_epistemic(tmp_path, _ct_graph())
-    assert result["summary"]["contested_found"] == 1, result["summary"]
-    claim = result["super_domain"]["contested_claims"][0]
+    assert result["summary"]["mixed_tier_found"] == 1, result["summary"]
+    assert result["summary"]["contested_found"] == 0, result["summary"]
+    claim = result["super_domain"]["mixed_tier_claims"][0]
     assert claim["relation_type"] == "treats"
-    assert set(claim["tiers"]) == {"high_evidence", "medium_evidence"}
+    assert claim["epistemic_status"] == "mixed_tier"
+    assert claim["tier_spread"] == ["medium_evidence", "high_evidence"]
+    # The health report (dashboard) must be able to render the finding.
+    from core.epistemic_health import build_epistemic_health
+
+    health = build_epistemic_health(result, _ct_graph()["nodes"])
+    keys = [sec["key"] for sec in health["sections"]]
+    assert "mixed_tier_claims" in keys, keys
+
+
+@pytest.mark.unit
+def test_ctdm03_contested_and_contradiction_need_result_disagreement(tmp_path):
+    """Contested = one source reports an effect, another none; contradiction = both high."""
+    from core.label_epistemic import _load_domain_epistemic
+
+    mod = _load_domain_epistemic("clinicaltrials")
+    graph = _ct_graph()
+    treats = next(lk for lk in graph["links"] if lk["relation_type"] == "treats")
+    treats["mentions"][0]["evidence"] = "Drug A significantly reduced HbA1c versus placebo"
+    treats["mentions"][1]["evidence"] = "Drug A did not meet its primary endpoint in disease X"
+    result = mod.analyze_clinicaltrials_epistemic(tmp_path, graph)
+    assert result["summary"]["contested_found"] == 1, result["summary"]
+    # Negative source is the Phase 2 trial (medium), so not a contradiction.
+    assert result["summary"]["contradictions_found"] == 0, result["summary"]
+
+    graph = _ct_graph()
+    graph["nodes"][1]["ct_phase"] = "PHASE3"
+    graph["nodes"][1]["ct_enrollment"] = 900
+    treats = next(lk for lk in graph["links"] if lk["relation_type"] == "treats")
+    treats["mentions"][0]["evidence"] = "Drug A significantly reduced HbA1c versus placebo"
+    treats["mentions"][1]["evidence"] = "Drug A did not meet its primary endpoint in disease X"
+    result = mod.analyze_clinicaltrials_epistemic(tmp_path, graph)
+    assert result["summary"]["contradictions_found"] == 1, result["summary"]
+    assert result["summary"]["mixed_tier_found"] == 0, result["summary"]
 
 
 @pytest.mark.unit

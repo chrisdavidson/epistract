@@ -4269,7 +4269,8 @@
           "tier": "medium_evidence"
         }
       ],
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "evidence_mix": "mixed_tier"
     },
     {
       "source": "compound:semaglutide",
@@ -4537,7 +4538,8 @@
           "tier": "medium_evidence"
         }
       ],
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "evidence_mix": "mixed_tier"
     },
     {
       "source": "compound:semaglutide",
@@ -4590,7 +4592,8 @@
           "tier": "medium_evidence"
         }
       ],
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "evidence_mix": "mixed_tier"
     },
     {
       "source": "compound:semaglutide",
@@ -13680,7 +13683,8 @@
           "tier": "medium_evidence"
         }
       ],
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "evidence_mix": "mixed_tier"
     },
     {
       "source": "compound:tirzepatide",
@@ -13722,7 +13726,8 @@
           "tier": "medium_evidence"
         }
       ],
-      "epistemic_status": "asserted"
+      "epistemic_status": "asserted",
+      "evidence_mix": "mixed_tier"
     },
     {
       "source": "compound:tirzepatide",

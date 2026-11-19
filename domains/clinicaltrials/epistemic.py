@@ -66,6 +66,14 @@ PROTOCOL_INTENT_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Language that reports a null or negative observed result.
+NEGATIVE_RESULT_RE = re.compile(
+    r"\b(did not (?:meet|reach|achieve|show|demonstrate|reduce|improve)|failed to|"
+    r"no (?:significant|statistically significant) (?:difference|effect|reduction|improvement)|"
+    r"not (?:statistically )?significant|was not superior|not non-?inferior)\b",
+    re.IGNORECASE,
+)
+
 # Language that reports an observed result rather than intent.
 RESULT_RE = re.compile(
     r"\b(reduced|improved|demonstrated|showed|resulted in|significantly|superior|non-?inferior|"
@@ -287,8 +295,14 @@ def analyze_clinicaltrials_epistemic(output_dir: Path, graph_data: dict) -> dict
     Every non-bookkeeping relation is graded per mention: each mention's
     source document is traced to the Trial(s) it describes, and that trial's
     phase, blinding and enrollment set the mention's tier. The relation's
-    tier is the best tier among its mentions. Contradictions and contested
-    claims compare those per-source tiers inside one merged relation.
+    tier is the best tier among its mentions.
+
+    Inside one merged relation, the per-source findings are compared:
+    - mixed_tier: sources of different evidence tiers support the claim
+      (e.g. double-blind and open-label trials). The sources agree.
+    - contested: one source reports an effect and another reports none.
+    - contradictions: contested claims where both sides have a
+      high_evidence source.
 
     MENTIONED_IN links are provenance bookkeeping, not claims: they are not
     graded, labeled, or counted.
@@ -326,6 +340,7 @@ def analyze_clinicaltrials_epistemic(output_dir: Path, graph_data: dict) -> dict
     hypothesized_links: list[dict] = []
     contradictions: list[dict] = []
     contested: list[dict] = []
+    mixed_tier: list[dict] = []
     claim_count = 0
 
     for link in links:
@@ -353,8 +368,11 @@ def analyze_clinicaltrials_epistemic(output_dir: Path, graph_data: dict) -> dict
         link["mention_evidence_tiers"] = mention_tiers
         evidence_counts[link_tier] += 1
 
-        unique_tiers = set(tiers)
         finding_base = {
+            # source/target are what core/epistemic_health.py reads;
+            # source_entity/target_entity are kept for existing consumers.
+            "source": link.get("source"),
+            "target": link.get("target"),
             "source_entity": link.get("source"),
             "target_entity": link.get("target"),
             "relation_type": relation_type,
@@ -364,10 +382,37 @@ def analyze_clinicaltrials_epistemic(output_dir: Path, graph_data: dict) -> dict
             "mentions": _link_mentions(link),
             "support_documents": [m["source_document"] for m in mention_tiers if m["source_document"]],
         }
-        if "high_evidence" in unique_tiers and "low_evidence" in unique_tiers:
-            contradictions.append(dict(finding_base))
-        if "high_evidence" in unique_tiers and "medium_evidence" in unique_tiers:
-            contested.append({**finding_base, "epistemic_status": "contested"})
+
+        # Mixed tier: the sources agree but differ in design rigor (for
+        # example double-blind and open-label trials behind one claim).
+        graded = {t for t in tiers if t in EVIDENCE_TIERS}
+        if len(graded) > 1:
+            link["evidence_mix"] = "mixed_tier"
+            mixed_tier.append({
+                **finding_base,
+                "epistemic_status": "mixed_tier",
+                "tier_spread": [t for t in EVIDENCE_TIERS if t in graded],
+            })
+
+        # Contested: the sources disagree about the result itself — one
+        # reports an effect, another reports none. A contradiction is a
+        # contested claim where both sides include high_evidence sources.
+        positive_tiers, negative_tiers = [], []
+        for mention, mt in zip(_link_mentions(link), mention_tiers):
+            evidence = mention.get("evidence", "") or ""
+            if NEGATIVE_RESULT_RE.search(evidence):
+                negative_tiers.append(mt["tier"])
+            elif RESULT_RE.search(evidence):
+                positive_tiers.append(mt["tier"])
+        if positive_tiers and negative_tiers:
+            result_split = {
+                **finding_base,
+                "positive_tiers": positive_tiers,
+                "negative_tiers": negative_tiers,
+            }
+            contested.append({**result_split, "epistemic_status": "contested"})
+            if "high_evidence" in positive_tiers and "high_evidence" in negative_tiers:
+                contradictions.append({**result_split, "epistemic_status": "contradiction"})
 
         # --- Epistemic status ---------------------------------------------------
         if _HAVE_CLASSIFIER:
@@ -429,6 +474,7 @@ def analyze_clinicaltrials_epistemic(output_dir: Path, graph_data: dict) -> dict
             "epistemic_status_counts": dict(status_counts),
             "contradictions_found": len(contradictions),
             "contested_found": len(contested),
+            "mixed_tier_found": len(mixed_tier),
             "hypothesized_found": len(hypothesized_links),
             # v3 standard key shared with drug-discovery (hypothesis groups).
             "hypotheses_found": len(hypotheses),
@@ -444,6 +490,7 @@ def analyze_clinicaltrials_epistemic(output_dir: Path, graph_data: dict) -> dict
             "relation_count": sum(v for k, v in evidence_counts.items() if k != "high_evidence"),
             "contradictions": contradictions,
             "contested_claims": contested,
+            "mixed_tier_claims": mixed_tier,
             "hypotheses": hypotheses,
         },
     }

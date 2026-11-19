@@ -3748,7 +3748,8 @@
           "tier": "medium_evidence"
         }
       ],
-      "status_reason": "efficacy claim supported only by protocol intent language"
+      "status_reason": "efficacy claim supported only by protocol intent language",
+      "evidence_mix": "mixed_tier"
     },
     {
       "source": "compound:semaglutide",
@@ -3790,7 +3791,8 @@
           "source_document": "nct03987919_surpass_2",
           "tier": "medium_evidence"
         }
-      ]
+      ],
+      "evidence_mix": "mixed_tier"
     },
     {
       "source": "compound:semaglutide",
@@ -3858,7 +3860,8 @@
           "tier": "medium_evidence"
         }
       ],
-      "status_reason": "efficacy claim supported only by protocol intent language"
+      "status_reason": "efficacy claim supported only by protocol intent language",
+      "evidence_mix": "mixed_tier"
     },
     {
       "source": "compound:semaglutide",
@@ -10709,7 +10712,8 @@
           "tier": "medium_evidence"
         }
       ],
-      "status_reason": "efficacy claim supported only by protocol intent language"
+      "status_reason": "efficacy claim supported only by protocol intent language",
+      "evidence_mix": "mixed_tier"
     },
     {
       "source": "compound:tirzepatide",
@@ -10752,7 +10756,8 @@
           "tier": "medium_evidence"
         }
       ],
-      "status_reason": "efficacy claim supported only by protocol intent language"
+      "status_reason": "efficacy claim supported only by protocol intent language",
+      "evidence_mix": "mixed_tier"
     },
     {
       "source": "compound:tirzepatide",
