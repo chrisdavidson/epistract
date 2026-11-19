@@ -503,6 +503,7 @@ _NARRATOR_KEY_ENTITIES = 25
 _NARRATOR_ENTITY_FIELDS = (
     "ct_brief_title",
     "ct_phase",
+    "ct_masking",
     "ct_enrollment",
     "ct_overall_status",
     "pubchem_cid",
@@ -646,7 +647,17 @@ def _summarize_graph_for_narrator(graph_data: dict, claims_layer: dict) -> str:
             tgt = c.get("target_entity") or c.get("target") or "?"
             rt = c.get("relation_type") or c.get("label") or "?"
             status = c.get("epistemic_status", "?")
-            parts.append(f"- `{src}` --[{rt}]--> `{tgt}` status=`{status}`")
+            line = f"- `{src}` --[{rt}]--> `{tgt}` status=`{status}`"
+            # Per-source grades (clinicaltrials) say WHY a claim is contested.
+            sources = c.get("sources") or []
+            graded = [
+                f"{sv.get('source_document')}={sv.get('tier')}"
+                for sv in sources
+                if isinstance(sv, dict) and sv.get("source_document")
+            ]
+            if graded:
+                line += f"\n  per-source evidence tiers: {', '.join(graded)}"
+            parts.append(line)
 
     if custom:
         parts.append("")

@@ -2641,6 +2641,15 @@ def test_ut056b_narrator_summary_separates_provenance_and_names_entities():
     assert "## KEY ENTITIES" in summary
     assert "NCT00000001 (Trial, 1 claims; ct_phase=PHASE3, ct_enrollment=900)" in summary
 
+    claims_layer["super_domain"] = {"contested_claims": [{
+        "source_entity": "compound:a", "target_entity": "condition:x",
+        "relation_type": "evaluated_for", "epistemic_status": "contested",
+        "sources": [{"source_document": "d1", "tier": "high_evidence"},
+                    {"source_document": "d2", "tier": "medium_evidence"}],
+    }]}
+    summary = _summarize_graph_for_narrator(graph_data, claims_layer)
+    assert "per-source evidence tiers: d1=high_evidence, d2=medium_evidence" in summary
+
 
 def test_ut057_narrator_non_blocking_on_missing_credentials(tmp_path, monkeypatch):
     """UT-057: narrator failure never blocks claims_layer.json.
