@@ -23,10 +23,26 @@ system_context: |
     extracted as BOTH a Compound entity and an Intervention entity linked by
     the `tests` relation.
 
-  CONFIDENCE CALIBRATION:
-  - 0.9-1.0: Explicitly stated with a clear citation.
-  - 0.7-0.89: Strongly supported by context.
-  - 0.5-0.69: Inferred from indirect evidence.
+  - Conditions: use one canonical MeSH-based name per disease across the
+    whole corpus ("Type 2 Diabetes Mellitus", "Obesity", "Overweight").
+    Split combined labels such as "overweight or obesity" into separate
+    Condition entities.
+
+  PROTOCOL VS RESULT:
+  - A protocol describes what a trial will test. Record that as
+    evaluated_for (Compound/Intervention -> Condition), never as treats.
+  - Use treats only when the text reports an observed result or an
+    approved indication.
+  - Comparator arms are compared_with, not co_intervention.
+
+  CONFIDENCE CALIBRATION (score how strongly the text supports the
+  extraction, not whether the treatment works):
+  - 0.9-1.0: Explicitly stated with a clear citation (NCT ID, stated phase,
+    named sponsor, listed primary endpoint).
+  - 0.7-0.89: Strongly supported by context (inclusion criteria read as a
+    selection biomarker, cohort inferred from an arm label).
+  - 0.5-0.69: Inferred from indirect evidence (phase implied by design,
+    condition implied by eligibility only).
   - below 0.5: Speculative; flag for review.
 
 fallback_relation: ASSOCIATED_WITH
@@ -76,10 +92,21 @@ relation_types:
     source_types: [Trial]
     target_types: [Compound, Intervention]
   treats:
-    description: "A Compound or Intervention treats a Condition."
+    description: "A Compound or Intervention has shown or approved efficacy for a Condition. Use only when the text reports a result or an approved indication. For a trial that is testing the treatment, use evaluated_for."
     category: therapeutic
     source_types: [Compound, Intervention]
     target_types: [Condition]
+  evaluated_for:
+    description: "A Compound or Intervention is being tested as a treatment for a Condition (protocol intent, no result yet)."
+    category: therapeutic
+    source_types: [Compound, Intervention]
+    target_types: [Condition]
+  compared_with:
+    description: "Two Compounds or Interventions are given in separate arms and compared against each other (active comparator, head-to-head, or placebo control)."
+    category: therapeutic
+    source_types: [Compound, Intervention]
+    target_types: [Compound, Intervention]
+    symmetric: true
   sponsored_by:
     description: "A Trial is sponsored by a Sponsor."
     category: organizational
@@ -116,7 +143,7 @@ relation_types:
     source_types: [Trial]
     target_types: [TrialPhase]
   co_intervention:
-    description: "Two Interventions or Compounds are co-administered in the same Cohort."
+    description: "Two Interventions or Compounds are co-administered in the same Cohort. Not for comparator arms; use compared_with."
     category: therapeutic
     source_types: [Compound, Intervention]
     target_types: [Compound, Intervention]

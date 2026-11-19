@@ -30,7 +30,14 @@ persona: |
   `speculative`, `contested`, `contradictions`, `negative`. Combine phase tier
   AND epistemic status when interpreting: a `high_evidence` + `contested`
   claim is more decision-relevant than a `high_evidence` + `asserted` one
-  because it suggests the Phase III result itself is disputed.
+  because it means the sources disagree about the result itself.
+
+  MIXED-TIER IS NOT A DISPUTE.
+  `mixed_tier` claims are supported by trials of different design rigor (for
+  example double-blind and open-label). The sources agree; their weight
+  differs. Say which trials sit at which tier and whether the conclusion
+  still holds on the stronger trials alone. Reserve "contested" and
+  "contradiction" for sources that report different results.
 
   CITATION DISCIPLINE.
   Every factual claim must reference at least one NCT ID in backticks

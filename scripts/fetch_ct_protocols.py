@@ -8,7 +8,11 @@ content (title, phase, status, enrollment, arms, primary/secondary outcomes,
 eligibility) for the extractor to build a rich knowledge graph.
 
 Usage:
-    python scripts/fetch_ct_protocols.py <output_dir>
+    python scripts/fetch_ct_protocols.py <output_dir> [--only NCT05971940[,NCT...]]
+
+Each record's registry acronym is checked against the expected acronym in
+NCT_IDS; a mismatch is reported as a failure and no file is written, so a
+wrong NCT ID cannot produce a mislabeled document.
 """
 from __future__ import annotations
 
@@ -32,9 +36,25 @@ NCT_IDS = [
     ("NCT02906930", "PIONEER-1"),       # oral semaglutide monotherapy
     ("NCT02692716", "PIONEER-6"),       # oral semaglutide CV outcomes
     ("NCT01720446", "SUSTAIN-6"),       # semaglutide CV outcomes
-    ("NCT05715307", "ACHIEVE-1"),       # orforglipron in T2DM
+    ("NCT05971940", "ACHIEVE-1"),       # orforglipron in T2DM (NCT05715307 is CREATION, not ACHIEVE-1)
     ("NCT05822830", "SURMOUNT-5"),      # tirzepatide vs semaglutide in obesity
 ]
+
+
+def _norm_acronym(value: str | None) -> str:
+    """Uppercase alphanumerics only, so 'SURPASS-2' == 'surpass 2'."""
+    return "".join(ch for ch in str(value or "").upper() if ch.isalnum())
+
+
+def acronym_matches(study: dict, expected: str) -> bool:
+    """True when the record's acronym (or, if it has none, its title) names the expected trial."""
+    ident = (study.get("protocolSection", {}) or {}).get("identificationModule", {}) or {}
+    want = _norm_acronym(expected)
+    actual = _norm_acronym(ident.get("acronym"))
+    if actual:
+        return actual == want
+    title = _norm_acronym(ident.get("briefTitle")) + _norm_acronym(ident.get("officialTitle"))
+    return want in title
 
 
 def fetch(nct_id: str) -> dict | None:
@@ -224,13 +244,26 @@ def main() -> int:
     docs_dir = out_root / "docs"
     docs_dir.mkdir(parents=True, exist_ok=True)
 
+    wanted = None
+    if "--only" in sys.argv:
+        idx = sys.argv.index("--only")
+        if idx + 1 < len(sys.argv):
+            wanted = {n.strip().upper() for n in sys.argv[idx + 1].split(",") if n.strip()}
+
     fetched = 0
     failed = 0
     for nct, acronym in NCT_IDS:
+        if wanted is not None and nct.upper() not in wanted:
+            continue
         print(f"Fetching {nct} ({acronym}) ...", end=" ", flush=True)
         study = fetch(nct)
         if study is None:
             print("FAIL")
+            failed += 1
+            continue
+        if not acronym_matches(study, acronym):
+            actual = (study.get("protocolSection", {}).get("identificationModule", {}) or {}).get("acronym")
+            print(f"FAIL: registry acronym is {actual!r}, expected {acronym!r}; not written")
             failed += 1
             continue
         text = render(study, acronym)

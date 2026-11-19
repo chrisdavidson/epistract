@@ -11,7 +11,8 @@
     },
     "designModule": {
       "phases": ["PHASE3"],
-      "enrollmentInfo": {"count": 345}
+      "enrollmentInfo": {"count": 345},
+      "designInfo": {"allocation": "RANDOMIZED", "maskingInfo": {"masking": "NONE"}}
     }
   }
 }
