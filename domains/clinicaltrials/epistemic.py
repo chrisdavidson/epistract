@@ -18,10 +18,19 @@ Evidence grading rules:
 6. Open-label trials (ct_masking NONE, or "open-label" in the evidence when
    the registry is silent) are capped at medium_evidence, after the
    enrollment bump, so size cannot buy back the missing blinding.
+7. OutcomeAnalysis nodes are graded from their reported significance (the
+   significant flag, then the p-value, then the confidence interval against
+   the null), tiered by their trial, and recorded as asserted, negative or
+   unresolved. One StandardOutcome + Compound pair with significant and
+   non-significant analyses from DIFFERENT trials is contested; a split
+   inside one trial (primary vs subgroup) is not. Ratio measures are
+   recognised by pattern (aHR, "Hazard Ratio (HR)"); an unknown measure
+   decides only when the ratio and difference nulls agree.
 """
 
 from __future__ import annotations
 
+import math
 import re
 from collections import defaultdict
 from pathlib import Path
@@ -55,6 +64,36 @@ OPEN_LABEL_CAP = "medium_evidence"
 
 # Provenance links written by the graph builder; not claims.
 MENTIONED_IN = "MENTIONED_IN"
+
+# Relations and types that tie an OutcomeAnalysis to its outcome, treatment and trial.
+ANALYSIS_TYPE = "outcomeanalysis"
+ANALYZES = "analyzes"
+MEASURES = "measures"
+ASSESSES = "assesses_effect_of"
+CONTAINS = "contains_compound"
+COMPARES = "compares"
+
+# Effect measures whose null value is 1.0 (ratios); every other measure is
+# a difference with a null of 0.
+RATIO_MEASURES = {
+    "hr", "or", "rr", "irr", "hazard ratio", "odds ratio", "risk ratio",
+    "relative risk", "rate ratio", "incidence rate ratio",
+}
+# Measure labels are free text ("aHR", "Hazard Ratio (HR)", "Cox HR"), so they
+# are classified by pattern, not exact name.
+_RATIO_MEASURE_RE = re.compile(r"ratio|\b(?:a|adj\.?\s*)?(?:hr|or|rr|irr|sir)\b", re.IGNORECASE)
+_DIFFERENCE_MEASURE_RE = re.compile(
+    r"differen|\betd\b|\bmd\b|\blsm|least[- ]squares|mean change|\bchange\b|\bdelta\b",
+    re.IGNORECASE,
+)
+# Reported "not significant" without a number.
+_NOT_SIGNIFICANT_RE = re.compile(r"^\s*(?:p\s*)?(?:n\.?\s*s\.?|not\s+(?:statistically\s+)?significant)\s*$", re.IGNORECASE)
+SIGNIFICANCE_LEVEL = 0.05
+
+_P_VALUE_RE = re.compile(
+    r"^\s*p?\s*(<=|>=|\u2264|\u2265|<|>|=)?\s*(\d*\.?\d+(?:e[-+]?\d+)?)\s*$",
+    re.IGNORECASE,
+)
 
 # Relations that assert a drug or intervention works for a condition.
 EFFICACY_RELATIONS = {"treats"}
@@ -285,6 +324,283 @@ def _confidence(link: dict) -> float:
 
 
 # ---------------------------------------------------------------------------
+# OutcomeAnalysis grading
+# ---------------------------------------------------------------------------
+
+
+def _number(value) -> float | None:
+    """Finite float from an int or float; None for bools, NaN, inf and strings."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    if not math.isfinite(value):
+        return None
+    return float(value)
+
+
+def _parse_p_value(value) -> tuple[str, float] | None:
+    """Parse a p-value into (comparator, number), or None when unparseable.
+
+    Accepts a number or text such as "<0.001", "p = 0.03" or "\u22640.05". The
+    comparator is one of "<", "<=", "=", ">", ">=".
+    """
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        number = _number(value)
+        return ("=", number) if number is not None else None
+    if not isinstance(value, str):
+        return None
+    if _NOT_SIGNIFICANT_RE.match(value):
+        return (">=", SIGNIFICANCE_LEVEL)
+    # Tolerate decimal commas ("0,03") and footnote markers ("<0.05*").
+    value = value.replace(",", ".").rstrip("*\u2020\u2021 ")
+    match = _P_VALUE_RE.match(value)
+    if not match:
+        return None
+    comparator = {"\u2264": "<=", "\u2265": ">="}.get(match.group(1), match.group(1) or "=")
+    try:
+        number = float(match.group(2))
+    except ValueError:
+        return None
+    if not math.isfinite(number) or not 0.0 <= number <= 1.0:
+        return None
+    return comparator, number
+
+
+def _p_significance(parsed: tuple[str, float] | None) -> bool | None:
+    """Significance implied by a parsed p-value; None when the bound is undecidable."""
+    if parsed is None:
+        return None
+    comparator, number = parsed
+    if comparator == "=":
+        return number < SIGNIFICANCE_LEVEL
+    if comparator in ("<", "<="):
+        return True if number <= SIGNIFICANCE_LEVEL else None
+    if comparator in (">", ">="):
+        return False if number >= SIGNIFICANCE_LEVEL else None
+    return None
+
+
+def _analysis_significance(node: dict) -> bool | None:
+    """Whether an OutcomeAnalysis node reports a statistically significant result.
+
+    Precedence: a bool `significant` attribute, then the parsed `p_value` text
+    (it keeps its comparator; "NS" reads as not significant), then a
+    `p_value_num` in [0, 1], then the confidence interval against the null
+    (1.0 for ratio measures, 0 for differences; an unknown measure decides
+    only when both nulls agree). Returns None when nothing decides it.
+    """
+    attrs = node.get("attributes")
+    if not isinstance(attrs, dict):
+        return None
+    flag = attrs.get("significant")
+    if isinstance(flag, bool):
+        return flag
+
+    # The reported text keeps its comparator ("<0.05"), so it decides first;
+    # p_value_num is the fallback and must be a probability.
+    decided = _p_significance(_parse_p_value(attrs.get("p_value")))
+    if decided is not None:
+        return decided
+    p_num = _number(attrs.get("p_value_num"))
+    if p_num is not None and 0.0 <= p_num <= 1.0:
+        return p_num < SIGNIFICANCE_LEVEL
+
+    lower = _number(attrs.get("ci_lower"))
+    upper = _number(attrs.get("ci_upper"))
+    if lower is not None and upper is not None:
+        ratio = _is_ratio_measure(attrs.get("effect_measure"))
+        if ratio is None and lower <= 0.0:
+            ratio = False  # ratios are strictly positive, so this is a difference
+        excludes_ratio_null = lower > 1.0 or upper < 1.0
+        excludes_diff_null = lower > 0.0 or upper < 0.0
+        if ratio is True:
+            return excludes_ratio_null
+        if ratio is False:
+            return excludes_diff_null
+        # Unknown measure: decide only when both readings agree.
+        return excludes_ratio_null if excludes_ratio_null == excludes_diff_null else None
+    return None
+
+
+def _is_ratio_measure(measure) -> bool | None:
+    """True for ratio measures (null 1), False for differences (null 0), None if unknown."""
+    text = str(measure or "").strip().lower()
+    if not text:
+        return None
+    if text in RATIO_MEASURES or _RATIO_MEASURE_RE.search(text):
+        return True
+    if _DIFFERENCE_MEASURE_RE.search(text):
+        return False
+    return None
+
+
+def _analysis_findings(
+    nodes: list[dict], links: list[dict], trial_lookup: dict, doc_trials: dict
+) -> list[dict]:
+    """Grade every OutcomeAnalysis node into one finding dict.
+
+    The outcome, treatment and trial are resolved through the graph's edges
+    in either direction, so a reversed edge still resolves.
+    """
+    by_id = {n["id"]: n for n in nodes if "id" in n}
+    adjacency: dict[str, list[tuple[str, str]]] = defaultdict(list)
+    for link in links:
+        relation = link.get("relation_type")
+        if relation == MENTIONED_IN:
+            continue
+        source, target = link.get("source"), link.get("target")
+        adjacency[source].append((relation, target))
+        adjacency[target].append((relation, source))
+
+    def etype(node_id) -> str:
+        return str((by_id.get(node_id) or {}).get("entity_type", "")).lower()
+
+    def related(node_id, relation: str, entity_type: str) -> list[str]:
+        return sorted({
+            other for rel, other in adjacency.get(node_id, ())
+            if rel == relation and etype(other) == entity_type and other in by_id
+        })
+
+    def name_of(node_id) -> str | None:
+        node = by_id.get(node_id)
+        return str(node.get("name") or node_id) if node else None
+
+    findings: list[dict] = []
+    for node in nodes:
+        if str(node.get("entity_type", "")).lower() != ANALYSIS_TYPE:
+            continue
+        node_id = node.get("id")
+        attrs = node.get("attributes") if isinstance(node.get("attributes"), dict) else {}
+
+        # Outcome -> StandardOutcome
+        outcomes = related(node_id, ANALYZES, "outcome")
+        standard_outcome = standard_outcome_id = None
+        if outcomes:
+            standards = related(outcomes[0], MEASURES, "standardoutcome")
+            standard_outcome_id = standards[0] if standards else outcomes[0]
+            standard_outcome = name_of(standard_outcome_id)
+
+        # Treatment: a Compound, or an Intervention resolved to its Compound
+        treatment_id = None
+        compounds = related(node_id, ASSESSES, "compound")
+        if compounds:
+            treatment_id = compounds[0]
+        else:
+            interventions = related(node_id, ASSESSES, "intervention")
+            if interventions:
+                contained = related(interventions[0], CONTAINS, "compound")
+                treatment_id = contained[0] if contained else interventions[0]
+        treatment = name_of(treatment_id) if treatment_id else None
+
+        # Trial: a direct edge first, else the trials of the source documents
+        candidates = sorted({
+            other for rel, other in adjacency.get(node_id, ()) if other in trial_lookup
+        })
+        if not candidates:
+            seen: set[str] = set()
+            for doc in node.get("source_documents") or []:
+                for trial_id in doc_trials.get(str(doc).removeprefix("doc:"), []):
+                    seen.add(trial_id)
+            candidates = sorted(seen)
+        context = node.get("context") or ""
+        # No resolvable trial: same "unclassified" tier the per-link grading uses.
+        trial_id, tier = None, "unclassified"
+        best = -1
+        for candidate in candidates:
+            graded = _grade_trial(trial_lookup[candidate], context)
+            rank = EVIDENCE_TIERS.index(graded) if graded in EVIDENCE_TIERS else -1
+            if rank > best:
+                trial_id, tier, best = candidate, graded, rank
+        if trial_id is not None and tier not in EVIDENCE_TIERS:
+            tier = "low_evidence"
+
+        significant = _analysis_significance(node)
+        p_value = attrs.get("p_value")
+        if p_value is None:
+            p_value = attrs.get("p_value_num")
+        findings.append({
+            "analysis": node_id,
+            "analysis_name": node.get("name"),
+            "trial": trial_id,
+            "trial_name": name_of(trial_id) if trial_id else None,
+            "standard_outcome": standard_outcome,
+            "standard_outcome_id": standard_outcome_id,
+            "treatment": treatment,
+            "treatment_id": treatment_id,
+            "significant": significant,
+            "direction": attrs.get("direction"),
+            "p_value": p_value,
+            "effect_estimate": attrs.get("effect_estimate"),
+            "evidence_tier": tier,
+            "support_documents": [str(d) for d in node.get("source_documents") or []],
+            "basis": "outcome_analysis",
+            "epistemic_status": (
+                "asserted" if significant is True
+                else "negative" if significant is False
+                else "unresolved"
+            ),
+        })
+    return findings
+
+
+def _analysis_contests(findings: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Find StandardOutcome + treatment pairs whose analyses disagree on significance.
+
+    Returns (contested, contradictions). A contested entry is also a
+    contradiction when both sides include a high_evidence analysis.
+    """
+    groups: dict[tuple[str, str], list[dict]] = defaultdict(list)
+    for finding in findings:
+        if finding["significant"] is None:
+            continue
+        if finding["standard_outcome"] is None or finding["treatment"] is None:
+            continue
+        key = (str(finding["standard_outcome"]).lower(), str(finding["treatment"]).lower())
+        groups[key].append(finding)
+
+    contested: list[dict] = []
+    contradictions: list[dict] = []
+    for _key, group in sorted(groups.items()):
+        positive = [f for f in group if f["significant"] is True]
+        negative = [f for f in group if f["significant"] is False]
+        if not positive or not negative:
+            continue
+        # Cross-trial only: a split inside one trial (e.g. primary vs subgroup
+        # analysis) is not a contest between sources.
+        if not any(
+            p["trial"] and n["trial"] and p["trial"] != n["trial"]
+            for p in positive for n in negative
+        ):
+            continue
+        docs = sorted({d for f in group for d in f.get("support_documents") or []})
+        positive_tiers = [f["evidence_tier"] for f in positive]
+        negative_tiers = [f["evidence_tier"] for f in negative]
+        entry = {
+            "standard_outcome": group[0]["standard_outcome"],
+            "treatment": group[0]["treatment"],
+            "positive": sorted(f["analysis"] for f in positive),
+            "negative": sorted(f["analysis"] for f in negative),
+            "positive_tiers": positive_tiers,
+            "negative_tiers": negative_tiers,
+            "trials": sorted({f["trial"] for f in group if f["trial"] is not None}),
+            "basis": "outcome_analysis",
+            # Standard fields read by core/epistemic_health.py
+            "source": group[0].get("treatment_id"),
+            "target": group[0].get("standard_outcome_id"),
+            "source_entity": group[0].get("treatment_id"),
+            "target_entity": group[0].get("standard_outcome_id"),
+            "relation_type": ASSESSES,
+            "mentions": [{"source_document": d} for d in docs],
+            "support_documents": docs,
+        }
+        contested.append({**entry, "epistemic_status": "contested"})
+        if "high_evidence" in positive_tiers and "high_evidence" in negative_tiers:
+            contradictions.append({**entry, "epistemic_status": "contradiction"})
+    return contested, contradictions
+
+
+# ---------------------------------------------------------------------------
 # Main epistemic analysis function
 # ---------------------------------------------------------------------------
 
@@ -303,6 +619,12 @@ def analyze_clinicaltrials_epistemic(output_dir: Path, graph_data: dict) -> dict
     - contested: one source reports an effect and another reports none.
     - contradictions: contested claims where both sides have a
       high_evidence source.
+
+    OutcomeAnalysis nodes are graded separately from their reported
+    significance (see _analysis_significance). They add the summary keys
+    analysis_claims_found, analysis_graded and analysis_contested_found, the
+    findings in base_domain.analysis_claims, and cross-trial contested /
+    contradiction entries with basis "outcome_analysis".
 
     MENTIONED_IN links are provenance bookkeeping, not claims: they are not
     graded, labeled, or counted.
@@ -436,6 +758,17 @@ def analyze_clinicaltrials_epistemic(output_dir: Path, graph_data: dict) -> dict
             if status in ("hypothesized", "speculative"):
                 hypothesized_links.append(link)
 
+    # --- OutcomeAnalysis claims ---------------------------------------------
+    analysis_claims = _analysis_findings(nodes, links, trial_lookup, doc_trials)
+    analysis_contested, analysis_contradictions = _analysis_contests(analysis_claims)
+    contested.extend(analysis_contested)
+    contradictions.extend(analysis_contradictions)
+    # Kept separate from epistemic_status_counts: the analysis edges are already
+    # counted there by the per-link loop, so merging would double count.
+    analysis_status_counts: dict[str, int] = defaultdict(int)
+    for finding in analysis_claims:
+        analysis_status_counts[finding["epistemic_status"]] += 1
+
     # Same envelope as the drug-discovery hypothesis groups (label,
     # member_entities, support_documents) so the health report and narrator
     # render them; one group per hypothesized relation.
@@ -480,10 +813,15 @@ def analyze_clinicaltrials_epistemic(output_dir: Path, graph_data: dict) -> dict
             "hypotheses_found": len(hypotheses),
             "trials_with_phase": sum(1 for n in trial_lookup.values() if _trial_phase(n)),
             "trials_with_enrollment": sum(1 for n in trial_lookup.values() if _enrollment(n) is not None),
+            "analysis_claims_found": len(analysis_claims),
+            "analysis_graded": sum(1 for f in analysis_claims if f["significant"] is not None),
+            "analysis_contested_found": len(analysis_contested),
+            "analysis_status_counts": dict(analysis_status_counts),
         },
         "base_domain": {
             "description": "High-evidence relations from Phase 3, randomized, or large-enrollment trials",
             "relation_count": evidence_counts.get("high_evidence", 0),
+            "analysis_claims": analysis_claims,
         },
         "super_domain": {
             "description": "Medium/low/unclassified-evidence relations — smaller trials, early phase, or unclassifiable",

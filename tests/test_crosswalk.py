@@ -531,13 +531,14 @@ def test_adverse_event_axis_stats_scoped_to_two_declaring_graphs(fixtures_dir):
     spine = _build_full_spine(fixtures_dir)
     stats = spine["stats"]["adverse_event"]
 
-    # Three graphs were loaded, but clinicaltrials declares no adverse_event
-    # axis at all -- declared_by and shared_by_all_graphs must reflect only
-    # the two that do.
-    assert sorted(stats["declared_by"]) == ["fda-product-labels", "pharmacovigilance"]
-    pair_key = "fda-product-labels|pharmacovigilance"
-    assert stats["pairwise"][pair_key] == stats["shared_by_all_graphs"]
-    assert stats["shared_by_all_graphs"] >= 1
+    # All three loaded graphs now declare an adverse_event axis, but the
+    # clinicaltrials fixture (Trial/Compound/Outcome only) holds no
+    # AdverseEvent nodes, so no key can be shared by all three graphs and
+    # the labels<->pharmacovigilance pair carries the join.
+    assert sorted(stats["declared_by"]) == ["clinicaltrials", "fda-product-labels", "pharmacovigilance"]
+    assert stats["pairwise"]["fda-product-labels|pharmacovigilance"] >= 1
+    assert stats["shared_by_all_graphs"] == 0
+    assert stats["keys_per_graph"]["clinicaltrials"] == 0
 
 
 # ---------------------------------------------------------------------------

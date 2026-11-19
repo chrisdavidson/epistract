@@ -74,7 +74,7 @@ REQUIRED. All entities and relations are lists of objects.
 
 ### Entity fields
 - `name` (required): Canonical identifier. For Trial, use NCT ID. For Compound, use INN. For Condition, use MeSH term.
-- `entity_type` (required): Must match one of the 12 types in domain.yaml exactly (case-sensitive).
+- `entity_type` (required): Must match one of the 17 types in domain.yaml exactly (case-sensitive).
 - `confidence` (required): Float 0.0–1.0. See Confidence Calibration section.
 - `context` (required): Short excerpt or paraphrase from the source document justifying extraction.
 - `attributes` (optional): Dict of domain-specific metadata (e.g. `trial_acronym`, `sponsor_code`, `phase`, `dose`).
@@ -82,7 +82,7 @@ REQUIRED. All entities and relations are lists of objects.
 ### Relation fields
 - `source_entity` (required): `name` value of the source entity.
 - `target_entity` (required): `name` value of the target entity.
-- `relation_type` (required): Must match one of the 10 relation types in domain.yaml exactly (case-sensitive).
+- `relation_type` (required): Must match one of the 23 relation types in domain.yaml exactly (case-sensitive).
 - `confidence` (required): Float 0.0–1.0.
 - `evidence` (required): Short quote or paraphrase from the document supporting the relation.
 
@@ -130,6 +130,11 @@ biologic gets BOTH a Compound entity (with INN as name) AND an Intervention enti
   }
 }
 ```
+
+Drug linkage rules:
+
+- Every dose- or regimen-specific Intervention (e.g. 'semaglutide 1.0 mg QW SC') MUST link to its Compound via `contains_compound`.
+- Each arm Cohort MUST link to what it receives via `receives` (the Intervention, and the Compound when named). Background, rescue or auxiliary medication that is not under study is linked from the Trial via `uses_background_drug`, never via `tests`.
 
 ### Condition
 
@@ -210,6 +215,10 @@ Include the endpoint category (primary/secondary/exploratory) in attributes.
   }
 }
 ```
+
+The Outcome node keeps the trial-specific endpoint wording. When it contains a recognised
+measure, also create or reuse the matching StandardOutcome and link it with `measures`
+(see `### StandardOutcome`).
 
 ### Compound
 
@@ -334,6 +343,201 @@ city/country alone).
   }
 }
 ```
+
+### AdverseEvent
+
+An adverse event or side effect reported among trial participants. Name it by the
+event term itself, not by the arm, timepoint or count. Use one node per distinct
+event term: when the same term is reported for several arms, it is ONE AdverseEvent
+node with one `observed_in` relation per arm. Serious adverse events get
+`serious: true`. Attributes: `serious` (bool), `grade`, `n_affected`, `n_at_risk`,
+`percent`, `timeframe`, `reported_term`, `meddra_pt`. Link it to its OrganSystem via
+`affects_organ_system` when the document groups events by system organ class. Name and
+attribute it according to the rules in "Adverse Event Normalization" below.
+
+```json
+{
+  "name": "Nausea",
+  "entity_type": "AdverseEvent",
+  "confidence": 0.95,
+  "context": "Nausea was the most frequent adverse event (semaglutide 1.0 mg: 21.9% vs placebo: 6.1%)",
+  "attributes": {
+    "serious": false,
+    "grade": "mild to moderate",
+    "n_affected": 90,
+    "n_at_risk": 411,
+    "percent": 21.9,
+    "timeframe": "weeks 0-30"
+  }
+}
+```
+
+### OrganSystem
+
+The body or organ system an adverse event affects, named at system-organ-class level
+(e.g. "Gastrointestinal disorders", "Cardiac disorders", "Nervous system disorders").
+Use one node per class across the corpus, and create it only when the document
+states or clearly implies the grouping.
+
+```json
+{
+  "name": "Gastrointestinal disorders",
+  "entity_type": "OrganSystem",
+  "confidence": 0.9,
+  "context": "Gastrointestinal disorders were the most common system organ class of adverse events",
+  "attributes": {
+    "classification": "system organ class"
+  }
+}
+```
+
+### StandardOutcome
+
+A canonical, reusable outcome measure or assessment instrument shared across trials
+(e.g. "HbA1c", "Body weight", "Systolic blood pressure", "SF-36 physical functioning",
+"Overall survival"). The trial-specific wording stays on the Outcome node.
+
+Identification rules (CTKG):
+
+- Map each Outcome to a StandardOutcome when its wording contains a recognised measure.
+- Use abbreviation-definition pairs: "glycated haemoglobin (HbA1c)" gives HbA1c.
+- Recognise phrases built on the keywords scale, index, score, test, questionnaire, value, count, inventory, assessment, level, rate.
+- Also recognise common measures without those keywords: overall survival, progression-free survival, body weight, blood pressure, HbA1c, triglycerides, waist circumference, BMI, MACE.
+- Canonical naming: one StandardOutcome per measure across the corpus. Strip "change from baseline in", timepoints and units. Use the established short form where conventional (HbA1c, BMI, MACE) and sentence case otherwise ("Body weight", "Systolic blood pressure", "Fasting plasma glucose", "SF-36 physical functioning").
+- A composite outcome gets ONE StandardOutcome for the composite (e.g. "MACE"). Do not split it.
+
+```json
+{
+  "name": "Body weight",
+  "entity_type": "StandardOutcome",
+  "confidence": 0.92,
+  "context": "Co-primary endpoint: percentage change in body weight from baseline to week 68",
+  "attributes": {
+    "aliases": [
+      "bodyweight",
+      "weight"
+    ],
+    "measure_kind": "anthropometric"
+  }
+}
+```
+
+### OutcomeAnalysis
+
+A reported statistical comparison of arms on one outcome: the effect estimate, confidence
+interval, and p-value for treatment vs comparator at a timepoint.
+
+Name it `"<NCT ID>: <standard outcome> — <treatment> vs <comparator> (<timepoint>)"`, for example
+`"NCT03548935: Body weight — semaglutide 2.4 mg vs placebo (week 68)"`.
+
+Attributes:
+
+- `p_value`: string as reported (e.g. "<0.001")
+- `p_value_num`: float; the upper bound when reported as "<x"
+- `effect_estimate`: float
+- `effect_measure`: ETD / HR / OR / RR / mean difference
+- `ci_lower`, `ci_upper`, `ci_level`: confidence interval bounds and level (default 95)
+- `significant`: bool. True if p < 0.05 or the CI excludes the null (0 for differences, 1 for ratios); false if reported non-significant.
+- `endpoint_type`: primary / secondary / exploratory
+- `timepoint`: e.g. "week 68"
+- `direction`: favours_treatment / favours_comparator / no_difference
+- `missing_data_method`: e.g. "multiple imputation"
+
+Only extract an OutcomeAnalysis when the text reports a result (an estimate or a p-value).
+Protocol-only documents produce none.
+
+Each OutcomeAnalysis links to its Outcome via `analyzes`, to each arm compared via `compares`
+(one edge per arm), to the experimental treatment via `assesses_effect_of`, and to its method
+via `uses_method` when one is named.
+
+```json
+{
+  "name": "NCT03548935: Body weight — semaglutide 2.4 mg vs placebo (week 68)",
+  "entity_type": "OutcomeAnalysis",
+  "confidence": 0.95,
+  "context": "Estimated treatment difference -12.4 percentage points (95% CI -13.4 to -11.5; P<0.001)",
+  "attributes": {
+    "p_value": "<0.001",
+    "p_value_num": 0.001,
+    "effect_estimate": -12.4,
+    "effect_measure": "ETD",
+    "ci_lower": -13.4,
+    "ci_upper": -11.5,
+    "ci_level": 95,
+    "significant": true,
+    "endpoint_type": "primary",
+    "timepoint": "week 68",
+    "direction": "favours_treatment",
+    "missing_data_method": "multiple imputation"
+  }
+}
+```
+
+### StatisticalMethod
+
+A statistical test or model used in an OutcomeAnalysis (e.g. "ANCOVA", "MMRM",
+"Cox proportional hazards", "Log-rank test").
+
+Use one canonical spelling and merge punctuation and word-order variants ("paired t test"
+becomes "Paired t-test"). Seed list: ANCOVA, MMRM, Cox proportional hazards, Log-rank test,
+Logistic regression, Chi-square test, Fisher's exact test, Paired t-test, Wilcoxon signed-rank
+test, Cochran–Mantel–Haenszel test, Negative binomial regression, Hierarchical testing procedure.
+
+Multiple imputation is NOT a StatisticalMethod node: record it as `missing_data_method` on the OutcomeAnalysis.
+
+```json
+{
+  "name": "ANCOVA",
+  "entity_type": "StatisticalMethod",
+  "confidence": 0.9,
+  "context": "Change in body weight was analysed with an analysis of covariance (ANCOVA) model, with multiple imputation for missing data",
+  "attributes": {
+    "full_name": "Analysis of covariance"
+  }
+}
+```
+
+## Adverse Event Normalization
+
+Name every AdverseEvent with the rules below so that the same event reported in different
+trials or wordings becomes one node. The rules follow CTKG section 4.1 and are applied by
+you directly, without a MedDRA lookup. No MedDRA dictionary is shipped with this domain
+(the license forbids it), so never invent or look up codes.
+
+1. Strip parenthesised asides: "Nausea (mild, transient)" becomes "Nausea".
+2. Strip laterality, phase and timeframe qualifiers such as "left", "right", "Baseline Phase",
+   "during titration", "for 12 hours" or "Week 0-20". Keep the timeframe in `attributes.timeframe`.
+3. Name the event, not the grade, arm or count: "Grade 3 nausea in semaglutide arm" becomes
+   "Nausea", with the grade in `attributes.grade`.
+4. Use the singular, sentence case and US spelling: "Diarrhoea" becomes "Diarrhea", "Oedema"
+   becomes "Edema", "Haemorrhage" becomes "Hemorrhage", and "hypoglycaemia" becomes
+   "Hypoglycemia", so spelling variants never create two nodes. This matches the
+   `adverse_event` normalizer of the pharmacovigilance crosswalk.
+5. Prefer the preferred-term-level wording that clinicians use: "Vomiting", not "Throwing up"
+   or "Emesis episodes". Merge lowest-level variants of one event into a single node ("Eye
+   itching" and "Ocular itching" become "Eye pruritus"). Correct obvious misspellings.
+6. Record the wording found in the source in `attributes.reported_term`.
+7. Record `attributes.meddra_pt` only when you are confident that it is the MedDRA preferred
+   term wording; otherwise omit it. Never look it up. It is the same key the pharmacovigilance
+   crosswalk joins on.
+8. Assign the OrganSystem by system organ class name (for example "Gastrointestinal
+   disorders"), judged from the clinical nature of the event.
+
+```json
+{
+  "name": "Diarrhea",
+  "entity_type": "AdverseEvent",
+  "confidence": 0.9,
+  "context": "Grade 2 diarrhoea (transient) during titration",
+  "attributes": {
+    "reported_term": "Grade 2 diarrhoea (transient) during titration",
+    "grade": "2",
+    "timeframe": "during titration"
+  }
+}
+```
+
+Add `meddra_pt` only when you are confident of the exact MedDRA PT wording; otherwise omit it.
 
 ## Relation Types
 
@@ -551,6 +755,182 @@ force a comparison into this relation at low confidence.
 }
 ```
 
+### reports_adverse_event
+
+**Source:** Trial | **Target:** AdverseEvent
+
+A Trial reports an AdverseEvent among its participants. Create one relation per distinct adverse event term the trial reports.
+
+```json
+{
+  "source_entity": "NCT01720446",
+  "target_entity": "Nausea",
+  "relation_type": "reports_adverse_event",
+  "confidence": 0.95,
+  "evidence": "Nausea was reported more frequently with semaglutide than with placebo"
+}
+```
+
+### observed_in
+
+**Source:** AdverseEvent | **Target:** Cohort
+
+An AdverseEvent was observed in a specific arm (Cohort). Create one relation per arm in which the event is reported. Put the arm-level counts (n_affected, n_at_risk, percent) in the evidence text.
+
+```json
+{
+  "source_entity": "Nausea",
+  "target_entity": "Semaglutide 1.0 mg QW SC",
+  "relation_type": "observed_in",
+  "confidence": 0.93,
+  "evidence": "Nausea: 90/411 (21.9%) in the semaglutide 1.0 mg arm"
+}
+```
+
+### affects_organ_system
+
+**Source:** AdverseEvent | **Target:** OrganSystem
+
+An AdverseEvent belongs to an OrganSystem. Use it when the document groups events by system organ class.
+
+```json
+{
+  "source_entity": "acute pancreatitis",
+  "target_entity": "Gastrointestinal disorders",
+  "relation_type": "affects_organ_system",
+  "confidence": 0.9,
+  "evidence": "Gastrointestinal disorders: acute pancreatitis"
+}
+```
+
+### receives
+
+**Source:** Cohort | **Target:** Compound or Intervention
+
+A Cohort (arm) receives a Compound or Intervention. Unlike `tests`, which is Trial-level, `receives` is arm-level: use it to say which treatment each arm was given.
+
+```json
+{
+  "source_entity": "Semaglutide 1.0 mg QW SC",
+  "target_entity": "semaglutide 1.0 mg QW SC",
+  "relation_type": "receives",
+  "confidence": 0.95,
+  "evidence": "Patients in this arm received semaglutide 1.0 mg subcutaneously once weekly"
+}
+```
+
+### contains_compound
+
+**Source:** Intervention | **Target:** Compound
+
+A dose- or regimen-specific Intervention contains a Compound. Every dose-specific Intervention MUST link to its Compound, so the dose-level arm label resolves to the INN-named drug.
+
+```json
+{
+  "source_entity": "semaglutide 1.0 mg QW SC",
+  "target_entity": "semaglutide",
+  "relation_type": "contains_compound",
+  "confidence": 0.97,
+  "evidence": "semaglutide 1.0 mg once weekly, subcutaneous"
+}
+```
+
+### uses_background_drug
+
+**Source:** Trial | **Target:** Compound or Intervention
+
+Background, rescue, or auxiliary medication used in the trial but not under study, such as metformin background therapy. Unlike `tests`, the drug is not the object of the trial, so never use `tests` for it.
+
+```json
+{
+  "source_entity": "NCT01720446",
+  "target_entity": "metformin",
+  "relation_type": "uses_background_drug",
+  "confidence": 0.88,
+  "evidence": "Patients continued their stable background metformin therapy"
+}
+```
+
+### measures
+
+**Source:** Outcome | **Target:** StandardOutcome
+
+A trial-specific Outcome measures a canonical StandardOutcome. The Outcome keeps the trial wording; the StandardOutcome is the shared canonical measure.
+
+```json
+{
+  "source_entity": "percentage change in body weight from baseline to week 68",
+  "target_entity": "Body weight",
+  "relation_type": "measures",
+  "confidence": 0.93,
+  "evidence": "Co-primary endpoint: percentage change in body weight from baseline to week 68"
+}
+```
+
+### analyzes
+
+**Source:** OutcomeAnalysis | **Target:** Outcome
+
+An OutcomeAnalysis analyses a specific Outcome, the endpoint whose result it reports.
+
+```json
+{
+  "source_entity": "NCT03548935: Body weight — semaglutide 2.4 mg vs placebo (week 68)",
+  "target_entity": "percentage change in body weight from baseline to week 68",
+  "relation_type": "analyzes",
+  "confidence": 0.95,
+  "evidence": "Mean change in body weight from baseline to week 68 was -14.9% with semaglutide vs -2.4% with placebo"
+}
+```
+
+### compares
+
+**Source:** OutcomeAnalysis | **Target:** Cohort
+
+An OutcomeAnalysis compares this arm. Emit one edge per arm compared, the comparator arm included.
+
+```json
+{
+  "source_entity": "NCT03548935: Body weight — semaglutide 2.4 mg vs placebo (week 68)",
+  "target_entity": "Semaglutide 2.4 mg QW SC",
+  "relation_type": "compares",
+  "confidence": 0.94,
+  "evidence": "Semaglutide 2.4 mg (n=1306) vs placebo (n=655)"
+}
+```
+
+### assesses_effect_of
+
+**Source:** OutcomeAnalysis | **Target:** Compound or Intervention
+
+The treatment whose effect the OutcomeAnalysis estimates. It points to the experimental side only; the comparator is reached through `compares`.
+
+```json
+{
+  "source_entity": "NCT03548935: Body weight — semaglutide 2.4 mg vs placebo (week 68)",
+  "target_entity": "semaglutide",
+  "relation_type": "assesses_effect_of",
+  "confidence": 0.95,
+  "evidence": "Estimated treatment difference for semaglutide vs placebo -12.4 percentage points"
+}
+```
+
+### uses_method
+
+**Source:** OutcomeAnalysis | **Target:** StatisticalMethod
+
+The StatisticalMethod used for the analysis, when the text names one.
+
+```json
+{
+  "source_entity": "NCT03548935: Body weight — semaglutide 2.4 mg vs placebo (week 68)",
+  "target_entity": "ANCOVA",
+  "relation_type": "uses_method",
+  "confidence": 0.9,
+  "evidence": "analysed using an analysis of covariance model"
+}
+```
+
 ## Confidence Calibration
 
 The score says how strongly the text supports the extraction. It does not say
@@ -596,3 +976,11 @@ Before returning your extraction, verify:
 - Comparator arms produce `compared_with`, never `co_intervention`.
 - Condition names are canonical across the corpus (one name per disease).
 - Missing NCT ID: if no NCT ID is found, set Trial confidence <= 0.6 and use the study acronym as the name with a note in context.
+- Every dose-specific Intervention MUST link to its Compound via `contains_compound`.
+- Every arm Cohort MUST link to what it receives via `receives`.
+- Background or rescue medication uses `uses_background_drug`, never `tests`.
+- Each distinct adverse event term is ONE AdverseEvent node with `reports_adverse_event` from the Trial and `observed_in` per arm; serious AEs carry `serious: true`; names follow Adverse Event Normalization and the source wording is kept in `reported_term`.
+- Every Outcome that contains a recognised measure MUST link to its StandardOutcome via `measures`; StandardOutcome names are canonical across the corpus.
+- An OutcomeAnalysis exists only when a result (estimate or p-value) is reported, and it carries `significant` and `direction`.
+- Every OutcomeAnalysis MUST have `analyzes` to its Outcome, `compares` to each arm compared, and `assesses_effect_of` to the experimental treatment.
+- StatisticalMethod names use the canonical spelling; multiple imputation is an attribute, not a node.

@@ -20,14 +20,31 @@ axes:
       - from: name
 
   outcome:
-    entity_types: [Outcome]
+    # StandardOutcome first: the canonical measure name ("HbA1c",
+    # "Body weight") is the key that can meet another graph. Outcome stays
+    # as a fallback for graphs extracted before StandardOutcome existed.
+    entity_types: [StandardOutcome, Outcome]
     sources:
+      - from: name
+
+  adverse_event:
+    # Same attribute key as domains/pharmacovigilance/crosswalk.yaml, so a
+    # cross-domain join needs no rename. AE nodes without meddra_pt fall
+    # through to their name; the normalizer chain lives in
+    # crosswalks/pharma.yaml.
+    entity_types: [AdverseEvent]
+    sources:
+      - from: attribute
+        key: meddra_pt
       - from: name
 
 edges:
   - subject: trial
     object: outcome
     relations: [has_outcome]
+  - subject: trial
+    object: adverse_event
+    relations: [reports_adverse_event]
 
-  # No adverse_event axis here -- this graph has zero AE-type entities, so
-  # the safety axis never reaches clinicaltrials.
+  # The adverse_event axis is populated only by graphs extracted with the
+  # AdverseEvent type; graphs built before it contribute no keys.
