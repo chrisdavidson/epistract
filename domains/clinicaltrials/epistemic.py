@@ -10,8 +10,14 @@ Evidence grading rules:
 1. Phase III trials -> high_evidence
 2. Phase II -> medium_evidence
 3. Phase I or observational -> low_evidence
-4. Randomized or double-blind signals bump up one tier
+4. Blinded trials bump up one tier. Blinding comes from the registry
+   (ct_masking SINGLE/DOUBLE/TRIPLE/QUADRUPLE, set by enrich.py); when the
+   registry is silent, randomized / blinded / placebo-controlled wording in
+   the evidence quote is used instead.
 5. Large enrollment (>=300) bumps up one tier; small (<50) bumps down
+6. Open-label trials (ct_masking NONE, or "open-label" in the evidence when
+   the registry is silent) are capped at medium_evidence, after the
+   enrollment bump, so size cannot buy back the missing blinding.
 """
 
 from __future__ import annotations
@@ -36,6 +42,16 @@ BLINDING_RE = re.compile(
 )
 
 EVIDENCE_TIERS = ("low_evidence", "medium_evidence", "high_evidence")
+
+OPEN_LABEL_RE = re.compile(
+    r"\b(open[- ]label|unblinded|non[- ]blinded|no masking)\b",
+    re.IGNORECASE,
+)
+
+# CT.gov v2 designInfo.maskingInfo.masking values
+BLINDED_MASKING = {"SINGLE", "DOUBLE", "TRIPLE", "QUADRUPLE"}
+OPEN_MASKING = {"NONE", "OPEN", "OPEN_LABEL", "OPEN LABEL"}
+OPEN_LABEL_CAP = "medium_evidence"
 
 # Provenance links written by the graph builder; not claims.
 MENTIONED_IN = "MENTIONED_IN"
@@ -134,10 +150,28 @@ def _bump_tier(tier: str, delta: int) -> str:
     return EVIDENCE_TIERS[new_idx]
 
 
+def _trial_blinding(node: dict) -> str | None:
+    """Return 'blinded', 'open', or None from registry masking on a Trial node.
+
+    Reads ct_masking (set by enrich.py) first, then attributes.masking.
+    """
+    attrs = node.get("attributes", {}) or {}
+    value = node.get("ct_masking") or attrs.get("masking")
+    if not value:
+        return None
+    masking = str(value).strip().upper().replace("-", "_")
+    if masking in OPEN_MASKING or "OPEN" in masking:
+        return "open"
+    if masking in BLINDED_MASKING or "BLIND" in masking:
+        return "blinded"
+    return None
+
+
 def _grade_trial(trial_node: dict, evidence_text: str) -> str:
     """Return the evidence tier one trial lends to one piece of evidence.
 
-    Apply phase -> blinding -> enrollment bumps in that order.
+    Apply phase -> blinding -> enrollment bumps in that order, then cap
+    open-label trials at medium_evidence.
     """
     # Step 1: Determine starting tier from trial phase
     phase = _trial_phase(trial_node)
@@ -149,8 +183,12 @@ def _grade_trial(trial_node: dict, evidence_text: str) -> str:
         # Phase 1, observational, or no phase info — start at low
         tier = "low_evidence"
 
-    # Step 2: Apply blinding/randomization bump
-    if BLINDING_RE.search(evidence_text or ""):
+    # Step 2: Apply blinding bump. Registry masking wins; the evidence
+    # quote is only a fallback when the registry says nothing.
+    blinding = _trial_blinding(trial_node)
+    if blinding is None and OPEN_LABEL_RE.search(evidence_text or ""):
+        blinding = "open"
+    if blinding == "blinded" or (blinding is None and BLINDING_RE.search(evidence_text or "")):
         tier = _bump_tier(tier, +1)
 
     # Step 3: Apply enrollment bump
@@ -160,6 +198,12 @@ def _grade_trial(trial_node: dict, evidence_text: str) -> str:
             tier = _bump_tier(tier, +1)
         elif enrollment < 50:
             tier = _bump_tier(tier, -1)
+
+    # Step 4: Open-label cap, applied last so enrollment cannot undo it.
+    if blinding == "open" and tier in EVIDENCE_TIERS:
+        cap = EVIDENCE_TIERS.index(OPEN_LABEL_CAP)
+        if EVIDENCE_TIERS.index(tier) > cap:
+            tier = OPEN_LABEL_CAP
 
     return tier
 

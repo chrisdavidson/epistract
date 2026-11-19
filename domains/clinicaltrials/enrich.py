@@ -4,7 +4,7 @@
 Post-build enrichment step invoked by /epistract:ingest when --enrich is
 passed with --domain clinicaltrials. Reads the built graph via
 sift_kg.KnowledgeGraph.load(), patches Trial nodes with CT.gov v2 metadata
-(overall_status, phase, enrollment, dates, title) and Compound nodes with
+(overall_status, phase, enrollment, dates, title, allocation, masking) and Compound nodes with
 PubChem PUG REST molecular data (CID, formula, weight, SMILES, InChI),
 then saves and writes _enrichment_report.json.
 
@@ -77,6 +77,8 @@ def _fetch_ct_gov(nct_id: str) -> dict | None:
     design_mod = ps.get("designModule", {}) or {}
     phases = design_mod.get("phases") or []
     enrollment_info = design_mod.get("enrollmentInfo") or {}
+    design_info = design_mod.get("designInfo") or {}
+    masking_info = design_info.get("maskingInfo") or {}
     start_struct = status_mod.get("startDateStruct") or {}
     completion_struct = status_mod.get("completionDateStruct") or {}
     return {
@@ -86,6 +88,10 @@ def _fetch_ct_gov(nct_id: str) -> dict | None:
         "ct_start_date": start_struct.get("date"),
         "ct_completion_date": completion_struct.get("date"),
         "ct_brief_title": id_mod.get("briefTitle"),
+        # Design fields read by epistemic.py's evidence grading:
+        # masking NONE (open-label) caps a trial at medium_evidence.
+        "ct_allocation": design_info.get("allocation"),
+        "ct_masking": masking_info.get("masking"),
     }
 
 

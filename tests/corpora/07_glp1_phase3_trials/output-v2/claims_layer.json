@@ -8,13 +8,14 @@
   },
   "summary": {
     "evidence_tier_counts": {
-      "high_evidence": 269
+      "high_evidence": 220,
+      "medium_evidence": 49
     },
     "epistemic_status_counts": {
       "asserted": 269
     },
     "contradictions_found": 0,
-    "contested_found": 0,
+    "contested_found": 5,
     "hypothesized_found": 0,
     "hypotheses_found": 0,
     "trials_with_phase": 10,
@@ -22,13 +23,264 @@
   },
   "base_domain": {
     "description": "High-evidence relations from Phase 3, randomized, or large-enrollment trials",
-    "relation_count": 269
+    "relation_count": 220
   },
   "super_domain": {
     "description": "Medium/low/unclassified-evidence relations \u2014 smaller trials, early phase, or unclassifiable",
-    "relation_count": 0,
+    "relation_count": 49,
     "contradictions": [],
-    "contested_claims": [],
+    "contested_claims": [
+      {
+        "source_entity": "compound:semaglutide",
+        "target_entity": "condition:type_2_diabetes_mellitus",
+        "relation_type": "evaluated_for",
+        "tiers": [
+          "high_evidence",
+          "high_evidence",
+          "high_evidence",
+          "high_evidence",
+          "medium_evidence"
+        ],
+        "sources": [
+          {
+            "source_document": "nct01720446_sustain_6",
+            "tier": "high_evidence"
+          },
+          {
+            "source_document": "nct02692716_pioneer_6",
+            "tier": "high_evidence"
+          },
+          {
+            "source_document": "nct02906930_pioneer_1",
+            "tier": "high_evidence"
+          },
+          {
+            "source_document": "nct03552757_step_2",
+            "tier": "high_evidence"
+          },
+          {
+            "source_document": "nct03987919_surpass_2",
+            "tier": "medium_evidence"
+          }
+        ],
+        "mentions": [
+          {
+            "source_document": "nct01720446_sustain_6",
+            "confidence": 0.93,
+            "evidence": "The aim of the trial is to evaluate cardiovascular and other long-term outcomes with semaglutide in subjects with type 2 diabetes.",
+            "relation_id": "compound:semaglutide|evaluated_for|condition:type_2_diabetes_mellitus|nct01720446_sustain_6"
+          },
+          {
+            "source_document": "nct02692716_pioneer_6",
+            "confidence": 0.92,
+            "evidence": "The aim of the trial is to investigate the cardiovascular safety of oral semaglutide in subjects with type 2 diabetes.",
+            "relation_id": "compound:semaglutide|evaluated_for|condition:type_2_diabetes_mellitus|nct02692716_pioneer_6"
+          },
+          {
+            "source_document": "nct02906930_pioneer_1",
+            "confidence": 0.94,
+            "evidence": "The aim of this trial is to investigate efficacy and safety of oral semaglutide versus placebo in subjects with type 2 diabetes mellitus treated with diet and exercise only.",
+            "relation_id": "compound:semaglutide|evaluated_for|condition:type_2_diabetes_mellitus|nct02906930_pioneer_1"
+          },
+          {
+            "source_document": "nct03552757_step_2",
+            "confidence": 0.82,
+            "evidence": "Research Study Investigating How Well Semaglutide Works in People With Type 2 Diabetes Suffering From Overweight or Obesity",
+            "relation_id": "compound:semaglutide|evaluated_for|condition:type_2_diabetes_mellitus|nct03552757_step_2"
+          },
+          {
+            "source_document": "nct03987919_surpass_2",
+            "confidence": 0.8,
+            "evidence": "to compare the effect of the study drug tirzepatide to semaglutide on blood sugar levels in participants with type 2 diabetes",
+            "relation_id": "compound:semaglutide|evaluated_for|condition:type_2_diabetes_mellitus|nct03987919_surpass_2"
+          }
+        ],
+        "support_documents": [
+          "nct01720446_sustain_6",
+          "nct02692716_pioneer_6",
+          "nct02906930_pioneer_1",
+          "nct03552757_step_2",
+          "nct03987919_surpass_2"
+        ],
+        "epistemic_status": "contested"
+      },
+      {
+        "source_entity": "compound:semaglutide",
+        "target_entity": "condition:obesity",
+        "relation_type": "evaluated_for",
+        "tiers": [
+          "high_evidence",
+          "high_evidence",
+          "medium_evidence"
+        ],
+        "sources": [
+          {
+            "source_document": "nct03548935_step_1",
+            "tier": "high_evidence"
+          },
+          {
+            "source_document": "nct03552757_step_2",
+            "tier": "high_evidence"
+          },
+          {
+            "source_document": "nct05822830_surmount_5",
+            "tier": "medium_evidence"
+          }
+        ],
+        "mentions": [
+          {
+            "source_document": "nct03548935_step_1",
+            "confidence": 0.92,
+            "evidence": "STEP 1: Research Study Investigating How Well Semaglutide Works in People Suffering From Overweight or Obesity",
+            "relation_id": "compound:semaglutide|evaluated_for|condition:obesity|nct03548935_step_1"
+          },
+          {
+            "source_document": "nct03552757_step_2",
+            "confidence": 0.92,
+            "evidence": "This is to compare the effect on body weight in people taking semaglutide (a new medicine) and people taking \"dummy\" medicine.",
+            "relation_id": "compound:semaglutide|evaluated_for|condition:obesity|nct03552757_step_2"
+          },
+          {
+            "source_document": "nct05822830_surmount_5",
+            "confidence": 0.8,
+            "evidence": "The main purpose of this phase 3b study is to evaluate the efficacy and safety of tirzepatide compared with semaglutide in adult participants who have obesity or overweight",
+            "relation_id": "compound:semaglutide|evaluated_for|condition:obesity|nct05822830_surmount_5"
+          }
+        ],
+        "support_documents": [
+          "nct03548935_step_1",
+          "nct03552757_step_2",
+          "nct05822830_surmount_5"
+        ],
+        "epistemic_status": "contested"
+      },
+      {
+        "source_entity": "compound:semaglutide",
+        "target_entity": "condition:overweight",
+        "relation_type": "evaluated_for",
+        "tiers": [
+          "high_evidence",
+          "high_evidence",
+          "medium_evidence"
+        ],
+        "sources": [
+          {
+            "source_document": "nct03548935_step_1",
+            "tier": "high_evidence"
+          },
+          {
+            "source_document": "nct03552757_step_2",
+            "tier": "high_evidence"
+          },
+          {
+            "source_document": "nct05822830_surmount_5",
+            "tier": "medium_evidence"
+          }
+        ],
+        "mentions": [
+          {
+            "source_document": "nct03548935_step_1",
+            "confidence": 0.92,
+            "evidence": "STEP 1: Research Study Investigating How Well Semaglutide Works in People Suffering From Overweight or Obesity",
+            "relation_id": "compound:semaglutide|evaluated_for|condition:overweight|nct03548935_step_1"
+          },
+          {
+            "source_document": "nct03552757_step_2",
+            "confidence": 0.92,
+            "evidence": "Research Study Investigating How Well Semaglutide Works in People With Type 2 Diabetes Suffering From Overweight or Obesity",
+            "relation_id": "compound:semaglutide|evaluated_for|condition:overweight|nct03552757_step_2"
+          },
+          {
+            "source_document": "nct05822830_surmount_5",
+            "confidence": 0.8,
+            "evidence": "The main purpose of this phase 3b study is to evaluate the efficacy and safety of tirzepatide compared with semaglutide in adult participants who have obesity or overweight",
+            "relation_id": "compound:semaglutide|evaluated_for|condition:overweight|nct05822830_surmount_5"
+          }
+        ],
+        "support_documents": [
+          "nct03548935_step_1",
+          "nct03552757_step_2",
+          "nct05822830_surmount_5"
+        ],
+        "epistemic_status": "contested"
+      },
+      {
+        "source_entity": "compound:tirzepatide",
+        "target_entity": "condition:obesity",
+        "relation_type": "evaluated_for",
+        "tiers": [
+          "high_evidence",
+          "medium_evidence"
+        ],
+        "sources": [
+          {
+            "source_document": "nct04184622_surmount_1",
+            "tier": "high_evidence"
+          },
+          {
+            "source_document": "nct05822830_surmount_5",
+            "tier": "medium_evidence"
+          }
+        ],
+        "mentions": [
+          {
+            "source_document": "nct04184622_surmount_1",
+            "confidence": 0.93,
+            "evidence": "This is a study of tirzepatide in participants with overweight and obesity. The main purpose is to learn more about how tirzepatide affects body weight.",
+            "relation_id": "compound:tirzepatide|evaluated_for|condition:obesity|nct04184622_surmount_1"
+          },
+          {
+            "source_document": "nct05822830_surmount_5",
+            "confidence": 0.93,
+            "evidence": "The main purpose of this phase 3b study is to evaluate the efficacy and safety of tirzepatide compared with semaglutide in adult participants who have obesity or overweight",
+            "relation_id": "compound:tirzepatide|evaluated_for|condition:obesity|nct05822830_surmount_5"
+          }
+        ],
+        "support_documents": [
+          "nct04184622_surmount_1",
+          "nct05822830_surmount_5"
+        ],
+        "epistemic_status": "contested"
+      },
+      {
+        "source_entity": "compound:tirzepatide",
+        "target_entity": "condition:overweight",
+        "relation_type": "evaluated_for",
+        "tiers": [
+          "high_evidence",
+          "medium_evidence"
+        ],
+        "sources": [
+          {
+            "source_document": "nct04184622_surmount_1",
+            "tier": "high_evidence"
+          },
+          {
+            "source_document": "nct05822830_surmount_5",
+            "tier": "medium_evidence"
+          }
+        ],
+        "mentions": [
+          {
+            "source_document": "nct04184622_surmount_1",
+            "confidence": 0.93,
+            "evidence": "This is a study of tirzepatide in participants with overweight and obesity.",
+            "relation_id": "compound:tirzepatide|evaluated_for|condition:overweight|nct04184622_surmount_1"
+          },
+          {
+            "source_document": "nct05822830_surmount_5",
+            "confidence": 0.93,
+            "evidence": "The main purpose of this phase 3b study is to evaluate the efficacy and safety of tirzepatide compared with semaglutide in adult participants who have obesity or overweight",
+            "relation_id": "compound:tirzepatide|evaluated_for|condition:overweight|nct05822830_surmount_5"
+          }
+        ],
+        "support_documents": [
+          "nct04184622_surmount_1",
+          "nct05822830_surmount_5"
+        ],
+        "epistemic_status": "contested"
+      }
+    ],
     "hypotheses": []
   },
   "generator": "label_epistemic"

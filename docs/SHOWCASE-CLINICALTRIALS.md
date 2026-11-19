@@ -52,12 +52,12 @@ S7 is the answer. Same molecular targets, same companies, but instead of patents
 | Claims (relations excluding `MENTIONED_IN` provenance links) | 198 |
 | `asserted` claims (v3 status) | 191 |
 | `hypothesized` claims (v3 status) | 7 (`treats` claims backed only by protocol intent language) |
-| `high_evidence` claims (phase-tier) | 178 (after `--enrich`) |
-| `medium_evidence` claims (phase-tier) | 20 (after `--enrich`) |
+| `high_evidence` claims (phase-tier) | 141 (after `--enrich`) |
+| `medium_evidence` claims (phase-tier) | 57 (after `--enrich`; open-label SURPASS-2 and SURMOUNT-5 are capped at medium) |
 | `unclassified` claims (phase-tier) | 0 (every claim is traced to its source trial) |
 | Enrichment hit rate | 10/10 trials (100%), 2/2 compounds (100%) |
 | Contradictions | 0 |
-| Contested claims | 0 |
+| Contested claims | 5 (claims supported by both blinded and open-label trials) |
 | `metadata.domain` | `clinicaltrials` |
 | `epistemic_narrative.md` | 1,197 words |
 
@@ -69,7 +69,7 @@ S7 is the answer. Same molecular targets, same companies, but instead of patents
 
 **191 of 198 claims are `asserted`; 7 are `hypothesized`.** CT.gov protocol language is declarative ("participants will receive", "primary endpoint is measured at week 24"), so structural facts (sponsor, phase, endpoints, arms) are correctly asserted. The exception is efficacy: a protocol says a drug *will be evaluated* for a condition, not that it works. The seven `treats` claims whose every source is intent language ("semaglutide evaluated as treatment for type 2 diabetes") are labeled `hypothesized`. One `treats` claim stays asserted because one source cites prior results ("shown to have beneficial impact on blood sugar"). Earlier versions of this page reported 394 asserted relations; that count included 196 `MENTIONED_IN` provenance links, which are not claims.
 
-**No contradictions or contested claims, for a real reason now.** Contradiction and contested detection compare the per-source evidence tiers inside each merged claim. Earlier versions compared merged links with each other, which can never disagree, so a zero there was not a finding. In this corpus all supporting trials but one are large Phase 3 studies, so per-source tiers agree; a corpus mixing Phase 2 and Phase 3 trials would surface contested claims.
+**Five contested claims, because two trials are open-label.** Contradiction and contested detection compare the per-source evidence tiers inside each merged claim; earlier versions compared merged links with each other, which can never disagree. Registry masking (pulled by `--enrich` as `ct_masking`) shows SURPASS-2 (`NCT03987919`) and SURMOUNT-5 (`NCT05822830`) are open-label, and open-label trials are capped at `medium_evidence` however large they are. Claims such as `semaglutide treats obesity`, supported by double-blind STEP trials and by open-label SURMOUNT-5, are therefore contested: the same claim rests on evidence of different rigor.
 
 **Phase tagging is a structural gap — resolved via `--enrich`.** Pre-enrichment, only 2 `TrialPhase` entity nodes were extracted for 10 trials (the extractor captured Phase as an attribute rather than a standalone entity). Phase-tier grading defaulted to `medium_evidence` (197) and `unclassified` (198). **After running `domains/clinicaltrials/enrich.py`**, all 10 Trial nodes now carry `ct_phase: PHASE3` from the CT.gov v2 API, plus `ct_enrollment`, `ct_overall_status`, `ct_start_date`, `ct_completion_date`, `ct_brief_title`. `_trial_phase()` reads the new attribute, flipping **177 relations to `high_evidence`** (Phase 3 + enrollment ≥300). Claims that do not touch a Trial node, such as `semaglutide treats obesity`, are now graded through the trials their source documents describe, so none remain `unclassified`.
 
@@ -86,9 +86,10 @@ S7 is the answer. Same molecular targets, same companies, but instead of patents
 | `compared_with` | n/a | 16 |
 | Mentions scored 0.70–0.89 | 1% | 26% |
 | Duplicate type 2 diabetes / "overweight or obesity" nodes | yes | no |
-| Trials graded `high_evidence` | 9 of 10 phase-tagged | 10 of 10 (all Phase 3) |
+| Claims `high_evidence` / `medium_evidence` | 141 / 57 | 220 / 49 (open-label SURPASS-2 and SURMOUNT-5 capped at medium) |
+| Contested claims | 5 | 5 |
 
-The `output-v2/epistemic_narrative.md` briefing was produced from the narrator's exact prompt (`_summarize_graph_for_narrator` + the clinicaltrials persona + `_NARRATOR_USER_PROMPT`), answered by a Claude Code agent because no narrator API key was configured. The narrator summary now separates claims from `MENTIONED_IN` provenance links, lists claim relation types, and names the key entities with their CT.gov fields, so the briefing can cite NCT IDs. Its one factual slip: it reports the second sponsor as unresolved, because Eli Lilly is not among the top-25 entities shown to it. Its most useful flag is real: SURPASS-2 (`NCT03987919`) is open-label, yet phase and enrollment alone grade it `high_evidence`.
+The `output-v2/epistemic_narrative.md` briefing was produced from the narrator's exact prompt (`_summarize_graph_for_narrator` + the clinicaltrials persona + `_NARRATOR_USER_PROMPT`), answered by a Claude Code agent because no narrator API key was configured. The narrator summary now separates claims from `MENTIONED_IN` provenance links, lists claim relation types, and names the key entities with their CT.gov fields, so the briefing can cite NCT IDs. Its one factual slip: it reports the second sponsor as unresolved, because Eli Lilly is not among the top-25 entities shown to it. Its most useful flag was real: SURPASS-2 (`NCT03987919`) is open-label, yet phase and enrollment alone graded it `high_evidence`. That is now fixed (open-label cap), so the briefing's recommendation to check SURPASS-2 blinding predates the fix.
 
 ## What V3.1 delivers on clinical trials that V3.0 did not
 

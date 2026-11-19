@@ -2905,6 +2905,68 @@ def test_ctdm04_ctgov_enrich_mock():
 
 
 @pytest.mark.unit
+def test_ctdm04_ctgov_enrich_masking_and_allocation():
+    """CTDM-04: _fetch_ct_gov returns ct_masking / ct_allocation from designInfo."""
+    sys.path.insert(0, str(CLINICALTRIALS_DIR))
+    import importlib
+
+    enrich = importlib.import_module("enrich")
+    mock_body = json.loads((CT_FIXTURES / "mock_ctgov_NCT04303780.json").read_text())
+    mock_body["protocolSection"]["designModule"]["designInfo"] = {
+        "allocation": "RANDOMIZED",
+        "maskingInfo": {"masking": "NONE"},
+    }
+    with patch.object(enrich.requests, "get") as m:
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json.return_value = mock_body
+        m.return_value = resp
+        result = enrich._fetch_ct_gov("NCT04303780")
+    assert result["ct_allocation"] == "RANDOMIZED"
+    assert result["ct_masking"] == "NONE"
+
+
+def _ct_trial(**fields):
+    return {"id": "trial:t", "entity_type": "Trial", **fields}
+
+
+@pytest.mark.unit
+def test_ctdm03_open_label_registry_caps_at_medium():
+    """Large open-label Phase 3 (registry masking NONE) cannot be high_evidence."""
+    from core.label_epistemic import _load_domain_epistemic
+
+    mod = _load_domain_epistemic("clinicaltrials")
+    trial = _ct_trial(ct_phase="PHASE3", ct_enrollment=1879, ct_masking="NONE")
+    # Randomized wording in the quote must not lift it back up.
+    assert mod._grade_trial(trial, "Randomized comparison of two drugs") == "medium_evidence"
+    blinded = _ct_trial(ct_phase="PHASE3", ct_enrollment=1879, ct_masking="QUADRUPLE")
+    assert mod._grade_trial(blinded, "") == "high_evidence"
+
+
+@pytest.mark.unit
+def test_ctdm03_open_label_text_fallback_when_registry_silent():
+    """Without registry masking, 'open-label' in the evidence caps the tier."""
+    from core.label_epistemic import _load_domain_epistemic
+
+    mod = _load_domain_epistemic("clinicaltrials")
+    trial = _ct_trial(ct_phase="PHASE3", ct_enrollment=900)
+    assert mod._grade_trial(trial, "An open-label, randomized trial") == "medium_evidence"
+    assert mod._grade_trial(trial, "A double-blind trial") == "high_evidence"
+
+
+@pytest.mark.unit
+def test_ctdm03_registry_blinding_bumps_without_quote():
+    """Registry-confirmed blinding bumps a tier even when the quote is silent."""
+    from core.label_epistemic import _load_domain_epistemic
+
+    mod = _load_domain_epistemic("clinicaltrials")
+    phase2 = _ct_trial(ct_phase="PHASE2", ct_enrollment=120, ct_masking="DOUBLE")
+    assert mod._grade_trial(phase2, "Arm A receives drug") == "high_evidence"
+    unknown = _ct_trial(ct_phase="PHASE2", ct_enrollment=120)
+    assert mod._grade_trial(unknown, "Arm A receives drug") == "medium_evidence"
+
+
+@pytest.mark.unit
 def test_ctdm04_ctgov_404_returns_none():
     """CTDM-04: 404 response yields None, not exception."""
     sys.path.insert(0, str(CLINICALTRIALS_DIR))

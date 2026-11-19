@@ -1,7 +1,7 @@
 {
   "metadata": {
     "created_at": "2026-11-18T20:54:02.413661",
-    "updated_at": "2026-11-18T20:54:22.438371",
+    "updated_at": "2026-11-18T21:10:33.565019",
     "entity_count": 168,
     "relation_count": 512,
     "document_count": 10,
@@ -57,7 +57,9 @@
       "ct_enrollment": 3297,
       "ct_start_date": "2013-02-21",
       "ct_completion_date": "2016-03-15",
-      "ct_brief_title": "Trial to Evaluate Cardiovascular and Other Long-term Outcomes With Semaglutide in Subjects With Type 2 Diabetes"
+      "ct_brief_title": "Trial to Evaluate Cardiovascular and Other Long-term Outcomes With Semaglutide in Subjects With Type 2 Diabetes",
+      "ct_allocation": "RANDOMIZED",
+      "ct_masking": "DOUBLE"
     },
     {
       "id": "trialphase:phase_3",
@@ -513,7 +515,9 @@
       "ct_enrollment": 3183,
       "ct_start_date": "2017-01-17",
       "ct_completion_date": "2018-09-25",
-      "ct_brief_title": "A Trial Investigating the Cardiovascular Safety of Oral Semaglutide in Subjects With Type 2 Diabetes"
+      "ct_brief_title": "A Trial Investigating the Cardiovascular Safety of Oral Semaglutide in Subjects With Type 2 Diabetes",
+      "ct_allocation": "RANDOMIZED",
+      "ct_masking": "DOUBLE"
     },
     {
       "id": "intervention:oral_semaglutide_once_daily",
@@ -814,7 +818,9 @@
       "ct_enrollment": 703,
       "ct_start_date": "2016-09-20",
       "ct_completion_date": "2017-12-08",
-      "ct_brief_title": "Efficacy and Safety of Oral Semaglutide Versus Placebo in Subjects With Type 2 Diabetes Mellitus Treated With Diet and Exercise Only"
+      "ct_brief_title": "Efficacy and Safety of Oral Semaglutide Versus Placebo in Subjects With Type 2 Diabetes Mellitus Treated With Diet and Exercise Only",
+      "ct_allocation": "RANDOMIZED",
+      "ct_masking": "DOUBLE"
     },
     {
       "id": "intervention:oral_semaglutide_3_mg_once_daily",
@@ -1088,7 +1094,9 @@
       "ct_enrollment": 1961,
       "ct_start_date": "2018-06-04",
       "ct_completion_date": "2021-03-05",
-      "ct_brief_title": "STEP 1: Research Study Investigating How Well Semaglutide Works in People Suffering From Overweight or Obesity"
+      "ct_brief_title": "STEP 1: Research Study Investigating How Well Semaglutide Works in People Suffering From Overweight or Obesity",
+      "ct_allocation": "RANDOMIZED",
+      "ct_masking": "QUADRUPLE"
     },
     {
       "id": "intervention:placebo_semaglutide",
@@ -1406,7 +1414,9 @@
       "ct_enrollment": 1210,
       "ct_start_date": "2018-06-04",
       "ct_completion_date": "2020-05-01",
-      "ct_brief_title": "Research Study Investigating How Well Semaglutide Works in People With Type 2 Diabetes Suffering From Overweight or Obesity"
+      "ct_brief_title": "Research Study Investigating How Well Semaglutide Works in People With Type 2 Diabetes Suffering From Overweight or Obesity",
+      "ct_allocation": "RANDOMIZED",
+      "ct_masking": "QUADRUPLE"
     },
     {
       "id": "intervention:semaglutide_1_0_mg",
@@ -1699,7 +1709,9 @@
       "ct_enrollment": 611,
       "ct_start_date": "2018-08-01",
       "ct_completion_date": "2020-04-28",
-      "ct_brief_title": "Research Study to Look at How Well Semaglutide is at Lowering Weight When Taken Together With an Intensive Lifestyle Program"
+      "ct_brief_title": "Research Study to Look at How Well Semaglutide is at Lowering Weight When Taken Together With an Intensive Lifestyle Program",
+      "ct_allocation": "RANDOMIZED",
+      "ct_masking": "QUADRUPLE"
     },
     {
       "id": "intervention:intensive_behavioural_therapy",
@@ -1862,7 +1874,9 @@
       "ct_enrollment": 1879,
       "ct_start_date": "2019-07-30",
       "ct_completion_date": "2021-02-15",
-      "ct_brief_title": "A Study of Tirzepatide (LY3298176) Versus Semaglutide Once Weekly as Add-on Therapy to Metformin in Participants With Type 2 Diabetes"
+      "ct_brief_title": "A Study of Tirzepatide (LY3298176) Versus Semaglutide Once Weekly as Add-on Therapy to Metformin in Participants With Type 2 Diabetes",
+      "ct_allocation": "RANDOMIZED",
+      "ct_masking": "NONE"
     },
     {
       "id": "sponsor:eli_lilly_and_company",
@@ -2174,7 +2188,9 @@
       "ct_enrollment": 2539,
       "ct_start_date": "2019-12-04",
       "ct_completion_date": "2024-07-06",
-      "ct_brief_title": "A Study of Tirzepatide (LY3298176) in Participants With Obesity or Overweight"
+      "ct_brief_title": "A Study of Tirzepatide (LY3298176) in Participants With Obesity or Overweight",
+      "ct_allocation": "RANDOMIZED",
+      "ct_masking": "DOUBLE"
     },
     {
       "id": "intervention:tirzepatide_5_mg_sc_qw",
@@ -2414,7 +2430,9 @@
       "ct_enrollment": 751,
       "ct_start_date": "2023-04-21",
       "ct_completion_date": "2024-11-13",
-      "ct_brief_title": "A Study of Tirzepatide (LY3298176) in Participants With Obesity or Overweight With Weight Related Comorbidities"
+      "ct_brief_title": "A Study of Tirzepatide (LY3298176) in Participants With Obesity or Overweight With Weight Related Comorbidities",
+      "ct_allocation": "RANDOMIZED",
+      "ct_masking": "NONE"
     },
     {
       "id": "intervention:tirzepatide_15_mg_or_mtd_sc_qw",
@@ -2585,7 +2603,9 @@
       "ct_enrollment": 559,
       "ct_start_date": "2023-08-09",
       "ct_completion_date": "2025-04-03",
-      "ct_brief_title": "A Study of Orforglipron (LY3502970) in Adult Participants With Type 2 Diabetes and Inadequate Glycemic Control With Diet and Exercise Alone"
+      "ct_brief_title": "A Study of Orforglipron (LY3502970) in Adult Participants With Type 2 Diabetes and Inadequate Glycemic Control With Diet and Exercise Alone",
+      "ct_allocation": "RANDOMIZED",
+      "ct_masking": "DOUBLE"
     },
     {
       "id": "compound:orforglipron",
@@ -4246,7 +4266,7 @@
         },
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -4514,7 +4534,7 @@
         },
         {
           "source_document": "nct05822830_surmount_5",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -4567,7 +4587,7 @@
         },
         {
           "source_document": "nct05822830_surmount_5",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -4663,11 +4683,11 @@
           "relation_id": "compound:semaglutide|co_intervention|compound:metformin|nct03987919_surpass_2"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -12649,19 +12669,19 @@
           "relation_id": "trial:nct03987919|tests|intervention:tirzepatide_5_mg_sc_once_weekly|nct03987919_surpass_2"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         },
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         },
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -12700,19 +12720,19 @@
           "relation_id": "trial:nct03987919|enrolls|cohort:arm_5_mg_tirzepatide|nct03987919_surpass_2"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         },
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         },
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -12739,11 +12759,11 @@
           "relation_id": "trial:nct03987919|tests|intervention:semaglutide_1_mg_sc_once_weekly|nct03987919_surpass_2"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -12770,11 +12790,11 @@
           "relation_id": "trial:nct03987919|enrolls|cohort:semaglutide_1_0_mg_arm|nct03987919_surpass_2"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -12801,11 +12821,11 @@
           "relation_id": "trial:nct03987919|has_outcome|outcome:change_from_baseline_in_hemoglobin_a1c_hba1c_10_mg_and_15_mg|nct03987919_surpass_2"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -12832,11 +12852,11 @@
           "relation_id": "trial:nct03987919|has_outcome|outcome:change_from_baseline_in_hba1c_5_mg|nct03987919_surpass_2"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -12863,11 +12883,11 @@
           "relation_id": "trial:nct03987919|has_outcome|outcome:change_from_baseline_in_body_weight|nct03987919_surpass_2"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -12900,15 +12920,15 @@
           "relation_id": "trial:nct03987919|has_outcome|outcome:percentage_of_participants_achieving_hba1c_7|nct03987919_surpass_2"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         },
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -12935,11 +12955,11 @@
           "relation_id": "trial:nct03987919|has_outcome|outcome:change_from_baseline_in_fasting_serum_glucose|nct03987919_surpass_2"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -12966,11 +12986,11 @@
           "relation_id": "trial:nct03987919|has_outcome|outcome:mean_change_from_baseline_in_daily_average_7_point_smbg|nct03987919_surpass_2"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -12997,11 +13017,11 @@
           "relation_id": "trial:nct03987919|has_outcome|outcome:percentage_of_participants_achieving_weight_loss_5|nct03987919_surpass_2"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -13028,11 +13048,11 @@
           "relation_id": "trial:nct03987919|has_outcome|outcome:diabetes_treatment_satisfaction_dtsqc|nct03987919_surpass_2"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -13059,11 +13079,11 @@
           "relation_id": "trial:nct03987919|has_outcome|outcome:rate_of_hypoglycemia_54_mg_dl_or_severe_hypoglycemia|nct03987919_surpass_2"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -13090,11 +13110,11 @@
           "relation_id": "trial:nct03987919|is_phase|trialphase:phase_3|nct03987919_surpass_2"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -13121,11 +13141,11 @@
           "relation_id": "trial:nct03987919|sponsored_by|sponsor:eli_lilly_and_company|nct03987919_surpass_2"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -13152,11 +13172,11 @@
           "relation_id": "trial:nct03987919|investigates|condition:type_2_diabetes_mellitus|nct03987919_surpass_2"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -13183,11 +13203,11 @@
           "relation_id": "trial:nct03987919|tests|compound:tirzepatide|nct03987919_surpass_2"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -13214,11 +13234,11 @@
           "relation_id": "trial:nct03987919|tests|compound:semaglutide|nct03987919_surpass_2"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -13245,11 +13265,11 @@
           "relation_id": "trial:nct03987919|enrolls|population:adults_with_type_2_diabetes_on_stable_metformin_hba1c_7_0_10_5_bmi_25|nct03987919_surpass_2"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -13276,11 +13296,11 @@
           "relation_id": "trial:nct03987919|uses_biomarker|biomarker:hba1c|nct03987919_surpass_2"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -13307,11 +13327,11 @@
           "relation_id": "trial:nct03987919|uses_biomarker|biomarker:body_mass_index|nct03987919_surpass_2"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -13453,11 +13473,11 @@
           "relation_id": "compound:tirzepatide|evaluated_for|condition:type_2_diabetes_mellitus|nct03987919_surpass_2"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -13491,15 +13511,15 @@
           "relation_id": "compound:tirzepatide|compared_with|compound:semaglutide|nct05822830_surmount_5"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         },
         {
           "source_document": "nct05822830_surmount_5",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -13526,11 +13546,11 @@
           "relation_id": "compound:tirzepatide|co_intervention|compound:metformin|nct03987919_surpass_2"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -13557,11 +13577,11 @@
           "relation_id": "compound:tirzepatide|targets|biomarker:gip_receptor|nct03987919_surpass_2"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -13588,11 +13608,11 @@
           "relation_id": "compound:tirzepatide|targets|biomarker:glp_1_receptor|nct03987919_surpass_2"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -13657,7 +13677,7 @@
         },
         {
           "source_document": "nct05822830_surmount_5",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -13699,7 +13719,7 @@
         },
         {
           "source_document": "nct05822830_surmount_5",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -13881,19 +13901,19 @@
           "relation_id": "intervention:tirzepatide_5_mg_sc_once_weekly|compared_with|intervention:semaglutide_1_mg_sc_once_weekly|nct03987919_surpass_2"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         },
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         },
         {
           "source_document": "nct03987919_surpass_2",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -15573,11 +15593,11 @@
           "relation_id": "trial:nct05822830|has_outcome|outcome:percent_change_from_baseline_in_body_weight|nct05822830_surmount_5"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct05822830_surmount_5",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -15628,27 +15648,27 @@
           "relation_id": "trial:nct05822830|has_outcome|outcome:percentage_of_participants_who_achieve_5_body_weight_reduction|nct05822830_surmount_5"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct05822830_surmount_5",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         },
         {
           "source_document": "nct05822830_surmount_5",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         },
         {
           "source_document": "nct05822830_surmount_5",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         },
         {
           "source_document": "nct05822830_surmount_5",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         },
         {
           "source_document": "nct05822830_surmount_5",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -15675,11 +15695,11 @@
           "relation_id": "trial:nct05822830|has_outcome|outcome:change_from_baseline_in_waist_circumference|nct05822830_surmount_5"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct05822830_surmount_5",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -15706,11 +15726,11 @@
           "relation_id": "trial:nct05822830|has_outcome|outcome:change_from_baseline_in_body_mass_index|nct05822830_surmount_5"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct05822830_surmount_5",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -15737,11 +15757,11 @@
           "relation_id": "trial:nct05822830|has_outcome|outcome:percent_change_from_baseline_in_body_weight_comparing_15_mg_tirzepatide_and_2_4_mg_semaglutide|nct05822830_surmount_5"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct05822830_surmount_5",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -15768,11 +15788,11 @@
           "relation_id": "trial:nct05822830|is_phase|trialphase:phase_3|nct05822830_surmount_5"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct05822830_surmount_5",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -15799,11 +15819,11 @@
           "relation_id": "trial:nct05822830|sponsored_by|sponsor:eli_lilly_and_company|nct05822830_surmount_5"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct05822830_surmount_5",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -15830,11 +15850,11 @@
           "relation_id": "trial:nct05822830|investigates|condition:obesity|nct05822830_surmount_5"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct05822830_surmount_5",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -15861,11 +15881,11 @@
           "relation_id": "trial:nct05822830|investigates|condition:overweight|nct05822830_surmount_5"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct05822830_surmount_5",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -15892,11 +15912,11 @@
           "relation_id": "trial:nct05822830|tests|compound:tirzepatide|nct05822830_surmount_5"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct05822830_surmount_5",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -15923,11 +15943,11 @@
           "relation_id": "trial:nct05822830|tests|intervention:tirzepatide_15_mg_or_mtd_sc_qw|nct05822830_surmount_5"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct05822830_surmount_5",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -15954,11 +15974,11 @@
           "relation_id": "trial:nct05822830|tests|compound:semaglutide|nct05822830_surmount_5"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct05822830_surmount_5",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -15985,11 +16005,11 @@
           "relation_id": "trial:nct05822830|tests|intervention:semaglutide_2_4_mg_or_mtd_sc_qw|nct05822830_surmount_5"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct05822830_surmount_5",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -16016,11 +16036,11 @@
           "relation_id": "trial:nct05822830|enrolls|population:adults_with_obesity_or_overweight_with_weight_related_comorbidities_without_type_2_diabetes|nct05822830_surmount_5"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct05822830_surmount_5",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -16047,11 +16067,11 @@
           "relation_id": "trial:nct05822830|enrolls|cohort:15_mg_or_mtd_tirzepatide|nct05822830_surmount_5"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct05822830_surmount_5",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -16078,11 +16098,11 @@
           "relation_id": "trial:nct05822830|enrolls|cohort:2_4_mg_or_mtd_semaglutide|nct05822830_surmount_5"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct05822830_surmount_5",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -16109,11 +16129,11 @@
           "relation_id": "trial:nct05822830|uses_biomarker|biomarker:body_mass_index|nct05822830_surmount_5"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct05822830_surmount_5",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -16140,11 +16160,11 @@
           "relation_id": "trial:nct05822830|uses_biomarker|biomarker:prediabetes_status|nct05822830_surmount_5"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct05822830_surmount_5",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -16194,11 +16214,11 @@
           "relation_id": "intervention:tirzepatide_15_mg_or_mtd_sc_qw|evaluated_for|condition:obesity|nct05822830_surmount_5"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct05822830_surmount_5",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -16225,11 +16245,11 @@
           "relation_id": "intervention:tirzepatide_15_mg_or_mtd_sc_qw|evaluated_for|condition:overweight|nct05822830_surmount_5"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct05822830_surmount_5",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"
@@ -16256,11 +16276,11 @@
           "relation_id": "intervention:tirzepatide_15_mg_or_mtd_sc_qw|compared_with|intervention:semaglutide_2_4_mg_or_mtd_sc_qw|nct05822830_surmount_5"
         }
       ],
-      "evidence_tier": "high_evidence",
+      "evidence_tier": "medium_evidence",
       "mention_evidence_tiers": [
         {
           "source_document": "nct05822830_surmount_5",
-          "tier": "high_evidence"
+          "tier": "medium_evidence"
         }
       ],
       "epistemic_status": "asserted"

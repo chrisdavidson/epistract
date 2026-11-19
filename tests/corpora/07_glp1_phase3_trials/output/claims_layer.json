@@ -8,15 +8,15 @@
   },
   "summary": {
     "evidence_tier_counts": {
-      "high_evidence": 178,
-      "medium_evidence": 20
+      "high_evidence": 141,
+      "medium_evidence": 57
     },
     "epistemic_status_counts": {
       "asserted": 191,
       "hypothesized": 7
     },
     "contradictions_found": 0,
-    "contested_found": 0,
+    "contested_found": 5,
     "hypothesized_found": 7,
     "hypotheses_found": 7,
     "trials_with_phase": 9,
@@ -24,13 +24,216 @@
   },
   "base_domain": {
     "description": "High-evidence relations from Phase 3, randomized, or large-enrollment trials",
-    "relation_count": 178
+    "relation_count": 141
   },
   "super_domain": {
     "description": "Medium/low/unclassified-evidence relations \u2014 smaller trials, early phase, or unclassifiable",
-    "relation_count": 20,
+    "relation_count": 57,
     "contradictions": [],
-    "contested_claims": [],
+    "contested_claims": [
+      {
+        "source_entity": "compound:semaglutide",
+        "target_entity": "condition:obesity",
+        "relation_type": "treats",
+        "tiers": [
+          "high_evidence",
+          "high_evidence",
+          "medium_evidence"
+        ],
+        "sources": [
+          {
+            "source_document": "nct03552757_step_2",
+            "tier": "high_evidence"
+          },
+          {
+            "source_document": "nct03611582_step_3",
+            "tier": "high_evidence"
+          },
+          {
+            "source_document": "nct05822830_surmount_5",
+            "tier": "medium_evidence"
+          }
+        ],
+        "mentions": [
+          {
+            "source_document": "nct03552757_step_2",
+            "confidence": 0.93,
+            "evidence": "Semaglutide evaluated for treatment of overweight and obesity in people with type 2 diabetes",
+            "relation_id": "compound:semaglutide|treats|condition:obesity|nct03552757_step_2"
+          },
+          {
+            "source_document": "nct03611582_step_3",
+            "confidence": 0.93,
+            "evidence": "Semaglutide evaluated for treatment of obesity in STEP 3 trial",
+            "relation_id": "compound:semaglutide|treats|condition:obesity|nct03611582_step_3"
+          },
+          {
+            "source_document": "nct05822830_surmount_5",
+            "confidence": 0.95,
+            "evidence": "Semaglutide evaluated as active comparator for treatment of obesity/overweight",
+            "relation_id": "compound:semaglutide|treats|condition:obesity|nct05822830_surmount_5"
+          }
+        ],
+        "support_documents": [
+          "nct03552757_step_2",
+          "nct03611582_step_3",
+          "nct05822830_surmount_5"
+        ],
+        "epistemic_status": "contested"
+      },
+      {
+        "source_entity": "compound:semaglutide",
+        "target_entity": "condition:type_2_diabetes_mellitus",
+        "relation_type": "treats",
+        "tiers": [
+          "high_evidence",
+          "medium_evidence"
+        ],
+        "sources": [
+          {
+            "source_document": "nct03552757_step_2",
+            "tier": "high_evidence"
+          },
+          {
+            "source_document": "nct03987919_surpass_2",
+            "tier": "medium_evidence"
+          }
+        ],
+        "mentions": [
+          {
+            "source_document": "nct03552757_step_2",
+            "confidence": 0.9,
+            "evidence": "Weight loss from semaglutide shown to have beneficial impact on blood sugar levels in type 2 diabetes",
+            "relation_id": "compound:semaglutide|treats|condition:type_2_diabetes_mellitus|nct03552757_step_2"
+          },
+          {
+            "source_document": "nct03987919_surpass_2",
+            "confidence": 0.93,
+            "evidence": "Semaglutide evaluated as active comparator for treatment of type 2 diabetes mellitus",
+            "relation_id": "compound:semaglutide|treats|condition:type_2_diabetes_mellitus|nct03987919_surpass_2"
+          }
+        ],
+        "support_documents": [
+          "nct03552757_step_2",
+          "nct03987919_surpass_2"
+        ],
+        "epistemic_status": "contested"
+      },
+      {
+        "source_entity": "compound:semaglutide",
+        "target_entity": "condition:overweight",
+        "relation_type": "treats",
+        "tiers": [
+          "high_evidence",
+          "medium_evidence"
+        ],
+        "sources": [
+          {
+            "source_document": "nct03611582_step_3",
+            "tier": "high_evidence"
+          },
+          {
+            "source_document": "nct05822830_surmount_5",
+            "tier": "medium_evidence"
+          }
+        ],
+        "mentions": [
+          {
+            "source_document": "nct03611582_step_3",
+            "confidence": 0.9,
+            "evidence": "Semaglutide evaluated for treatment of overweight with comorbidities in STEP 3 trial",
+            "relation_id": "compound:semaglutide|treats|condition:overweight|nct03611582_step_3"
+          },
+          {
+            "source_document": "nct05822830_surmount_5",
+            "confidence": 0.93,
+            "evidence": "Semaglutide evaluated as active comparator for overweight with comorbidities",
+            "relation_id": "compound:semaglutide|treats|condition:overweight|nct05822830_surmount_5"
+          }
+        ],
+        "support_documents": [
+          "nct03611582_step_3",
+          "nct05822830_surmount_5"
+        ],
+        "epistemic_status": "contested"
+      },
+      {
+        "source_entity": "compound:tirzepatide",
+        "target_entity": "condition:obesity",
+        "relation_type": "treats",
+        "tiers": [
+          "high_evidence",
+          "medium_evidence"
+        ],
+        "sources": [
+          {
+            "source_document": "nct04184622_surmount_1",
+            "tier": "high_evidence"
+          },
+          {
+            "source_document": "nct05822830_surmount_5",
+            "tier": "medium_evidence"
+          }
+        ],
+        "mentions": [
+          {
+            "source_document": "nct04184622_surmount_1",
+            "confidence": 0.93,
+            "evidence": "Tirzepatide evaluated for treatment of obesity in SURMOUNT-1",
+            "relation_id": "compound:tirzepatide|treats|condition:obesity|nct04184622_surmount_1"
+          },
+          {
+            "source_document": "nct05822830_surmount_5",
+            "confidence": 0.95,
+            "evidence": "Tirzepatide evaluated for treatment of obesity/overweight in SURMOUNT-5",
+            "relation_id": "compound:tirzepatide|treats|condition:obesity|nct05822830_surmount_5"
+          }
+        ],
+        "support_documents": [
+          "nct04184622_surmount_1",
+          "nct05822830_surmount_5"
+        ],
+        "epistemic_status": "contested"
+      },
+      {
+        "source_entity": "compound:tirzepatide",
+        "target_entity": "condition:overweight",
+        "relation_type": "treats",
+        "tiers": [
+          "high_evidence",
+          "medium_evidence"
+        ],
+        "sources": [
+          {
+            "source_document": "nct04184622_surmount_1",
+            "tier": "high_evidence"
+          },
+          {
+            "source_document": "nct05822830_surmount_5",
+            "tier": "medium_evidence"
+          }
+        ],
+        "mentions": [
+          {
+            "source_document": "nct04184622_surmount_1",
+            "confidence": 0.9,
+            "evidence": "Tirzepatide evaluated for treatment of overweight in SURMOUNT-1",
+            "relation_id": "compound:tirzepatide|treats|condition:overweight|nct04184622_surmount_1"
+          },
+          {
+            "source_document": "nct05822830_surmount_5",
+            "confidence": 0.93,
+            "evidence": "Tirzepatide evaluated for treatment of overweight with comorbidities in SURMOUNT-5",
+            "relation_id": "compound:tirzepatide|treats|condition:overweight|nct05822830_surmount_5"
+          }
+        ],
+        "support_documents": [
+          "nct04184622_surmount_1",
+          "nct05822830_surmount_5"
+        ],
+        "epistemic_status": "contested"
+      }
+    ],
     "hypotheses": [
       {
         "label": "semaglutide treats Diabetes Mellitus, Type 2",
@@ -114,7 +317,7 @@
         "target_entity": "condition:type_2_diabetes_mellitus",
         "relation_type": "treats",
         "confidence": 0.93,
-        "evidence_tier": "high_evidence",
+        "evidence_tier": "medium_evidence",
         "reason": "efficacy claim supported only by protocol intent language"
       },
       {
