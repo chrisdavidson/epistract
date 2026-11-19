@@ -2616,6 +2616,32 @@ def test_ut056_narrator_summarize_graph_shape():
     assert "is expected to reduce weight" in summary
 
 
+def test_ut056b_narrator_summary_separates_provenance_and_names_entities():
+    """Narrator summary splits MENTIONED_IN from claims and names key entities."""
+    from core.label_epistemic import _summarize_graph_for_narrator
+
+    graph_data = {
+        "nodes": [
+            {"id": "trial:nct1", "name": "NCT00000001", "entity_type": "Trial",
+             "ct_phase": "PHASE3", "ct_enrollment": 900},
+            {"id": "compound:a", "name": "drug a", "entity_type": "Compound"},
+            {"id": "doc:d1", "name": "d1", "entity_type": "DOCUMENT"},
+        ],
+        "links": [
+            {"source": "trial:nct1", "target": "compound:a", "relation_type": "tests"},
+            {"source": "trial:nct1", "target": "doc:d1", "relation_type": "MENTIONED_IN"},
+            {"source": "compound:a", "target": "doc:d1", "relation_type": "MENTIONED_IN"},
+        ],
+    }
+    claims_layer = {"summary": {"epistemic_status_counts": {"asserted": 1}}, "super_domain": {}}
+    summary = _summarize_graph_for_narrator(graph_data, claims_layer)
+    assert "Relations: 3 (1 claims + 2 MENTIONED_IN provenance links" in summary
+    assert "  - tests: 1" in summary
+    assert "MENTIONED_IN: 2" not in summary
+    assert "## KEY ENTITIES" in summary
+    assert "NCT00000001 (Trial, 1 claims; ct_phase=PHASE3, ct_enrollment=900)" in summary
+
+
 def test_ut057_narrator_non_blocking_on_missing_credentials(tmp_path, monkeypatch):
     """UT-057: narrator failure never blocks claims_layer.json.
 

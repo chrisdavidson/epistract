@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-19T01:48:12.368777+00:00",
+  "generated_at": "2026-11-19T01:54:27.010889+00:00",
   "domain": "clinicaltrials",
   "trials": {
     "total": 10,
@@ -8,13 +8,13 @@
     "failed": 0
   },
   "compounds": {
-    "total": 4,
-    "enriched": 3,
+    "total": 5,
+    "enriched": 4,
     "not_found": 0,
     "failed": 1
   },
   "hit_rate": {
     "trials": 1.0,
-    "compounds": 0.75
+    "compounds": 0.8
   }
 }

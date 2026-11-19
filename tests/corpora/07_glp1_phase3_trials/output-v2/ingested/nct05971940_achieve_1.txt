@@ -1,0 +1,72 @@
+Title: A Study of Orforglipron (LY3502970) in Adult Participants With Type 2 Diabetes and Inadequate Glycemic Control With Diet and Exercise Alone
+NCT ID: NCT05971940
+Acronym: ACHIEVE-1
+Status: COMPLETED
+Phase: PHASE3
+Study Type: INTERVENTIONAL
+Enrollment: 559
+Start Date: 2023-08-09
+Completion Date: 2025-04-03
+Lead Sponsor: Eli Lilly and Company
+Conditions: Type 2 Diabetes
+
+=== BRIEF SUMMARY ===
+The main purpose of this study is to determine safety and efficacy of orforglipron compared with placebo in adult participants with type 2 diabetes and inadequate glycemic control with diet and exercise alone. The study will last approximately 54 weeks.
+
+=== STUDY ARMS / COHORTS ===
+- Placebo (PLACEBO_COMPARATOR)
+    Participants received once daily (QD) doses of orforglipron-matching placebo capsules administered orally, over a period of 40 weeks.
+    Interventions: Drug: Placebo
+- 3 mg Orforglipron (EXPERIMENTAL)
+    Participants received orforglipron capsules administered orally QD, starting at 1 milligram (mg) and increasing by 1 mg every 4 weeks until reaching a targeted dose of 3 mg, which was then maintained up to week 40.
+    Interventions: Drug: Orforglipron
+- 12 mg Orforglipron (EXPERIMENTAL)
+    Participants received orforglipron capsules administered orally QD, starting at 1 mg and increasing every 4 weeks until reaching a targeted dose of 12 mg, which was then maintained up to week 40.
+    Interventions: Drug: Orforglipron
+- 36 mg Orforglipron (EXPERIMENTAL)
+    Participants received orforglipron capsules administered orally QD, starting at 1 mg and increasing every 4 weeks until reaching a targeted dose of 36 mg, which was then maintained up to week 40.
+    Interventions: Drug: Orforglipron
+
+=== INTERVENTIONS ===
+- Orforglipron [DRUG]
+    Administered orally
+    Also known as: LY3502970
+- Placebo [DRUG]
+    Administered orally
+
+=== PRIMARY OUTCOMES ===
+- Change From Baseline in HbA1c
+    * Hemoglobin A1c (HbA1c) is the glycosylated fraction of hemoglobin A, measured to reflect average plasma glucose concentration over prolonged periods of time.
+* Values represented under "Least Squares (LS) Mean" are model-based estimates (MBE) of the unconditional average treatment effect. MBE was calculated using a mixed-model repeated measures (MMRM) with analysis country, treatment by time, baseline by time by treatment, and strata by time by treatment in the model. Strata was defined by joint levels of baseline HbA1c (≤ \[less than or equal to\] 8.0%, \> \[greater than\] 8.0%) and prior use of any antihyperglycemic medication (yes or no). Variance-covariance structure for change from baseline was unstructured.
+    Time Frame: Baseline, Week 40
+
+=== SECONDARY OUTCOMES ===
+- Percentage of Participants With an HbA1c Target Value of < 7.0% (53 mmol/Mol) (Time Frame: Week 40)
+- Percentage of Participants With an HbA1c Target Value of ≤6.5% (48 mmol/Mol) (Time Frame: Week 40)
+- Change From Baseline in Fasting Serum Glucose (FSG) (Time Frame: Baseline, Week 40)
+- Percent Change From Baseline in Body Weight (Time Frame: Baseline, Week 40)
+- Change From Baseline in Body Weight (Time Frame: Baseline, Week 40)
+- Percent Change From Baseline in Non-High-Density Lipoprotein (Non-HDL) Cholesterol (Time Frame: Baseline, Week 40)
+- Percent Change From Baseline in Triglycerides (Time Frame: Baseline, Week 40)
+- Change From Baseline in Daily Average 7-Point Self-Monitored Blood Glucose (SMBG) (Time Frame: Baseline, Week 40)
+- Percentage of Participants With Greater Than or Equal to (≥) 5% Body Weight Reduction (Time Frame: Week 40)
+- Change From Baseline in Systolic Blood Pressure (SBP) (Time Frame: Baseline, Week 40)
+
+=== ELIGIBILITY CRITERIA ===
+Inclusion Criteria:
+
+* Have Type 2 Diabetes
+* Have HbA1c ≥7.0% (53 mmol/mol) to ≤9.5% (80 mmol/mol) despite diet and exercise treatment, as determined by the central laboratory at screening.
+* Are naïve to insulin therapy except for gestational diabetes or ≤14 days use for acute treatment and have not used any oral or injectable antihyperglycemic medications during the 90 days preceding screening or between screening and randomization.
+* Are of stable weight (±5%) for at least 90 days prior to screening and agree to not initiate an intensive diet or exercise program during the study with the intent of reducing body weight other than the lifestyle and/or dietary measures for diabetes treatment.
+* Have a body mass index (BMI) ≥23.0 kilogram/square meter (kg/m²) at screening.
+
+Exclusion Criteria:
+
+* Have Type 1 Diabetes
+* Have a history of ketoacidosis or hyperosmolar state or coma within the last 6 months prior to screening, or between screening and randomization.
+* Currently receiving or planning to receive treatment for diabetic retinopathy and/or macular edema
+* Have New York Heart Association functional classification IV congestive heart failure.
+* Have acute or chronic pancreatitis
+
+Population: Sex: ALL; Min Age: 18 Years; Healthy Volunteers: False

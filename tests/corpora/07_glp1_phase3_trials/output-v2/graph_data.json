@@ -1,22 +1,22 @@
 {
   "metadata": {
-    "created_at": "2026-11-18T20:47:48.450933",
-    "updated_at": "2026-11-18T20:48:08.422661",
-    "entity_count": 177,
-    "relation_count": 517,
+    "created_at": "2026-11-18T20:54:02.413661",
+    "updated_at": "2026-11-18T20:54:22.438371",
+    "entity_count": 168,
+    "relation_count": 512,
     "document_count": 10,
     "entity_type_summary": {
       "DOCUMENT": 10,
       "Trial": 10,
       "TrialPhase": 1,
-      "Sponsor": 3,
+      "Sponsor": 2,
       "Condition": 7,
-      "Compound": 4,
+      "Compound": 5,
       "Intervention": 19,
       "Cohort": 17,
       "Population": 8,
-      "Biomarker": 14,
-      "Outcome": 84
+      "Biomarker": 11,
+      "Outcome": 78
     },
     "sift_kg_version": "0.9.0"
   },
@@ -51,7 +51,7 @@
         "completion_date": "2016-03-15"
       },
       "context": "NCT ID: NCT01720446",
-      "community": "Nct01720446 / Novo Nordisk / Semaglutide 0.5 Mg",
+      "community": "Cardiovascular Diseases / Nct01720446 / Novo Nordisk",
       "ct_overall_status": "COMPLETED",
       "ct_phase": "PHASE3",
       "ct_enrollment": 3297,
@@ -73,10 +73,11 @@
         "nct03611582_step_3",
         "nct03987919_surpass_2",
         "nct04184622_surmount_1",
-        "nct05822830_surmount_5"
+        "nct05822830_surmount_5",
+        "nct05971940_achieve_1"
       ],
       "attributes": {
-        "design": "Randomized, placebo-controlled",
+        "design": "Placebo-controlled",
         "sub_phase": "Phase 3b"
       },
       "context": "Phase: PHASE3",
@@ -101,7 +102,7 @@
         "full_name": "Novo Nordisk A/S"
       },
       "context": "Lead Sponsor: Novo Nordisk A/S",
-      "community": "Nct01720446 / Novo Nordisk / Semaglutide 0.5 Mg"
+      "community": "Cardiovascular Diseases / Nct01720446 / Novo Nordisk"
     },
     {
       "id": "condition:type_2_diabetes_mellitus",
@@ -114,7 +115,7 @@
         "nct02906930_pioneer_1",
         "nct03552757_step_2",
         "nct03987919_surpass_2",
-        "nct05715307_achieve_1"
+        "nct05971940_achieve_1"
       ],
       "attributes": {
         "mesh_term": "Diabetes Mellitus, Type 2",
@@ -124,13 +125,12 @@
         ],
         "variants": [
           "Type 2 Diabetes",
-          "T2DM",
-          "type 2 diabetes mellitus"
+          "type 2 diabetes"
         ],
         "subtype": "treated with diet and exercise only"
       },
       "context": "Conditions: Diabetes; Diabetes Mellitus, Type 2",
-      "community": "2-Hour Post-Prandial Blood Glucose / 2-Hour Post-Prandial Serum Insulin / Adults Aged 40-65 With Poorly Controlled Type 2 Diabetes On 1-2 Non-Insulin Hypoglycemic Drugs"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "condition:cardiovascular_diseases",
@@ -147,7 +147,7 @@
         "role": "Eligibility / safety focus"
       },
       "context": "Age above or equal to 50 years at screening and clinical evidence of cardiovascular disease",
-      "community": "Cardiovascular Diseases / Gip Receptor / Glp-1 Receptor"
+      "community": "Cardiovascular Diseases / Nct01720446 / Novo Nordisk"
     },
     {
       "id": "compound:semaglutide",
@@ -172,7 +172,7 @@
         "role": "active comparator"
       },
       "context": "Once weekly doses of 0.5 mg semaglutide after an initial dose escalation step of 0.25 mg",
-      "community": "Cardiovascular Diseases / Gip Receptor / Glp-1 Receptor",
+      "community": "Cardiovascular Diseases / Nct01720446 / Novo Nordisk",
       "pubchem_cid": 56843331,
       "molecular_formula": "C187H291N45O59",
       "molecular_weight": "4114",
@@ -192,7 +192,7 @@
         "role": "Placebo comparator"
       },
       "context": "Once weekly doses volume-matched placebo, as an add-on to the standard-of-care treatment.",
-      "community": "Cardiovascular Diseases / Gip Receptor / Glp-1 Receptor"
+      "community": "Cardiovascular Diseases / Nct01720446 / Novo Nordisk"
     },
     {
       "id": "intervention:semaglutide_0_5_mg_once_weekly_s_c",
@@ -229,7 +229,7 @@
         "volume_matched": true
       },
       "context": "Once weekly doses volume-matched placebo, as an add-on to the standard-of-care treatment. Administered subcutaneously",
-      "community": "Nct01720446 / Novo Nordisk / Semaglutide 0.5 Mg"
+      "community": "Cardiovascular Diseases / Nct01720446 / Novo Nordisk"
     },
     {
       "id": "cohort:semaglutide_0_5_mg",
@@ -244,7 +244,7 @@
         "dose": "1.0 mg"
       },
       "context": "Semaglutide 0.5 mg (EXPERIMENTAL)",
-      "community": "Nct01720446 / Novo Nordisk / Semaglutide 0.5 Mg"
+      "community": "Cardiovascular Diseases / Nct01720446 / Novo Nordisk"
     },
     {
       "id": "cohort:semaglutide_placebo_0_5_mg",
@@ -258,7 +258,7 @@
         "arm_type": "Placebo comparator"
       },
       "context": "Semaglutide placebo 0.5 mg (PLACEBO_COMPARATOR)",
-      "community": "Nct01720446 / Novo Nordisk / Semaglutide 0.5 Mg"
+      "community": "Cardiovascular Diseases / Nct01720446 / Novo Nordisk"
     },
     {
       "id": "population:adults_aged_50_with_type_2_diabetes_and_cardiovascular_disease_or_risk",
@@ -279,27 +279,28 @@
         "exclusions": "prior GLP-1 RA/DPP-4i/pramlintide within 90 days, MEN 2 or MTC history, pancreatitis, NYHA Class IV heart failure, eGFR below 30"
       },
       "context": "Men and women with type 2 diabetes mellitus - Age above or equal to 50 years at screening and clinical evidence of cardiovascular disease or age above or equal to 60 years at screening and subclinical evidence of cardiovascular disease",
-      "community": "Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Diabetes Mellitus / Nct02692716"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "biomarker:hba1c",
       "entity_type": "Biomarker",
       "name": "HbA1c",
-      "confidence": 0.9,
+      "confidence": 0.95,
       "source_documents": [
         "nct01720446_sustain_6",
         "nct02906930_pioneer_1",
         "nct03548935_step_1",
         "nct03611582_step_3",
-        "nct03987919_surpass_2"
+        "nct03987919_surpass_2",
+        "nct05971940_achieve_1"
       ],
       "attributes": {
         "biomarker_type": "Glycemic",
-        "threshold": ">=7.0% and <=10.5%",
-        "use": "Inclusion criterion and primary efficacy measure"
+        "threshold": "7.0%-9.5%",
+        "use": "Inclusion criterion; stratification (\u22648.0% vs >8.0%); primary endpoint"
       },
       "context": "HbA1c above or equal to 7.0% at screening",
-      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Change From Baseline In Body Weight"
+      "community": "3 Mg Orforglipron / Adults With Type 2 Diabetes Inadequately Controlled With Diet And Exercise Alone / Change From Baseline In Body Weight"
     },
     {
       "id": "biomarker:calcitonin",
@@ -315,7 +316,7 @@
         "use": "Exclusion criterion"
       },
       "context": "Screening calcitonin above or equal to 50 ng/L",
-      "community": "Nct01720446 / Novo Nordisk / Semaglutide 0.5 Mg"
+      "community": "Cardiovascular Diseases / Nct01720446 / Novo Nordisk"
     },
     {
       "id": "outcome:time_to_first_major_adverse_cardiovascular_event_mace",
@@ -329,7 +330,7 @@
         "endpoint_type": "Primary"
       },
       "context": "Time From Randomisation to First Occurrence of a MACE, Defined as Cardiovascular Death, Non-fatal Myocardial Infarction, or Non-fatal Stroke",
-      "community": "Nct01720446 / Novo Nordisk / Semaglutide 0.5 Mg"
+      "community": "Cardiovascular Diseases / Nct01720446 / Novo Nordisk"
     },
     {
       "id": "outcome:time_to_first_expanded_composite_cardiovascular_outcome",
@@ -343,7 +344,7 @@
         "endpoint_type": "Secondary"
       },
       "context": "Time From Randomisation to First Occurrence of an Expanded Composite Cardiovascular Outcome",
-      "community": "Nct01720446 / Novo Nordisk / Semaglutide 0.5 Mg"
+      "community": "Cardiovascular Diseases / Nct01720446 / Novo Nordisk"
     },
     {
       "id": "outcome:time_to_each_component_of_expanded_composite_cardiovascular_outcome",
@@ -357,7 +358,7 @@
         "endpoint_type": "Secondary"
       },
       "context": "Time From Randomisation to Each Individual Component of the Expanded Composite Cardiovascular Outcome",
-      "community": "Nct01720446 / Novo Nordisk / Semaglutide 0.5 Mg"
+      "community": "Cardiovascular Diseases / Nct01720446 / Novo Nordisk"
     },
     {
       "id": "outcome:time_to_first_all_cause_death_non_fatal_mi_or_non_fatal_stroke",
@@ -371,21 +372,23 @@
         "endpoint_type": "Secondary"
       },
       "context": "Time From Randomisation to First Occurrence of All-cause Death, Non-fatal MI, or Non-fatal Stroke",
-      "community": "Nct01720446 / Novo Nordisk / Semaglutide 0.5 Mg"
+      "community": "Cardiovascular Diseases / Nct01720446 / Novo Nordisk"
     },
     {
       "id": "outcome:change_from_baseline_in_hba1c",
       "entity_type": "Outcome",
-      "name": "change from baseline in HbA1c",
-      "confidence": 0.93,
+      "name": "Change From Baseline in HbA1c",
+      "confidence": 0.96,
       "source_documents": [
-        "nct01720446_sustain_6"
+        "nct01720446_sustain_6",
+        "nct05971940_achieve_1"
       ],
       "attributes": {
-        "endpoint_type": "Secondary"
+        "endpoint_type": "Primary",
+        "time_frame": "Baseline, Week 40"
       },
       "context": "Change From Baseline to Last Assessment in the Trial in Other Treatment Outcomes: Glycosylated Haemoglobin (HbA1c)",
-      "community": "Nct01720446 / Novo Nordisk / Semaglutide 0.5 Mg"
+      "community": "3 Mg Orforglipron / Adults With Type 2 Diabetes Inadequately Controlled With Diet And Exercise Alone / Change From Baseline In Body Weight"
     },
     {
       "id": "outcome:change_from_baseline_in_fasting_plasma_glucose",
@@ -399,7 +402,7 @@
         "endpoint_type": "Secondary"
       },
       "context": "Change From Baseline to Last Assessment in the Trial in Other Treatment Outcomes: Fasting Plasma Glucose",
-      "community": "Nct01720446 / Novo Nordisk / Semaglutide 0.5 Mg"
+      "community": "Cardiovascular Diseases / Nct01720446 / Novo Nordisk"
     },
     {
       "id": "outcome:change_from_baseline_in_body_weight",
@@ -408,13 +411,15 @@
       "confidence": 0.93,
       "source_documents": [
         "nct01720446_sustain_6",
-        "nct03987919_surpass_2"
+        "nct03987919_surpass_2",
+        "nct05971940_achieve_1"
       ],
       "attributes": {
-        "endpoint_type": "Secondary"
+        "endpoint_type": "Secondary",
+        "time_frame": "Baseline, Week 40"
       },
       "context": "Change From Baseline to Last Assessment in the Trial in Other Treatment Outcomes: Body Weight",
-      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Change From Baseline In Body Weight"
+      "community": "3 Mg Orforglipron / Adults With Type 2 Diabetes Inadequately Controlled With Diet And Exercise Alone / Change From Baseline In Body Weight"
     },
     {
       "id": "outcome:change_from_baseline_in_lipid_profile",
@@ -428,7 +433,7 @@
         "endpoint_type": "Secondary"
       },
       "context": "Change From Baseline to Last Assessment in the Trial in Other Treatment Outcomes: Lipid Profile",
-      "community": "Nct01720446 / Novo Nordisk / Semaglutide 0.5 Mg"
+      "community": "Cardiovascular Diseases / Nct01720446 / Novo Nordisk"
     },
     {
       "id": "outcome:change_from_baseline_in_urinary_albumin_to_creatinine_ratio",
@@ -442,7 +447,7 @@
         "endpoint_type": "Secondary"
       },
       "context": "Change From Baseline to Last Assessment in the Trial in Other Treatment Outcomes: Urinary Albumin to Creatinine Ratio",
-      "community": "Nct01720446 / Novo Nordisk / Semaglutide 0.5 Mg"
+      "community": "Cardiovascular Diseases / Nct01720446 / Novo Nordisk"
     },
     {
       "id": "outcome:change_from_baseline_in_vital_signs",
@@ -456,7 +461,7 @@
         "endpoint_type": "Secondary"
       },
       "context": "Change From Baseline to Last Assessment in the Trial in Other Treatment Outcomes: Vital Signs",
-      "community": "Nct01720446 / Novo Nordisk / Semaglutide 0.5 Mg"
+      "community": "Cardiovascular Diseases / Nct01720446 / Novo Nordisk"
     },
     {
       "id": "outcome:incidence_of_hypoglycaemic_events",
@@ -470,7 +475,7 @@
         "endpoint_type": "Secondary"
       },
       "context": "Incidence During the Trial in Other Treatment Outcomes: Hypoglycaemic Events",
-      "community": "Nct01720446 / Novo Nordisk / Semaglutide 0.5 Mg"
+      "community": "Cardiovascular Diseases / Nct01720446 / Novo Nordisk"
     },
     {
       "id": "doc:nct02692716_pioneer_6",
@@ -502,7 +507,7 @@
         "completion_date": "2018-09-25"
       },
       "context": "NCT ID: NCT02692716",
-      "community": "Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Diabetes Mellitus / Nct02692716",
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only",
       "ct_overall_status": "COMPLETED",
       "ct_phase": "PHASE3",
       "ct_enrollment": 3183,
@@ -524,7 +529,7 @@
         "arm_type": "Experimental"
       },
       "context": "Oral semaglutide (EXPERIMENTAL)\n    Interventions: Drug: semaglutide",
-      "community": "Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Diabetes Mellitus / Nct02692716"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "intervention:placebo_once_daily_oral",
@@ -542,7 +547,7 @@
         "role": "placebo comparator"
       },
       "context": "Placebo (PLACEBO_COMPARATOR)\n    Interventions: Drug: placebo",
-      "community": "Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Diabetes Mellitus / Nct02692716"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "cohort:oral_semaglutide",
@@ -559,7 +564,7 @@
         "schedule": "once daily"
       },
       "context": "Oral semaglutide (EXPERIMENTAL)",
-      "community": "Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Diabetes Mellitus / Nct02692716"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "cohort:placebo",
@@ -594,7 +599,7 @@
         "listed_as": "Diabetes"
       },
       "context": "Conditions: Diabetes; Diabetes Mellitus, Type 2",
-      "community": "Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Diabetes Mellitus / Nct02692716"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "biomarker:estimated_glomerular_filtration_rate",
@@ -612,7 +617,7 @@
         "method": "CKD-EPI"
       },
       "context": "severe renal impairment (corresponding to eGFR (glomerular filtration rate, estimated) below 30 mL/min/1.73 m",
-      "community": "Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Diabetes Mellitus / Nct02692716"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "outcome:time_to_first_mace_cardiovascular_death_non_fatal_myocardial_infarction_or_non_fatal_stroke",
@@ -627,7 +632,7 @@
         "time_frame": "no longer than 19 months + 5 weeks of follow-up"
       },
       "context": "Time From Randomisation to First Occurrence of a Major Adverse Cardiovascular Event (MACE) Composite Endpoint Consisting of: Cardiovascular Death, Non-fatal Myocardial Infarction or Non-fatal Stroke",
-      "community": "Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Diabetes Mellitus / Nct02692716"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "outcome:time_to_first_expanded_composite_cardiovascular_endpoint",
@@ -641,7 +646,7 @@
         "endpoint_type": "Secondary"
       },
       "context": "Time From Randomisation to First Occurrence of an Expanded Composite Cardiovascular Endpoint Consisting of: Cardiovascular Death, Non-fatal Myocardial Infarction, Non-fatal Stroke, UAP Requiring Hospitalisation or Hospitalisation for Heart Failure",
-      "community": "Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Diabetes Mellitus / Nct02692716"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "outcome:time_to_first_occurrence_of_each_component_of_expanded_composite_cardiovascular_endpoint",
@@ -655,7 +660,7 @@
         "endpoint_type": "Secondary"
       },
       "context": "Time From Randomisation to First Occurrence of Each of the Individual Components in the Expanded Composite Cardiovascular Endpoint",
-      "community": "Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Diabetes Mellitus / Nct02692716"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "outcome:time_to_first_composite_of_all_cause_death_non_fatal_myocardial_infarction_or_non_fatal_stroke",
@@ -669,7 +674,7 @@
         "endpoint_type": "Secondary"
       },
       "context": "Time From Randomisation to First Occurrence of a Composite Endpoint Consisting of: All-cause Death, Non-fatal Myocardial Infarction or Nonfatal Stroke",
-      "community": "Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Diabetes Mellitus / Nct02692716"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "outcome:time_to_first_fatal_or_non_fatal_myocardial_infarction",
@@ -683,7 +688,7 @@
         "endpoint_type": "Secondary"
       },
       "context": "Time From Randomisation to First Occurrence of Fatal or Non-fatal Myocardial Infarction",
-      "community": "Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Diabetes Mellitus / Nct02692716"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "outcome:time_to_first_fatal_or_non_fatal_stroke",
@@ -697,7 +702,7 @@
         "endpoint_type": "Secondary"
       },
       "context": "Time From Randomisation to First Occurrence of Fatal or Non-fatal Stroke",
-      "community": "Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Diabetes Mellitus / Nct02692716"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "outcome:time_to_all_cause_death",
@@ -711,7 +716,7 @@
         "endpoint_type": "Secondary"
       },
       "context": "Time From Randomisation to All-cause Death",
-      "community": "Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Diabetes Mellitus / Nct02692716"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "outcome:time_to_first_adverse_event_leading_to_permanent_trial_product_discontinuation",
@@ -726,7 +731,7 @@
         "category": "Safety"
       },
       "context": "Time to First AE Leading to Permanent Trial Product Discontinuation",
-      "community": "Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Diabetes Mellitus / Nct02692716"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "outcome:number_of_serious_adverse_events",
@@ -741,7 +746,7 @@
         "category": "Safety"
       },
       "context": "Number of Serious Adverse Events",
-      "community": "Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Diabetes Mellitus / Nct02692716"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "outcome:change_in_eye_examination_category",
@@ -756,7 +761,7 @@
         "category": "Safety"
       },
       "context": "Change in Eye Examination Category (Time Frame: Week -3, End of treatment)",
-      "community": "Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Diabetes Mellitus / Nct02692716"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "outcome:change_in_pulse_rate",
@@ -771,7 +776,7 @@
         "category": "Safety"
       },
       "context": "Change in Pulse Rate (Time Frame: Week 0, End of treatment)",
-      "community": "Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Diabetes Mellitus / Nct02692716"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "doc:nct02906930_pioneer_1",
@@ -803,7 +808,7 @@
         "completion_date": "2017-12-08"
       },
       "context": "NCT ID: NCT02906930",
-      "community": "3 Mg Oral Semaglutide / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only / Change In Body Weight",
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only",
       "ct_overall_status": "COMPLETED",
       "ct_phase": "PHASE3",
       "ct_enrollment": 703,
@@ -825,7 +830,7 @@
         "schedule": "once daily"
       },
       "context": "- 3 mg oral semaglutide (EXPERIMENTAL)\n    Interventions: Drug: semaglutide",
-      "community": "Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Diabetes Mellitus / Nct02692716"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "cohort:3_mg_oral_semaglutide",
@@ -842,7 +847,7 @@
         "route": "oral"
       },
       "context": "- 3 mg oral semaglutide (EXPERIMENTAL)",
-      "community": "3 Mg Oral Semaglutide / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only / Change In Body Weight"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "population:adults_with_type_2_diabetes_mellitus_treated_with_diet_and_exercise_only",
@@ -860,7 +865,7 @@
         "healthy_volunteers": false
       },
       "context": "Diagnosed with type 2 diabetes mellitus for at least 30 days prior to day of screening - HbA1c (glycosylated haemoglobin) between 7.0-9.5% (53-80 mmol/mol) (both inclusive) - Treatment with diet and exercise for at least 30 days prior to day of screening",
-      "community": "3 Mg Oral Semaglutide / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only / Change In Body Weight"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "biomarker:alanine_aminotransferase",
@@ -875,7 +880,7 @@
         "threshold": "exclusion if >2.5 x ULN"
       },
       "context": "Subjects with alanine aminotransferase above 2.5 x upper normal limit",
-      "community": "3 Mg Oral Semaglutide / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only / Change In Body Weight"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "outcome:change_in_hba1c",
@@ -893,7 +898,7 @@
         "time_frame": "Baseline (week 0) to week 68"
       },
       "context": "- Change in HbA1c\n    Change from baseline (week 0) to week 26 in glycosylated haemoglobin (HbA1c).",
-      "community": "3 Mg Oral Semaglutide / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only / Change In Body Weight"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "outcome:change_in_body_weight",
@@ -910,7 +915,7 @@
         "time_frame": "Baseline (week 0) to week 68"
       },
       "context": "- Change in Body Weight (kg) (Time Frame: Week 0, week 26)",
-      "community": "3 Mg Oral Semaglutide / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only / Change In Body Weight"
+      "community": "Change In Body Mass Index (Kg/M2) / Change In Body Weight / Change In Body Weight (Kg)"
     },
     {
       "id": "outcome:change_in_fasting_plasma_glucose",
@@ -925,7 +930,7 @@
         "time_frame": "Week 0 to week 26"
       },
       "context": "- Change in Fasting Plasma Glucose (Time Frame: Week 0, week 26)",
-      "community": "3 Mg Oral Semaglutide / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only / Change In Body Weight"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "outcome:change_in_mean_7_point_smpg_profile",
@@ -940,7 +945,7 @@
         "time_frame": "Week 0 to week 26"
       },
       "context": "- Change in Mean 7-point SMPG Profile (Time Frame: Week 0, week 26)",
-      "community": "3 Mg Oral Semaglutide / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only / Change In Body Weight"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "outcome:change_in_mean_postprandial_increment_over_all_meals_in_smpg",
@@ -955,7 +960,7 @@
         "time_frame": "Week 0 to week 26"
       },
       "context": "- Change in Mean Postprandial Increment Over All Meals in SMPG (Time Frame: Week 0, week 26)",
-      "community": "3 Mg Oral Semaglutide / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only / Change In Body Weight"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "outcome:change_in_fasting_insulin_ratio_to_baseline",
@@ -970,7 +975,7 @@
         "time_frame": "Week 0 to week 26"
       },
       "context": "- Change in Fasting Insulin - Ratio to Baseline (Time Frame: Week 0, week 26)",
-      "community": "3 Mg Oral Semaglutide / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only / Change In Body Weight"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "outcome:change_in_fasting_pro_insulin_ratio_to_baseline",
@@ -985,7 +990,7 @@
         "time_frame": "Week 0 to week 26"
       },
       "context": "- Change in Fasting Pro-insulin - Ratio to Baseline (Time Frame: Week 0, week 26)",
-      "community": "3 Mg Oral Semaglutide / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only / Change In Body Weight"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "outcome:change_in_fasting_glucagon_ratio_to_baseline",
@@ -1000,7 +1005,7 @@
         "time_frame": "Week 0 to week 26"
       },
       "context": "- Change in Fasting Glucagon - Ratio to Baseline (Time Frame: Week 0, week 26)",
-      "community": "3 Mg Oral Semaglutide / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only / Change In Body Weight"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "outcome:change_in_homa_ir_ratio_to_baseline",
@@ -1015,7 +1020,7 @@
         "time_frame": "Week 0 to week 26"
       },
       "context": "- Change in HOMA-IR (Insulin Resistance) - Ratio to Baseline (Time Frame: Week 0, week 26)",
-      "community": "3 Mg Oral Semaglutide / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only / Change In Body Weight"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "outcome:change_in_homa_b_ratio_to_baseline",
@@ -1030,7 +1035,7 @@
         "time_frame": "Week 0 to week 26"
       },
       "context": "- Change in HOMA-B (Beta-cell Function) - Ratio to Baseline (Time Frame: Week 0, week 26)",
-      "community": "3 Mg Oral Semaglutide / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only / Change In Body Weight"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "outcome:change_in_crp_ratio_to_baseline",
@@ -1045,7 +1050,7 @@
         "time_frame": "Week 0 to week 26"
       },
       "context": "- Change in CRP - Ratio to Baseline (Time Frame: Week 0, week 26)",
-      "community": "3 Mg Oral Semaglutide / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only / Change In Body Weight"
+      "community": "3 Mg Oral Semaglutide / Adults Aged 50+ With Type 2 Diabetes And Cardiovascular Disease Or Risk / Adults With Type 2 Diabetes Mellitus Treated With Diet And Exercise Only"
     },
     {
       "id": "doc:nct03548935_step_1",
@@ -1077,7 +1082,7 @@
         "completion_date": "2021-03-05"
       },
       "context": "NCT ID: NCT03548935",
-      "community": "Adults With Overweight Or Obesity Without Diabetes / Change In Body Mass Index (Kg/M2) / Change In Body Weight (Kg)",
+      "community": "Change In Body Mass Index (Kg/M2) / Change In Body Weight / Change In Body Weight (Kg)",
       "ct_overall_status": "COMPLETED",
       "ct_phase": "PHASE3",
       "ct_enrollment": 1961,
@@ -1117,7 +1122,7 @@
         "given_in": "both arms"
       },
       "context": "as well as diet and physical activity counselling for 68 weeks",
-      "community": "Adults With Overweight Or Obesity Without Diabetes / Change In Body Mass Index (Kg/M2) / Change In Body Weight (Kg)"
+      "community": "Change In Body Mass Index (Kg/M2) / Change In Body Weight / Change In Body Weight (Kg)"
     },
     {
       "id": "cohort:semaglutide_s_c_2_4_mg_once_weekly_experimental",
@@ -1133,7 +1138,7 @@
         "schedule": "once weekly"
       },
       "context": "- Semaglutide s.c. 2.4 mg once weekly (EXPERIMENTAL)\n    Participants will receive semaglutide for 68 weeks.",
-      "community": "Adults With Overweight Or Obesity Without Diabetes / Change In Body Mass Index (Kg/M2) / Change In Body Weight (Kg)"
+      "community": "Change In Body Mass Index (Kg/M2) / Change In Body Weight / Change In Body Weight (Kg)"
     },
     {
       "id": "cohort:semaglutide_placebo_placebo_comparator",
@@ -1147,7 +1152,7 @@
         "arm_type": "Placebo comparator"
       },
       "context": "- Semaglutide placebo (PLACEBO_COMPARATOR)\n    Participants will receive semaglutide matching placebo for 68 weeks.",
-      "community": "Adults With Overweight Or Obesity Without Diabetes / Change In Body Mass Index (Kg/M2) / Change In Body Weight (Kg)"
+      "community": "Change In Body Mass Index (Kg/M2) / Change In Body Weight / Change In Body Weight (Kg)"
     },
     {
       "id": "condition:overweight",
@@ -1197,7 +1202,7 @@
       ],
       "attributes": {},
       "context": "Conditions: Metabolism and Nutrition Disorder; Overweight or Obesity",
-      "community": "Adults With Overweight Or Obesity Without Diabetes / Change In Body Mass Index (Kg/M2) / Change In Body Weight (Kg)"
+      "community": "Change In Body Mass Index (Kg/M2) / Change In Body Weight / Change In Body Weight (Kg)"
     },
     {
       "id": "population:adults_with_overweight_or_obesity_without_diabetes",
@@ -1218,7 +1223,7 @@
         "key_exclusions": "Diabetes mellitus; history of pancreatitis; MTC/MEN-2 history"
       },
       "context": "Male or female, age greater than or equal to 18 years at the time of signing informed consent",
-      "community": "Adults With Overweight Or Obesity Without Diabetes / Change In Body Mass Index (Kg/M2) / Change In Body Weight (Kg)"
+      "community": "10 Mg Tirzepatide / 15 Mg Or Mtd - Tirzepatide / 2.4 Mg Or Mtd - Semaglutide"
     },
     {
       "id": "biomarker:body_mass_index",
@@ -1230,15 +1235,16 @@
         "nct03611582_step_3",
         "nct03987919_surpass_2",
         "nct04184622_surmount_1",
-        "nct05822830_surmount_5"
+        "nct05822830_surmount_5",
+        "nct05971940_achieve_1"
       ],
       "attributes": {
         "biomarker_type": "Anthropometric",
-        "threshold": ">=30 kg/m2, or >=27 kg/m2 with comorbidity",
-        "use": "Patient selection (inclusion criterion); stratification (Baseline BMI Group)"
+        "threshold": "\u226523.0 kg/m\u00b2",
+        "use": "Inclusion criterion"
       },
       "context": "Body mass index (BMI) greater than or equal to 30.0 kg/sqm or greater than or equal to 27.0 kg/sqm with the presence of at least one of the following weight-related comorbidities",
-      "community": "10 Mg Tirzepatide / 15 Mg Or Mtd - Tirzepatide / 2.4 Mg Or Mtd - Semaglutide"
+      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Body Mass Index"
     },
     {
       "id": "outcome:participants_who_achieve_5_or_more_percent_body_weight_reduction",
@@ -1253,7 +1259,7 @@
         "time_frame": "Week 68"
       },
       "context": "- Participants Who Achieve 5 or More Percent Body Weight Reduction (Yes/no)",
-      "community": "Adults With Overweight Or Obesity Without Diabetes / Change In Body Mass Index (Kg/M2) / Change In Body Weight (Kg)"
+      "community": "Change In Body Mass Index (Kg/M2) / Change In Body Weight / Change In Body Weight (Kg)"
     },
     {
       "id": "outcome:subjects_who_achieve_10_or_more_percent_body_weight_reduction",
@@ -1268,7 +1274,7 @@
         "time_frame": "Week 68"
       },
       "context": "- Subjects Who Achieve 10 or More Percent Body Weight Reduction (Yes/no) (Time Frame: Week 68)",
-      "community": "Adults With Overweight Or Obesity Without Diabetes / Change In Body Mass Index (Kg/M2) / Change In Body Weight (Kg)"
+      "community": "Change In Body Mass Index (Kg/M2) / Change In Body Weight / Change In Body Weight (Kg)"
     },
     {
       "id": "outcome:change_in_waist_circumference_cm",
@@ -1285,7 +1291,7 @@
         "time_frame": "Baseline (week 0) to week 68"
       },
       "context": "- Change in Waist Circumference (cm) (Time Frame: Baseline (week 0) to week 68)",
-      "community": "Adults With Overweight Or Obesity Without Diabetes / Change In Body Mass Index (Kg/M2) / Change In Body Weight (Kg)"
+      "community": "Adults With Overweight Or Obesity And At Least One Unsuccessful Dietary Effort, Without Diabetes / Adults With Type 2 Diabetes And Bmi >=27 Kg/M2 / Bmi >=27 Kg/M2"
     },
     {
       "id": "outcome:change_in_systolic_blood_pressure_mmhg",
@@ -1300,7 +1306,7 @@
         "time_frame": "Baseline to week 68"
       },
       "context": "- Change in Systolic Blood Pressure (mmHg) (Time Frame: Baseline (week 0) to week 68)",
-      "community": "Adults With Overweight Or Obesity Without Diabetes / Change In Body Mass Index (Kg/M2) / Change In Body Weight (Kg)"
+      "community": "Change In Body Mass Index (Kg/M2) / Change In Body Weight / Change In Body Weight (Kg)"
     },
     {
       "id": "outcome:change_in_short_form_36_sf_36",
@@ -1315,7 +1321,7 @@
         "time_frame": "Baseline to week 68"
       },
       "context": "- Change in Short Form 36 (SF-36) (Time Frame: Baseline (week 0) to week 68)",
-      "community": "Adults With Overweight Or Obesity Without Diabetes / Change In Body Mass Index (Kg/M2) / Change In Body Weight (Kg)"
+      "community": "Change In Body Mass Index (Kg/M2) / Change In Body Weight / Change In Body Weight (Kg)"
     },
     {
       "id": "outcome:change_in_iwqol_lite_for_ct_score",
@@ -1330,7 +1336,7 @@
         "time_frame": "Baseline to week 68"
       },
       "context": "- Change in Impact of Weight on Quality of Life-Lite for Clinical Trial (IWQoL-Lite for CT) Score (Time Frame: Baseline (week 0) to week 68)",
-      "community": "Adults With Overweight Or Obesity Without Diabetes / Change In Body Mass Index (Kg/M2) / Change In Body Weight (Kg)"
+      "community": "Change In Body Mass Index (Kg/M2) / Change In Body Weight / Change In Body Weight (Kg)"
     },
     {
       "id": "outcome:change_in_body_weight_kg",
@@ -1347,7 +1353,7 @@
         "time_frame": "Baseline (week 0) to week 68"
       },
       "context": "- Change in Body Weight (kg) (Time Frame: Baseline (week 0) to week 68)",
-      "community": "Adults With Overweight Or Obesity Without Diabetes / Change In Body Mass Index (Kg/M2) / Change In Body Weight (Kg)"
+      "community": "Change In Body Mass Index (Kg/M2) / Change In Body Weight / Change In Body Weight (Kg)"
     },
     {
       "id": "outcome:change_in_body_mass_index_kg_m2",
@@ -1362,7 +1368,7 @@
         "time_frame": "Baseline to week 68"
       },
       "context": "- Change in Body Mass Index (BMI) (kg/m2) (Time Frame: Baseline (week 0) to week 68)",
-      "community": "Adults With Overweight Or Obesity Without Diabetes / Change In Body Mass Index (Kg/M2) / Change In Body Weight (Kg)"
+      "community": "Change In Body Mass Index (Kg/M2) / Change In Body Weight / Change In Body Weight (Kg)"
     },
     {
       "id": "doc:nct03552757_step_2",
@@ -1452,7 +1458,7 @@
         "route": "SC"
       },
       "context": "Semaglutide 1.0 mg (EXPERIMENTAL)",
-      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Change From Baseline In Body Weight"
+      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Body Mass Index"
     },
     {
       "id": "cohort:semaglutide_placebo_i_ii_arm",
@@ -1525,13 +1531,11 @@
       "name": "eGFR",
       "confidence": 0.82,
       "source_documents": [
-        "nct03552757_step_2",
-        "nct05715307_achieve_1"
+        "nct03552757_step_2"
       ],
       "attributes": {
-        "biomarker_type": "Clinical laboratory",
-        "use": "Patient selection (exclusion criterion)",
-        "threshold": "< 60 mL/min/1.73m2"
+        "biomarker_type": "Renal function",
+        "use": "Exclusion criterion (<30 mL/min/1.73 m2)"
       },
       "context": "estimated Glomerular Filtration Rate (eGFR) value of less than 30 mL/min/1.73 m\\^2",
       "community": "Adults With Overweight Or Obesity And At Least One Unsuccessful Dietary Effort, Without Diabetes / Adults With Type 2 Diabetes And Bmi >=27 Kg/M2 / Bmi >=27 Kg/M2"
@@ -1852,7 +1856,7 @@
         "completion_date": "2021-02-15"
       },
       "context": "NCT ID: NCT03987919",
-      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Change From Baseline In Body Weight",
+      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Body Mass Index",
       "ct_overall_status": "COMPLETED",
       "ct_phase": "PHASE3",
       "ct_enrollment": 1879,
@@ -1868,7 +1872,8 @@
       "source_documents": [
         "nct03987919_surpass_2",
         "nct04184622_surmount_1",
-        "nct05822830_surmount_5"
+        "nct05822830_surmount_5",
+        "nct05971940_achieve_1"
       ],
       "attributes": {
         "role": "Lead sponsor"
@@ -1893,7 +1898,7 @@
         "route": "subcutaneous"
       },
       "context": "Tirzepatide [DRUG] Administered SC Also known as: LY3298176",
-      "community": "Cardiovascular Diseases / Gip Receptor / Glp-1 Receptor",
+      "community": "10 Mg Tirzepatide / 15 Mg Or Mtd - Tirzepatide / 2.4 Mg Or Mtd - Semaglutide",
       "pubchem_cid": 166567236,
       "molecular_formula": "C225H348N48O68",
       "molecular_weight": "4813",
@@ -1913,7 +1918,7 @@
         "role": "background therapy"
       },
       "context": "Be on stable treatment with unchanged dose of metformin",
-      "community": "Cardiovascular Diseases / Gip Receptor / Glp-1 Receptor",
+      "community": "10 Mg Tirzepatide / 15 Mg Or Mtd - Tirzepatide / 2.4 Mg Or Mtd - Semaglutide",
       "pubchem_cid": 4091,
       "molecular_formula": "C4H11N5",
       "molecular_weight": "129.16",
@@ -1935,7 +1940,7 @@
         "arm_type": "EXPERIMENTAL"
       },
       "context": "5 milligrams (mg) tirzepatide administered subcutaneously (SC) once a week.",
-      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Change From Baseline In Body Weight"
+      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Body Mass Index"
     },
     {
       "id": "cohort:arm_5_mg_tirzepatide",
@@ -1954,7 +1959,7 @@
         "arm_type": "Experimental"
       },
       "context": "5 mg Tirzepatide (EXPERIMENTAL)",
-      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Change From Baseline In Body Weight"
+      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Body Mass Index"
     },
     {
       "id": "intervention:semaglutide_1_mg_sc_once_weekly",
@@ -1971,7 +1976,7 @@
         "arm_type": "ACTIVE_COMPARATOR"
       },
       "context": "1 mg semaglutide administered SC once a week.",
-      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Change From Baseline In Body Weight"
+      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Body Mass Index"
     },
     {
       "id": "population:adults_with_type_2_diabetes_on_stable_metformin_hba1c_7_0_10_5_bmi_25",
@@ -1991,7 +1996,7 @@
         "enrollment": 1879
       },
       "context": "Have been diagnosed with type 2 diabetes mellitus (T2DM)",
-      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Change From Baseline In Body Weight"
+      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Body Mass Index"
     },
     {
       "id": "biomarker:gip_receptor",
@@ -2005,7 +2010,7 @@
         "biomarker_type": "Molecular target"
       },
       "context": "GIP/GLP-1 dual receptor agonist",
-      "community": "Cardiovascular Diseases / Gip Receptor / Glp-1 Receptor"
+      "community": "10 Mg Tirzepatide / 15 Mg Or Mtd - Tirzepatide / 2.4 Mg Or Mtd - Semaglutide"
     },
     {
       "id": "biomarker:glp_1_receptor",
@@ -2019,7 +2024,7 @@
         "biomarker_type": "Molecular target"
       },
       "context": "GIP/GLP-1 dual receptor agonist",
-      "community": "Cardiovascular Diseases / Gip Receptor / Glp-1 Receptor"
+      "community": "10 Mg Tirzepatide / 15 Mg Or Mtd - Tirzepatide / 2.4 Mg Or Mtd - Semaglutide"
     },
     {
       "id": "outcome:change_from_baseline_in_hemoglobin_a1c_hba1c_10_mg_and_15_mg",
@@ -2033,7 +2038,7 @@
         "endpoint_type": "Primary"
       },
       "context": "Change From Baseline in Hemoglobin A1c (HbA1c) (10 mg and 15 mg)",
-      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Change From Baseline In Body Weight"
+      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Body Mass Index"
     },
     {
       "id": "outcome:change_from_baseline_in_hba1c_5_mg",
@@ -2047,7 +2052,7 @@
         "endpoint_type": "Secondary"
       },
       "context": "Change From Baseline in HbA1c (5 mg) (Time Frame: Baseline, Week 40)",
-      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Change From Baseline In Body Weight"
+      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Body Mass Index"
     },
     {
       "id": "outcome:percentage_of_participants_achieving_hba1c_7",
@@ -2061,7 +2066,7 @@
         "endpoint_type": "Secondary"
       },
       "context": "Percentage of Participants Achieving an HbA1c Target Value of <7% (Time Frame: Week 40)",
-      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Change From Baseline In Body Weight"
+      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Body Mass Index"
     },
     {
       "id": "outcome:change_from_baseline_in_fasting_serum_glucose",
@@ -2075,7 +2080,7 @@
         "endpoint_type": "Secondary"
       },
       "context": "Change From Baseline in Fasting Serum Glucose (FSG) (Time Frame: Baseline, Week 40)",
-      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Change From Baseline In Body Weight"
+      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Body Mass Index"
     },
     {
       "id": "outcome:mean_change_from_baseline_in_daily_average_7_point_smbg",
@@ -2089,7 +2094,7 @@
         "endpoint_type": "Secondary"
       },
       "context": "Mean Change From Baseline in Daily Average 7-Point Self-Monitored Blood Glucose (SMBG) Values (Time Frame: Baseline, Week 40)",
-      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Change From Baseline In Body Weight"
+      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Body Mass Index"
     },
     {
       "id": "outcome:percentage_of_participants_achieving_weight_loss_5",
@@ -2103,7 +2108,7 @@
         "endpoint_type": "Secondary"
       },
       "context": "Percentage of Participants Who Achieved Weight Loss \u22655% (Time Frame: Week 40)",
-      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Change From Baseline In Body Weight"
+      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Body Mass Index"
     },
     {
       "id": "outcome:diabetes_treatment_satisfaction_dtsqc",
@@ -2117,7 +2122,7 @@
         "endpoint_type": "Secondary"
       },
       "context": "Diabetes Treatment Satisfaction as Measured by the Diabetes Treatment Satisfaction Questionnaire, Change Version (DTSQc)",
-      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Change From Baseline In Body Weight"
+      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Body Mass Index"
     },
     {
       "id": "outcome:rate_of_hypoglycemia_54_mg_dl_or_severe_hypoglycemia",
@@ -2131,7 +2136,7 @@
         "endpoint_type": "Secondary"
       },
       "context": "Rate of Hypoglycemia With Blood Glucose <54 Milligram/Deciliter (mg/dL) [<3.0 Millimole/Liter (mmol/L)] or Severe Hypoglycemia",
-      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Change From Baseline In Body Weight"
+      "community": "Adults With Type 2 Diabetes On Stable Metformin, Hba1C 7.0-10.5%, Bmi >=25 / Arm: 5 Mg Tirzepatide / Body Mass Index"
     },
     {
       "id": "doc:nct04184622_surmount_1",
@@ -2235,7 +2240,7 @@
         "role": "Subgroup / keyword"
       },
       "context": "Participants with prediabetes will continue in the extension for another 2 years.",
-      "community": "Cardiovascular Diseases / Gip Receptor / Glp-1 Receptor"
+      "community": "10 Mg Tirzepatide / 15 Mg Or Mtd - Tirzepatide / 2.4 Mg Or Mtd - Semaglutide"
     },
     {
       "id": "outcome:percent_change_from_baseline_in_body_weight",
@@ -2244,11 +2249,12 @@
       "confidence": 0.97,
       "source_documents": [
         "nct04184622_surmount_1",
-        "nct05822830_surmount_5"
+        "nct05822830_surmount_5",
+        "nct05971940_achieve_1"
       ],
       "attributes": {
-        "endpoint_type": "Primary",
-        "time_frame": "Baseline, Week 72",
+        "endpoint_type": "Secondary",
+        "time_frame": "Baseline, Week 40",
         "analysis": "LS mean via ANCOVA"
       },
       "context": "- Percent Change From Baseline in Body Weight (Primary Treatment Period)",
@@ -2320,10 +2326,12 @@
       "name": "Percent Change From Baseline in Triglycerides",
       "confidence": 0.93,
       "source_documents": [
-        "nct04184622_surmount_1"
+        "nct04184622_surmount_1",
+        "nct05971940_achieve_1"
       ],
       "attributes": {
-        "endpoint_type": "Secondary"
+        "endpoint_type": "Secondary",
+        "time_frame": "Baseline, Week 40"
       },
       "context": "- Percent Change From Baseline in Triglycerides (Pooled Doses of Tirzepatide 5 mg, 10 mg and 15 mg)",
       "community": "10 Mg Tirzepatide / 15 Mg Or Mtd - Tirzepatide / 2.4 Mg Or Mtd - Semaglutide"
@@ -2369,387 +2377,6 @@
       },
       "context": "- Change From Baseline in Systolic Blood Pressure (SBP) (Pooled Doses of Tirzepatide 5 mg, 10 mg and 15 mg)",
       "community": "10 Mg Tirzepatide / 15 Mg Or Mtd - Tirzepatide / 2.4 Mg Or Mtd - Semaglutide"
-    },
-    {
-      "id": "doc:nct05715307_achieve_1",
-      "entity_type": "DOCUMENT",
-      "name": "nct05715307_achieve_1",
-      "confidence": 1.0,
-      "source_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "attributes": {
-        "path": ""
-      }
-    },
-    {
-      "id": "trial:nct05715307",
-      "entity_type": "Trial",
-      "name": "NCT05715307",
-      "confidence": 0.98,
-      "source_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "attributes": {
-        "trial_acronym": "CREATION",
-        "descriptive_title": "Chinese Endocrinologists Health Education Study",
-        "study_type": "Interventional",
-        "status": "Active, not recruiting",
-        "enrollment": 2017,
-        "design": "prospective, multicenter, cluster randomized control study",
-        "start_date": "2023-02-09",
-        "completion_date": "2025-10-31",
-        "registry_phase": "NA"
-      },
-      "context": "NCT ID: NCT05715307",
-      "community": "2-Hour Post-Prandial Blood Glucose / 2-Hour Post-Prandial Serum Insulin / Adults Aged 40-65 With Poorly Controlled Type 2 Diabetes On 1-2 Non-Insulin Hypoglycemic Drugs",
-      "ct_overall_status": "COMPLETED",
-      "ct_phase": "NA",
-      "ct_enrollment": 2017,
-      "ct_start_date": "2023-02-13",
-      "ct_completion_date": "2024-12-28",
-      "ct_brief_title": "Chinese Endocrinologists Health Education Study"
-    },
-    {
-      "id": "sponsor:shanghai_jiao_tong_university_school_of_medicine",
-      "entity_type": "Sponsor",
-      "name": "Shanghai Jiao Tong University School of Medicine",
-      "confidence": 0.97,
-      "source_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "attributes": {
-        "role": "Lead sponsor",
-        "country": "China"
-      },
-      "context": "Lead Sponsor: Shanghai Jiao Tong University School of Medicine",
-      "community": "2-Hour Post-Prandial Blood Glucose / 2-Hour Post-Prandial Serum Insulin / Adults Aged 40-65 With Poorly Controlled Type 2 Diabetes On 1-2 Non-Insulin Hypoglycemic Drugs"
-    },
-    {
-      "id": "intervention:intensive_training_for_endocrinologists_in_t2dm_management",
-      "entity_type": "Intervention",
-      "name": "Intensive training for endocrinologists in T2DM management",
-      "confidence": 0.95,
-      "source_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "attributes": {
-        "intervention_type": "Other (educational/training)",
-        "duration": "1 week",
-        "location": "Ruijin Hospital"
-      },
-      "context": "Intensive training for endocrinologists in T2DM management [OTHER]",
-      "community": "2-Hour Post-Prandial Blood Glucose / 2-Hour Post-Prandial Serum Insulin / Adults Aged 40-65 With Poorly Controlled Type 2 Diabetes On 1-2 Non-Insulin Hypoglycemic Drugs"
-    },
-    {
-      "id": "intervention:regular_training_for_endocrinologists_in_t2dm_management",
-      "entity_type": "Intervention",
-      "name": "Regular training for endocrinologists in T2DM management",
-      "confidence": 0.95,
-      "source_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "attributes": {
-        "intervention_type": "Other (educational/training)",
-        "role": "Active comparator"
-      },
-      "context": "Regular training for endocrinologists in T2DM management [OTHER]",
-      "community": "2-Hour Post-Prandial Blood Glucose / 2-Hour Post-Prandial Serum Insulin / Adults Aged 40-65 With Poorly Controlled Type 2 Diabetes On 1-2 Non-Insulin Hypoglycemic Drugs"
-    },
-    {
-      "id": "cohort:intensive_training_group",
-      "entity_type": "Cohort",
-      "name": "Intensive training group",
-      "confidence": 0.95,
-      "source_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "attributes": {
-        "arm_label": "Intensive training group",
-        "arm_type": "Experimental",
-        "population_size": "about 100 endocrinologists, approximately 1000 patients"
-      },
-      "context": "Intensive training group (EXPERIMENTAL)",
-      "community": "2-Hour Post-Prandial Blood Glucose / 2-Hour Post-Prandial Serum Insulin / Adults Aged 40-65 With Poorly Controlled Type 2 Diabetes On 1-2 Non-Insulin Hypoglycemic Drugs"
-    },
-    {
-      "id": "cohort:control_group",
-      "entity_type": "Cohort",
-      "name": "Control group",
-      "confidence": 0.95,
-      "source_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "attributes": {
-        "arm_label": "Control group",
-        "arm_type": "Active comparator",
-        "population_size": "about 100 endocrinologists, approximately 1000 patients"
-      },
-      "context": "Control group (ACTIVE_COMPARATOR)",
-      "community": "2-Hour Post-Prandial Blood Glucose / 2-Hour Post-Prandial Serum Insulin / Adults Aged 40-65 With Poorly Controlled Type 2 Diabetes On 1-2 Non-Insulin Hypoglycemic Drugs"
-    },
-    {
-      "id": "population:adults_aged_40_65_with_poorly_controlled_type_2_diabetes_on_1_2_non_insulin_hypoglycemic_drugs",
-      "entity_type": "Population",
-      "name": "Adults aged 40-65 with poorly controlled type 2 diabetes on 1-2 non-insulin hypoglycemic drugs",
-      "confidence": 0.9,
-      "source_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "attributes": {
-        "age_group": "40-65 years",
-        "bmi": "24.0 < BMI <= 35.0 kg/m2",
-        "hba1c": "7.5%-10.0%",
-        "fasting_glucose": ">= 8.0 and < 13.3 mmol/l",
-        "diabetes_duration": "< 10 years",
-        "exclusions": "type 1 or secondary diabetes, insulin use in past 3 months, serious cardiovascular disease, eGFR < 60, pregnancy",
-        "healthy_volunteers": false,
-        "sex": "All"
-      },
-      "context": "Subjects with poorly controlled blood glucose only by 1-2 kinds of non-insulin hypoglycemic drugs for at least 2 months",
-      "community": "2-Hour Post-Prandial Blood Glucose / 2-Hour Post-Prandial Serum Insulin / Adults Aged 40-65 With Poorly Controlled Type 2 Diabetes On 1-2 Non-Insulin Hypoglycemic Drugs"
-    },
-    {
-      "id": "outcome:hba1c_control_rate",
-      "entity_type": "Outcome",
-      "name": "HbA1c control rate",
-      "confidence": 0.97,
-      "source_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "attributes": {
-        "endpoint_type": "Primary",
-        "definition": "percentage of patients achieving HbA1c <7.0%",
-        "time_frame": "6 months"
-      },
-      "context": "Glycated haemoglobin (HbA1c) control rate\n    percentage of patients achieving HbA1c \\<7.0%",
-      "community": "2-Hour Post-Prandial Blood Glucose / 2-Hour Post-Prandial Serum Insulin / Adults Aged 40-65 With Poorly Controlled Type 2 Diabetes On 1-2 Non-Insulin Hypoglycemic Drugs"
-    },
-    {
-      "id": "outcome:hba1c",
-      "entity_type": "Outcome",
-      "name": "HbA1c",
-      "confidence": 0.95,
-      "source_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "attributes": {
-        "endpoint_type": "Secondary",
-        "time_frame": "6 and 12 months"
-      },
-      "context": "Glycated haemoglobin (HbA1c) (Time Frame: 6 and 12 months)",
-      "community": "2-Hour Post-Prandial Blood Glucose / 2-Hour Post-Prandial Serum Insulin / Adults Aged 40-65 With Poorly Controlled Type 2 Diabetes On 1-2 Non-Insulin Hypoglycemic Drugs"
-    },
-    {
-      "id": "outcome:systolic_and_diastolic_blood_pressure",
-      "entity_type": "Outcome",
-      "name": "systolic and diastolic blood pressure",
-      "confidence": 0.95,
-      "source_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "attributes": {
-        "endpoint_type": "Secondary",
-        "time_frame": "6 and 12 months"
-      },
-      "context": "Systolic and diastolic blood pressure (Time Frame: 6 and 12 months)",
-      "community": "2-Hour Post-Prandial Blood Glucose / 2-Hour Post-Prandial Serum Insulin / Adults Aged 40-65 With Poorly Controlled Type 2 Diabetes On 1-2 Non-Insulin Hypoglycemic Drugs"
-    },
-    {
-      "id": "outcome:body_weight",
-      "entity_type": "Outcome",
-      "name": "body weight",
-      "confidence": 0.95,
-      "source_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "attributes": {
-        "endpoint_type": "Secondary",
-        "time_frame": "6 and 12 months"
-      },
-      "context": "Body weight (Time Frame: 6 and 12 months)",
-      "community": "2-Hour Post-Prandial Blood Glucose / 2-Hour Post-Prandial Serum Insulin / Adults Aged 40-65 With Poorly Controlled Type 2 Diabetes On 1-2 Non-Insulin Hypoglycemic Drugs"
-    },
-    {
-      "id": "outcome:waist_circumference",
-      "entity_type": "Outcome",
-      "name": "waist circumference",
-      "confidence": 0.95,
-      "source_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "attributes": {
-        "endpoint_type": "Secondary",
-        "time_frame": "6 and 12 months"
-      },
-      "context": "Waist circumference (Time Frame: 6 and 12 months)",
-      "community": "2-Hour Post-Prandial Blood Glucose / 2-Hour Post-Prandial Serum Insulin / Adults Aged 40-65 With Poorly Controlled Type 2 Diabetes On 1-2 Non-Insulin Hypoglycemic Drugs"
-    },
-    {
-      "id": "outcome:hip_circumference",
-      "entity_type": "Outcome",
-      "name": "hip circumference",
-      "confidence": 0.95,
-      "source_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "attributes": {
-        "endpoint_type": "Secondary",
-        "time_frame": "6 and 12 months"
-      },
-      "context": "Hip circumference (Time Frame: 6 and 12 months)",
-      "community": "2-Hour Post-Prandial Blood Glucose / 2-Hour Post-Prandial Serum Insulin / Adults Aged 40-65 With Poorly Controlled Type 2 Diabetes On 1-2 Non-Insulin Hypoglycemic Drugs"
-    },
-    {
-      "id": "outcome:fasting_blood_glucose",
-      "entity_type": "Outcome",
-      "name": "fasting blood glucose",
-      "confidence": 0.95,
-      "source_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "attributes": {
-        "endpoint_type": "Secondary",
-        "time_frame": "6 and 12 months"
-      },
-      "context": "Fasting blood glucose levels (Time Frame: 6 and 12 months)",
-      "community": "2-Hour Post-Prandial Blood Glucose / 2-Hour Post-Prandial Serum Insulin / Adults Aged 40-65 With Poorly Controlled Type 2 Diabetes On 1-2 Non-Insulin Hypoglycemic Drugs"
-    },
-    {
-      "id": "outcome:2_hour_post_prandial_blood_glucose",
-      "entity_type": "Outcome",
-      "name": "2-hour post-prandial blood glucose",
-      "confidence": 0.95,
-      "source_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "attributes": {
-        "endpoint_type": "Secondary",
-        "time_frame": "6 and 12 months"
-      },
-      "context": "2-hour post-prandial blood glucose levels (Time Frame: 6 and 12 months)",
-      "community": "2-Hour Post-Prandial Blood Glucose / 2-Hour Post-Prandial Serum Insulin / Adults Aged 40-65 With Poorly Controlled Type 2 Diabetes On 1-2 Non-Insulin Hypoglycemic Drugs"
-    },
-    {
-      "id": "outcome:fasting_serum_insulin",
-      "entity_type": "Outcome",
-      "name": "fasting serum insulin",
-      "confidence": 0.95,
-      "source_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "attributes": {
-        "endpoint_type": "Secondary",
-        "time_frame": "6 and 12 months"
-      },
-      "context": "Fasting serum insulin levels (Time Frame: 6 and 12 months)",
-      "community": "2-Hour Post-Prandial Blood Glucose / 2-Hour Post-Prandial Serum Insulin / Adults Aged 40-65 With Poorly Controlled Type 2 Diabetes On 1-2 Non-Insulin Hypoglycemic Drugs"
-    },
-    {
-      "id": "outcome:2_hour_post_prandial_serum_insulin",
-      "entity_type": "Outcome",
-      "name": "2-hour post-prandial serum insulin",
-      "confidence": 0.95,
-      "source_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "attributes": {
-        "endpoint_type": "Secondary",
-        "time_frame": "6 and 12 months"
-      },
-      "context": "2-hour post-prandial serum insulin levels (Time Frame: 6 and 12 months)",
-      "community": "2-Hour Post-Prandial Blood Glucose / 2-Hour Post-Prandial Serum Insulin / Adults Aged 40-65 With Poorly Controlled Type 2 Diabetes On 1-2 Non-Insulin Hypoglycemic Drugs"
-    },
-    {
-      "id": "outcome:serum_triglycerides",
-      "entity_type": "Outcome",
-      "name": "serum triglycerides",
-      "confidence": 0.95,
-      "source_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "attributes": {
-        "endpoint_type": "Secondary",
-        "time_frame": "6 and 12 months"
-      },
-      "context": "Serum triglycerides (Time Frame: 6 and 12 months)",
-      "community": "2-Hour Post-Prandial Blood Glucose / 2-Hour Post-Prandial Serum Insulin / Adults Aged 40-65 With Poorly Controlled Type 2 Diabetes On 1-2 Non-Insulin Hypoglycemic Drugs"
-    },
-    {
-      "id": "outcome:patient_quality_of_life",
-      "entity_type": "Outcome",
-      "name": "patient quality of life",
-      "confidence": 0.78,
-      "source_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "attributes": {
-        "endpoint_type": "Secondary objective (not a registered outcome measure)"
-      },
-      "context": "the change of patients' quality of life and endocrinologists' prescribing habits will be evaluated",
-      "community": "2-Hour Post-Prandial Blood Glucose / 2-Hour Post-Prandial Serum Insulin / Adults Aged 40-65 With Poorly Controlled Type 2 Diabetes On 1-2 Non-Insulin Hypoglycemic Drugs"
-    },
-    {
-      "id": "outcome:endocrinologists_prescribing_habits",
-      "entity_type": "Outcome",
-      "name": "endocrinologists' prescribing habits",
-      "confidence": 0.78,
-      "source_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "attributes": {
-        "endpoint_type": "Secondary objective (not a registered outcome measure)"
-      },
-      "context": "the change of patients' quality of life and endocrinologists' prescribing habits will be evaluated",
-      "community": "2-Hour Post-Prandial Blood Glucose / 2-Hour Post-Prandial Serum Insulin / Adults Aged 40-65 With Poorly Controlled Type 2 Diabetes On 1-2 Non-Insulin Hypoglycemic Drugs"
-    },
-    {
-      "id": "biomarker:hba1c_screening",
-      "entity_type": "Biomarker",
-      "name": "HbA1c (screening)",
-      "confidence": 0.88,
-      "source_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "attributes": {
-        "biomarker_type": "Clinical laboratory",
-        "threshold": ">= 7.5% and <= 10.0%",
-        "use": "Patient selection (inclusion criterion)"
-      },
-      "context": "Subjects with screening HbA1c \u2265 7.5% and \u2264 10.0%",
-      "community": "2-Hour Post-Prandial Blood Glucose / 2-Hour Post-Prandial Serum Insulin / Adults Aged 40-65 With Poorly Controlled Type 2 Diabetes On 1-2 Non-Insulin Hypoglycemic Drugs"
-    },
-    {
-      "id": "biomarker:fasting_blood_glucose_screening",
-      "entity_type": "Biomarker",
-      "name": "fasting blood glucose (screening)",
-      "confidence": 0.85,
-      "source_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "attributes": {
-        "biomarker_type": "Clinical laboratory",
-        "threshold": ">= 8.0 and < 13.3 mmol/l",
-        "use": "Patient selection (inclusion criterion)"
-      },
-      "context": "the fasting blood glucose \u2265 8.0 mmol/l and \\< 13.3 mmol/l",
-      "community": "2-Hour Post-Prandial Blood Glucose / 2-Hour Post-Prandial Serum Insulin / Adults Aged 40-65 With Poorly Controlled Type 2 Diabetes On 1-2 Non-Insulin Hypoglycemic Drugs"
-    },
-    {
-      "id": "biomarker:bmi",
-      "entity_type": "Biomarker",
-      "name": "BMI",
-      "confidence": 0.82,
-      "source_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "attributes": {
-        "biomarker_type": "Anthropometric",
-        "threshold": "> 24.0 and <= 35.0 kg/m2",
-        "use": "Patient selection (inclusion criterion)"
-      },
-      "context": "24.0 \\< BMI \u2264 35.0 kg/m2",
-      "community": "2-Hour Post-Prandial Blood Glucose / 2-Hour Post-Prandial Serum Insulin / Adults Aged 40-65 With Poorly Controlled Type 2 Diabetes On 1-2 Non-Insulin Hypoglycemic Drugs"
     },
     {
       "id": "doc:nct05822830_surmount_5",
@@ -2921,6 +2548,259 @@
       },
       "context": "Percent Change From Baseline in Body Weight Comparing 15 mg Tirzepatide and 2.4 mg Semaglutide (Time Frame: Baseline, Week 72)",
       "community": "10 Mg Tirzepatide / 15 Mg Or Mtd - Tirzepatide / 2.4 Mg Or Mtd - Semaglutide"
+    },
+    {
+      "id": "doc:nct05971940_achieve_1",
+      "entity_type": "DOCUMENT",
+      "name": "nct05971940_achieve_1",
+      "confidence": 1.0,
+      "source_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "attributes": {
+        "path": ""
+      }
+    },
+    {
+      "id": "trial:nct05971940",
+      "entity_type": "Trial",
+      "name": "NCT05971940",
+      "confidence": 0.99,
+      "source_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "attributes": {
+        "trial_acronym": "ACHIEVE-1",
+        "descriptive_title": "A Study of Orforglipron (LY3502970) in Adult Participants With Type 2 Diabetes and Inadequate Glycemic Control With Diet and Exercise Alone",
+        "study_type": "Interventional",
+        "status": "Completed",
+        "enrollment": 559,
+        "start_date": "2023-08-09",
+        "completion_date": "2025-04-03"
+      },
+      "context": "NCT ID: NCT05971940",
+      "community": "3 Mg Orforglipron / Adults With Type 2 Diabetes Inadequately Controlled With Diet And Exercise Alone / Change From Baseline In Body Weight",
+      "ct_overall_status": "COMPLETED",
+      "ct_phase": "PHASE3",
+      "ct_enrollment": 559,
+      "ct_start_date": "2023-08-09",
+      "ct_completion_date": "2025-04-03",
+      "ct_brief_title": "A Study of Orforglipron (LY3502970) in Adult Participants With Type 2 Diabetes and Inadequate Glycemic Control With Diet and Exercise Alone"
+    },
+    {
+      "id": "compound:orforglipron",
+      "entity_type": "Compound",
+      "name": "orforglipron",
+      "confidence": 0.97,
+      "source_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "attributes": {
+        "inn": "orforglipron",
+        "alias": "LY3502970",
+        "sponsor_code": "LY3502970",
+        "route": "oral"
+      },
+      "context": "Orforglipron [DRUG]\n    Administered orally\n    Also known as: LY3502970",
+      "community": "3 Mg Orforglipron / Adults With Type 2 Diabetes Inadequately Controlled With Diet And Exercise Alone / Change From Baseline In Body Weight",
+      "pubchem_cid": 137319706,
+      "molecular_formula": "C48H48F2N10O5",
+      "molecular_weight": "883.0",
+      "canonical_smiles": "CC1CC1(C2=NOC(=O)N2)N3C4=C(C=C(C=C4)C5CCOC(C5)(C)C)C=C3C(=O)N6CCC7=NN(C(=C7C6C)N8C=CN(C8=O)C9=C(C1=C(C=C9)N(N=C1)C)F)C1=CC(=C(C(=C1)C)F)C",
+      "inchi": "InChI=1S/C48H48F2N10O5/c1-25-18-32(19-26(2)40(25)49)60-42(58-16-15-57(46(58)63)37-11-10-36-33(41(37)50)24-51-55(36)7)39-28(4)56(14-12-34(39)53-60)43(61)38-21-31-20-29(30-13-17-64-47(5,6)23-30)8-9-35(31)59(38)48(22-27(48)3)44-52-45(62)65-54-44/h8-11,15-16,18-21,24,27-28,30H,12-14,17,22-23H2,1-7H3,(H,52,54,62)/t27-,28-,30-,48-/m0/s1"
+    },
+    {
+      "id": "intervention:placebo",
+      "entity_type": "Intervention",
+      "name": "Placebo",
+      "confidence": 0.93,
+      "source_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "attributes": {
+        "route": "oral",
+        "schedule": "QD",
+        "role": "placebo comparator"
+      },
+      "context": "Participants received once daily (QD) doses of orforglipron-matching placebo capsules administered orally, over a period of 40 weeks.",
+      "community": "3 Mg Orforglipron / Adults With Type 2 Diabetes Inadequately Controlled With Diet And Exercise Alone / Change From Baseline In Body Weight"
+    },
+    {
+      "id": "intervention:orforglipron_3_mg_qd_oral",
+      "entity_type": "Intervention",
+      "name": "orforglipron 3 mg QD oral",
+      "confidence": 0.93,
+      "source_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "attributes": {
+        "dose": "36 mg",
+        "schedule": "QD",
+        "route": "oral",
+        "titration": "start 1 mg, escalate every 4 weeks",
+        "duration": "40 weeks"
+      },
+      "context": "Participants received orforglipron capsules administered orally QD, starting at 1 milligram (mg) and increasing by 1 mg every 4 weeks until reaching a targeted dose of 3 mg, which was then maintained up to week 40.",
+      "community": "3 Mg Orforglipron / Adults With Type 2 Diabetes Inadequately Controlled With Diet And Exercise Alone / Change From Baseline In Body Weight"
+    },
+    {
+      "id": "cohort:3_mg_orforglipron",
+      "entity_type": "Cohort",
+      "name": "3 mg Orforglipron",
+      "confidence": 0.95,
+      "source_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "attributes": {
+        "arm_label": "36 mg Orforglipron",
+        "arm_type": "Experimental",
+        "dose": "36 mg",
+        "schedule": "QD",
+        "route": "oral"
+      },
+      "context": "- 3 mg Orforglipron (EXPERIMENTAL)",
+      "community": "3 Mg Orforglipron / Adults With Type 2 Diabetes Inadequately Controlled With Diet And Exercise Alone / Change From Baseline In Body Weight"
+    },
+    {
+      "id": "cohort:placebo_comparator_arm",
+      "entity_type": "Cohort",
+      "name": "Placebo comparator arm",
+      "confidence": 0.93,
+      "source_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "attributes": {
+        "arm_label": "Placebo",
+        "arm_type": "Placebo Comparator",
+        "schedule": "QD",
+        "route": "oral"
+      },
+      "context": "- Placebo (PLACEBO_COMPARATOR)",
+      "community": "3 Mg Orforglipron / Adults With Type 2 Diabetes Inadequately Controlled With Diet And Exercise Alone / Change From Baseline In Body Weight"
+    },
+    {
+      "id": "population:adults_with_type_2_diabetes_inadequately_controlled_with_diet_and_exercise_alone",
+      "entity_type": "Population",
+      "name": "Adults with type 2 diabetes inadequately controlled with diet and exercise alone",
+      "confidence": 0.93,
+      "source_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "attributes": {
+        "age_group": "Adult (18+ years)",
+        "sex": "All",
+        "healthy_volunteers": false,
+        "prior_treatment": "Diet and exercise only; no antihyperglycemic medication in prior 90 days; insulin-naive",
+        "bmi": "\u226523.0 kg/m\u00b2",
+        "hba1c": "7.0%-9.5%"
+      },
+      "context": "adult participants with type 2 diabetes and inadequate glycemic control with diet and exercise alone",
+      "community": "3 Mg Orforglipron / Adults With Type 2 Diabetes Inadequately Controlled With Diet And Exercise Alone / Change From Baseline In Body Weight"
+    },
+    {
+      "id": "outcome:percentage_of_participants_with_an_hba1c_target_value_of_7_0_53_mmol_mol",
+      "entity_type": "Outcome",
+      "name": "Percentage of Participants With an HbA1c Target Value of < 7.0% (53 mmol/Mol)",
+      "confidence": 0.93,
+      "source_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "attributes": {
+        "endpoint_type": "Secondary",
+        "time_frame": "Week 40"
+      },
+      "context": "- Percentage of Participants With an HbA1c Target Value of < 7.0% (53 mmol/Mol) (Time Frame: Week 40)",
+      "community": "3 Mg Orforglipron / Adults With Type 2 Diabetes Inadequately Controlled With Diet And Exercise Alone / Change From Baseline In Body Weight"
+    },
+    {
+      "id": "outcome:percentage_of_participants_with_an_hba1c_target_value_of_6_5_48_mmol_mol",
+      "entity_type": "Outcome",
+      "name": "Percentage of Participants With an HbA1c Target Value of \u22646.5% (48 mmol/Mol)",
+      "confidence": 0.93,
+      "source_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "attributes": {
+        "endpoint_type": "Secondary",
+        "time_frame": "Week 40"
+      },
+      "context": "- Percentage of Participants With an HbA1c Target Value of \u22646.5% (48 mmol/Mol) (Time Frame: Week 40)",
+      "community": "3 Mg Orforglipron / Adults With Type 2 Diabetes Inadequately Controlled With Diet And Exercise Alone / Change From Baseline In Body Weight"
+    },
+    {
+      "id": "outcome:change_from_baseline_in_fasting_serum_glucose_fsg",
+      "entity_type": "Outcome",
+      "name": "Change From Baseline in Fasting Serum Glucose (FSG)",
+      "confidence": 0.93,
+      "source_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "attributes": {
+        "endpoint_type": "Secondary",
+        "time_frame": "Baseline, Week 40"
+      },
+      "context": "- Change From Baseline in Fasting Serum Glucose (FSG) (Time Frame: Baseline, Week 40)",
+      "community": "3 Mg Orforglipron / Adults With Type 2 Diabetes Inadequately Controlled With Diet And Exercise Alone / Change From Baseline In Body Weight"
+    },
+    {
+      "id": "outcome:percent_change_from_baseline_in_non_high_density_lipoprotein_non_hdl_cholesterol",
+      "entity_type": "Outcome",
+      "name": "Percent Change From Baseline in Non-High-Density Lipoprotein (Non-HDL) Cholesterol",
+      "confidence": 0.93,
+      "source_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "attributes": {
+        "endpoint_type": "Secondary",
+        "time_frame": "Baseline, Week 40"
+      },
+      "context": "- Percent Change From Baseline in Non-High-Density Lipoprotein (Non-HDL) Cholesterol (Time Frame: Baseline, Week 40)",
+      "community": "3 Mg Orforglipron / Adults With Type 2 Diabetes Inadequately Controlled With Diet And Exercise Alone / Change From Baseline In Body Weight"
+    },
+    {
+      "id": "outcome:change_from_baseline_in_daily_average_7_point_self_monitored_blood_glucose_smbg",
+      "entity_type": "Outcome",
+      "name": "Change From Baseline in Daily Average 7-Point Self-Monitored Blood Glucose (SMBG)",
+      "confidence": 0.93,
+      "source_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "attributes": {
+        "endpoint_type": "Secondary",
+        "time_frame": "Baseline, Week 40"
+      },
+      "context": "- Change From Baseline in Daily Average 7-Point Self-Monitored Blood Glucose (SMBG) (Time Frame: Baseline, Week 40)",
+      "community": "3 Mg Orforglipron / Adults With Type 2 Diabetes Inadequately Controlled With Diet And Exercise Alone / Change From Baseline In Body Weight"
+    },
+    {
+      "id": "outcome:percentage_of_participants_with_greater_than_or_equal_to_5_body_weight_reduction",
+      "entity_type": "Outcome",
+      "name": "Percentage of Participants With Greater Than or Equal to (\u2265) 5% Body Weight Reduction",
+      "confidence": 0.93,
+      "source_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "attributes": {
+        "endpoint_type": "Secondary",
+        "time_frame": "Week 40"
+      },
+      "context": "- Percentage of Participants With Greater Than or Equal to (\u2265) 5% Body Weight Reduction (Time Frame: Week 40)",
+      "community": "3 Mg Orforglipron / Adults With Type 2 Diabetes Inadequately Controlled With Diet And Exercise Alone / Change From Baseline In Body Weight"
+    },
+    {
+      "id": "outcome:change_from_baseline_in_systolic_blood_pressure_sbp",
+      "entity_type": "Outcome",
+      "name": "Change From Baseline in Systolic Blood Pressure (SBP)",
+      "confidence": 0.93,
+      "source_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "attributes": {
+        "endpoint_type": "Secondary",
+        "time_frame": "Baseline, Week 40"
+      },
+      "context": "- Change From Baseline in Systolic Blood Pressure (SBP) (Time Frame: Baseline, Week 40)",
+      "community": "3 Mg Orforglipron / Adults With Type 2 Diabetes Inadequately Controlled With Diet And Exercise Alone / Change From Baseline In Body Weight"
     }
   ],
   "links": [
@@ -3929,6 +3809,29 @@
       ]
     },
     {
+      "source": "trialphase:phase_3",
+      "target": "doc:nct05971940_achieve_1",
+      "relation_id": "trialphase:phase_3|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "canonical_key": "trialphase:phase_3|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.98,
+      "evidence": "",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.98,
+          "evidence": "",
+          "relation_id": "trialphase:phase_3|MENTIONED_IN|doc:nct05971940_achieve_1"
+        }
+      ]
+    },
+    {
       "source": "sponsor:novo_nordisk",
       "target": "doc:nct01720446_sustain_6",
       "relation_id": "sponsor:novo_nordisk|MENTIONED_IN|doc:nct01720446_sustain_6",
@@ -4183,24 +4086,24 @@
     },
     {
       "source": "condition:type_2_diabetes_mellitus",
-      "target": "doc:nct05715307_achieve_1",
-      "relation_id": "condition:type_2_diabetes_mellitus|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "canonical_key": "condition:type_2_diabetes_mellitus|MENTIONED_IN|doc:nct05715307_achieve_1",
+      "target": "doc:nct05971940_achieve_1",
+      "relation_id": "condition:type_2_diabetes_mellitus|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "canonical_key": "condition:type_2_diabetes_mellitus|MENTIONED_IN|doc:nct05971940_achieve_1",
       "relation_type": "MENTIONED_IN",
       "confidence": 0.97,
       "evidence": "",
-      "source_document": "nct05715307_achieve_1",
+      "source_document": "nct05971940_achieve_1",
       "support_count": 1,
       "support_documents": [
-        "nct05715307_achieve_1"
+        "nct05971940_achieve_1"
       ],
       "support_doc_count": 1,
       "mentions": [
         {
-          "source_document": "nct05715307_achieve_1",
+          "source_document": "nct05971940_achieve_1",
           "confidence": 0.97,
           "evidence": "",
-          "relation_id": "condition:type_2_diabetes_mellitus|MENTIONED_IN|doc:nct05715307_achieve_1"
+          "relation_id": "condition:type_2_diabetes_mellitus|MENTIONED_IN|doc:nct05971940_achieve_1"
         }
       ]
     },
@@ -5395,6 +5298,29 @@
       ]
     },
     {
+      "source": "biomarker:hba1c",
+      "target": "doc:nct05971940_achieve_1",
+      "relation_id": "biomarker:hba1c|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "canonical_key": "biomarker:hba1c|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.95,
+      "evidence": "",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.95,
+          "evidence": "",
+          "relation_id": "biomarker:hba1c|MENTIONED_IN|doc:nct05971940_achieve_1"
+        }
+      ]
+    },
+    {
       "source": "biomarker:calcitonin",
       "target": "doc:nct01720446_sustain_6",
       "relation_id": "biomarker:calcitonin|MENTIONED_IN|doc:nct01720446_sustain_6",
@@ -5533,6 +5459,29 @@
       ]
     },
     {
+      "source": "outcome:change_from_baseline_in_hba1c",
+      "target": "doc:nct05971940_achieve_1",
+      "relation_id": "outcome:change_from_baseline_in_hba1c|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "canonical_key": "outcome:change_from_baseline_in_hba1c|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.96,
+      "evidence": "",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.96,
+          "evidence": "",
+          "relation_id": "outcome:change_from_baseline_in_hba1c|MENTIONED_IN|doc:nct05971940_achieve_1"
+        }
+      ]
+    },
+    {
       "source": "outcome:change_from_baseline_in_fasting_plasma_glucose",
       "target": "doc:nct01720446_sustain_6",
       "relation_id": "outcome:change_from_baseline_in_fasting_plasma_glucose|MENTIONED_IN|doc:nct01720446_sustain_6",
@@ -5598,6 +5547,29 @@
           "confidence": 0.93,
           "evidence": "",
           "relation_id": "outcome:change_from_baseline_in_body_weight|MENTIONED_IN|doc:nct03987919_surpass_2"
+        }
+      ]
+    },
+    {
+      "source": "outcome:change_from_baseline_in_body_weight",
+      "target": "doc:nct05971940_achieve_1",
+      "relation_id": "outcome:change_from_baseline_in_body_weight|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "canonical_key": "outcome:change_from_baseline_in_body_weight|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.93,
+      "evidence": "",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.93,
+          "evidence": "",
+          "relation_id": "outcome:change_from_baseline_in_body_weight|MENTIONED_IN|doc:nct05971940_achieve_1"
         }
       ]
     },
@@ -9736,6 +9708,29 @@
       ]
     },
     {
+      "source": "biomarker:body_mass_index",
+      "target": "doc:nct05971940_achieve_1",
+      "relation_id": "biomarker:body_mass_index|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "canonical_key": "biomarker:body_mass_index|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.88,
+      "evidence": "",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.88,
+          "evidence": "",
+          "relation_id": "biomarker:body_mass_index|MENTIONED_IN|doc:nct05971940_achieve_1"
+        }
+      ]
+    },
+    {
       "source": "outcome:participants_who_achieve_5_or_more_percent_body_weight_reduction",
       "target": "doc:nct03548935_step_1",
       "relation_id": "outcome:participants_who_achieve_5_or_more_percent_body_weight_reduction|MENTIONED_IN|doc:nct03548935_step_1",
@@ -11159,29 +11154,6 @@
           "confidence": 0.82,
           "evidence": "",
           "relation_id": "biomarker:egfr|MENTIONED_IN|doc:nct03552757_step_2"
-        }
-      ]
-    },
-    {
-      "source": "biomarker:egfr",
-      "target": "doc:nct05715307_achieve_1",
-      "relation_id": "biomarker:egfr|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "canonical_key": "biomarker:egfr|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "relation_type": "MENTIONED_IN",
-      "confidence": 0.72,
-      "evidence": "",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.72,
-          "evidence": "",
-          "relation_id": "biomarker:egfr|MENTIONED_IN|doc:nct05715307_achieve_1"
         }
       ]
     },
@@ -13414,6 +13386,29 @@
       ]
     },
     {
+      "source": "sponsor:eli_lilly_and_company",
+      "target": "doc:nct05971940_achieve_1",
+      "relation_id": "sponsor:eli_lilly_and_company|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "canonical_key": "sponsor:eli_lilly_and_company|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.98,
+      "evidence": "",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.98,
+          "evidence": "",
+          "relation_id": "sponsor:eli_lilly_and_company|MENTIONED_IN|doc:nct05971940_achieve_1"
+        }
+      ]
+    },
+    {
       "source": "compound:tirzepatide",
       "target": "doc:nct03987919_surpass_2",
       "relation_id": "compound:tirzepatide|MENTIONED_IN|doc:nct03987919_surpass_2",
@@ -15216,6 +15211,29 @@
       ]
     },
     {
+      "source": "outcome:percent_change_from_baseline_in_body_weight",
+      "target": "doc:nct05971940_achieve_1",
+      "relation_id": "outcome:percent_change_from_baseline_in_body_weight|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "canonical_key": "outcome:percent_change_from_baseline_in_body_weight|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.93,
+      "evidence": "",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.93,
+          "evidence": "",
+          "relation_id": "outcome:percent_change_from_baseline_in_body_weight|MENTIONED_IN|doc:nct05971940_achieve_1"
+        }
+      ]
+    },
+    {
       "source": "outcome:percentage_of_participants_who_achieve_5_body_weight_reduction",
       "target": "doc:nct04184622_surmount_1",
       "relation_id": "outcome:percentage_of_participants_who_achieve_5_body_weight_reduction|MENTIONED_IN|doc:nct04184622_surmount_1",
@@ -15419,6 +15437,29 @@
       ]
     },
     {
+      "source": "outcome:percent_change_from_baseline_in_triglycerides",
+      "target": "doc:nct05971940_achieve_1",
+      "relation_id": "outcome:percent_change_from_baseline_in_triglycerides|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "canonical_key": "outcome:percent_change_from_baseline_in_triglycerides|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.93,
+      "evidence": "",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.93,
+          "evidence": "",
+          "relation_id": "outcome:percent_change_from_baseline_in_triglycerides|MENTIONED_IN|doc:nct05971940_achieve_1"
+        }
+      ]
+    },
+    {
       "source": "outcome:percent_change_from_baseline_in_total_cholesterol",
       "target": "doc:nct04184622_surmount_1",
       "relation_id": "outcome:percent_change_from_baseline_in_total_cholesterol|MENTIONED_IN|doc:nct04184622_surmount_1",
@@ -15484,1372 +15525,6 @@
           "confidence": 0.93,
           "evidence": "",
           "relation_id": "outcome:change_from_baseline_in_systolic_blood_pressure|MENTIONED_IN|doc:nct04184622_surmount_1"
-        }
-      ]
-    },
-    {
-      "source": "trial:nct05715307",
-      "target": "doc:nct05715307_achieve_1",
-      "relation_id": "trial:nct05715307|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "canonical_key": "trial:nct05715307|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "relation_type": "MENTIONED_IN",
-      "confidence": 0.98,
-      "evidence": "",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.98,
-          "evidence": "",
-          "relation_id": "trial:nct05715307|MENTIONED_IN|doc:nct05715307_achieve_1"
-        }
-      ]
-    },
-    {
-      "source": "trial:nct05715307",
-      "target": "sponsor:shanghai_jiao_tong_university_school_of_medicine",
-      "relation_id": "trial:nct05715307|sponsored_by|sponsor:shanghai_jiao_tong_university_school_of_medicine",
-      "canonical_key": "trial:nct05715307|sponsored_by|sponsor:shanghai_jiao_tong_university_school_of_medicine",
-      "relation_type": "sponsored_by",
-      "confidence": 0.97,
-      "evidence": "Lead Sponsor: Shanghai Jiao Tong University School of Medicine",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.97,
-          "evidence": "Lead Sponsor: Shanghai Jiao Tong University School of Medicine",
-          "relation_id": "trial:nct05715307|sponsored_by|sponsor:shanghai_jiao_tong_university_school_of_medicine|nct05715307_achieve_1"
-        }
-      ],
-      "evidence_tier": "medium_evidence",
-      "mention_evidence_tiers": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "tier": "medium_evidence"
-        }
-      ],
-      "epistemic_status": "asserted"
-    },
-    {
-      "source": "trial:nct05715307",
-      "target": "condition:type_2_diabetes_mellitus",
-      "relation_id": "trial:nct05715307|investigates|condition:type_2_diabetes_mellitus",
-      "canonical_key": "trial:nct05715307|investigates|condition:type_2_diabetes_mellitus",
-      "relation_type": "investigates",
-      "confidence": 0.96,
-      "evidence": "Conditions: Type 2 Diabetes",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.96,
-          "evidence": "Conditions: Type 2 Diabetes",
-          "relation_id": "trial:nct05715307|investigates|condition:type_2_diabetes_mellitus|nct05715307_achieve_1"
-        }
-      ],
-      "evidence_tier": "medium_evidence",
-      "mention_evidence_tiers": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "tier": "medium_evidence"
-        }
-      ],
-      "epistemic_status": "asserted"
-    },
-    {
-      "source": "trial:nct05715307",
-      "target": "intervention:intensive_training_for_endocrinologists_in_t2dm_management",
-      "relation_id": "trial:nct05715307|tests|intervention:intensive_training_for_endocrinologists_in_t2dm_management",
-      "canonical_key": "trial:nct05715307|tests|intervention:intensive_training_for_endocrinologists_in_t2dm_management",
-      "relation_type": "tests",
-      "confidence": 0.95,
-      "evidence": "Interventions: Other: Intensive training for endocrinologists in T2DM management",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.95,
-          "evidence": "Interventions: Other: Intensive training for endocrinologists in T2DM management",
-          "relation_id": "trial:nct05715307|tests|intervention:intensive_training_for_endocrinologists_in_t2dm_management|nct05715307_achieve_1"
-        }
-      ],
-      "evidence_tier": "medium_evidence",
-      "mention_evidence_tiers": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "tier": "medium_evidence"
-        }
-      ],
-      "epistemic_status": "asserted"
-    },
-    {
-      "source": "trial:nct05715307",
-      "target": "intervention:regular_training_for_endocrinologists_in_t2dm_management",
-      "relation_id": "trial:nct05715307|tests|intervention:regular_training_for_endocrinologists_in_t2dm_management",
-      "canonical_key": "trial:nct05715307|tests|intervention:regular_training_for_endocrinologists_in_t2dm_management",
-      "relation_type": "tests",
-      "confidence": 0.85,
-      "evidence": "Interventions: Other: Regular training for endocrinologists in T2DM management",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.85,
-          "evidence": "Interventions: Other: Regular training for endocrinologists in T2DM management",
-          "relation_id": "trial:nct05715307|tests|intervention:regular_training_for_endocrinologists_in_t2dm_management|nct05715307_achieve_1"
-        }
-      ],
-      "evidence_tier": "medium_evidence",
-      "mention_evidence_tiers": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "tier": "medium_evidence"
-        }
-      ],
-      "epistemic_status": "asserted"
-    },
-    {
-      "source": "trial:nct05715307",
-      "target": "cohort:intensive_training_group",
-      "relation_id": "trial:nct05715307|enrolls|cohort:intensive_training_group",
-      "canonical_key": "trial:nct05715307|enrolls|cohort:intensive_training_group",
-      "relation_type": "enrolls",
-      "confidence": 0.92,
-      "evidence": "about 200 eligible endocrinologists from National Metabolic Management Centers (MMC) (one endocrinologist in each center) will be randomized (1:1) into two groups",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.92,
-          "evidence": "about 200 eligible endocrinologists from National Metabolic Management Centers (MMC) (one endocrinologist in each center) will be randomized (1:1) into two groups",
-          "relation_id": "trial:nct05715307|enrolls|cohort:intensive_training_group|nct05715307_achieve_1"
-        }
-      ],
-      "evidence_tier": "high_evidence",
-      "mention_evidence_tiers": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "tier": "high_evidence"
-        }
-      ],
-      "epistemic_status": "asserted"
-    },
-    {
-      "source": "trial:nct05715307",
-      "target": "cohort:control_group",
-      "relation_id": "trial:nct05715307|enrolls|cohort:control_group",
-      "canonical_key": "trial:nct05715307|enrolls|cohort:control_group",
-      "relation_type": "enrolls",
-      "confidence": 0.92,
-      "evidence": "about 200 eligible endocrinologists from National Metabolic Management Centers (MMC) (one endocrinologist in each center) will be randomized (1:1) into two groups",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.92,
-          "evidence": "about 200 eligible endocrinologists from National Metabolic Management Centers (MMC) (one endocrinologist in each center) will be randomized (1:1) into two groups",
-          "relation_id": "trial:nct05715307|enrolls|cohort:control_group|nct05715307_achieve_1"
-        }
-      ],
-      "evidence_tier": "high_evidence",
-      "mention_evidence_tiers": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "tier": "high_evidence"
-        }
-      ],
-      "epistemic_status": "asserted"
-    },
-    {
-      "source": "trial:nct05715307",
-      "target": "population:adults_aged_40_65_with_poorly_controlled_type_2_diabetes_on_1_2_non_insulin_hypoglycemic_drugs",
-      "relation_id": "trial:nct05715307|enrolls|population:adults_aged_40_65_with_poorly_controlled_type_2_diabetes_on_1_2_non_insulin_hypoglycemic_drugs",
-      "canonical_key": "trial:nct05715307|enrolls|population:adults_aged_40_65_with_poorly_controlled_type_2_diabetes_on_1_2_non_insulin_hypoglycemic_drugs",
-      "relation_type": "enrolls",
-      "confidence": 0.9,
-      "evidence": "Subjects with poorly controlled blood glucose only by 1-2 kinds of non-insulin hypoglycemic drugs for at least 2 months",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.9,
-          "evidence": "Subjects with poorly controlled blood glucose only by 1-2 kinds of non-insulin hypoglycemic drugs for at least 2 months",
-          "relation_id": "trial:nct05715307|enrolls|population:adults_aged_40_65_with_poorly_controlled_type_2_diabetes_on_1_2_non_insulin_hypoglycemic_drugs|nct05715307_achieve_1"
-        }
-      ],
-      "evidence_tier": "medium_evidence",
-      "mention_evidence_tiers": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "tier": "medium_evidence"
-        }
-      ],
-      "epistemic_status": "asserted"
-    },
-    {
-      "source": "trial:nct05715307",
-      "target": "outcome:hba1c_control_rate",
-      "relation_id": "trial:nct05715307|has_outcome|outcome:hba1c_control_rate",
-      "canonical_key": "trial:nct05715307|has_outcome|outcome:hba1c_control_rate",
-      "relation_type": "has_outcome",
-      "confidence": 0.97,
-      "evidence": "Glycated haemoglobin (HbA1c) control rate",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.97,
-          "evidence": "Glycated haemoglobin (HbA1c) control rate",
-          "relation_id": "trial:nct05715307|has_outcome|outcome:hba1c_control_rate|nct05715307_achieve_1"
-        }
-      ],
-      "evidence_tier": "medium_evidence",
-      "mention_evidence_tiers": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "tier": "medium_evidence"
-        }
-      ],
-      "epistemic_status": "asserted"
-    },
-    {
-      "source": "trial:nct05715307",
-      "target": "outcome:hba1c",
-      "relation_id": "trial:nct05715307|has_outcome|outcome:hba1c",
-      "canonical_key": "trial:nct05715307|has_outcome|outcome:hba1c",
-      "relation_type": "has_outcome",
-      "confidence": 0.94,
-      "evidence": "Glycated haemoglobin (HbA1c) (Time Frame: 6 and 12 months)",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.94,
-          "evidence": "Glycated haemoglobin (HbA1c) (Time Frame: 6 and 12 months)",
-          "relation_id": "trial:nct05715307|has_outcome|outcome:hba1c|nct05715307_achieve_1"
-        }
-      ],
-      "evidence_tier": "medium_evidence",
-      "mention_evidence_tiers": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "tier": "medium_evidence"
-        }
-      ],
-      "epistemic_status": "asserted"
-    },
-    {
-      "source": "trial:nct05715307",
-      "target": "outcome:systolic_and_diastolic_blood_pressure",
-      "relation_id": "trial:nct05715307|has_outcome|outcome:systolic_and_diastolic_blood_pressure",
-      "canonical_key": "trial:nct05715307|has_outcome|outcome:systolic_and_diastolic_blood_pressure",
-      "relation_type": "has_outcome",
-      "confidence": 0.94,
-      "evidence": "Systolic and diastolic blood pressure (Time Frame: 6 and 12 months)",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.94,
-          "evidence": "Systolic and diastolic blood pressure (Time Frame: 6 and 12 months)",
-          "relation_id": "trial:nct05715307|has_outcome|outcome:systolic_and_diastolic_blood_pressure|nct05715307_achieve_1"
-        }
-      ],
-      "evidence_tier": "medium_evidence",
-      "mention_evidence_tiers": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "tier": "medium_evidence"
-        }
-      ],
-      "epistemic_status": "asserted"
-    },
-    {
-      "source": "trial:nct05715307",
-      "target": "outcome:body_weight",
-      "relation_id": "trial:nct05715307|has_outcome|outcome:body_weight",
-      "canonical_key": "trial:nct05715307|has_outcome|outcome:body_weight",
-      "relation_type": "has_outcome",
-      "confidence": 0.94,
-      "evidence": "Body weight (Time Frame: 6 and 12 months)",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.94,
-          "evidence": "Body weight (Time Frame: 6 and 12 months)",
-          "relation_id": "trial:nct05715307|has_outcome|outcome:body_weight|nct05715307_achieve_1"
-        }
-      ],
-      "evidence_tier": "medium_evidence",
-      "mention_evidence_tiers": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "tier": "medium_evidence"
-        }
-      ],
-      "epistemic_status": "asserted"
-    },
-    {
-      "source": "trial:nct05715307",
-      "target": "outcome:waist_circumference",
-      "relation_id": "trial:nct05715307|has_outcome|outcome:waist_circumference",
-      "canonical_key": "trial:nct05715307|has_outcome|outcome:waist_circumference",
-      "relation_type": "has_outcome",
-      "confidence": 0.94,
-      "evidence": "Waist circumference (Time Frame: 6 and 12 months)",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.94,
-          "evidence": "Waist circumference (Time Frame: 6 and 12 months)",
-          "relation_id": "trial:nct05715307|has_outcome|outcome:waist_circumference|nct05715307_achieve_1"
-        }
-      ],
-      "evidence_tier": "medium_evidence",
-      "mention_evidence_tiers": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "tier": "medium_evidence"
-        }
-      ],
-      "epistemic_status": "asserted"
-    },
-    {
-      "source": "trial:nct05715307",
-      "target": "outcome:hip_circumference",
-      "relation_id": "trial:nct05715307|has_outcome|outcome:hip_circumference",
-      "canonical_key": "trial:nct05715307|has_outcome|outcome:hip_circumference",
-      "relation_type": "has_outcome",
-      "confidence": 0.94,
-      "evidence": "Hip circumference (Time Frame: 6 and 12 months)",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.94,
-          "evidence": "Hip circumference (Time Frame: 6 and 12 months)",
-          "relation_id": "trial:nct05715307|has_outcome|outcome:hip_circumference|nct05715307_achieve_1"
-        }
-      ],
-      "evidence_tier": "medium_evidence",
-      "mention_evidence_tiers": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "tier": "medium_evidence"
-        }
-      ],
-      "epistemic_status": "asserted"
-    },
-    {
-      "source": "trial:nct05715307",
-      "target": "outcome:fasting_blood_glucose",
-      "relation_id": "trial:nct05715307|has_outcome|outcome:fasting_blood_glucose",
-      "canonical_key": "trial:nct05715307|has_outcome|outcome:fasting_blood_glucose",
-      "relation_type": "has_outcome",
-      "confidence": 0.94,
-      "evidence": "Fasting blood glucose levels (Time Frame: 6 and 12 months)",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.94,
-          "evidence": "Fasting blood glucose levels (Time Frame: 6 and 12 months)",
-          "relation_id": "trial:nct05715307|has_outcome|outcome:fasting_blood_glucose|nct05715307_achieve_1"
-        }
-      ],
-      "evidence_tier": "medium_evidence",
-      "mention_evidence_tiers": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "tier": "medium_evidence"
-        }
-      ],
-      "epistemic_status": "asserted"
-    },
-    {
-      "source": "trial:nct05715307",
-      "target": "outcome:2_hour_post_prandial_blood_glucose",
-      "relation_id": "trial:nct05715307|has_outcome|outcome:2_hour_post_prandial_blood_glucose",
-      "canonical_key": "trial:nct05715307|has_outcome|outcome:2_hour_post_prandial_blood_glucose",
-      "relation_type": "has_outcome",
-      "confidence": 0.94,
-      "evidence": "2-hour post-prandial blood glucose levels (Time Frame: 6 and 12 months)",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.94,
-          "evidence": "2-hour post-prandial blood glucose levels (Time Frame: 6 and 12 months)",
-          "relation_id": "trial:nct05715307|has_outcome|outcome:2_hour_post_prandial_blood_glucose|nct05715307_achieve_1"
-        }
-      ],
-      "evidence_tier": "medium_evidence",
-      "mention_evidence_tiers": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "tier": "medium_evidence"
-        }
-      ],
-      "epistemic_status": "asserted"
-    },
-    {
-      "source": "trial:nct05715307",
-      "target": "outcome:fasting_serum_insulin",
-      "relation_id": "trial:nct05715307|has_outcome|outcome:fasting_serum_insulin",
-      "canonical_key": "trial:nct05715307|has_outcome|outcome:fasting_serum_insulin",
-      "relation_type": "has_outcome",
-      "confidence": 0.94,
-      "evidence": "Fasting serum insulin levels (Time Frame: 6 and 12 months)",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.94,
-          "evidence": "Fasting serum insulin levels (Time Frame: 6 and 12 months)",
-          "relation_id": "trial:nct05715307|has_outcome|outcome:fasting_serum_insulin|nct05715307_achieve_1"
-        }
-      ],
-      "evidence_tier": "medium_evidence",
-      "mention_evidence_tiers": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "tier": "medium_evidence"
-        }
-      ],
-      "epistemic_status": "asserted"
-    },
-    {
-      "source": "trial:nct05715307",
-      "target": "outcome:2_hour_post_prandial_serum_insulin",
-      "relation_id": "trial:nct05715307|has_outcome|outcome:2_hour_post_prandial_serum_insulin",
-      "canonical_key": "trial:nct05715307|has_outcome|outcome:2_hour_post_prandial_serum_insulin",
-      "relation_type": "has_outcome",
-      "confidence": 0.94,
-      "evidence": "2-hour post-prandial serum insulin levels (Time Frame: 6 and 12 months)",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.94,
-          "evidence": "2-hour post-prandial serum insulin levels (Time Frame: 6 and 12 months)",
-          "relation_id": "trial:nct05715307|has_outcome|outcome:2_hour_post_prandial_serum_insulin|nct05715307_achieve_1"
-        }
-      ],
-      "evidence_tier": "medium_evidence",
-      "mention_evidence_tiers": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "tier": "medium_evidence"
-        }
-      ],
-      "epistemic_status": "asserted"
-    },
-    {
-      "source": "trial:nct05715307",
-      "target": "outcome:serum_triglycerides",
-      "relation_id": "trial:nct05715307|has_outcome|outcome:serum_triglycerides",
-      "canonical_key": "trial:nct05715307|has_outcome|outcome:serum_triglycerides",
-      "relation_type": "has_outcome",
-      "confidence": 0.94,
-      "evidence": "Serum triglycerides (Time Frame: 6 and 12 months)",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.94,
-          "evidence": "Serum triglycerides (Time Frame: 6 and 12 months)",
-          "relation_id": "trial:nct05715307|has_outcome|outcome:serum_triglycerides|nct05715307_achieve_1"
-        }
-      ],
-      "evidence_tier": "medium_evidence",
-      "mention_evidence_tiers": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "tier": "medium_evidence"
-        }
-      ],
-      "epistemic_status": "asserted"
-    },
-    {
-      "source": "trial:nct05715307",
-      "target": "outcome:patient_quality_of_life",
-      "relation_id": "trial:nct05715307|has_outcome|outcome:patient_quality_of_life",
-      "canonical_key": "trial:nct05715307|has_outcome|outcome:patient_quality_of_life",
-      "relation_type": "has_outcome",
-      "confidence": 0.75,
-      "evidence": "the change of patients' quality of life and endocrinologists' prescribing habits will be evaluated",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.75,
-          "evidence": "the change of patients' quality of life and endocrinologists' prescribing habits will be evaluated",
-          "relation_id": "trial:nct05715307|has_outcome|outcome:patient_quality_of_life|nct05715307_achieve_1"
-        }
-      ],
-      "evidence_tier": "medium_evidence",
-      "mention_evidence_tiers": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "tier": "medium_evidence"
-        }
-      ],
-      "epistemic_status": "asserted"
-    },
-    {
-      "source": "trial:nct05715307",
-      "target": "outcome:endocrinologists_prescribing_habits",
-      "relation_id": "trial:nct05715307|has_outcome|outcome:endocrinologists_prescribing_habits",
-      "canonical_key": "trial:nct05715307|has_outcome|outcome:endocrinologists_prescribing_habits",
-      "relation_type": "has_outcome",
-      "confidence": 0.75,
-      "evidence": "the change of patients' quality of life and endocrinologists' prescribing habits will be evaluated",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.75,
-          "evidence": "the change of patients' quality of life and endocrinologists' prescribing habits will be evaluated",
-          "relation_id": "trial:nct05715307|has_outcome|outcome:endocrinologists_prescribing_habits|nct05715307_achieve_1"
-        }
-      ],
-      "evidence_tier": "medium_evidence",
-      "mention_evidence_tiers": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "tier": "medium_evidence"
-        }
-      ],
-      "epistemic_status": "asserted"
-    },
-    {
-      "source": "trial:nct05715307",
-      "target": "biomarker:hba1c_screening",
-      "relation_id": "trial:nct05715307|uses_biomarker|biomarker:hba1c_screening",
-      "canonical_key": "trial:nct05715307|uses_biomarker|biomarker:hba1c_screening",
-      "relation_type": "uses_biomarker",
-      "confidence": 0.86,
-      "evidence": "Subjects with screening HbA1c \u2265 7.5% and \u2264 10.0%",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.86,
-          "evidence": "Subjects with screening HbA1c \u2265 7.5% and \u2264 10.0%",
-          "relation_id": "trial:nct05715307|uses_biomarker|biomarker:hba1c_screening|nct05715307_achieve_1"
-        }
-      ],
-      "evidence_tier": "medium_evidence",
-      "mention_evidence_tiers": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "tier": "medium_evidence"
-        }
-      ],
-      "epistemic_status": "asserted"
-    },
-    {
-      "source": "trial:nct05715307",
-      "target": "biomarker:fasting_blood_glucose_screening",
-      "relation_id": "trial:nct05715307|uses_biomarker|biomarker:fasting_blood_glucose_screening",
-      "canonical_key": "trial:nct05715307|uses_biomarker|biomarker:fasting_blood_glucose_screening",
-      "relation_type": "uses_biomarker",
-      "confidence": 0.85,
-      "evidence": "the fasting blood glucose \u2265 8.0 mmol/l and \\< 13.3 mmol/l",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.85,
-          "evidence": "the fasting blood glucose \u2265 8.0 mmol/l and \\< 13.3 mmol/l",
-          "relation_id": "trial:nct05715307|uses_biomarker|biomarker:fasting_blood_glucose_screening|nct05715307_achieve_1"
-        }
-      ],
-      "evidence_tier": "medium_evidence",
-      "mention_evidence_tiers": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "tier": "medium_evidence"
-        }
-      ],
-      "epistemic_status": "asserted"
-    },
-    {
-      "source": "trial:nct05715307",
-      "target": "biomarker:bmi",
-      "relation_id": "trial:nct05715307|uses_biomarker|biomarker:bmi",
-      "canonical_key": "trial:nct05715307|uses_biomarker|biomarker:bmi",
-      "relation_type": "uses_biomarker",
-      "confidence": 0.82,
-      "evidence": "24.0 \\< BMI \u2264 35.0 kg/m2",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.82,
-          "evidence": "24.0 \\< BMI \u2264 35.0 kg/m2",
-          "relation_id": "trial:nct05715307|uses_biomarker|biomarker:bmi|nct05715307_achieve_1"
-        }
-      ],
-      "evidence_tier": "medium_evidence",
-      "mention_evidence_tiers": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "tier": "medium_evidence"
-        }
-      ],
-      "epistemic_status": "asserted"
-    },
-    {
-      "source": "trial:nct05715307",
-      "target": "biomarker:egfr",
-      "relation_id": "trial:nct05715307|uses_biomarker|biomarker:egfr",
-      "canonical_key": "trial:nct05715307|uses_biomarker|biomarker:egfr",
-      "relation_type": "uses_biomarker",
-      "confidence": 0.7,
-      "evidence": "severe liver and kidney dysfunction (eGFR\\<60mL/min/1.73m2)",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.7,
-          "evidence": "severe liver and kidney dysfunction (eGFR\\<60mL/min/1.73m2)",
-          "relation_id": "trial:nct05715307|uses_biomarker|biomarker:egfr|nct05715307_achieve_1"
-        }
-      ],
-      "evidence_tier": "medium_evidence",
-      "mention_evidence_tiers": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "tier": "medium_evidence"
-        }
-      ],
-      "epistemic_status": "asserted"
-    },
-    {
-      "source": "sponsor:shanghai_jiao_tong_university_school_of_medicine",
-      "target": "doc:nct05715307_achieve_1",
-      "relation_id": "sponsor:shanghai_jiao_tong_university_school_of_medicine|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "canonical_key": "sponsor:shanghai_jiao_tong_university_school_of_medicine|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "relation_type": "MENTIONED_IN",
-      "confidence": 0.97,
-      "evidence": "",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.97,
-          "evidence": "",
-          "relation_id": "sponsor:shanghai_jiao_tong_university_school_of_medicine|MENTIONED_IN|doc:nct05715307_achieve_1"
-        }
-      ]
-    },
-    {
-      "source": "intervention:intensive_training_for_endocrinologists_in_t2dm_management",
-      "target": "doc:nct05715307_achieve_1",
-      "relation_id": "intervention:intensive_training_for_endocrinologists_in_t2dm_management|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "canonical_key": "intervention:intensive_training_for_endocrinologists_in_t2dm_management|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "relation_type": "MENTIONED_IN",
-      "confidence": 0.95,
-      "evidence": "",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.95,
-          "evidence": "",
-          "relation_id": "intervention:intensive_training_for_endocrinologists_in_t2dm_management|MENTIONED_IN|doc:nct05715307_achieve_1"
-        }
-      ]
-    },
-    {
-      "source": "intervention:intensive_training_for_endocrinologists_in_t2dm_management",
-      "target": "condition:type_2_diabetes_mellitus",
-      "relation_id": "intervention:intensive_training_for_endocrinologists_in_t2dm_management|evaluated_for|condition:type_2_diabetes_mellitus",
-      "canonical_key": "intervention:intensive_training_for_endocrinologists_in_t2dm_management|evaluated_for|condition:type_2_diabetes_mellitus",
-      "relation_type": "evaluated_for",
-      "confidence": 0.88,
-      "evidence": "to evaluate the improvement for T2DM treatment ability in Chinese endocrinologists after 1-week intensive experiential diabetes management training in Ruijin Hospital",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.88,
-          "evidence": "to evaluate the improvement for T2DM treatment ability in Chinese endocrinologists after 1-week intensive experiential diabetes management training in Ruijin Hospital",
-          "relation_id": "intervention:intensive_training_for_endocrinologists_in_t2dm_management|evaluated_for|condition:type_2_diabetes_mellitus|nct05715307_achieve_1"
-        }
-      ],
-      "evidence_tier": "medium_evidence",
-      "mention_evidence_tiers": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "tier": "medium_evidence"
-        }
-      ],
-      "epistemic_status": "asserted"
-    },
-    {
-      "source": "intervention:intensive_training_for_endocrinologists_in_t2dm_management",
-      "target": "intervention:regular_training_for_endocrinologists_in_t2dm_management",
-      "relation_id": "intervention:intensive_training_for_endocrinologists_in_t2dm_management|compared_with|intervention:regular_training_for_endocrinologists_in_t2dm_management",
-      "canonical_key": "intervention:intensive_training_for_endocrinologists_in_t2dm_management|compared_with|intervention:regular_training_for_endocrinologists_in_t2dm_management",
-      "relation_type": "compared_with",
-      "confidence": 0.95,
-      "evidence": "Intensive training group will receive a 1-week intensive experiential training in the MMC leading center (Ruijin Hospital) for T2DM management, and control group will receive regular MMC working training.",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.95,
-          "evidence": "Intensive training group will receive a 1-week intensive experiential training in the MMC leading center (Ruijin Hospital) for T2DM management, and control group will receive regular MMC working training.",
-          "relation_id": "intervention:intensive_training_for_endocrinologists_in_t2dm_management|compared_with|intervention:regular_training_for_endocrinologists_in_t2dm_management|nct05715307_achieve_1"
-        }
-      ],
-      "evidence_tier": "medium_evidence",
-      "mention_evidence_tiers": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "tier": "medium_evidence"
-        }
-      ],
-      "epistemic_status": "asserted"
-    },
-    {
-      "source": "intervention:regular_training_for_endocrinologists_in_t2dm_management",
-      "target": "doc:nct05715307_achieve_1",
-      "relation_id": "intervention:regular_training_for_endocrinologists_in_t2dm_management|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "canonical_key": "intervention:regular_training_for_endocrinologists_in_t2dm_management|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "relation_type": "MENTIONED_IN",
-      "confidence": 0.95,
-      "evidence": "",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.95,
-          "evidence": "",
-          "relation_id": "intervention:regular_training_for_endocrinologists_in_t2dm_management|MENTIONED_IN|doc:nct05715307_achieve_1"
-        }
-      ]
-    },
-    {
-      "source": "intervention:regular_training_for_endocrinologists_in_t2dm_management",
-      "target": "condition:type_2_diabetes_mellitus",
-      "relation_id": "intervention:regular_training_for_endocrinologists_in_t2dm_management|evaluated_for|condition:type_2_diabetes_mellitus",
-      "canonical_key": "intervention:regular_training_for_endocrinologists_in_t2dm_management|evaluated_for|condition:type_2_diabetes_mellitus",
-      "relation_type": "evaluated_for",
-      "confidence": 0.72,
-      "evidence": "Endocrinologists will receive regular training from MMC under the guidance of T2DM management.",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.72,
-          "evidence": "Endocrinologists will receive regular training from MMC under the guidance of T2DM management.",
-          "relation_id": "intervention:regular_training_for_endocrinologists_in_t2dm_management|evaluated_for|condition:type_2_diabetes_mellitus|nct05715307_achieve_1"
-        }
-      ],
-      "evidence_tier": "medium_evidence",
-      "mention_evidence_tiers": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "tier": "medium_evidence"
-        }
-      ],
-      "epistemic_status": "asserted"
-    },
-    {
-      "source": "cohort:intensive_training_group",
-      "target": "doc:nct05715307_achieve_1",
-      "relation_id": "cohort:intensive_training_group|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "canonical_key": "cohort:intensive_training_group|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "relation_type": "MENTIONED_IN",
-      "confidence": 0.95,
-      "evidence": "",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.95,
-          "evidence": "",
-          "relation_id": "cohort:intensive_training_group|MENTIONED_IN|doc:nct05715307_achieve_1"
-        }
-      ]
-    },
-    {
-      "source": "cohort:control_group",
-      "target": "doc:nct05715307_achieve_1",
-      "relation_id": "cohort:control_group|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "canonical_key": "cohort:control_group|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "relation_type": "MENTIONED_IN",
-      "confidence": 0.95,
-      "evidence": "",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.95,
-          "evidence": "",
-          "relation_id": "cohort:control_group|MENTIONED_IN|doc:nct05715307_achieve_1"
-        }
-      ]
-    },
-    {
-      "source": "population:adults_aged_40_65_with_poorly_controlled_type_2_diabetes_on_1_2_non_insulin_hypoglycemic_drugs",
-      "target": "doc:nct05715307_achieve_1",
-      "relation_id": "population:adults_aged_40_65_with_poorly_controlled_type_2_diabetes_on_1_2_non_insulin_hypoglycemic_drugs|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "canonical_key": "population:adults_aged_40_65_with_poorly_controlled_type_2_diabetes_on_1_2_non_insulin_hypoglycemic_drugs|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "relation_type": "MENTIONED_IN",
-      "confidence": 0.9,
-      "evidence": "",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.9,
-          "evidence": "",
-          "relation_id": "population:adults_aged_40_65_with_poorly_controlled_type_2_diabetes_on_1_2_non_insulin_hypoglycemic_drugs|MENTIONED_IN|doc:nct05715307_achieve_1"
-        }
-      ]
-    },
-    {
-      "source": "outcome:hba1c_control_rate",
-      "target": "doc:nct05715307_achieve_1",
-      "relation_id": "outcome:hba1c_control_rate|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "canonical_key": "outcome:hba1c_control_rate|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "relation_type": "MENTIONED_IN",
-      "confidence": 0.97,
-      "evidence": "",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.97,
-          "evidence": "",
-          "relation_id": "outcome:hba1c_control_rate|MENTIONED_IN|doc:nct05715307_achieve_1"
-        }
-      ]
-    },
-    {
-      "source": "outcome:hba1c",
-      "target": "doc:nct05715307_achieve_1",
-      "relation_id": "outcome:hba1c|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "canonical_key": "outcome:hba1c|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "relation_type": "MENTIONED_IN",
-      "confidence": 0.95,
-      "evidence": "",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.95,
-          "evidence": "",
-          "relation_id": "outcome:hba1c|MENTIONED_IN|doc:nct05715307_achieve_1"
-        }
-      ]
-    },
-    {
-      "source": "outcome:systolic_and_diastolic_blood_pressure",
-      "target": "doc:nct05715307_achieve_1",
-      "relation_id": "outcome:systolic_and_diastolic_blood_pressure|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "canonical_key": "outcome:systolic_and_diastolic_blood_pressure|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "relation_type": "MENTIONED_IN",
-      "confidence": 0.95,
-      "evidence": "",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.95,
-          "evidence": "",
-          "relation_id": "outcome:systolic_and_diastolic_blood_pressure|MENTIONED_IN|doc:nct05715307_achieve_1"
-        }
-      ]
-    },
-    {
-      "source": "outcome:body_weight",
-      "target": "doc:nct05715307_achieve_1",
-      "relation_id": "outcome:body_weight|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "canonical_key": "outcome:body_weight|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "relation_type": "MENTIONED_IN",
-      "confidence": 0.95,
-      "evidence": "",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.95,
-          "evidence": "",
-          "relation_id": "outcome:body_weight|MENTIONED_IN|doc:nct05715307_achieve_1"
-        }
-      ]
-    },
-    {
-      "source": "outcome:waist_circumference",
-      "target": "doc:nct05715307_achieve_1",
-      "relation_id": "outcome:waist_circumference|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "canonical_key": "outcome:waist_circumference|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "relation_type": "MENTIONED_IN",
-      "confidence": 0.95,
-      "evidence": "",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.95,
-          "evidence": "",
-          "relation_id": "outcome:waist_circumference|MENTIONED_IN|doc:nct05715307_achieve_1"
-        }
-      ]
-    },
-    {
-      "source": "outcome:hip_circumference",
-      "target": "doc:nct05715307_achieve_1",
-      "relation_id": "outcome:hip_circumference|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "canonical_key": "outcome:hip_circumference|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "relation_type": "MENTIONED_IN",
-      "confidence": 0.95,
-      "evidence": "",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.95,
-          "evidence": "",
-          "relation_id": "outcome:hip_circumference|MENTIONED_IN|doc:nct05715307_achieve_1"
-        }
-      ]
-    },
-    {
-      "source": "outcome:fasting_blood_glucose",
-      "target": "doc:nct05715307_achieve_1",
-      "relation_id": "outcome:fasting_blood_glucose|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "canonical_key": "outcome:fasting_blood_glucose|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "relation_type": "MENTIONED_IN",
-      "confidence": 0.95,
-      "evidence": "",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.95,
-          "evidence": "",
-          "relation_id": "outcome:fasting_blood_glucose|MENTIONED_IN|doc:nct05715307_achieve_1"
-        }
-      ]
-    },
-    {
-      "source": "outcome:2_hour_post_prandial_blood_glucose",
-      "target": "doc:nct05715307_achieve_1",
-      "relation_id": "outcome:2_hour_post_prandial_blood_glucose|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "canonical_key": "outcome:2_hour_post_prandial_blood_glucose|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "relation_type": "MENTIONED_IN",
-      "confidence": 0.95,
-      "evidence": "",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.95,
-          "evidence": "",
-          "relation_id": "outcome:2_hour_post_prandial_blood_glucose|MENTIONED_IN|doc:nct05715307_achieve_1"
-        }
-      ]
-    },
-    {
-      "source": "outcome:fasting_serum_insulin",
-      "target": "doc:nct05715307_achieve_1",
-      "relation_id": "outcome:fasting_serum_insulin|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "canonical_key": "outcome:fasting_serum_insulin|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "relation_type": "MENTIONED_IN",
-      "confidence": 0.95,
-      "evidence": "",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.95,
-          "evidence": "",
-          "relation_id": "outcome:fasting_serum_insulin|MENTIONED_IN|doc:nct05715307_achieve_1"
-        }
-      ]
-    },
-    {
-      "source": "outcome:2_hour_post_prandial_serum_insulin",
-      "target": "doc:nct05715307_achieve_1",
-      "relation_id": "outcome:2_hour_post_prandial_serum_insulin|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "canonical_key": "outcome:2_hour_post_prandial_serum_insulin|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "relation_type": "MENTIONED_IN",
-      "confidence": 0.95,
-      "evidence": "",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.95,
-          "evidence": "",
-          "relation_id": "outcome:2_hour_post_prandial_serum_insulin|MENTIONED_IN|doc:nct05715307_achieve_1"
-        }
-      ]
-    },
-    {
-      "source": "outcome:serum_triglycerides",
-      "target": "doc:nct05715307_achieve_1",
-      "relation_id": "outcome:serum_triglycerides|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "canonical_key": "outcome:serum_triglycerides|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "relation_type": "MENTIONED_IN",
-      "confidence": 0.95,
-      "evidence": "",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.95,
-          "evidence": "",
-          "relation_id": "outcome:serum_triglycerides|MENTIONED_IN|doc:nct05715307_achieve_1"
-        }
-      ]
-    },
-    {
-      "source": "outcome:patient_quality_of_life",
-      "target": "doc:nct05715307_achieve_1",
-      "relation_id": "outcome:patient_quality_of_life|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "canonical_key": "outcome:patient_quality_of_life|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "relation_type": "MENTIONED_IN",
-      "confidence": 0.78,
-      "evidence": "",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.78,
-          "evidence": "",
-          "relation_id": "outcome:patient_quality_of_life|MENTIONED_IN|doc:nct05715307_achieve_1"
-        }
-      ]
-    },
-    {
-      "source": "outcome:endocrinologists_prescribing_habits",
-      "target": "doc:nct05715307_achieve_1",
-      "relation_id": "outcome:endocrinologists_prescribing_habits|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "canonical_key": "outcome:endocrinologists_prescribing_habits|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "relation_type": "MENTIONED_IN",
-      "confidence": 0.78,
-      "evidence": "",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.78,
-          "evidence": "",
-          "relation_id": "outcome:endocrinologists_prescribing_habits|MENTIONED_IN|doc:nct05715307_achieve_1"
-        }
-      ]
-    },
-    {
-      "source": "biomarker:hba1c_screening",
-      "target": "doc:nct05715307_achieve_1",
-      "relation_id": "biomarker:hba1c_screening|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "canonical_key": "biomarker:hba1c_screening|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "relation_type": "MENTIONED_IN",
-      "confidence": 0.88,
-      "evidence": "",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.88,
-          "evidence": "",
-          "relation_id": "biomarker:hba1c_screening|MENTIONED_IN|doc:nct05715307_achieve_1"
-        }
-      ]
-    },
-    {
-      "source": "biomarker:fasting_blood_glucose_screening",
-      "target": "doc:nct05715307_achieve_1",
-      "relation_id": "biomarker:fasting_blood_glucose_screening|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "canonical_key": "biomarker:fasting_blood_glucose_screening|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "relation_type": "MENTIONED_IN",
-      "confidence": 0.85,
-      "evidence": "",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.85,
-          "evidence": "",
-          "relation_id": "biomarker:fasting_blood_glucose_screening|MENTIONED_IN|doc:nct05715307_achieve_1"
-        }
-      ]
-    },
-    {
-      "source": "biomarker:bmi",
-      "target": "doc:nct05715307_achieve_1",
-      "relation_id": "biomarker:bmi|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "canonical_key": "biomarker:bmi|MENTIONED_IN|doc:nct05715307_achieve_1",
-      "relation_type": "MENTIONED_IN",
-      "confidence": 0.82,
-      "evidence": "",
-      "source_document": "nct05715307_achieve_1",
-      "support_count": 1,
-      "support_documents": [
-        "nct05715307_achieve_1"
-      ],
-      "support_doc_count": 1,
-      "mentions": [
-        {
-          "source_document": "nct05715307_achieve_1",
-          "confidence": 0.82,
-          "evidence": "",
-          "relation_id": "biomarker:bmi|MENTIONED_IN|doc:nct05715307_achieve_1"
         }
       ]
     },
@@ -17748,6 +16423,1156 @@
           "confidence": 0.95,
           "evidence": "",
           "relation_id": "outcome:percent_change_from_baseline_in_body_weight_comparing_15_mg_tirzepatide_and_2_4_mg_semaglutide|MENTIONED_IN|doc:nct05822830_surmount_5"
+        }
+      ]
+    },
+    {
+      "source": "trial:nct05971940",
+      "target": "doc:nct05971940_achieve_1",
+      "relation_id": "trial:nct05971940|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "canonical_key": "trial:nct05971940|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.99,
+      "evidence": "",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.99,
+          "evidence": "",
+          "relation_id": "trial:nct05971940|MENTIONED_IN|doc:nct05971940_achieve_1"
+        }
+      ]
+    },
+    {
+      "source": "trial:nct05971940",
+      "target": "intervention:orforglipron_3_mg_qd_oral",
+      "relation_id": "trial:nct05971940|tests|intervention:orforglipron_3_mg_qd_oral",
+      "canonical_key": "trial:nct05971940|tests|intervention:orforglipron_3_mg_qd_oral",
+      "relation_type": "tests",
+      "confidence": 0.999875,
+      "evidence": "- 3 mg Orforglipron (EXPERIMENTAL)",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 3,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.95,
+          "evidence": "- 3 mg Orforglipron (EXPERIMENTAL)",
+          "relation_id": "trial:nct05971940|tests|intervention:orforglipron_3_mg_qd_oral|nct05971940_achieve_1"
+        },
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.95,
+          "evidence": "- 12 mg Orforglipron (EXPERIMENTAL)",
+          "relation_id": "trial:nct05971940|tests|intervention:orforglipron_3_mg_qd_oral|nct05971940_achieve_1"
+        },
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.95,
+          "evidence": "- 36 mg Orforglipron (EXPERIMENTAL)",
+          "relation_id": "trial:nct05971940|tests|intervention:orforglipron_3_mg_qd_oral|nct05971940_achieve_1"
+        }
+      ],
+      "evidence_tier": "high_evidence",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct05971940_achieve_1",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct05971940_achieve_1",
+          "tier": "high_evidence"
+        }
+      ],
+      "epistemic_status": "asserted"
+    },
+    {
+      "source": "trial:nct05971940",
+      "target": "cohort:3_mg_orforglipron",
+      "relation_id": "trial:nct05971940|enrolls|cohort:3_mg_orforglipron",
+      "canonical_key": "trial:nct05971940|enrolls|cohort:3_mg_orforglipron",
+      "relation_type": "enrolls",
+      "confidence": 0.998272,
+      "evidence": "Participants received orforglipron capsules administered orally QD, starting at 1 milligram (mg) and increasing by 1 mg every 4 weeks until reaching a targeted dose of 3 mg, which was then maintained up to week 40.",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 3,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.88,
+          "evidence": "Participants received orforglipron capsules administered orally QD, starting at 1 milligram (mg) and increasing by 1 mg every 4 weeks until reaching a targeted dose of 3 mg, which was then maintained up to week 40.",
+          "relation_id": "trial:nct05971940|enrolls|cohort:3_mg_orforglipron|nct05971940_achieve_1"
+        },
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.88,
+          "evidence": "Participants received orforglipron capsules administered orally QD, starting at 1 mg and increasing every 4 weeks until reaching a targeted dose of 12 mg, which was then maintained up to week 40.",
+          "relation_id": "trial:nct05971940|enrolls|cohort:3_mg_orforglipron|nct05971940_achieve_1"
+        },
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.88,
+          "evidence": "Participants received orforglipron capsules administered orally QD, starting at 1 mg and increasing every 4 weeks until reaching a targeted dose of 36 mg, which was then maintained up to week 40.",
+          "relation_id": "trial:nct05971940|enrolls|cohort:3_mg_orforglipron|nct05971940_achieve_1"
+        }
+      ],
+      "evidence_tier": "high_evidence",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct05971940_achieve_1",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct05971940_achieve_1",
+          "tier": "high_evidence"
+        }
+      ],
+      "epistemic_status": "asserted"
+    },
+    {
+      "source": "trial:nct05971940",
+      "target": "outcome:change_from_baseline_in_hba1c",
+      "relation_id": "trial:nct05971940|has_outcome|outcome:change_from_baseline_in_hba1c",
+      "canonical_key": "trial:nct05971940|has_outcome|outcome:change_from_baseline_in_hba1c",
+      "relation_type": "has_outcome",
+      "confidence": 0.97,
+      "evidence": "=== PRIMARY OUTCOMES ===\n- Change From Baseline in HbA1c",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.97,
+          "evidence": "=== PRIMARY OUTCOMES ===\n- Change From Baseline in HbA1c",
+          "relation_id": "trial:nct05971940|has_outcome|outcome:change_from_baseline_in_hba1c|nct05971940_achieve_1"
+        }
+      ],
+      "evidence_tier": "high_evidence",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "tier": "high_evidence"
+        }
+      ],
+      "epistemic_status": "asserted"
+    },
+    {
+      "source": "trial:nct05971940",
+      "target": "outcome:percentage_of_participants_with_an_hba1c_target_value_of_7_0_53_mmol_mol",
+      "relation_id": "trial:nct05971940|has_outcome|outcome:percentage_of_participants_with_an_hba1c_target_value_of_7_0_53_mmol_mol",
+      "canonical_key": "trial:nct05971940|has_outcome|outcome:percentage_of_participants_with_an_hba1c_target_value_of_7_0_53_mmol_mol",
+      "relation_type": "has_outcome",
+      "confidence": 0.93,
+      "evidence": "- Percentage of Participants With an HbA1c Target Value of < 7.0% (53 mmol/Mol) (Time Frame: Week 40)",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.93,
+          "evidence": "- Percentage of Participants With an HbA1c Target Value of < 7.0% (53 mmol/Mol) (Time Frame: Week 40)",
+          "relation_id": "trial:nct05971940|has_outcome|outcome:percentage_of_participants_with_an_hba1c_target_value_of_7_0_53_mmol_mol|nct05971940_achieve_1"
+        }
+      ],
+      "evidence_tier": "high_evidence",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "tier": "high_evidence"
+        }
+      ],
+      "epistemic_status": "asserted"
+    },
+    {
+      "source": "trial:nct05971940",
+      "target": "outcome:percentage_of_participants_with_an_hba1c_target_value_of_6_5_48_mmol_mol",
+      "relation_id": "trial:nct05971940|has_outcome|outcome:percentage_of_participants_with_an_hba1c_target_value_of_6_5_48_mmol_mol",
+      "canonical_key": "trial:nct05971940|has_outcome|outcome:percentage_of_participants_with_an_hba1c_target_value_of_6_5_48_mmol_mol",
+      "relation_type": "has_outcome",
+      "confidence": 0.93,
+      "evidence": "- Percentage of Participants With an HbA1c Target Value of \u22646.5% (48 mmol/Mol) (Time Frame: Week 40)",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.93,
+          "evidence": "- Percentage of Participants With an HbA1c Target Value of \u22646.5% (48 mmol/Mol) (Time Frame: Week 40)",
+          "relation_id": "trial:nct05971940|has_outcome|outcome:percentage_of_participants_with_an_hba1c_target_value_of_6_5_48_mmol_mol|nct05971940_achieve_1"
+        }
+      ],
+      "evidence_tier": "high_evidence",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "tier": "high_evidence"
+        }
+      ],
+      "epistemic_status": "asserted"
+    },
+    {
+      "source": "trial:nct05971940",
+      "target": "outcome:change_from_baseline_in_fasting_serum_glucose_fsg",
+      "relation_id": "trial:nct05971940|has_outcome|outcome:change_from_baseline_in_fasting_serum_glucose_fsg",
+      "canonical_key": "trial:nct05971940|has_outcome|outcome:change_from_baseline_in_fasting_serum_glucose_fsg",
+      "relation_type": "has_outcome",
+      "confidence": 0.93,
+      "evidence": "- Change From Baseline in Fasting Serum Glucose (FSG) (Time Frame: Baseline, Week 40)",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.93,
+          "evidence": "- Change From Baseline in Fasting Serum Glucose (FSG) (Time Frame: Baseline, Week 40)",
+          "relation_id": "trial:nct05971940|has_outcome|outcome:change_from_baseline_in_fasting_serum_glucose_fsg|nct05971940_achieve_1"
+        }
+      ],
+      "evidence_tier": "high_evidence",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "tier": "high_evidence"
+        }
+      ],
+      "epistemic_status": "asserted"
+    },
+    {
+      "source": "trial:nct05971940",
+      "target": "outcome:percent_change_from_baseline_in_body_weight",
+      "relation_id": "trial:nct05971940|has_outcome|outcome:percent_change_from_baseline_in_body_weight",
+      "canonical_key": "trial:nct05971940|has_outcome|outcome:percent_change_from_baseline_in_body_weight",
+      "relation_type": "has_outcome",
+      "confidence": 0.93,
+      "evidence": "- Percent Change From Baseline in Body Weight (Time Frame: Baseline, Week 40)",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.93,
+          "evidence": "- Percent Change From Baseline in Body Weight (Time Frame: Baseline, Week 40)",
+          "relation_id": "trial:nct05971940|has_outcome|outcome:percent_change_from_baseline_in_body_weight|nct05971940_achieve_1"
+        }
+      ],
+      "evidence_tier": "high_evidence",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "tier": "high_evidence"
+        }
+      ],
+      "epistemic_status": "asserted"
+    },
+    {
+      "source": "trial:nct05971940",
+      "target": "outcome:change_from_baseline_in_body_weight",
+      "relation_id": "trial:nct05971940|has_outcome|outcome:change_from_baseline_in_body_weight",
+      "canonical_key": "trial:nct05971940|has_outcome|outcome:change_from_baseline_in_body_weight",
+      "relation_type": "has_outcome",
+      "confidence": 0.93,
+      "evidence": "- Change From Baseline in Body Weight (Time Frame: Baseline, Week 40)",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.93,
+          "evidence": "- Change From Baseline in Body Weight (Time Frame: Baseline, Week 40)",
+          "relation_id": "trial:nct05971940|has_outcome|outcome:change_from_baseline_in_body_weight|nct05971940_achieve_1"
+        }
+      ],
+      "evidence_tier": "high_evidence",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "tier": "high_evidence"
+        }
+      ],
+      "epistemic_status": "asserted"
+    },
+    {
+      "source": "trial:nct05971940",
+      "target": "outcome:percent_change_from_baseline_in_non_high_density_lipoprotein_non_hdl_cholesterol",
+      "relation_id": "trial:nct05971940|has_outcome|outcome:percent_change_from_baseline_in_non_high_density_lipoprotein_non_hdl_cholesterol",
+      "canonical_key": "trial:nct05971940|has_outcome|outcome:percent_change_from_baseline_in_non_high_density_lipoprotein_non_hdl_cholesterol",
+      "relation_type": "has_outcome",
+      "confidence": 0.93,
+      "evidence": "- Percent Change From Baseline in Non-High-Density Lipoprotein (Non-HDL) Cholesterol (Time Frame: Baseline, Week 40)",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.93,
+          "evidence": "- Percent Change From Baseline in Non-High-Density Lipoprotein (Non-HDL) Cholesterol (Time Frame: Baseline, Week 40)",
+          "relation_id": "trial:nct05971940|has_outcome|outcome:percent_change_from_baseline_in_non_high_density_lipoprotein_non_hdl_cholesterol|nct05971940_achieve_1"
+        }
+      ],
+      "evidence_tier": "high_evidence",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "tier": "high_evidence"
+        }
+      ],
+      "epistemic_status": "asserted"
+    },
+    {
+      "source": "trial:nct05971940",
+      "target": "outcome:percent_change_from_baseline_in_triglycerides",
+      "relation_id": "trial:nct05971940|has_outcome|outcome:percent_change_from_baseline_in_triglycerides",
+      "canonical_key": "trial:nct05971940|has_outcome|outcome:percent_change_from_baseline_in_triglycerides",
+      "relation_type": "has_outcome",
+      "confidence": 0.93,
+      "evidence": "- Percent Change From Baseline in Triglycerides (Time Frame: Baseline, Week 40)",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.93,
+          "evidence": "- Percent Change From Baseline in Triglycerides (Time Frame: Baseline, Week 40)",
+          "relation_id": "trial:nct05971940|has_outcome|outcome:percent_change_from_baseline_in_triglycerides|nct05971940_achieve_1"
+        }
+      ],
+      "evidence_tier": "high_evidence",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "tier": "high_evidence"
+        }
+      ],
+      "epistemic_status": "asserted"
+    },
+    {
+      "source": "trial:nct05971940",
+      "target": "outcome:change_from_baseline_in_daily_average_7_point_self_monitored_blood_glucose_smbg",
+      "relation_id": "trial:nct05971940|has_outcome|outcome:change_from_baseline_in_daily_average_7_point_self_monitored_blood_glucose_smbg",
+      "canonical_key": "trial:nct05971940|has_outcome|outcome:change_from_baseline_in_daily_average_7_point_self_monitored_blood_glucose_smbg",
+      "relation_type": "has_outcome",
+      "confidence": 0.93,
+      "evidence": "- Change From Baseline in Daily Average 7-Point Self-Monitored Blood Glucose (SMBG) (Time Frame: Baseline, Week 40)",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.93,
+          "evidence": "- Change From Baseline in Daily Average 7-Point Self-Monitored Blood Glucose (SMBG) (Time Frame: Baseline, Week 40)",
+          "relation_id": "trial:nct05971940|has_outcome|outcome:change_from_baseline_in_daily_average_7_point_self_monitored_blood_glucose_smbg|nct05971940_achieve_1"
+        }
+      ],
+      "evidence_tier": "high_evidence",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "tier": "high_evidence"
+        }
+      ],
+      "epistemic_status": "asserted"
+    },
+    {
+      "source": "trial:nct05971940",
+      "target": "outcome:percentage_of_participants_with_greater_than_or_equal_to_5_body_weight_reduction",
+      "relation_id": "trial:nct05971940|has_outcome|outcome:percentage_of_participants_with_greater_than_or_equal_to_5_body_weight_reduction",
+      "canonical_key": "trial:nct05971940|has_outcome|outcome:percentage_of_participants_with_greater_than_or_equal_to_5_body_weight_reduction",
+      "relation_type": "has_outcome",
+      "confidence": 0.93,
+      "evidence": "- Percentage of Participants With Greater Than or Equal to (\u2265) 5% Body Weight Reduction (Time Frame: Week 40)",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.93,
+          "evidence": "- Percentage of Participants With Greater Than or Equal to (\u2265) 5% Body Weight Reduction (Time Frame: Week 40)",
+          "relation_id": "trial:nct05971940|has_outcome|outcome:percentage_of_participants_with_greater_than_or_equal_to_5_body_weight_reduction|nct05971940_achieve_1"
+        }
+      ],
+      "evidence_tier": "high_evidence",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "tier": "high_evidence"
+        }
+      ],
+      "epistemic_status": "asserted"
+    },
+    {
+      "source": "trial:nct05971940",
+      "target": "outcome:change_from_baseline_in_systolic_blood_pressure_sbp",
+      "relation_id": "trial:nct05971940|has_outcome|outcome:change_from_baseline_in_systolic_blood_pressure_sbp",
+      "canonical_key": "trial:nct05971940|has_outcome|outcome:change_from_baseline_in_systolic_blood_pressure_sbp",
+      "relation_type": "has_outcome",
+      "confidence": 0.93,
+      "evidence": "- Change From Baseline in Systolic Blood Pressure (SBP) (Time Frame: Baseline, Week 40)",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.93,
+          "evidence": "- Change From Baseline in Systolic Blood Pressure (SBP) (Time Frame: Baseline, Week 40)",
+          "relation_id": "trial:nct05971940|has_outcome|outcome:change_from_baseline_in_systolic_blood_pressure_sbp|nct05971940_achieve_1"
+        }
+      ],
+      "evidence_tier": "high_evidence",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "tier": "high_evidence"
+        }
+      ],
+      "epistemic_status": "asserted"
+    },
+    {
+      "source": "trial:nct05971940",
+      "target": "trialphase:phase_3",
+      "relation_id": "trial:nct05971940|is_phase|trialphase:phase_3",
+      "canonical_key": "trial:nct05971940|is_phase|trialphase:phase_3",
+      "relation_type": "is_phase",
+      "confidence": 0.98,
+      "evidence": "Phase: PHASE3",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.98,
+          "evidence": "Phase: PHASE3",
+          "relation_id": "trial:nct05971940|is_phase|trialphase:phase_3|nct05971940_achieve_1"
+        }
+      ],
+      "evidence_tier": "high_evidence",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "tier": "high_evidence"
+        }
+      ],
+      "epistemic_status": "asserted"
+    },
+    {
+      "source": "trial:nct05971940",
+      "target": "sponsor:eli_lilly_and_company",
+      "relation_id": "trial:nct05971940|sponsored_by|sponsor:eli_lilly_and_company",
+      "canonical_key": "trial:nct05971940|sponsored_by|sponsor:eli_lilly_and_company",
+      "relation_type": "sponsored_by",
+      "confidence": 0.98,
+      "evidence": "Lead Sponsor: Eli Lilly and Company",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.98,
+          "evidence": "Lead Sponsor: Eli Lilly and Company",
+          "relation_id": "trial:nct05971940|sponsored_by|sponsor:eli_lilly_and_company|nct05971940_achieve_1"
+        }
+      ],
+      "evidence_tier": "high_evidence",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "tier": "high_evidence"
+        }
+      ],
+      "epistemic_status": "asserted"
+    },
+    {
+      "source": "trial:nct05971940",
+      "target": "condition:type_2_diabetes_mellitus",
+      "relation_id": "trial:nct05971940|investigates|condition:type_2_diabetes_mellitus",
+      "canonical_key": "trial:nct05971940|investigates|condition:type_2_diabetes_mellitus",
+      "relation_type": "investigates",
+      "confidence": 0.97,
+      "evidence": "Conditions: Type 2 Diabetes",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.97,
+          "evidence": "Conditions: Type 2 Diabetes",
+          "relation_id": "trial:nct05971940|investigates|condition:type_2_diabetes_mellitus|nct05971940_achieve_1"
+        }
+      ],
+      "evidence_tier": "high_evidence",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "tier": "high_evidence"
+        }
+      ],
+      "epistemic_status": "asserted"
+    },
+    {
+      "source": "trial:nct05971940",
+      "target": "compound:orforglipron",
+      "relation_id": "trial:nct05971940|tests|compound:orforglipron",
+      "canonical_key": "trial:nct05971940|tests|compound:orforglipron",
+      "relation_type": "tests",
+      "confidence": 0.96,
+      "evidence": "A Study of Orforglipron (LY3502970) in Adult Participants With Type 2 Diabetes",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.96,
+          "evidence": "A Study of Orforglipron (LY3502970) in Adult Participants With Type 2 Diabetes",
+          "relation_id": "trial:nct05971940|tests|compound:orforglipron|nct05971940_achieve_1"
+        }
+      ],
+      "evidence_tier": "high_evidence",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "tier": "high_evidence"
+        }
+      ],
+      "epistemic_status": "asserted"
+    },
+    {
+      "source": "trial:nct05971940",
+      "target": "cohort:placebo_comparator_arm",
+      "relation_id": "trial:nct05971940|enrolls|cohort:placebo_comparator_arm",
+      "canonical_key": "trial:nct05971940|enrolls|cohort:placebo_comparator_arm",
+      "relation_type": "enrolls",
+      "confidence": 0.88,
+      "evidence": "Participants received once daily (QD) doses of orforglipron-matching placebo capsules administered orally, over a period of 40 weeks.",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.88,
+          "evidence": "Participants received once daily (QD) doses of orforglipron-matching placebo capsules administered orally, over a period of 40 weeks.",
+          "relation_id": "trial:nct05971940|enrolls|cohort:placebo_comparator_arm|nct05971940_achieve_1"
+        }
+      ],
+      "evidence_tier": "high_evidence",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "tier": "high_evidence"
+        }
+      ],
+      "epistemic_status": "asserted"
+    },
+    {
+      "source": "trial:nct05971940",
+      "target": "population:adults_with_type_2_diabetes_inadequately_controlled_with_diet_and_exercise_alone",
+      "relation_id": "trial:nct05971940|enrolls|population:adults_with_type_2_diabetes_inadequately_controlled_with_diet_and_exercise_alone",
+      "canonical_key": "trial:nct05971940|enrolls|population:adults_with_type_2_diabetes_inadequately_controlled_with_diet_and_exercise_alone",
+      "relation_type": "enrolls",
+      "confidence": 0.93,
+      "evidence": "in adult participants with type 2 diabetes and inadequate glycemic control with diet and exercise alone",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.93,
+          "evidence": "in adult participants with type 2 diabetes and inadequate glycemic control with diet and exercise alone",
+          "relation_id": "trial:nct05971940|enrolls|population:adults_with_type_2_diabetes_inadequately_controlled_with_diet_and_exercise_alone|nct05971940_achieve_1"
+        }
+      ],
+      "evidence_tier": "high_evidence",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "tier": "high_evidence"
+        }
+      ],
+      "epistemic_status": "asserted"
+    },
+    {
+      "source": "trial:nct05971940",
+      "target": "biomarker:hba1c",
+      "relation_id": "trial:nct05971940|uses_biomarker|biomarker:hba1c",
+      "canonical_key": "trial:nct05971940|uses_biomarker|biomarker:hba1c",
+      "relation_type": "uses_biomarker",
+      "confidence": 0.85,
+      "evidence": "Have HbA1c \u22657.0% (53 mmol/mol) to \u22649.5% (80 mmol/mol) despite diet and exercise treatment",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.85,
+          "evidence": "Have HbA1c \u22657.0% (53 mmol/mol) to \u22649.5% (80 mmol/mol) despite diet and exercise treatment",
+          "relation_id": "trial:nct05971940|uses_biomarker|biomarker:hba1c|nct05971940_achieve_1"
+        }
+      ],
+      "evidence_tier": "high_evidence",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "tier": "high_evidence"
+        }
+      ],
+      "epistemic_status": "asserted"
+    },
+    {
+      "source": "trial:nct05971940",
+      "target": "biomarker:body_mass_index",
+      "relation_id": "trial:nct05971940|uses_biomarker|biomarker:body_mass_index",
+      "canonical_key": "trial:nct05971940|uses_biomarker|biomarker:body_mass_index",
+      "relation_type": "uses_biomarker",
+      "confidence": 0.8,
+      "evidence": "Have a body mass index (BMI) \u226523.0 kilogram/square meter (kg/m\u00b2) at screening.",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.8,
+          "evidence": "Have a body mass index (BMI) \u226523.0 kilogram/square meter (kg/m\u00b2) at screening.",
+          "relation_id": "trial:nct05971940|uses_biomarker|biomarker:body_mass_index|nct05971940_achieve_1"
+        }
+      ],
+      "evidence_tier": "high_evidence",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "tier": "high_evidence"
+        }
+      ],
+      "epistemic_status": "asserted"
+    },
+    {
+      "source": "compound:orforglipron",
+      "target": "doc:nct05971940_achieve_1",
+      "relation_id": "compound:orforglipron|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "canonical_key": "compound:orforglipron|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.97,
+      "evidence": "",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.97,
+          "evidence": "",
+          "relation_id": "compound:orforglipron|MENTIONED_IN|doc:nct05971940_achieve_1"
+        }
+      ]
+    },
+    {
+      "source": "compound:orforglipron",
+      "target": "condition:type_2_diabetes_mellitus",
+      "relation_id": "compound:orforglipron|evaluated_for|condition:type_2_diabetes_mellitus",
+      "canonical_key": "compound:orforglipron|evaluated_for|condition:type_2_diabetes_mellitus",
+      "relation_type": "evaluated_for",
+      "confidence": 0.93,
+      "evidence": "The main purpose of this study is to determine safety and efficacy of orforglipron compared with placebo in adult participants with type 2 diabetes",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.93,
+          "evidence": "The main purpose of this study is to determine safety and efficacy of orforglipron compared with placebo in adult participants with type 2 diabetes",
+          "relation_id": "compound:orforglipron|evaluated_for|condition:type_2_diabetes_mellitus|nct05971940_achieve_1"
+        }
+      ],
+      "evidence_tier": "high_evidence",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "tier": "high_evidence"
+        }
+      ],
+      "epistemic_status": "asserted"
+    },
+    {
+      "source": "compound:orforglipron",
+      "target": "intervention:placebo",
+      "relation_id": "compound:orforglipron|compared_with|intervention:placebo",
+      "canonical_key": "compound:orforglipron|compared_with|intervention:placebo",
+      "relation_type": "compared_with",
+      "confidence": 0.95,
+      "evidence": "The main purpose of this study is to determine safety and efficacy of orforglipron compared with placebo",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.95,
+          "evidence": "The main purpose of this study is to determine safety and efficacy of orforglipron compared with placebo",
+          "relation_id": "compound:orforglipron|compared_with|intervention:placebo|nct05971940_achieve_1"
+        }
+      ],
+      "evidence_tier": "high_evidence",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "tier": "high_evidence"
+        }
+      ],
+      "epistemic_status": "asserted"
+    },
+    {
+      "source": "intervention:placebo",
+      "target": "doc:nct05971940_achieve_1",
+      "relation_id": "intervention:placebo|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "canonical_key": "intervention:placebo|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.93,
+      "evidence": "",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.93,
+          "evidence": "",
+          "relation_id": "intervention:placebo|MENTIONED_IN|doc:nct05971940_achieve_1"
+        }
+      ]
+    },
+    {
+      "source": "intervention:orforglipron_3_mg_qd_oral",
+      "target": "doc:nct05971940_achieve_1",
+      "relation_id": "intervention:orforglipron_3_mg_qd_oral|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "canonical_key": "intervention:orforglipron_3_mg_qd_oral|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.999657,
+      "evidence": "",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 3,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.93,
+          "evidence": "",
+          "relation_id": "intervention:orforglipron_3_mg_qd_oral|MENTIONED_IN|doc:nct05971940_achieve_1"
+        },
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.93,
+          "evidence": "",
+          "relation_id": "intervention:orforglipron_3_mg_qd_oral|MENTIONED_IN|doc:nct05971940_achieve_1"
+        },
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.93,
+          "evidence": "",
+          "relation_id": "intervention:orforglipron_3_mg_qd_oral|MENTIONED_IN|doc:nct05971940_achieve_1"
+        }
+      ]
+    },
+    {
+      "source": "intervention:orforglipron_3_mg_qd_oral",
+      "target": "intervention:placebo",
+      "relation_id": "intervention:orforglipron_3_mg_qd_oral|compared_with|intervention:placebo",
+      "canonical_key": "intervention:orforglipron_3_mg_qd_oral|compared_with|intervention:placebo",
+      "relation_type": "compared_with",
+      "confidence": 0.999,
+      "evidence": "The main purpose of this study is to determine safety and efficacy of orforglipron compared with placebo",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 3,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.9,
+          "evidence": "The main purpose of this study is to determine safety and efficacy of orforglipron compared with placebo",
+          "relation_id": "intervention:orforglipron_3_mg_qd_oral|compared_with|intervention:placebo|nct05971940_achieve_1"
+        },
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.9,
+          "evidence": "The main purpose of this study is to determine safety and efficacy of orforglipron compared with placebo",
+          "relation_id": "intervention:orforglipron_3_mg_qd_oral|compared_with|intervention:placebo|nct05971940_achieve_1"
+        },
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.9,
+          "evidence": "The main purpose of this study is to determine safety and efficacy of orforglipron compared with placebo",
+          "relation_id": "intervention:orforglipron_3_mg_qd_oral|compared_with|intervention:placebo|nct05971940_achieve_1"
+        }
+      ],
+      "evidence_tier": "high_evidence",
+      "mention_evidence_tiers": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct05971940_achieve_1",
+          "tier": "high_evidence"
+        },
+        {
+          "source_document": "nct05971940_achieve_1",
+          "tier": "high_evidence"
+        }
+      ],
+      "epistemic_status": "asserted"
+    },
+    {
+      "source": "cohort:3_mg_orforglipron",
+      "target": "doc:nct05971940_achieve_1",
+      "relation_id": "cohort:3_mg_orforglipron|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "canonical_key": "cohort:3_mg_orforglipron|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.999875,
+      "evidence": "",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 3,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.95,
+          "evidence": "",
+          "relation_id": "cohort:3_mg_orforglipron|MENTIONED_IN|doc:nct05971940_achieve_1"
+        },
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.95,
+          "evidence": "",
+          "relation_id": "cohort:3_mg_orforglipron|MENTIONED_IN|doc:nct05971940_achieve_1"
+        },
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.95,
+          "evidence": "",
+          "relation_id": "cohort:3_mg_orforglipron|MENTIONED_IN|doc:nct05971940_achieve_1"
+        }
+      ]
+    },
+    {
+      "source": "cohort:placebo_comparator_arm",
+      "target": "doc:nct05971940_achieve_1",
+      "relation_id": "cohort:placebo_comparator_arm|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "canonical_key": "cohort:placebo_comparator_arm|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.93,
+      "evidence": "",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.93,
+          "evidence": "",
+          "relation_id": "cohort:placebo_comparator_arm|MENTIONED_IN|doc:nct05971940_achieve_1"
+        }
+      ]
+    },
+    {
+      "source": "population:adults_with_type_2_diabetes_inadequately_controlled_with_diet_and_exercise_alone",
+      "target": "doc:nct05971940_achieve_1",
+      "relation_id": "population:adults_with_type_2_diabetes_inadequately_controlled_with_diet_and_exercise_alone|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "canonical_key": "population:adults_with_type_2_diabetes_inadequately_controlled_with_diet_and_exercise_alone|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.93,
+      "evidence": "",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.93,
+          "evidence": "",
+          "relation_id": "population:adults_with_type_2_diabetes_inadequately_controlled_with_diet_and_exercise_alone|MENTIONED_IN|doc:nct05971940_achieve_1"
+        }
+      ]
+    },
+    {
+      "source": "outcome:percentage_of_participants_with_an_hba1c_target_value_of_7_0_53_mmol_mol",
+      "target": "doc:nct05971940_achieve_1",
+      "relation_id": "outcome:percentage_of_participants_with_an_hba1c_target_value_of_7_0_53_mmol_mol|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "canonical_key": "outcome:percentage_of_participants_with_an_hba1c_target_value_of_7_0_53_mmol_mol|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.93,
+      "evidence": "",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.93,
+          "evidence": "",
+          "relation_id": "outcome:percentage_of_participants_with_an_hba1c_target_value_of_7_0_53_mmol_mol|MENTIONED_IN|doc:nct05971940_achieve_1"
+        }
+      ]
+    },
+    {
+      "source": "outcome:percentage_of_participants_with_an_hba1c_target_value_of_6_5_48_mmol_mol",
+      "target": "doc:nct05971940_achieve_1",
+      "relation_id": "outcome:percentage_of_participants_with_an_hba1c_target_value_of_6_5_48_mmol_mol|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "canonical_key": "outcome:percentage_of_participants_with_an_hba1c_target_value_of_6_5_48_mmol_mol|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.93,
+      "evidence": "",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.93,
+          "evidence": "",
+          "relation_id": "outcome:percentage_of_participants_with_an_hba1c_target_value_of_6_5_48_mmol_mol|MENTIONED_IN|doc:nct05971940_achieve_1"
+        }
+      ]
+    },
+    {
+      "source": "outcome:change_from_baseline_in_fasting_serum_glucose_fsg",
+      "target": "doc:nct05971940_achieve_1",
+      "relation_id": "outcome:change_from_baseline_in_fasting_serum_glucose_fsg|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "canonical_key": "outcome:change_from_baseline_in_fasting_serum_glucose_fsg|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.93,
+      "evidence": "",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.93,
+          "evidence": "",
+          "relation_id": "outcome:change_from_baseline_in_fasting_serum_glucose_fsg|MENTIONED_IN|doc:nct05971940_achieve_1"
+        }
+      ]
+    },
+    {
+      "source": "outcome:percent_change_from_baseline_in_non_high_density_lipoprotein_non_hdl_cholesterol",
+      "target": "doc:nct05971940_achieve_1",
+      "relation_id": "outcome:percent_change_from_baseline_in_non_high_density_lipoprotein_non_hdl_cholesterol|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "canonical_key": "outcome:percent_change_from_baseline_in_non_high_density_lipoprotein_non_hdl_cholesterol|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.93,
+      "evidence": "",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.93,
+          "evidence": "",
+          "relation_id": "outcome:percent_change_from_baseline_in_non_high_density_lipoprotein_non_hdl_cholesterol|MENTIONED_IN|doc:nct05971940_achieve_1"
+        }
+      ]
+    },
+    {
+      "source": "outcome:change_from_baseline_in_daily_average_7_point_self_monitored_blood_glucose_smbg",
+      "target": "doc:nct05971940_achieve_1",
+      "relation_id": "outcome:change_from_baseline_in_daily_average_7_point_self_monitored_blood_glucose_smbg|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "canonical_key": "outcome:change_from_baseline_in_daily_average_7_point_self_monitored_blood_glucose_smbg|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.93,
+      "evidence": "",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.93,
+          "evidence": "",
+          "relation_id": "outcome:change_from_baseline_in_daily_average_7_point_self_monitored_blood_glucose_smbg|MENTIONED_IN|doc:nct05971940_achieve_1"
+        }
+      ]
+    },
+    {
+      "source": "outcome:percentage_of_participants_with_greater_than_or_equal_to_5_body_weight_reduction",
+      "target": "doc:nct05971940_achieve_1",
+      "relation_id": "outcome:percentage_of_participants_with_greater_than_or_equal_to_5_body_weight_reduction|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "canonical_key": "outcome:percentage_of_participants_with_greater_than_or_equal_to_5_body_weight_reduction|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.93,
+      "evidence": "",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.93,
+          "evidence": "",
+          "relation_id": "outcome:percentage_of_participants_with_greater_than_or_equal_to_5_body_weight_reduction|MENTIONED_IN|doc:nct05971940_achieve_1"
+        }
+      ]
+    },
+    {
+      "source": "outcome:change_from_baseline_in_systolic_blood_pressure_sbp",
+      "target": "doc:nct05971940_achieve_1",
+      "relation_id": "outcome:change_from_baseline_in_systolic_blood_pressure_sbp|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "canonical_key": "outcome:change_from_baseline_in_systolic_blood_pressure_sbp|MENTIONED_IN|doc:nct05971940_achieve_1",
+      "relation_type": "MENTIONED_IN",
+      "confidence": 0.93,
+      "evidence": "",
+      "source_document": "nct05971940_achieve_1",
+      "support_count": 1,
+      "support_documents": [
+        "nct05971940_achieve_1"
+      ],
+      "support_doc_count": 1,
+      "mentions": [
+        {
+          "source_document": "nct05971940_achieve_1",
+          "confidence": 0.93,
+          "evidence": "",
+          "relation_id": "outcome:change_from_baseline_in_systolic_blood_pressure_sbp|MENTIONED_IN|doc:nct05971940_achieve_1"
         }
       ]
     }

@@ -1,5 +1,5 @@
 {
-  "ingested_at": "2026-11-19T01:43:49.726845+00:00",
+  "ingested_at": "2026-11-19T01:52:09.791375+00:00",
   "corpus_path": "tests/corpora/07_glp1_phase3_trials/docs",
   "domain": "clinicaltrials",
   "total_files": 10,
@@ -111,19 +111,6 @@
       "warnings": []
     },
     {
-      "doc_id": "nct05715307_achieve_1",
-      "filename": "nct05715307_achieve_1.txt",
-      "file_path": "tests/corpora/07_glp1_phase3_trials/docs/nct05715307_achieve_1.txt",
-      "file_size_bytes": 6395,
-      "page_count": null,
-      "category": "uncategorized",
-      "parse_type": "text",
-      "text_length": 6384,
-      "parse_errors": null,
-      "extraction_readiness_score": 0.7,
-      "warnings": []
-    },
-    {
       "doc_id": "nct05822830_surmount_5",
       "filename": "nct05822830_surmount_5.txt",
       "file_path": "tests/corpora/07_glp1_phase3_trials/docs/nct05822830_surmount_5.txt",
@@ -132,6 +119,19 @@
       "category": "uncategorized",
       "parse_type": "text",
       "text_length": 3692,
+      "parse_errors": null,
+      "extraction_readiness_score": 0.7,
+      "warnings": []
+    },
+    {
+      "doc_id": "nct05971940_achieve_1",
+      "filename": "nct05971940_achieve_1.txt",
+      "file_path": "tests/corpora/07_glp1_phase3_trials/docs/nct05971940_achieve_1.txt",
+      "file_size_bytes": 4980,
+      "page_count": null,
+      "category": "uncategorized",
+      "parse_type": "text",
+      "text_length": 4962,
       "parse_errors": null,
       "extraction_readiness_score": 0.7,
       "warnings": []

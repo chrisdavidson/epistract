@@ -75,6 +75,21 @@ S7 is the answer. Same molecular targets, same companies, but instead of patents
 
 **Compound enrichment from PubChem.** Both `Compound` nodes (semaglutide, tirzepatide) now carry `pubchem_cid`, `molecular_formula`, `molecular_weight`, `canonical_smiles`, `inchi`. No new nodes; existing nodes got richer.
 
+## Re-extraction with the updated schema (`output-v2/`)
+
+`tests/corpora/07_glp1_phase3_trials/output-v2/` is a fresh build of the corrected corpus with the updated domain (`evaluated_for`, `compared_with`, canonical Condition names, mid-range calibration examples). The corpus correction replaces `NCT05715307` (CREATION, an endocrinologist training study that had been fetched as "ACHIEVE-1") with the real ACHIEVE-1, `NCT05971940` (orforglipron, Phase 3, n=559). Extraction used Claude Code extractor agents (claude-opus-5-5) rather than the Sonnet 4.6 OpenRouter run behind `output/`, so differences mix schema and model effects.
+
+| | `output/` | `output-v2/` |
+|---|---|---|
+| Claims (excluding provenance links) | 198 | 269 |
+| `treats` from protocol intent | 8 | 0 (recorded as `evaluated_for`) |
+| `compared_with` | n/a | 16 |
+| Mentions scored 0.70–0.89 | 1% | 26% |
+| Duplicate type 2 diabetes / "overweight or obesity" nodes | yes | no |
+| Trials graded `high_evidence` | 9 of 10 phase-tagged | 10 of 10 (all Phase 3) |
+
+The `output-v2/epistemic_narrative.md` briefing was produced from the narrator's exact prompt (`_summarize_graph_for_narrator` + the clinicaltrials persona + `_NARRATOR_USER_PROMPT`), answered by a Claude Code agent because no narrator API key was configured. The narrator summary now separates claims from `MENTIONED_IN` provenance links, lists claim relation types, and names the key entities with their CT.gov fields, so the briefing can cite NCT IDs. Its one factual slip: it reports the second sponsor as unresolved, because Eli Lilly is not among the top-25 entities shown to it. Its most useful flag is real: SURPASS-2 (`NCT03987919`) is open-label, yet phase and enrollment alone grade it `high_evidence`.
+
 ## What V3.1 delivers on clinical trials that V3.0 did not
 
 - **Dedicated clinicaltrials domain** — 12 entity types + 12 relation types (10 at release; `evaluated_for` and `compared_with` added later) purpose-built for trial protocol shape (Trials, Interventions, Conditions, Sponsors, Investigators, Outcomes, Compounds, Biomarkers, Cohorts, Populations, TrialPhases, Sites).

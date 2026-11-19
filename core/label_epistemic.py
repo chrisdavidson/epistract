@@ -497,6 +497,18 @@ def _load_domain_persona(domain_name: str | None) -> str | None:
     return None
 
 
+# How many entities the narrator summary names, and which enrichment fields
+# it shows beside them when a node carries them.
+_NARRATOR_KEY_ENTITIES = 25
+_NARRATOR_ENTITY_FIELDS = (
+    "ct_brief_title",
+    "ct_phase",
+    "ct_enrollment",
+    "ct_overall_status",
+    "pubchem_cid",
+)
+
+
 def _summarize_graph_for_narrator(graph_data: dict, claims_layer: dict) -> str:
     """Compact structured summary of graph + claims for the narrator prompt."""
     nodes = graph_data.get("nodes", [])
@@ -517,13 +529,65 @@ def _summarize_graph_for_narrator(graph_data: dict, claims_layer: dict) -> str:
         link for link in links if link.get("epistemic_status") == "prophetic"
     ]
 
+    # MENTIONED_IN links are provenance bookkeeping (entity appears in
+    # document), not claims. Domain layers such as clinicaltrials do not
+    # label them, so reporting one undifferentiated relation total next to
+    # the status counts made narrators report "half the relations are
+    # unannotated".
+    claims = [link for link in links if link.get("relation_type") != "MENTIONED_IN"]
+    provenance_count = len(links) - len(claims)
+
     parts: list[str] = []
     parts.append("## GRAPH SUMMARY")
     parts.append(f"- Entities: {len(nodes)} across {len(by_type)} types")
-    parts.append(f"- Relations: {len(links)}")
+    if provenance_count:
+        parts.append(
+            f"- Relations: {len(links)} ({len(claims)} claims + {provenance_count} "
+            f"MENTIONED_IN provenance links, which are not claims and carry no status)"
+        )
+    else:
+        parts.append(f"- Relations: {len(links)}")
     parts.append("- Entity type distribution (top 10):")
     for k, v in sorted(by_type.items(), key=lambda kv: -kv[1])[:10]:
         parts.append(f"  - {k}: {v}")
+
+    rel_counts: dict[str, int] = defaultdict(int)
+    for link in claims:
+        rel_counts[link.get("relation_type") or "UNKNOWN"] += 1
+    if rel_counts:
+        parts.append("- Claim relation types (top 15):")
+        for k, v in sorted(rel_counts.items(), key=lambda kv: -kv[1])[:15]:
+            parts.append(f"  - {k}: {v}")
+
+    # Key entities give the narrator real names and identifiers to cite
+    # (personas such as the clinical-trials analyst require NCT citations).
+    degree: dict[str, int] = defaultdict(int)
+    for link in claims:
+        degree[str(link.get("source", ""))] += 1
+        degree[str(link.get("target", ""))] += 1
+    node_by_id = {n.get("id"): n for n in nodes if n.get("id")}
+    key_nodes = [
+        node_by_id[nid]
+        for nid, _ in sorted(degree.items(), key=lambda kv: -kv[1])
+        if nid in node_by_id
+    ][:_NARRATOR_KEY_ENTITIES]
+    if key_nodes:
+        parts.append("")
+        parts.append(
+            f"## KEY ENTITIES (top {len(key_nodes)} by number of claims; "
+            f"name, type, claims, enrichment fields if present)"
+        )
+        for n in key_nodes:
+            extras = [
+                f"{field}={n[field]}"
+                for field in _NARRATOR_ENTITY_FIELDS
+                if n.get(field) not in (None, "")
+            ]
+            extra_str = f"; {', '.join(extras)}" if extras else ""
+            parts.append(
+                f"- {n.get('name') or n.get('id')} ({n.get('entity_type', '?')}, "
+                f"{degree[n['id']]} claims{extra_str})"
+            )
 
     if status_counts:
         parts.append("")
@@ -553,7 +617,7 @@ def _summarize_graph_for_narrator(graph_data: dict, claims_layer: dict) -> str:
         parts.append(f"## HYPOTHESIS GROUPS ({len(hypotheses)} total; first 5 shown)")
         for h in hypotheses[:5]:
             label = h.get("label") or h.get("title") or "(unlabeled)"
-            members = h.get("members") or h.get("evidence") or []
+            members = h.get("members") or h.get("member_entities") or h.get("evidence") or []
             parts.append(
                 f"- **{label}** ({len(members) if hasattr(members, '__len__') else '?'} members)"
             )
