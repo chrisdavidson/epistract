@@ -1,0 +1,36 @@
+{
+  "metadata": {
+    "description": "Clinical-trial epistemic layer \u2014 phase-based evidence grading",
+    "domain": "clinicaltrials",
+    "generated_from": "tests/corpora/07_glp1_phase3_trials/output-v2/graph_data.json",
+    "total_relations": 272,
+    "trial_count": 10
+  },
+  "summary": {
+    "evidence_tier_counts": {
+      "high_evidence": 247,
+      "medium_evidence": 25
+    },
+    "epistemic_status_counts": {
+      "asserted": 272
+    },
+    "contradictions_found": 0,
+    "contested_found": 0,
+    "hypothesized_found": 0,
+    "hypotheses_found": 0,
+    "trials_with_phase": 9,
+    "trials_with_enrollment": 10
+  },
+  "base_domain": {
+    "description": "High-evidence relations from Phase 3, randomized, or large-enrollment trials",
+    "relation_count": 247
+  },
+  "super_domain": {
+    "description": "Medium/low/unclassified-evidence relations \u2014 smaller trials, early phase, or unclassifiable",
+    "relation_count": 25,
+    "contradictions": [],
+    "contested_claims": [],
+    "hypotheses": []
+  },
+  "generator": "label_epistemic"
+}

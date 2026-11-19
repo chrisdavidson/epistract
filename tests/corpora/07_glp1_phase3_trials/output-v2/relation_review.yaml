@@ -1,0 +1,22 @@
+review_threshold: 0.7
+relations:
+- source_id: compound:tirzepatide
+  source_name: tirzepatide
+  target_id: biomarker:gip_receptor
+  target_name: GIP receptor
+  relation_type: targets
+  confidence: 0.6
+  evidence: GIP/GLP-1 dual receptor agonist
+  source_document: nct03987919_surpass_2
+  status: DRAFT
+  flag_reason: Low confidence (0.60 < 0.7)
+- source_id: compound:tirzepatide
+  source_name: tirzepatide
+  target_id: biomarker:glp_1_receptor
+  target_name: GLP-1 receptor
+  relation_type: targets
+  confidence: 0.6
+  evidence: GIP/GLP-1 dual receptor agonist
+  source_document: nct03987919_surpass_2
+  status: DRAFT
+  flag_reason: Low confidence (0.60 < 0.7)

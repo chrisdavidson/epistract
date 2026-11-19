@@ -1,0 +1,621 @@
+{
+  "document_id": "nct03552757_step_2",
+  "document_path": "",
+  "chunks_processed": 1,
+  "entities": [
+    {
+      "name": "NCT03552757",
+      "entity_type": "Trial",
+      "confidence": 0.99,
+      "context": "NCT ID: NCT03552757",
+      "attributes": {
+        "trial_acronym": "STEP 2",
+        "descriptive_title": "Research Study Investigating How Well Semaglutide Works in People With Type 2 Diabetes Suffering From Overweight or Obesity",
+        "study_type": "Interventional",
+        "status": "Completed",
+        "enrollment": 1210,
+        "start_date": "2018-06-04",
+        "completion_date": "2020-05-01"
+      }
+    },
+    {
+      "name": "Phase 3",
+      "entity_type": "TrialPhase",
+      "confidence": 0.98,
+      "context": "Phase: PHASE3",
+      "attributes": {
+        "design": "Randomized, placebo-controlled"
+      }
+    },
+    {
+      "name": "Novo Nordisk",
+      "entity_type": "Sponsor",
+      "confidence": 0.98,
+      "context": "Lead Sponsor: Novo Nordisk A/S",
+      "attributes": {
+        "role": "Lead sponsor",
+        "legal_name": "Novo Nordisk A/S"
+      }
+    },
+    {
+      "name": "Obesity",
+      "entity_type": "Condition",
+      "confidence": 0.97,
+      "context": "Conditions: Obesity; Overweight",
+      "attributes": {}
+    },
+    {
+      "name": "Overweight",
+      "entity_type": "Condition",
+      "confidence": 0.97,
+      "context": "Conditions: Obesity; Overweight",
+      "attributes": {}
+    },
+    {
+      "name": "Type 2 Diabetes Mellitus",
+      "entity_type": "Condition",
+      "confidence": 0.93,
+      "context": "How Well Semaglutide Works in People With Type 2 Diabetes Suffering From Overweight or Obesity",
+      "attributes": {
+        "variants": [
+          "type 2 diabetes"
+        ]
+      }
+    },
+    {
+      "name": "Diabetic Retinopathy",
+      "entity_type": "Condition",
+      "confidence": 0.6,
+      "context": "Uncontrolled and potentially unstable diabetic retinopathy or maculopathy",
+      "attributes": {
+        "role": "Exclusion criterion"
+      }
+    },
+    {
+      "name": "Renal Insufficiency",
+      "entity_type": "Condition",
+      "confidence": 0.6,
+      "context": "Renal impairment measured as estimated Glomerular Filtration Rate (eGFR) value of less than 30 mL/min/1.73 m\\^2",
+      "attributes": {
+        "role": "Exclusion criterion"
+      }
+    },
+    {
+      "name": "semaglutide",
+      "entity_type": "Compound",
+      "confidence": 0.98,
+      "context": "people taking semaglutide (a new medicine) and people taking \"dummy\" medicine",
+      "attributes": {
+        "inn": "semaglutide",
+        "route": "subcutaneous",
+        "schedule": "once weekly"
+      }
+    },
+    {
+      "name": "placebo",
+      "entity_type": "Compound",
+      "confidence": 0.85,
+      "context": "S.c. injections of placebo once weekly at a similar dose escalation manner as semaglutide 2.4 mg",
+      "attributes": {
+        "role": "Placebo comparator"
+      }
+    },
+    {
+      "name": "Semaglutide 1.0 mg",
+      "entity_type": "Intervention",
+      "confidence": 0.96,
+      "context": "Subcutaneous (s.c.) injections of semaglutide once weekly at an escalating doses (0.25 mg/week, 0.5 mg/week, 1.0 mg mg/week).",
+      "attributes": {
+        "dose": "1.0 mg",
+        "schedule": "once weekly",
+        "route": "subcutaneous",
+        "escalation": "every 4 weeks"
+      }
+    },
+    {
+      "name": "Semaglutide 2.4 mg",
+      "entity_type": "Intervention",
+      "confidence": 0.96,
+      "context": "Subcutaneous injections of semaglutide once weekly at an escalating doses (0.25 mg/week, 0.5 mg/week, 1.0 mg mg/week, 1.7 mg/week and 2.4 mg/week).",
+      "attributes": {
+        "dose": "2.4 mg",
+        "schedule": "once weekly",
+        "route": "subcutaneous",
+        "escalation": "every 4 weeks"
+      }
+    },
+    {
+      "name": "Placebo I (Semaglutide)",
+      "entity_type": "Intervention",
+      "confidence": 0.94,
+      "context": "S.c. injections of placebo once weekly at a similar dose escalation manner as semaglutide 2.4 mg",
+      "attributes": {
+        "route": "subcutaneous",
+        "schedule": "once weekly"
+      }
+    },
+    {
+      "name": "Placebo II (Semaglutide)",
+      "entity_type": "Intervention",
+      "confidence": 0.94,
+      "context": "S.c. injections of placebo once weekly at a similar dose escalation manner as semaglutide 1.0 mg",
+      "attributes": {
+        "route": "subcutaneous",
+        "schedule": "once weekly"
+      }
+    },
+    {
+      "name": "Reduced-calorie diet and increased physical activity",
+      "entity_type": "Intervention",
+      "confidence": 0.82,
+      "context": "in addition to a reduced-calorie diet and increased physical activity",
+      "attributes": {
+        "type": "Lifestyle",
+        "role": "Background therapy in all arms"
+      }
+    },
+    {
+      "name": "Semaglutide 1.0 mg arm",
+      "entity_type": "Cohort",
+      "confidence": 0.95,
+      "context": "Semaglutide 1.0 mg (EXPERIMENTAL)",
+      "attributes": {
+        "arm_label": "Semaglutide 1.0 mg",
+        "arm_type": "Experimental",
+        "duration": "68 weeks"
+      }
+    },
+    {
+      "name": "Semaglutide 2.4 mg arm",
+      "entity_type": "Cohort",
+      "confidence": 0.95,
+      "context": "Semaglutide 2.4 mg (EXPERIMENTAL)",
+      "attributes": {
+        "arm_label": "Semaglutide 2.4 mg",
+        "arm_type": "Experimental",
+        "duration": "68 weeks"
+      }
+    },
+    {
+      "name": "Semaglutide placebo I/II arm",
+      "entity_type": "Cohort",
+      "confidence": 0.95,
+      "context": "Semaglutide placebo I/II (PLACEBO_COMPARATOR)",
+      "attributes": {
+        "arm_label": "Semaglutide placebo I/II",
+        "arm_type": "Placebo comparator",
+        "duration": "68 weeks"
+      }
+    },
+    {
+      "name": "Adults with type 2 diabetes and BMI >=27 kg/m2",
+      "entity_type": "Population",
+      "confidence": 0.9,
+      "context": "Body Mass Index (BMI) greater than or equal to 27 kg/m\\^2 ' ... Diagnosed with type 2 diabetes (haemoglobin A1c 7-10% (53-86 mmol/mol) (both inclusive))",
+      "attributes": {
+        "age_group": "Adult (>=18 years)",
+        "sex": "All",
+        "bmi": ">=27 kg/m2",
+        "hba1c": "7-10%",
+        "healthy_volunteers": false,
+        "enrollment": 1210
+      }
+    },
+    {
+      "name": "BMI >=27 kg/m2",
+      "entity_type": "Biomarker",
+      "confidence": 0.88,
+      "context": "Body Mass Index (BMI) greater than or equal to 27 kg/m\\^2 '",
+      "attributes": {
+        "biomarker_type": "Anthropometric",
+        "use": "Patient selection (inclusion criterion)"
+      }
+    },
+    {
+      "name": "HbA1c 7-10%",
+      "entity_type": "Biomarker",
+      "confidence": 0.88,
+      "context": "Diagnosed with type 2 diabetes (haemoglobin A1c 7-10% (53-86 mmol/mol) (both inclusive))",
+      "attributes": {
+        "biomarker_type": "Clinical laboratory",
+        "use": "Patient selection (inclusion criterion)"
+      }
+    },
+    {
+      "name": "eGFR",
+      "entity_type": "Biomarker",
+      "confidence": 0.82,
+      "context": "estimated Glomerular Filtration Rate (eGFR) value of less than 30 mL/min/1.73 m\\^2",
+      "attributes": {
+        "biomarker_type": "Renal function",
+        "use": "Exclusion criterion (<30 mL/min/1.73 m2)"
+      }
+    },
+    {
+      "name": "Change in body weight (%) - semaglutide 2.4 mg vs placebo",
+      "entity_type": "Outcome",
+      "confidence": 0.97,
+      "context": "Change in Body Weight (%) - Semaglutide 2.4 mg Versus Placebo",
+      "attributes": {
+        "endpoint_type": "Primary",
+        "time_frame": "Baseline (week 0) to week 68"
+      }
+    },
+    {
+      "name": "Body weight reduction >=5% - semaglutide 2.4 mg vs placebo",
+      "entity_type": "Outcome",
+      "confidence": 0.97,
+      "context": "Participants Who Achieve (Yes/no): Body Weight Reduction \u22655% - Semaglutide 2.4 mg Versus Placebo",
+      "attributes": {
+        "endpoint_type": "Primary",
+        "time_frame": "At week 68"
+      }
+    },
+    {
+      "name": "Change in body weight (%) - semaglutide 2.4 mg vs semaglutide 1.0 mg",
+      "entity_type": "Outcome",
+      "confidence": 0.94,
+      "context": "Change in Body Weight (%) - Semaglutide 2.4 mg Versus Semaglutide 1.0 mg",
+      "attributes": {
+        "endpoint_type": "Secondary",
+        "time_frame": "Baseline (week 0) to week 68"
+      }
+    },
+    {
+      "name": "Body weight reduction >=5% - semaglutide 2.4 mg vs semaglutide 1.0 mg",
+      "entity_type": "Outcome",
+      "confidence": 0.94,
+      "context": "Participants Who Achieve (Yes/no): Body Weight Reduction \u22655% - Semaglutide 2.4 mg Versus Semaglutide 1.0 mg",
+      "attributes": {
+        "endpoint_type": "Secondary",
+        "time_frame": "At week 68"
+      }
+    },
+    {
+      "name": "Change in waist circumference",
+      "entity_type": "Outcome",
+      "confidence": 0.94,
+      "context": "Change in Waist Circumference (Time Frame: Baseline (week 0) to week 68)",
+      "attributes": {
+        "endpoint_type": "Secondary"
+      }
+    },
+    {
+      "name": "Change in body weight (kg)",
+      "entity_type": "Outcome",
+      "confidence": 0.94,
+      "context": "Change in Body Weight (Kg) (Time Frame: Baseline (week 0) to week 68)",
+      "attributes": {
+        "endpoint_type": "Secondary"
+      }
+    },
+    {
+      "name": "Change in BMI",
+      "entity_type": "Outcome",
+      "confidence": 0.94,
+      "context": "Change in BMI (Time Frame: Baseline (week 0) to week 68)",
+      "attributes": {
+        "endpoint_type": "Secondary"
+      }
+    },
+    {
+      "name": "Body weight reduction >=10%",
+      "entity_type": "Outcome",
+      "confidence": 0.94,
+      "context": "Participants Who Achieve (Yes/no): Body Weight Reduction \u226510% (Time Frame: At week 68)",
+      "attributes": {
+        "endpoint_type": "Secondary"
+      }
+    },
+    {
+      "name": "Body weight reduction >=15%",
+      "entity_type": "Outcome",
+      "confidence": 0.94,
+      "context": "Participants Who Achieve (Yes/no): Body Weight Reduction \u226515% (Time Frame: At week 68)",
+      "attributes": {
+        "endpoint_type": "Secondary"
+      }
+    },
+    {
+      "name": "Body weight reduction >=20%",
+      "entity_type": "Outcome",
+      "confidence": 0.94,
+      "context": "Participants Who Achieve (Yes/no): Body Weight Reduction \u226520% (Time Frame: At week 68)",
+      "attributes": {
+        "endpoint_type": "Secondary"
+      }
+    },
+    {
+      "name": "Change in HbA1c (%)",
+      "entity_type": "Outcome",
+      "confidence": 0.94,
+      "context": "Change in HbA1c (%) (Time Frame: Baseline (week 0) to week 68)",
+      "attributes": {
+        "endpoint_type": "Secondary"
+      }
+    },
+    {
+      "name": "Change in HbA1c (mmol/mol)",
+      "entity_type": "Outcome",
+      "confidence": 0.94,
+      "context": "Change in HbA1c (mmol/Mol) (Time Frame: Baseline (week 0) to week 68)",
+      "attributes": {
+        "endpoint_type": "Secondary"
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source_entity": "NCT03552757",
+      "target_entity": "Phase 3",
+      "relation_type": "is_phase",
+      "confidence": 0.98,
+      "evidence": "Phase: PHASE3"
+    },
+    {
+      "source_entity": "NCT03552757",
+      "target_entity": "Novo Nordisk",
+      "relation_type": "sponsored_by",
+      "confidence": 0.98,
+      "evidence": "Lead Sponsor: Novo Nordisk A/S"
+    },
+    {
+      "source_entity": "NCT03552757",
+      "target_entity": "Obesity",
+      "relation_type": "investigates",
+      "confidence": 0.96,
+      "evidence": "Conditions: Obesity; Overweight"
+    },
+    {
+      "source_entity": "NCT03552757",
+      "target_entity": "Overweight",
+      "relation_type": "investigates",
+      "confidence": 0.96,
+      "evidence": "Conditions: Obesity; Overweight"
+    },
+    {
+      "source_entity": "NCT03552757",
+      "target_entity": "Type 2 Diabetes Mellitus",
+      "relation_type": "investigates",
+      "confidence": 0.88,
+      "evidence": "Research Study Investigating How Well Semaglutide Works in People With Type 2 Diabetes Suffering From Overweight or Obesity"
+    },
+    {
+      "source_entity": "NCT03552757",
+      "target_entity": "semaglutide",
+      "relation_type": "tests",
+      "confidence": 0.97,
+      "evidence": "This is to compare the effect on body weight in people taking semaglutide (a new medicine) and people taking \"dummy\" medicine."
+    },
+    {
+      "source_entity": "NCT03552757",
+      "target_entity": "Semaglutide 1.0 mg",
+      "relation_type": "tests",
+      "confidence": 0.96,
+      "evidence": "Interventions: Drug: Semaglutide 1.0 mg; Drug: Placebo I (Semaglutide)"
+    },
+    {
+      "source_entity": "NCT03552757",
+      "target_entity": "Semaglutide 2.4 mg",
+      "relation_type": "tests",
+      "confidence": 0.96,
+      "evidence": "Interventions: Drug: Semaglutide 2.4 mg; Drug: Placebo II (Semaglutide)"
+    },
+    {
+      "source_entity": "semaglutide",
+      "target_entity": "Obesity",
+      "relation_type": "evaluated_for",
+      "confidence": 0.92,
+      "evidence": "This is to compare the effect on body weight in people taking semaglutide (a new medicine) and people taking \"dummy\" medicine."
+    },
+    {
+      "source_entity": "semaglutide",
+      "target_entity": "Overweight",
+      "relation_type": "evaluated_for",
+      "confidence": 0.92,
+      "evidence": "Research Study Investigating How Well Semaglutide Works in People With Type 2 Diabetes Suffering From Overweight or Obesity"
+    },
+    {
+      "source_entity": "semaglutide",
+      "target_entity": "Type 2 Diabetes Mellitus",
+      "relation_type": "evaluated_for",
+      "confidence": 0.82,
+      "evidence": "Research Study Investigating How Well Semaglutide Works in People With Type 2 Diabetes Suffering From Overweight or Obesity"
+    },
+    {
+      "source_entity": "Semaglutide 2.4 mg",
+      "target_entity": "Obesity",
+      "relation_type": "evaluated_for",
+      "confidence": 0.85,
+      "evidence": "Change in Body Weight (%) - Semaglutide 2.4 mg Versus Placebo"
+    },
+    {
+      "source_entity": "Semaglutide 1.0 mg",
+      "target_entity": "Obesity",
+      "relation_type": "evaluated_for",
+      "confidence": 0.78,
+      "evidence": "Participants will receive semaglutide 1.0 mg and semaglutide placebo I during 68-week treatment period in addition to a reduced-calorie diet and increased physical activity."
+    },
+    {
+      "source_entity": "Semaglutide 2.4 mg",
+      "target_entity": "Placebo II (Semaglutide)",
+      "relation_type": "compared_with",
+      "confidence": 0.93,
+      "evidence": "Change in Body Weight (%) - Semaglutide 2.4 mg Versus Placebo"
+    },
+    {
+      "source_entity": "Semaglutide 2.4 mg",
+      "target_entity": "Semaglutide 1.0 mg",
+      "relation_type": "compared_with",
+      "confidence": 0.93,
+      "evidence": "Change in Body Weight (%) - Semaglutide 2.4 mg Versus Semaglutide 1.0 mg"
+    },
+    {
+      "source_entity": "Semaglutide 1.0 mg",
+      "target_entity": "Placebo I (Semaglutide)",
+      "relation_type": "compared_with",
+      "confidence": 0.8,
+      "evidence": "Semaglutide placebo I/II (PLACEBO_COMPARATOR)"
+    },
+    {
+      "source_entity": "semaglutide",
+      "target_entity": "placebo",
+      "relation_type": "compared_with",
+      "confidence": 0.95,
+      "evidence": "This is to compare the effect on body weight in people taking semaglutide (a new medicine) and people taking \"dummy\" medicine."
+    },
+    {
+      "source_entity": "Semaglutide 2.4 mg",
+      "target_entity": "Reduced-calorie diet and increased physical activity",
+      "relation_type": "co_intervention",
+      "confidence": 0.9,
+      "evidence": "Participants will receive semaglutide 2.4 mg and semaglutide placebo II during 68-week treatment period in addition to a reduced-calorie diet and increased physical activity."
+    },
+    {
+      "source_entity": "Semaglutide 1.0 mg",
+      "target_entity": "Reduced-calorie diet and increased physical activity",
+      "relation_type": "co_intervention",
+      "confidence": 0.9,
+      "evidence": "Participants will receive semaglutide 1.0 mg and semaglutide placebo I during 68-week treatment period in addition to a reduced-calorie diet and increased physical activity."
+    },
+    {
+      "source_entity": "NCT03552757",
+      "target_entity": "Semaglutide 1.0 mg arm",
+      "relation_type": "enrolls",
+      "confidence": 0.94,
+      "evidence": "Semaglutide 1.0 mg (EXPERIMENTAL)"
+    },
+    {
+      "source_entity": "NCT03552757",
+      "target_entity": "Semaglutide 2.4 mg arm",
+      "relation_type": "enrolls",
+      "confidence": 0.94,
+      "evidence": "Semaglutide 2.4 mg (EXPERIMENTAL)"
+    },
+    {
+      "source_entity": "NCT03552757",
+      "target_entity": "Semaglutide placebo I/II arm",
+      "relation_type": "enrolls",
+      "confidence": 0.94,
+      "evidence": "Semaglutide placebo I/II (PLACEBO_COMPARATOR)"
+    },
+    {
+      "source_entity": "NCT03552757",
+      "target_entity": "Adults with type 2 diabetes and BMI >=27 kg/m2",
+      "relation_type": "enrolls",
+      "confidence": 0.9,
+      "evidence": "Population: Sex: ALL; Min Age: 18 Years; Healthy Volunteers: False"
+    },
+    {
+      "source_entity": "NCT03552757",
+      "target_entity": "BMI >=27 kg/m2",
+      "relation_type": "uses_biomarker",
+      "confidence": 0.85,
+      "evidence": "Body Mass Index (BMI) greater than or equal to 27 kg/m\\^2 '"
+    },
+    {
+      "source_entity": "NCT03552757",
+      "target_entity": "HbA1c 7-10%",
+      "relation_type": "uses_biomarker",
+      "confidence": 0.85,
+      "evidence": "Diagnosed with type 2 diabetes (haemoglobin A1c 7-10% (53-86 mmol/mol) (both inclusive))"
+    },
+    {
+      "source_entity": "NCT03552757",
+      "target_entity": "eGFR",
+      "relation_type": "uses_biomarker",
+      "confidence": 0.78,
+      "evidence": "Renal impairment measured as estimated Glomerular Filtration Rate (eGFR) value of less than 30 mL/min/1.73 m\\^2"
+    },
+    {
+      "source_entity": "NCT03552757",
+      "target_entity": "Change in body weight (%) - semaglutide 2.4 mg vs placebo",
+      "relation_type": "has_outcome",
+      "confidence": 0.97,
+      "evidence": "Change in Body Weight (%) - Semaglutide 2.4 mg Versus Placebo"
+    },
+    {
+      "source_entity": "NCT03552757",
+      "target_entity": "Body weight reduction >=5% - semaglutide 2.4 mg vs placebo",
+      "relation_type": "has_outcome",
+      "confidence": 0.97,
+      "evidence": "Participants Who Achieve (Yes/no): Body Weight Reduction \u22655% - Semaglutide 2.4 mg Versus Placebo"
+    },
+    {
+      "source_entity": "NCT03552757",
+      "target_entity": "Change in body weight (%) - semaglutide 2.4 mg vs semaglutide 1.0 mg",
+      "relation_type": "has_outcome",
+      "confidence": 0.94,
+      "evidence": "Change in Body Weight (%) - Semaglutide 2.4 mg Versus Semaglutide 1.0 mg (Time Frame: Baseline (week 0) to week 68)"
+    },
+    {
+      "source_entity": "NCT03552757",
+      "target_entity": "Body weight reduction >=5% - semaglutide 2.4 mg vs semaglutide 1.0 mg",
+      "relation_type": "has_outcome",
+      "confidence": 0.94,
+      "evidence": "Participants Who Achieve (Yes/no): Body Weight Reduction \u22655% - Semaglutide 2.4 mg Versus Semaglutide 1.0 mg (Time Frame: At week 68)"
+    },
+    {
+      "source_entity": "NCT03552757",
+      "target_entity": "Change in waist circumference",
+      "relation_type": "has_outcome",
+      "confidence": 0.93,
+      "evidence": "Change in Waist Circumference (Time Frame: Baseline (week 0) to week 68)"
+    },
+    {
+      "source_entity": "NCT03552757",
+      "target_entity": "Change in body weight (kg)",
+      "relation_type": "has_outcome",
+      "confidence": 0.93,
+      "evidence": "Change in Body Weight (Kg) (Time Frame: Baseline (week 0) to week 68)"
+    },
+    {
+      "source_entity": "NCT03552757",
+      "target_entity": "Change in BMI",
+      "relation_type": "has_outcome",
+      "confidence": 0.93,
+      "evidence": "Change in BMI (Time Frame: Baseline (week 0) to week 68)"
+    },
+    {
+      "source_entity": "NCT03552757",
+      "target_entity": "Body weight reduction >=10%",
+      "relation_type": "has_outcome",
+      "confidence": 0.93,
+      "evidence": "Participants Who Achieve (Yes/no): Body Weight Reduction \u226510% (Time Frame: At week 68)"
+    },
+    {
+      "source_entity": "NCT03552757",
+      "target_entity": "Body weight reduction >=15%",
+      "relation_type": "has_outcome",
+      "confidence": 0.93,
+      "evidence": "Participants Who Achieve (Yes/no): Body Weight Reduction \u226515% (Time Frame: At week 68)"
+    },
+    {
+      "source_entity": "NCT03552757",
+      "target_entity": "Body weight reduction >=20%",
+      "relation_type": "has_outcome",
+      "confidence": 0.93,
+      "evidence": "Participants Who Achieve (Yes/no): Body Weight Reduction \u226520% (Time Frame: At week 68)"
+    },
+    {
+      "source_entity": "NCT03552757",
+      "target_entity": "Change in HbA1c (%)",
+      "relation_type": "has_outcome",
+      "confidence": 0.93,
+      "evidence": "Change in HbA1c (%) (Time Frame: Baseline (week 0) to week 68)"
+    },
+    {
+      "source_entity": "NCT03552757",
+      "target_entity": "Change in HbA1c (mmol/mol)",
+      "relation_type": "has_outcome",
+      "confidence": 0.93,
+      "evidence": "Change in HbA1c (mmol/Mol) (Time Frame: Baseline (week 0) to week 68)"
+    }
+  ],
+  "cost_usd": 0.0,
+  "model_used": "claude-opus-5-5",
+  "domain_name": "Clinical Trials",
+  "chunk_size": 10000,
+  "extracted_at": "2026-11-19T01:46:05.614412+00:00",
+  "error": null
+}

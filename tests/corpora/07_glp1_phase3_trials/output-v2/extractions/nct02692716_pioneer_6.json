@@ -1,0 +1,460 @@
+{
+  "document_id": "nct02692716_pioneer_6",
+  "document_path": "",
+  "chunks_processed": 1,
+  "entities": [
+    {
+      "name": "NCT02692716",
+      "entity_type": "Trial",
+      "confidence": 0.99,
+      "context": "NCT ID: NCT02692716",
+      "attributes": {
+        "trial_acronym": "PIONEER 6",
+        "descriptive_title": "A Trial Investigating the Cardiovascular Safety of Oral Semaglutide in Subjects With Type 2 Diabetes",
+        "study_type": "Interventional",
+        "status": "Completed",
+        "enrollment": 3183,
+        "start_date": "2017-01-17",
+        "completion_date": "2018-09-25"
+      }
+    },
+    {
+      "name": "semaglutide",
+      "entity_type": "Compound",
+      "confidence": 0.97,
+      "context": "semaglutide [DRUG]\n    For oral use once daily.",
+      "attributes": {
+        "inn": "semaglutide",
+        "route": "oral",
+        "schedule": "once daily"
+      }
+    },
+    {
+      "name": "pramlintide",
+      "entity_type": "Compound",
+      "confidence": 0.9,
+      "context": "treatment with any GLP-1 (glucagon-like peptide-1) receptor agonist, DPP-4 (dipeptidyl peptidase-4) inhibitor or pramlintide",
+      "attributes": {
+        "inn": "pramlintide",
+        "use": "Exclusion criterion (prior treatment)"
+      }
+    },
+    {
+      "name": "oral semaglutide once daily",
+      "entity_type": "Intervention",
+      "confidence": 0.95,
+      "context": "Oral semaglutide (EXPERIMENTAL)\n    Interventions: Drug: semaglutide",
+      "attributes": {
+        "route": "oral",
+        "schedule": "once daily",
+        "arm_type": "Experimental"
+      }
+    },
+    {
+      "name": "placebo once daily oral",
+      "entity_type": "Intervention",
+      "confidence": 0.93,
+      "context": "Placebo (PLACEBO_COMPARATOR)\n    Interventions: Drug: placebo",
+      "attributes": {
+        "route": "oral",
+        "schedule": "once daily",
+        "arm_type": "Placebo comparator"
+      }
+    },
+    {
+      "name": "Oral semaglutide",
+      "entity_type": "Cohort",
+      "confidence": 0.93,
+      "context": "Oral semaglutide (EXPERIMENTAL)",
+      "attributes": {
+        "arm_label": "Oral semaglutide",
+        "arm_type": "Experimental",
+        "route": "oral",
+        "schedule": "once daily"
+      }
+    },
+    {
+      "name": "Placebo",
+      "entity_type": "Cohort",
+      "confidence": 0.92,
+      "context": "Placebo (PLACEBO_COMPARATOR)",
+      "attributes": {
+        "arm_label": "Placebo",
+        "arm_type": "Placebo comparator"
+      }
+    },
+    {
+      "name": "Type 2 Diabetes Mellitus",
+      "entity_type": "Condition",
+      "confidence": 0.98,
+      "context": "Conditions: Diabetes; Diabetes Mellitus, Type 2",
+      "attributes": {
+        "mesh_term": "Diabetes Mellitus, Type 2",
+        "variants": [
+          "type 2 diabetes"
+        ]
+      }
+    },
+    {
+      "name": "Diabetes Mellitus",
+      "entity_type": "Condition",
+      "confidence": 0.8,
+      "context": "Conditions: Diabetes; Diabetes Mellitus, Type 2",
+      "attributes": {
+        "listed_as": "Diabetes"
+      }
+    },
+    {
+      "name": "Cardiovascular Diseases",
+      "entity_type": "Condition",
+      "confidence": 0.75,
+      "context": "Age at least 50 years at screening and presence of cardiovascular disease",
+      "attributes": {
+        "role": "Eligibility / safety focus"
+      }
+    },
+    {
+      "name": "Novo Nordisk",
+      "entity_type": "Sponsor",
+      "confidence": 0.98,
+      "context": "Lead Sponsor: Novo Nordisk A/S",
+      "attributes": {
+        "legal_name": "Novo Nordisk A/S",
+        "role": "Lead sponsor"
+      }
+    },
+    {
+      "name": "Phase 3",
+      "entity_type": "TrialPhase",
+      "confidence": 0.98,
+      "context": "Phase: PHASE3",
+      "attributes": {
+        "design": "Placebo-controlled cardiovascular outcomes trial"
+      }
+    },
+    {
+      "name": "Adults aged 50+ with type 2 diabetes and cardiovascular disease or risk factors",
+      "entity_type": "Population",
+      "confidence": 0.9,
+      "context": "Age at least 50 years at screening and presence of cardiovascular disease, or age at least 60 years at screening and presence of at least one cardiovascular risk factor",
+      "attributes": {
+        "min_age": "50 Years",
+        "sex": "All",
+        "healthy_volunteers": false,
+        "exclusions": "prior GLP-1 RA/DPP-4i/pramlintide within 90 days, MEN 2 or MTC history, pancreatitis, NYHA Class IV heart failure, eGFR below 30"
+      }
+    },
+    {
+      "name": "estimated glomerular filtration rate",
+      "entity_type": "Biomarker",
+      "confidence": 0.82,
+      "context": "severe renal impairment (corresponding to eGFR (glomerular filtration rate, estimated) below 30 mL/min/1.73 m",
+      "attributes": {
+        "biomarker_type": "Renal function",
+        "threshold": "below 30 mL/min/1.73 m2 excluded",
+        "use": "Exclusion criterion"
+      }
+    },
+    {
+      "name": "time to first MACE (cardiovascular death, non-fatal myocardial infarction or non-fatal stroke)",
+      "entity_type": "Outcome",
+      "confidence": 0.97,
+      "context": "Time From Randomisation to First Occurrence of a Major Adverse Cardiovascular Event (MACE) Composite Endpoint Consisting of: Cardiovascular Death, Non-fatal Myocardial Infarction or Non-fatal Stroke",
+      "attributes": {
+        "endpoint_type": "Primary",
+        "time_frame": "no longer than 19 months + 5 weeks of follow-up"
+      }
+    },
+    {
+      "name": "time to first expanded composite cardiovascular endpoint",
+      "entity_type": "Outcome",
+      "confidence": 0.93,
+      "context": "Time From Randomisation to First Occurrence of an Expanded Composite Cardiovascular Endpoint Consisting of: Cardiovascular Death, Non-fatal Myocardial Infarction, Non-fatal Stroke, UAP Requiring Hospitalisation or Hospitalisation for Heart Failure",
+      "attributes": {
+        "endpoint_type": "Secondary"
+      }
+    },
+    {
+      "name": "time to first occurrence of each component of expanded composite cardiovascular endpoint",
+      "entity_type": "Outcome",
+      "confidence": 0.9,
+      "context": "Time From Randomisation to First Occurrence of Each of the Individual Components in the Expanded Composite Cardiovascular Endpoint",
+      "attributes": {
+        "endpoint_type": "Secondary"
+      }
+    },
+    {
+      "name": "time to first composite of all-cause death, non-fatal myocardial infarction or non-fatal stroke",
+      "entity_type": "Outcome",
+      "confidence": 0.93,
+      "context": "Time From Randomisation to First Occurrence of a Composite Endpoint Consisting of: All-cause Death, Non-fatal Myocardial Infarction or Nonfatal Stroke",
+      "attributes": {
+        "endpoint_type": "Secondary"
+      }
+    },
+    {
+      "name": "time to first fatal or non-fatal myocardial infarction",
+      "entity_type": "Outcome",
+      "confidence": 0.93,
+      "context": "Time From Randomisation to First Occurrence of Fatal or Non-fatal Myocardial Infarction",
+      "attributes": {
+        "endpoint_type": "Secondary"
+      }
+    },
+    {
+      "name": "time to first fatal or non-fatal stroke",
+      "entity_type": "Outcome",
+      "confidence": 0.93,
+      "context": "Time From Randomisation to First Occurrence of Fatal or Non-fatal Stroke",
+      "attributes": {
+        "endpoint_type": "Secondary"
+      }
+    },
+    {
+      "name": "time to all-cause death",
+      "entity_type": "Outcome",
+      "confidence": 0.93,
+      "context": "Time From Randomisation to All-cause Death",
+      "attributes": {
+        "endpoint_type": "Secondary"
+      }
+    },
+    {
+      "name": "time to first adverse event leading to permanent trial product discontinuation",
+      "entity_type": "Outcome",
+      "confidence": 0.92,
+      "context": "Time to First AE Leading to Permanent Trial Product Discontinuation",
+      "attributes": {
+        "endpoint_type": "Secondary",
+        "category": "Safety"
+      }
+    },
+    {
+      "name": "number of serious adverse events",
+      "entity_type": "Outcome",
+      "confidence": 0.92,
+      "context": "Number of Serious Adverse Events",
+      "attributes": {
+        "endpoint_type": "Secondary",
+        "category": "Safety"
+      }
+    },
+    {
+      "name": "change in eye examination category",
+      "entity_type": "Outcome",
+      "confidence": 0.92,
+      "context": "Change in Eye Examination Category (Time Frame: Week -3, End of treatment)",
+      "attributes": {
+        "endpoint_type": "Secondary",
+        "category": "Safety"
+      }
+    },
+    {
+      "name": "change in pulse rate",
+      "entity_type": "Outcome",
+      "confidence": 0.92,
+      "context": "Change in Pulse Rate (Time Frame: Week 0, End of treatment)",
+      "attributes": {
+        "endpoint_type": "Secondary",
+        "category": "Safety"
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source_entity": "NCT02692716",
+      "target_entity": "semaglutide",
+      "relation_type": "tests",
+      "confidence": 0.97,
+      "evidence": "The aim of the trial is to investigate the cardiovascular safety of oral semaglutide in subjects with type 2 diabetes."
+    },
+    {
+      "source_entity": "NCT02692716",
+      "target_entity": "oral semaglutide once daily",
+      "relation_type": "tests",
+      "confidence": 0.95,
+      "evidence": "Oral semaglutide (EXPERIMENTAL)\n    Interventions: Drug: semaglutide"
+    },
+    {
+      "source_entity": "NCT02692716",
+      "target_entity": "placebo once daily oral",
+      "relation_type": "tests",
+      "confidence": 0.88,
+      "evidence": "Placebo (PLACEBO_COMPARATOR)\n    Interventions: Drug: placebo"
+    },
+    {
+      "source_entity": "oral semaglutide once daily",
+      "target_entity": "placebo once daily oral",
+      "relation_type": "compared_with",
+      "confidence": 0.94,
+      "evidence": "Oral semaglutide (EXPERIMENTAL)\n    Interventions: Drug: semaglutide\n- Placebo (PLACEBO_COMPARATOR)"
+    },
+    {
+      "source_entity": "semaglutide",
+      "target_entity": "placebo once daily oral",
+      "relation_type": "compared_with",
+      "confidence": 0.88,
+      "evidence": "Placebo (PLACEBO_COMPARATOR)\n    Interventions: Drug: placebo"
+    },
+    {
+      "source_entity": "semaglutide",
+      "target_entity": "Type 2 Diabetes Mellitus",
+      "relation_type": "evaluated_for",
+      "confidence": 0.92,
+      "evidence": "The aim of the trial is to investigate the cardiovascular safety of oral semaglutide in subjects with type 2 diabetes."
+    },
+    {
+      "source_entity": "oral semaglutide once daily",
+      "target_entity": "Type 2 Diabetes Mellitus",
+      "relation_type": "evaluated_for",
+      "confidence": 0.85,
+      "evidence": "A Trial Investigating the Cardiovascular Safety of Oral Semaglutide in Subjects With Type 2 Diabetes"
+    },
+    {
+      "source_entity": "NCT02692716",
+      "target_entity": "Type 2 Diabetes Mellitus",
+      "relation_type": "investigates",
+      "confidence": 0.97,
+      "evidence": "Conditions: Diabetes; Diabetes Mellitus, Type 2"
+    },
+    {
+      "source_entity": "NCT02692716",
+      "target_entity": "Diabetes Mellitus",
+      "relation_type": "investigates",
+      "confidence": 0.8,
+      "evidence": "Conditions: Diabetes; Diabetes Mellitus, Type 2"
+    },
+    {
+      "source_entity": "NCT02692716",
+      "target_entity": "Cardiovascular Diseases",
+      "relation_type": "investigates",
+      "confidence": 0.7,
+      "evidence": "Age at least 50 years at screening and presence of cardiovascular disease"
+    },
+    {
+      "source_entity": "NCT02692716",
+      "target_entity": "Novo Nordisk",
+      "relation_type": "sponsored_by",
+      "confidence": 0.98,
+      "evidence": "Lead Sponsor: Novo Nordisk A/S"
+    },
+    {
+      "source_entity": "NCT02692716",
+      "target_entity": "Phase 3",
+      "relation_type": "is_phase",
+      "confidence": 0.98,
+      "evidence": "Phase: PHASE3"
+    },
+    {
+      "source_entity": "NCT02692716",
+      "target_entity": "Adults aged 50+ with type 2 diabetes and cardiovascular disease or risk factors",
+      "relation_type": "enrolls",
+      "confidence": 0.9,
+      "evidence": "Male or female diagnosed with type 2 diabetes"
+    },
+    {
+      "source_entity": "NCT02692716",
+      "target_entity": "Oral semaglutide",
+      "relation_type": "enrolls",
+      "confidence": 0.82,
+      "evidence": "Oral semaglutide (EXPERIMENTAL)"
+    },
+    {
+      "source_entity": "NCT02692716",
+      "target_entity": "Placebo",
+      "relation_type": "enrolls",
+      "confidence": 0.8,
+      "evidence": "Placebo (PLACEBO_COMPARATOR)"
+    },
+    {
+      "source_entity": "NCT02692716",
+      "target_entity": "estimated glomerular filtration rate",
+      "relation_type": "uses_biomarker",
+      "confidence": 0.8,
+      "evidence": "severe renal impairment (corresponding to eGFR (glomerular filtration rate, estimated) below 30 mL/min/1.73 m"
+    },
+    {
+      "source_entity": "NCT02692716",
+      "target_entity": "time to first MACE (cardiovascular death, non-fatal myocardial infarction or non-fatal stroke)",
+      "relation_type": "has_outcome",
+      "confidence": 0.97,
+      "evidence": "Time From Randomisation to First Occurrence of a Major Adverse Cardiovascular Event (MACE) Composite Endpoint Consisting of: Cardiovascular Death, Non-fatal Myocardial Infarction or Non-fatal Stroke"
+    },
+    {
+      "source_entity": "NCT02692716",
+      "target_entity": "time to first expanded composite cardiovascular endpoint",
+      "relation_type": "has_outcome",
+      "confidence": 0.93,
+      "evidence": "Time From Randomisation to First Occurrence of an Expanded Composite Cardiovascular Endpoint"
+    },
+    {
+      "source_entity": "NCT02692716",
+      "target_entity": "time to first occurrence of each component of expanded composite cardiovascular endpoint",
+      "relation_type": "has_outcome",
+      "confidence": 0.9,
+      "evidence": "Time From Randomisation to First Occurrence of Each of the Individual Components in the Expanded Composite Cardiovascular Endpoint"
+    },
+    {
+      "source_entity": "NCT02692716",
+      "target_entity": "time to first composite of all-cause death, non-fatal myocardial infarction or non-fatal stroke",
+      "relation_type": "has_outcome",
+      "confidence": 0.93,
+      "evidence": "Time From Randomisation to First Occurrence of a Composite Endpoint Consisting of: All-cause Death, Non-fatal Myocardial Infarction or Nonfatal Stroke"
+    },
+    {
+      "source_entity": "NCT02692716",
+      "target_entity": "time to first fatal or non-fatal myocardial infarction",
+      "relation_type": "has_outcome",
+      "confidence": 0.93,
+      "evidence": "Time From Randomisation to First Occurrence of Fatal or Non-fatal Myocardial Infarction"
+    },
+    {
+      "source_entity": "NCT02692716",
+      "target_entity": "time to first fatal or non-fatal stroke",
+      "relation_type": "has_outcome",
+      "confidence": 0.93,
+      "evidence": "Time From Randomisation to First Occurrence of Fatal or Non-fatal Stroke"
+    },
+    {
+      "source_entity": "NCT02692716",
+      "target_entity": "time to all-cause death",
+      "relation_type": "has_outcome",
+      "confidence": 0.93,
+      "evidence": "Time From Randomisation to All-cause Death"
+    },
+    {
+      "source_entity": "NCT02692716",
+      "target_entity": "time to first adverse event leading to permanent trial product discontinuation",
+      "relation_type": "has_outcome",
+      "confidence": 0.92,
+      "evidence": "Time to First AE Leading to Permanent Trial Product Discontinuation"
+    },
+    {
+      "source_entity": "NCT02692716",
+      "target_entity": "number of serious adverse events",
+      "relation_type": "has_outcome",
+      "confidence": 0.92,
+      "evidence": "Number of Serious Adverse Events"
+    },
+    {
+      "source_entity": "NCT02692716",
+      "target_entity": "change in eye examination category",
+      "relation_type": "has_outcome",
+      "confidence": 0.92,
+      "evidence": "Change in Eye Examination Category"
+    },
+    {
+      "source_entity": "NCT02692716",
+      "target_entity": "change in pulse rate",
+      "relation_type": "has_outcome",
+      "confidence": 0.92,
+      "evidence": "Change in Pulse Rate"
+    }
+  ],
+  "cost_usd": 0.0,
+  "model_used": "claude-opus-5-5",
+  "domain_name": "Clinical Trials",
+  "chunk_size": 10000,
+  "extracted_at": "2026-11-19T01:45:47.792672+00:00",
+  "error": null
+}
