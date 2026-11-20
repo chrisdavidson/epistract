@@ -106,14 +106,14 @@ ANALYSIS_CI_GROUP = (
 # Significance source of a finding nothing decided.
 NO_SOURCE = "none"
 # Comparator arms are told apart by name; arm_type is not a signal because
-# active arms carry "Active comparator". "placebo" and "comparator" always mark
-# a comparator arm. "standard of care", "usual care" and "control" also name
-# the background of active add-on arms ("Semaglutide 1 mg added to standard of
-# care"), so they mark a comparator only when no Compound of the graph is
-# named in the same text.
+# active arms carry "Active comparator". Every keyword below marks a comparator
+# arm, whatever compounds the text also names ("Standard of care (metformin)",
+# "Insulin glargine (control)"). The one exception is an active add-on arm: a
+# Compound of the graph named before an add-on connector that leads into a
+# standard-of-care / usual-care / control keyword ("Semaglutide 1 mg added to
+# standard of care", "Semaglutide 2.4 mg + usual care").
 HARD_PLACEBO_KEYWORDS = ("placebo", "comparator")
 SOFT_PLACEBO_KEYWORDS = ("standard of care", "usual care", "control")
-PLACEBO_KEYWORDS = HARD_PLACEBO_KEYWORDS + SOFT_PLACEBO_KEYWORDS
 
 
 def _keyword_re(words) -> re.Pattern:
@@ -123,9 +123,12 @@ def _keyword_re(words) -> re.Pattern:
     )
 
 
-_PLACEBO_RE = _keyword_re(PLACEBO_KEYWORDS)
 _HARD_PLACEBO_RE = _keyword_re(HARD_PLACEBO_KEYWORDS)
 _SOFT_PLACEBO_RE = _keyword_re(SOFT_PLACEBO_KEYWORDS)
+_ADD_ON_RE = re.compile(
+    r"\+|(?<![A-Za-z0-9])(?:plus|added to|add-on to|on top of|in addition to)(?![A-Za-z0-9])",
+    re.IGNORECASE,
+)
 # Registry non_inferiority_type values that make an analysis a
 # non-inferiority or equivalence test (NON_INFERIORITY, EQUIVALENCE,
 # NON_INFERIORITY_OR_EQUIVALENCE). SUPERIORITY, SUPERIORITY_OR_OTHER and
@@ -555,19 +558,34 @@ def _registry_group_view(attrs: dict, group: tuple) -> dict | None:
     """The registry side of one statistic group on a merged node, or None.
 
     Present only when the registry import stored at least one registry_<key>
-    of the group. The view holds registry values only, so a registry number is
-    never read beside an extracted p text or an extracted interval bound. The
-    one exception is effect_measure, which names the scale of the registry
-    interval and is read from the plain attribute when the registry did not
-    store a different one.
+    of the group. For a group the extracted node already had, the import
+    stores a registry value as registry_<key> only when it differs from the
+    plain one; an equal value is not stored again. So a plain field with no
+    registry_<key> twin holds the registry's value and completes the view
+    (the registry p_value_num and qualifier are parsed from its p_value text,
+    so a stored number or qualifier without registry_p_value means the texts
+    were equal). A one-sided registry interval reports a single bound, so its
+    missing bound is never borrowed from the extracted interval.
     """
     view = {
         k: attrs[f"registry_{k}"] for k in group if attrs.get(f"registry_{k}") is not None
     }
     if not view:
         return None
-    if "effect_measure" in group and "effect_measure" not in view:
-        view["effect_measure"] = attrs.get("effect_measure")
+    sides = view.get("ci_sides", attrs.get("ci_sides"))
+    one_sided = isinstance(sides, str) and "ONE" in sides.upper()
+    for k in group:
+        if k in view or attrs.get(k) is None:
+            continue
+        if one_sided and k in ("ci_lower", "ci_upper"):
+            continue
+        if k == "p_value" and "p_value_num" in view:
+            # Equal texts parse to the same number; a plain text that does
+            # not is not the registry's and is never read beside its number.
+            parsed = _parse_p_value(attrs[k])
+            if parsed is None or parsed[1] != _number(view["p_value_num"]):
+                continue
+        view[k] = attrs[k]
     return view
 
 
@@ -584,16 +602,18 @@ def _analysis_significance_with_source(node: dict) -> tuple[bool | None, str]:
     the registry import created, its own flag), "extracted" when extracted
     values decided, and "none" when nothing decided.
 
-    On a merged node (sources include "ctgov_results") each statistic group is
-    read from the registry side and wins over an extracted `significant` flag.
-    The registry import fills a group the extracted node lacked entirely into
-    the plain attributes, and stores registry_<key> for a group the extracted
-    node had. So a group with no registry_<key> holds the registry's values,
-    filled in or equal to them, and is read as registry statistics. (When the
-    registry reported nothing for a group the extracted node had, its values
-    are read the same way; the import leaves no marker to tell them apart.)
-    A node that is not registry-backed keeps the original order: the flag,
-    then p, then CI.
+    On a merged node (sources include "ctgov_results") the registry
+    statistics win over an extracted `significant` flag. The registry import
+    fills a group the extracted node lacked entirely into the plain
+    attributes, and stores registry_<key> for differing values of a group the
+    extracted node had. A group carrying registry_<key> values is
+    unambiguously registry data and is read first (see _registry_group_view).
+    Only then is a group with no registry_<key> read from its plain values,
+    which are the registry's (filled in or equal) and graded as registry
+    statistics. (When the registry reported nothing for a group the extracted
+    node had, its values are read the same way; the import leaves no marker
+    to tell them apart.) A node that is not registry-backed keeps the
+    original order: the flag, then p, then CI.
     """
     attrs = node.get("attributes")
     if not isinstance(attrs, dict):
@@ -606,12 +626,15 @@ def _analysis_significance_with_source(node: dict) -> tuple[bool | None, str]:
         if decided is not None:
             return decided, REGISTRY_SOURCE
     elif _is_registry_backed(attrs):
-        # A merged node: per group, registry_<key> values beside extracted
-        # ones, else the plain group the registry filled or matched.
-        for group in (ANALYSIS_P_GROUP, ANALYSIS_CI_GROUP):
-            view = _registry_group_view(attrs, group)
-            if view is None:
-                view = _plain_group_view(attrs, group)
+        # A merged node: groups with registry_<key> values first, then the
+        # plain groups the registry filled or matched.
+        groups = (ANALYSIS_P_GROUP, ANALYSIS_CI_GROUP)
+        registry_views = [_registry_group_view(attrs, g) for g in groups]
+        plain_views = [
+            _plain_group_view(attrs, g) if v is None else None
+            for g, v in zip(groups, registry_views)
+        ]
+        for view in registry_views + plain_views:
             if view is None:
                 continue
             decided = _significance_from_view(view, use_qualifier=True)
@@ -779,14 +802,17 @@ def _trial_nct_map(trial_lookup: dict) -> dict[str, str]:
 
 
 def _compound_patterns(by_id: dict) -> list[tuple[str, re.Pattern]]:
-    """(compound id, word-boundary pattern) for every Compound name of 3+ chars."""
+    """(compound id, word-boundary pattern) for every Compound name of 3+ chars
+    that is not a comparator keyword phrase."""
     patterns = []
     for node_id in sorted(by_id, key=str):
         node = by_id[node_id]
         if str(node.get("entity_type", "")).lower() != "compound":
             continue
         name = str(node.get("name") or "").strip()
-        if len(name) < MIN_COMPOUND_NAME:
+        # A Compound named like a comparator ("Standard of care") names no
+        # treatment.
+        if len(name) < MIN_COMPOUND_NAME or _HARD_PLACEBO_RE.search(name) or _SOFT_PLACEBO_RE.search(name):
             continue
         patterns.append((node_id, re.compile(
             r"(?<![A-Za-z0-9])" + re.escape(name) + r"(?![A-Za-z0-9])", re.IGNORECASE
@@ -794,31 +820,58 @@ def _compound_patterns(by_id: dict) -> list[tuple[str, re.Pattern]]:
     return patterns
 
 
+def _add_on_compounds(text: str, patterns: list[tuple[str, re.Pattern]]) -> set[str]:
+    """Compounds of an active add-on arm ("Semaglutide 1 mg added to standard
+    of care"), else an empty set.
+
+    The text before the first standard-of-care / usual-care / control keyword
+    must name a Compound of the graph and then an add-on connector ("+",
+    "plus", "added to", "on top of", "in addition to"); the compounds named
+    before the last such connector are the arm's. A compound named after the
+    keyword is the comparator's background ("Standard of care (metformin)").
+    """
+    keyword = _SOFT_PLACEBO_RE.search(text)
+    if keyword is None:
+        return set()
+    connectors = list(_ADD_ON_RE.finditer(text, 0, keyword.start()))
+    if not connectors:
+        return set()
+    head = text[:connectors[-1].start()]
+    return {compound_id for compound_id, pattern in patterns if pattern.search(head)}
+
+
+def _is_comparator_text(text, patterns: list[tuple[str, re.Pattern]]) -> bool:
+    """True when text names a comparator arm (see SOFT_PLACEBO_KEYWORDS)."""
+    if not isinstance(text, str) or not text:
+        return False
+    if _HARD_PLACEBO_RE.search(text):
+        return True
+    return bool(_SOFT_PLACEBO_RE.search(text)) and not _add_on_compounds(text, patterns)
+
+
 def _compounds_in_text(text, patterns: list[tuple[str, re.Pattern]]) -> set[str]:
     """Compound ids whose name appears in text at a word boundary.
 
-    Placebo / comparator text names no treatment ("Semaglutide placebo").
-    Standard-of-care / usual-care / control text names the compounds it
-    mentions ("Semaglutide 2.4 mg + usual care"); with none it yields nothing.
+    Comparator text names no treatment ("Semaglutide placebo", "Usual care
+    (metformin)"); an active add-on arm names the compounds before its add-on
+    connector ("Semaglutide 2.4 mg + usual care").
     """
     if not isinstance(text, str) or not text or _HARD_PLACEBO_RE.search(text):
         return set()
+    if _SOFT_PLACEBO_RE.search(text):
+        return _add_on_compounds(text, patterns)
     return {compound_id for compound_id, pattern in patterns if pattern.search(text)}
 
 
 def _is_placebo_cohort(cohort: dict, received_names: list[str], patterns=()) -> bool:
-    """A comparator arm: a placebo/comparator keyword in its name, arm label or
-    group description; a standard-of-care / usual-care / control keyword there
-    with no Compound of the graph named in the same text; or every compound or
-    intervention it receives is placebo.
+    """A comparator arm: a comparator keyword in its name, arm label or group
+    description that is not an active add-on to standard of care (see
+    _is_comparator_text), or every compound or intervention it receives is
+    placebo.
     """
     attrs = cohort.get("attributes") if isinstance(cohort.get("attributes"), dict) else {}
     for text in (cohort.get("name"), attrs.get("arm_label"), attrs.get("group_description")):
-        if not isinstance(text, str):
-            continue
-        if _HARD_PLACEBO_RE.search(text):
-            return True
-        if _SOFT_PLACEBO_RE.search(text) and not any(p.search(text) for _, p in patterns):
+        if _is_comparator_text(text, patterns):
             return True
     return bool(received_names) and all("placebo" in name.lower() for name in received_names)
 
@@ -832,8 +885,11 @@ def _registry_treatment(
     placebo arm's name can contain the compound ("Semaglutide placebo 0.5 mg").
     Returns (compound id or None, non-placebo compared cohort ids). The
     treatment is set only when exactly one compound results. When several
-    result, a compound that every compared arm receives (placebo arms
-    included) is background therapy and is dropped, if exactly one remains.
+    result and at least one compared arm is a comparator arm, a compound that
+    every compared arm receives (the comparator included) is background
+    therapy and is dropped, if exactly one remains. Without a comparator arm
+    the shared compound is the comparison itself (CagriSema vs semaglutide),
+    so the treatment stays ambiguous.
     """
     def received(cohort_id) -> set[str]:
         found = set(related(cohort_id, RECEIVES, "compound"))
@@ -863,12 +919,15 @@ def _registry_treatment(
     # compared Cohort, or only comparator ones, the active arm is one of the
     # compared group titles.
     titles = attrs.get("unmatched_groups") if active else attrs.get("compared_groups")
+    has_comparator = len(active) < len(cohorts)
     for title in titles if isinstance(titles, list) else ():
+        if _is_comparator_text(title, patterns):
+            has_comparator = True
         found = _compounds_in_text(title, patterns)
         compounds.update(found)
         arms.append(found)
 
-    if len(compounds) > 1 and len(arms) > 1:
+    if has_comparator and len(compounds) > 1 and len(arms) > 1:
         remaining = compounds - set.intersection(*arms)
         if len(remaining) == 1:
             compounds = remaining
@@ -1217,8 +1276,16 @@ def _registry_contest_entry(key: tuple[str, str], group: list[dict]) -> tuple[di
     representative = outcome_ids[0] if outcome_ids else None
     treated = min(group, key=lambda f: (str(f.get("treatment_id")), str(f["analysis"])))
     docs = sorted({d for f in group for d in f.get("support_documents") or []})
+    # An outcome whose name normalizes to nothing keys on its own id; name the
+    # entry after that outcome rather than the id.
+    display = key[0]
+    if key[0] in outcome_ids:
+        display = next((
+            str(f["standard_outcome"]) for f in sorted(group, key=lambda f: str(f["analysis"]))
+            if str(f.get("standard_outcome_id")) == key[0] and f.get("standard_outcome")
+        ), key[0])
     entry = {
-        "standard_outcome": key[0],
+        "standard_outcome": display,
         "standard_outcome_key": key[0],
         "standard_outcome_ids": outcome_ids,
         "treatment": treated["treatment"],
