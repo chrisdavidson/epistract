@@ -165,7 +165,7 @@ What this step does:
 - For every Compound node, calls PubChem PUG REST (`/rest/pug/compound/name/{name}/property/.../JSON`) and attaches `pubchem_cid`, `molecular_formula`, `molecular_weight`, `canonical_smiles`, `inchi` as node attributes.
 - Saves the mutated graph back to `graph_data.json`.
 - Writes a summary to `<output_dir>/extractions/_enrichment_report.json` with per-entity-type counts (total / enriched / not_found / failed) and hit rates.
-- With `--results`, the report also has a `results` block: trials with/without results, results_failed, adverse events parsed (serious/other), analyses parsed, created, merged. `created` counts registry nodes and edges written (`created_nodes` + `created_edges`), `merged` counts extracted AE/analysis nodes that received registry data, `write_failed` counts trials whose write failed, and `skipped_reason` appears when sift-kg is unavailable.
+- With `--results`, the report also has a `results` block: trials with/without results, results_failed, adverse events parsed (serious/other), analyses parsed, created, merged. `created` counts registry nodes and edges written (`created_nodes` + `created_edges`), `merged` counts (node, trial) merges: one per extracted AE/analysis node per trial whose registry data it received (AE nodes are shared across trials, so one node merged by three trials counts 3), `write_failed` counts trials whose write failed, and `skipped_reason` appears when sift-kg is unavailable.
 
 Enrichment is **non-blocking**. If the Python process exits non-zero, report the failure to the user and continue to Step 6. Do NOT abort the pipeline — the unenriched graph is still valid output.
 
