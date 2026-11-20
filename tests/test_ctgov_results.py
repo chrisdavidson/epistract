@@ -1809,3 +1809,128 @@ def test_stale_registry_link_to_another_trials_ae_is_ignored(enrich, tmp_path):
     assert _edges(links, "reports_adverse_event", TRIAL_B, node["id"])  # never deleted
     again, _ = _run(enrich, tmp_path, _all_fixture_bodies(), results=True)
     assert again["results"]["created"] == 0 and again["results"]["merged"] == 0
+
+
+# --- Opt-in serious-event floor (--results-serious-min-pct, iteration 21) ----
+
+ITERATION20_COMMIT = "1589524"
+
+
+def _serious_reaches(event, pct) -> bool:
+    return any(
+        s["numAtRisk"] and s["numAffected"] / s["numAtRisk"] * 100 >= pct
+        for s in event.get("stats", [])
+        if isinstance(s.get("numAtRisk"), (int, float)) and isinstance(s.get("numAffected"), (int, float))
+    )
+
+
+@pytest.mark.unit
+def test_serious_min_pct_default_keeps_every_serious_event(enrich):
+    for nct in (WITH_RESULTS_A, WITH_RESULTS_B):
+        study = _study(nct)
+        default = enrich._parse_ct_results(study)
+        assert enrich._parse_ct_results(study, 0) == default
+        assert "serious_min_pct" not in default and "serious_events_omitted" not in default
+        module = study["resultsSection"]["adverseEventsModule"]
+        assert sum(1 for a in default["adverse_events"] if a["seriousness"] == "serious") == len(
+            module["seriousEvents"]
+        )
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("nct, pct", [(WITH_RESULTS_A, 1), (WITH_RESULTS_B, 0.5)])
+def test_serious_min_pct_floor_is_per_arm(enrich, nct, pct):
+    # The fixtures' serious events are rare: 1 of 29 (A) reaches 1% in some
+    # arm, 1 of 149 (B) reaches 0.5%.
+    study = _study(nct)
+    module = study["resultsSection"]["adverseEventsModule"]
+    default = enrich._parse_ct_results(study)
+    floored = enrich._parse_ct_results(study, pct)
+    kept = [a for a in floored["adverse_events"] if a["seriousness"] == "serious"]
+    expected = [e for e in module["seriousEvents"] if _serious_reaches(e, pct)]
+    assert 0 < len(kept) < len(module["seriousEvents"])
+    assert [a["term"] for a in kept] == [e["term"] for e in expected]
+    for ae in kept:
+        assert any(_stat_pct(s) >= pct for s in ae["stats"]), ae["term"]
+    assert floored["serious_min_pct"] == pct
+    assert floored["serious_events_omitted"] == len(module["seriousEvents"]) - len(kept)
+    # Other events keep their own registry threshold.
+    other = lambda r: [a for a in r["adverse_events"] if a["seriousness"] == "other"]
+    assert other(floored) == other(default)
+
+
+@pytest.mark.unit
+def test_serious_min_pct_report_block_and_edges(enrich, tmp_path):
+    _write_graph(tmp_path / "floor", [WITH_RESULTS_A, WITH_RESULTS_B])
+    report, _ = _run(enrich, tmp_path / "floor", _all_fixture_bodies(), results=True, serious_min_pct=1)
+    block = report["results"]
+    assert set(block) == set(REPORT_KEYS) | {"serious_min_pct", "serious_events_omitted"}
+    assert block["serious_min_pct"] == 1.0
+    omitted = sum(
+        enrich._parse_ct_results(_study(n), 1)["serious_events_omitted"]
+        for n in (WITH_RESULTS_A, WITH_RESULTS_B)
+    )
+    assert block["serious_events_omitted"] == omitted > 0
+    assert block["adverse_events_parsed"]["serious"] == 178 - omitted
+    assert block["adverse_events_parsed"]["other"] == 39
+    _, links = _read_graph(tmp_path / "floor")
+    ae_links = _edges(links, "reports_adverse_event")
+    assert ae_links and all(_eattr(l, "serious_min_pct") == 1.0 for l in ae_links)
+    assert any(_eattr(l, "seriousness") == "serious" for l in ae_links)
+
+    _write_graph(tmp_path / "default", [WITH_RESULTS_A, WITH_RESULTS_B])
+    default, _ = _run(enrich, tmp_path / "default", _all_fixture_bodies(), results=True)
+    assert set(default["results"]) == set(REPORT_KEYS)
+    _, default_links = _read_graph(tmp_path / "default")
+    assert not [l for l in default_links if _eattr(l, "serious_min_pct") is not None]
+    assert len(_edges(default_links, "reports_adverse_event")) > len(ae_links)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("bad", [-1, 100.5, float("nan"), "2", True])
+def test_serious_min_pct_rejects_invalid(enrich, tmp_path, bad):
+    _write_graph(tmp_path, [WITH_RESULTS_A])
+    with pytest.raises(ValueError):
+        _run(enrich, tmp_path, _all_fixture_bodies(), results=True, serious_min_pct=bad)
+
+
+@pytest.mark.unit
+def test_cli_serious_min_pct_flag(tmp_path):
+    proc = subprocess.run(
+        [sys.executable, str(_module_path()), "--help"], capture_output=True, text=True, timeout=60,
+    )
+    assert "--results-serious-min-pct" in proc.stdout
+    bad = subprocess.run(
+        [sys.executable, str(_module_path()), str(tmp_path), "--results", "--results-serious-min-pct", "-3"],
+        capture_output=True, text=True, timeout=60,
+    )
+    assert bad.returncode == 2 and "serious_min_pct" in bad.stderr
+
+
+@pytest.mark.unit
+def test_results_default_byte_identical_to_iteration20(enrich, tmp_path, monkeypatch):
+    """--results without the new flag writes exactly what iteration 20 wrote."""
+    old_path = tmp_path / "enrich_iter20.py"
+    try:
+        shown = subprocess.run(
+            ["git", "-C", str(EPI_ROOT), "show", f"{ITERATION20_COMMIT}:domains/clinicaltrials/enrich.py"],
+            capture_output=True, check=True, timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        pytest.skip(f"cannot read {ITERATION20_COMMIT} from git: {exc}")
+    old_path.write_bytes(shown.stdout)
+    old = _load_enrich("_ct_enrich_iter20", old_path)
+    monkeypatch.setattr(old.time, "sleep", lambda s: None)
+    bodies = _all_fixture_bodies()
+    d_old = _seeded_graph(tmp_path / "old")
+    d_new = _seeded_graph(tmp_path / "new")
+    with patch.object(old.requests, "get", side_effect=_router(bodies)):
+        rep_old = old.enrich_graph(d_old, results=True)
+    with patch.object(enrich.requests, "get", side_effect=_router(bodies)):
+        rep_new = enrich.enrich_graph(d_new, results=True)
+    g_old = _normalize_stamps((d_old / "graph_data.json").read_bytes())
+    g_new = _normalize_stamps((d_new / "graph_data.json").read_bytes())
+    assert g_old == g_new
+    rep_old.pop("generated_at")
+    rep_new.pop("generated_at")
+    assert rep_old == rep_new and _same_key_order(rep_old, rep_new)
