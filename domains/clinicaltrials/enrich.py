@@ -116,24 +116,28 @@ _WS_RE = re.compile(r"\s+")
 
 # British -> US spelling stems folded into one AE key. Rules are stem-anchored:
 # an unanchored "oedem"/"oestr" would also rewrite US compounds whose prefix ends
-# in "o" (hyp-o-estrogenism, angi-o-edema, phyt-o-estrogen) and split them from
-# the British form, so those prefixes are excluded by lookbehind, and
-# "angio-oedem" folds its hyphen first. "leuc" only before "o" (Leucopenia),
-# leaving Leucine alone.
+# in "o" (hyp-o-estrogenism, angi-o-edema, phyt-o-estrogen, xen-o-estrogen) and
+# split them from the British form. "oestr" folds only where British spelling
+# puts it (word start, after "o", "er" or "yl": Oestradiol, Hypooestrogenism,
+# Hyperoestrogenism, Ethinyloestradiol), so unknown US compounds stay unfolded;
+# "oedem" keeps its "angi" lookbehind (British -oedema compounds such as
+# Lymphoedema and Lipoedema need the fold) and "angio-oedem" folds its hyphen
+# first. "aesthe" covers -aesthesia and anaesthetic/anaesthetist. "leuc" only
+# before "o" and not in Leucovorin (Leucopenia), leaving Leucine alone.
 _US_SPELLING = [
     (re.compile(r"angio-oedem", re.IGNORECASE), "angioedem"),
     (re.compile(r"(?<!angi)oedem", re.IGNORECASE), "edem"),
     (re.compile(r"oesophag", re.IGNORECASE), "esophag"),
     (re.compile(r"rhoe", re.IGNORECASE), "rhe"),
     (re.compile(r"pnoe", re.IGNORECASE), "pne"),  # dys/a/tachy/ortho/hypo/brady/hyperpnoea
-    (re.compile(r"(?<!hyp)(?<!phyt)oestr", re.IGNORECASE), "estr"),
+    (re.compile(r"(?:(?<![a-z])|(?<=o)|(?<=er)|(?<=yl))oestr", re.IGNORECASE), "estr"),
     (re.compile(r"foet", re.IGNORECASE), "fet"),
     (re.compile(r"coeliac", re.IGNORECASE), "celiac"),
     (re.compile(r"amoeb", re.IGNORECASE), "ameb"),
-    (re.compile(r"aesthes", re.IGNORECASE), "esthes"),  # para/hypo/an/dysaesthesia
+    (re.compile(r"aesthe", re.IGNORECASE), "esthe"),  # para/hypo/an/dysaesthesia, anaesthetic
     (re.compile(r"faec", re.IGNORECASE), "fec"),
     (re.compile(r"gynaec", re.IGNORECASE), "gynec"),
-    (re.compile(r"leuc(?=o)", re.IGNORECASE), "leuk"),
+    (re.compile(r"leuc(?=o(?!vorin))", re.IGNORECASE), "leuk"),
     (re.compile(r"ae(?=m)", re.IGNORECASE), "e"),
     (re.compile(r"haem", re.IGNORECASE), "hem"),
     (re.compile(r"tumour", re.IGNORECASE), "tumor"),
