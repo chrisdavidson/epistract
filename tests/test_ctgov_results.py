@@ -1004,10 +1004,14 @@ def test_analysis_merge(enrich, tmp_path):
     assert not [n for n in _registry_nodes(nodes, "OutcomeAnalysis") if n["name"] == dup_name]
     attrs = nodes[seed_id]["attributes"]
     assert nodes[seed_id]["name"] == "Seeded HbA1c analysis"
+    # SA-04: the seed has no p-value field, so the p-value group fills whole.
     assert attrs["p_value"] == ref["p_value"]
     assert attrs["p_value_num"] == 0.001
-    assert attrs["ci_lower"] == float(ref["ci_lower_limit"])
-    assert attrs["ci_upper"] == float(ref["ci_upper_limit"])
+    assert attrs["p_value_qualifier"] == "<"
+    # It has an effect estimate, so the registry CI is recorded, not filled.
+    assert "ci_lower" not in attrs and "ci_upper" not in attrs
+    assert attrs["registry_ci_lower"] == float(ref["ci_lower_limit"])
+    assert attrs["registry_ci_upper"] == float(ref["ci_upper_limit"])
     assert attrs["effect_estimate"] == round(float(ref["param_value"]), 1)
     if float(ref["param_value"]) != attrs["effect_estimate"]:
         assert attrs["registry_effect_estimate"] == float(ref["param_value"])
@@ -1481,3 +1485,53 @@ def test_active_arm_with_matching_placebo_is_not_placebo(enrich, tmp_path):
     assert _nattr(nodes[seed_id], "ctgov_analysis_ids") == [f"outcomeanalysis:{enrich._slug(want)}"]
     assert want not in {n["name"] for n in _oa_nodes(nodes, WITH_RESULTS_A)}
     assert [l["target"] for l in _edges(links, "assesses_effect_of", seed_id)] == [COMPOUND]
+
+
+@pytest.mark.unit
+def test_analysis_merge_fills_statistic_groups_whole(enrich, tmp_path):
+    # SA-04 ruling: p-value fields and effect/CI fields fill as groups. The
+    # seed states its own estimate and p_value_num, so neither group is mixed
+    # with registry values; every registry value of a partly present group that
+    # differs or is absent is kept under registry_<attr>. Other attributes
+    # still fill one at a time.
+    ref = _hba1c_analysis(enrich, "36 mg Orforglipron")
+    outcome_nodes, outcome_links = _hba1c_outcome_nodes()
+    seed_id = "outcomeanalysis:seed_hba1c_36_own_stats"
+    seed = {
+        "id": seed_id, "name": "Seeded HbA1c 36 mg with its own statistics",
+        "entity_type": "OutcomeAnalysis", "source_documents": ["doc_seed"],
+        "attributes": {
+            "effect_measure": ref["param_type"], "effect_estimate": -1.2, "p_value_num": 0.002,
+        },
+    }
+    links = [
+        *outcome_links,
+        _link(seed_id, "analyzes", outcome_nodes[0]["id"]),
+        _link(seed_id, "compares", COHORT_36),
+    ]
+    _, _, nodes, _ = _seeded_run(
+        enrich, tmp_path, extra_nodes=[*outcome_nodes, seed], extra_links=links,
+    )
+    want = f"{WITH_RESULTS_A}: Change From Baseline in HbA1c — Placebo vs 36 mg Orforglipron"
+    attrs = nodes[seed_id]["attributes"]
+    assert attrs["ctgov_analysis_ids"] == [f"outcomeanalysis:{enrich._slug(want)}"]
+    # Group P: extracted p_value_num kept; nothing filled beside it.
+    assert attrs["p_value_num"] == 0.002
+    assert "p_value" not in attrs and "p_value_qualifier" not in attrs
+    assert attrs["registry_p_value"] == ref["p_value"]
+    assert attrs["registry_p_value_num"] == 0.001
+    assert attrs["registry_p_value_qualifier"] == "<"
+    # Group E: extracted estimate and measure kept; no registry CI beside them.
+    assert attrs["effect_estimate"] == -1.2
+    assert attrs["effect_measure"] == ref["param_type"]
+    for key in ("ci_lower", "ci_upper", "ci_level", "ci_sides"):
+        assert key not in attrs, key
+    assert attrs["registry_effect_estimate"] == float(ref["param_value"])
+    assert "registry_effect_measure" not in attrs
+    assert attrs["registry_ci_lower"] == float(ref["ci_lower_limit"])
+    assert attrs["registry_ci_upper"] == float(ref["ci_upper_limit"])
+    assert attrs["registry_ci_level"] == 95
+    assert attrs["registry_ci_sides"] == "TWO_SIDED"
+    # Ungrouped attributes keep the per-attribute fill rule.
+    assert attrs["endpoint_type"] == "primary"
+    assert attrs["timepoint"] and attrs["unit"]
