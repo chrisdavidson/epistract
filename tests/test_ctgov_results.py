@@ -660,6 +660,17 @@ def test_ae_key_and_normalize_measure(enrich):
     )
 
 
+@pytest.mark.unit
+def test_ae_key_does_not_overstrip_oe(enrich):
+    assert enrich._ae_key("Toe pain") != enrich._ae_key("Te pain")
+    assert enrich._ae_key("toe").endswith("toe")
+    for british, us in [
+        ("Diarrhoea", "diarrhea"), ("Oedema", "edema"),
+        ("Oesophagitis", "esophagitis"), ("Dyspnoea", "dyspnea"),
+    ]:
+        assert enrich._ae_key(british) == enrich._ae_key(us)
+
+
 # --- Phase 7: registry adverse events ---------------------------------------
 
 
