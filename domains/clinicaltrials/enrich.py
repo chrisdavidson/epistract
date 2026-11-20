@@ -19,6 +19,9 @@ matching extracted nodes (conflicts are kept as registry_<attr>), a repeated
 run changes nothing, and registry groups that match no extracted Cohort never
 create one. Analyses merge only into an extracted analysis of the same trial
 that compares the same arms (or has the same effect measure and estimate).
+Each registry analysis also records ctgov_arm_groups: the CT.gov armGroup type
+and interventions of every compared group that names an armGroup, added only
+when missing (a re-run backfills it; an existing value is never overwritten).
 The "results" block of _enrichment_report.json counts the parsed records and
 the graph writes (created, merged); a trial whose write fails is rolled back
 and listed under write_errors. Without --results, behaviour is unchanged.
@@ -326,6 +329,19 @@ def _parse_ct_results(study: dict) -> dict | None:
                 "non_inferiority_type": an.get("nonInferiorityType"),
             })
 
+    arm_groups = []
+    arms_mod = _as_dict(_as_dict(study.get("protocolSection")).get("armsInterventionsModule"))
+    for arm in _as_list(arms_mod.get("armGroups")):
+        arm = _as_dict(arm)
+        arm_type = arm.get("type")
+        arm_groups.append({
+            "label": arm.get("label"),
+            "type": str(arm_type).upper() if isinstance(arm_type, str) and arm_type else None,
+            "interventions": [
+                str(i) for i in _as_list(arm.get("interventionNames")) if isinstance(i, str)
+            ],
+        })
+
     return {
         "nct_id": id_mod.get("nctId"),
         "ae_threshold_pct": threshold,
@@ -333,6 +349,7 @@ def _parse_ct_results(study: dict) -> dict | None:
         "event_groups": event_groups,
         "adverse_events": adverse_events,
         "analyses": analyses,
+        "arm_groups": arm_groups,
     }
 
 
@@ -459,10 +476,11 @@ def _arm_tokens(text) -> tuple:
     return frozenset(doses), frozenset(words)
 
 
-def _match_cohort(title, cohorts) -> str | None:
-    """Return the id of the one cohort matching a registry group title, else None.
+def _match_label(title, candidates) -> str | None:
+    """Return the key of the one candidate matching a registry group title, else None.
 
-    cohorts is a list of (cohort_id, name, arm_label_or_None). Exact normalized
+    candidates is a list of (key, texts): each text is a name or label the
+    candidate answers to (None and empty texts are skipped). Exact normalized
     match first; then equal dose numbers with a drug-word subset relation. Zero
     or several candidates return None (a match is never guessed).
     """
@@ -470,8 +488,8 @@ def _match_cohort(title, cohorts) -> str | None:
     if not want:
         return None
     exact = {
-        cid for cid, name, label in cohorts
-        if want in (_norm_arm(name), _norm_arm(label) if label else None)
+        key for key, texts in candidates
+        if any(t and want == _norm_arm(t) for t in texts)
     }
     if exact:
         return next(iter(exact)) if len(exact) == 1 else None
@@ -479,14 +497,22 @@ def _match_cohort(title, cohorts) -> str | None:
     if not words:
         return None
     found = set()
-    for cid, name, label in cohorts:
-        for text in (name, label):
+    for key, texts in candidates:
+        for text in texts:
             if not text:
                 continue
             c_doses, c_words = _arm_tokens(text)
             if c_doses == doses and c_words and (words <= c_words or c_words <= words):
-                found.add(cid)
+                found.add(key)
     return next(iter(found)) if len(found) == 1 else None
+
+
+def _match_cohort(title, cohorts) -> str | None:
+    """Return the id of the one cohort matching a registry group title, else None.
+
+    cohorts is a list of (cohort_id, name, arm_label_or_None); see _match_label.
+    """
+    return _match_label(title, [(cid, [name, label]) for cid, name, label in cohorts])
 
 
 def _decimals(value) -> int:
@@ -1076,7 +1102,20 @@ def _registry_outcome_id(kg, nct, title, unit) -> str:
         n += 1
 
 
-def _write_analyses(kg, nct, parsed, trial_ids, trial_cohort_ids, match, counters) -> None:
+def _write_analyses(
+    kg, nct, parsed, trial_ids, trial_cohort_ids, match, counters, arm_match=None,
+) -> None:
+    """Write one trial's registry analyses, merging into extracted ones.
+
+    arm_match maps a group title to the index of the one CT.gov armGroup it
+    names (see _write_results). A registry analysis whose compared groups match
+    at least one armGroup records ctgov_arm_groups, one {title, arm_type,
+    interventions} per compared group (unmatched groups: arm_type None and no
+    interventions). The attribute is added with setdefault on the created node
+    or the merged holder, so a value already there is never overwritten and no
+    registry_ conflict key is recorded; a re-run backfills a node that lacks it.
+    The backfill is counted as neither created nor merged.
+    """
     analyses = parsed["analyses"]
     if not analyses:
         return
@@ -1138,6 +1177,7 @@ def _write_analyses(kg, nct, parsed, trial_ids, trial_cohort_ids, match, counter
             "outcome": outcome_id, "cohorts": [c for c in cohort_ids if c],
             "complete": not unmatched,
             "attrs": _analysis_attrs(an, group_titles, unmatched), "groups": group_titles,
+            "arm_groups": _compared_arm_groups(group_titles, parsed.get("arm_groups"), arm_match),
         })
 
     # Resolve which registry analyses are already present (second run) or are
@@ -1212,6 +1252,8 @@ def _write_analyses(kg, nct, parsed, trial_ids, trial_cohort_ids, match, counter
             _upsert_node(
                 kg, oa_id, "OutcomeAnalysis", item["name"], item["attrs"], nct, counters, count=True,
             )
+        if item["arm_groups"]:
+            _node_attrs(kg, oa_id).setdefault("ctgov_arm_groups", item["arm_groups"])
         text = _registry_text(
             f"ClinicalTrials.gov results {nct}: {item['title']} — {' vs '.join(item['groups'])},",
             an.get("param_type"), an.get("param_value"),
@@ -1239,18 +1281,50 @@ def _write_analyses(kg, nct, parsed, trial_ids, trial_cohort_ids, match, counter
             _upsert_edge(kg, oa_id, "uses_method", method_id, nct, text, {}, counters)
 
 
+def _compared_arm_groups(group_titles, arm_groups, arm_match) -> list | None:
+    """One {title, arm_type, interventions} per compared group, or None.
+
+    None unless at least one title matched a CT.gov armGroup, so a trial
+    without armGroups records nothing.
+    """
+    if not arm_groups or arm_match is None:
+        return None
+    out, matched = [], False
+    for title in group_titles:
+        idx = arm_match(title)
+        arm = arm_groups[idx] if idx is not None else None
+        matched = matched or arm is not None
+        out.append({
+            "title": title,
+            "arm_type": arm.get("type") if arm else None,
+            "interventions": list(arm.get("interventions") or []) if arm else [],
+        })
+    return out if matched else None
+
+
 def _write_results(kg, nct, parsed, trial_ids, counters) -> None:
     """Write one trial's parsed registry results into the graph."""
     cohorts = _trial_cohorts(kg, nct, trial_ids)
     cache: dict = {}
+    arm_cache: dict = {}
+    arm_candidates = [
+        (i, [g.get("label")]) for i, g in enumerate(parsed.get("arm_groups") or [])
+    ]
 
     def match(title):
         if title not in cache:
             cache[title] = _match_cohort(title, cohorts)
         return cache[title]
 
+    def arm_match(title):
+        if title not in arm_cache:
+            arm_cache[title] = _match_label(title, arm_candidates)
+        return arm_cache[title]
+
     _write_adverse_events(kg, nct, parsed, trial_ids, match, counters)
-    _write_analyses(kg, nct, parsed, trial_ids, {c[0] for c in cohorts}, match, counters)
+    _write_analyses(
+        kg, nct, parsed, trial_ids, {c[0] for c in cohorts}, match, counters, arm_match,
+    )
 
 
 # ---------------------------------------------------------------------------

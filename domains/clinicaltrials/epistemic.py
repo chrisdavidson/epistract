@@ -106,7 +106,9 @@ ANALYSIS_CI_GROUP = (
 # Significance source of a finding nothing decided.
 NO_SOURCE = "none"
 # Comparator arms are told apart by name; arm_type is not a signal because
-# active arms carry "Active comparator". A hard keyword always marks a
+# active arms carry "Active comparator". The registry armGroup type
+# (ctgov_arm_groups) is used only by the registry-mode treatment fallback
+# (_arm_type_treatment) and never to classify a Cohort as placebo. A hard keyword always marks a
 # comparator arm ("Semaglutide placebo 0.5 mg"). A soft keyword
 # (standard of care, usual care, control) marks one when it stands outside
 # parentheses with no Compound of the graph joined to it ("Usual care",
@@ -145,6 +147,17 @@ _CONTROL_QUALIFIER_RE = re.compile(
 # OTHER are superiority-or-unspecified tests and are graded as efficacy.
 _NON_INFERIORITY_RE = re.compile(r"NON[_\s-]?INFERIORITY|EQUIVALENCE", re.IGNORECASE)
 MIN_COMPOUND_NAME = 3
+# CT.gov armGroup types (attribute ctgov_arm_groups of a registry analysis).
+ARM_EXPERIMENTAL = "EXPERIMENTAL"
+ARM_COMPARATOR_TYPES = frozenset({
+    "ACTIVE_COMPARATOR", "PLACEBO_COMPARATOR", "SHAM_COMPARATOR", "NO_INTERVENTION",
+})
+# "Drug: Tirzepatide" -> "Tirzepatide" (CT.gov intervention names carry the type).
+_INTERVENTION_PREFIX_RE = re.compile(
+    r"^\s*(?:Drug|Biological|Combination Product|Other|Dietary Supplement|Device|"
+    r"Procedure|Behavioral|Genetic|Radiation|Diagnostic Test)\s*:\s*",
+    re.IGNORECASE,
+)
 NCT_RE = re.compile(r"NCT\d{8}", re.IGNORECASE)
 
 # Effect measures whose null value is 1.0 (ratios); every other measure is
@@ -1038,9 +1051,39 @@ def _registry_treatment(
     return treatment, set(active)
 
 
+def _arm_type_treatment(attrs: dict, patterns) -> str | None:
+    """Treatment compound from the registry armGroup types of an analysis.
+
+    Needs ctgov_arm_groups with at least two entries, every one typed, exactly
+    one EXPERIMENTAL and all the others comparator types (active, placebo, sham,
+    no intervention). The compound is the one the EXPERIMENTAL group's title
+    names or, when the title names none, the one its interventions name. Zero
+    or several compounds give None.
+    """
+    groups = attrs.get("ctgov_arm_groups")
+    if not isinstance(groups, list) or len(groups) < 2:
+        return None
+    if not all(isinstance(g, dict) and isinstance(g.get("arm_type"), str) for g in groups):
+        return None
+    experimental = [g for g in groups if g["arm_type"] == ARM_EXPERIMENTAL]
+    if len(experimental) != 1:
+        return None
+    if not all(
+        g["arm_type"] in ARM_COMPARATOR_TYPES for g in groups if g is not experimental[0]
+    ):
+        return None
+    arm = experimental[0]
+    found = _compounds_in_text(arm.get("title"), patterns)
+    if not found:
+        for intervention in arm.get("interventions") or ():
+            if isinstance(intervention, str):
+                found |= _compounds_in_text(_INTERVENTION_PREFIX_RE.sub("", intervention), patterns)
+    return next(iter(found)) if len(found) == 1 else None
+
+
 def _analysis_findings(
     nodes: list[dict], links: list[dict], trial_lookup: dict, doc_trials: dict,
-    registry_mode: bool = False,
+    registry_mode: bool = False, arm_stats: dict | None = None,
 ) -> list[dict]:
     """Grade every OutcomeAnalysis node into one finding dict.
 
@@ -1053,6 +1096,12 @@ def _analysis_findings(
     measure key; findings then record their significance source and
     registry-backed provenance, and an extracted analysis duplicated by a
     registry analysis is marked superseded.
+
+    In registry mode an analysis whose treatment is still None takes the
+    EXPERIMENTAL group's compound when its ctgov_arm_groups are one
+    EXPERIMENTAL group against comparators (_arm_type_treatment). That rule
+    only fills a None, so an answer found any other way never changes; a
+    disagreeing rule answer is only counted in arm_stats["disagreements"].
     """
     by_id = {n["id"]: n for n in nodes if "id" in n}
     adjacency: dict[str, list[tuple[str, str]]] = defaultdict(list)
@@ -1097,6 +1146,7 @@ def _analysis_findings(
         return placebo_cache[cohort_id]
 
     findings: list[dict] = []
+    from_arm_type: set = set()
     # Per-finding data the supersession pass needs; never stored on the finding.
     side: dict[str, dict] = {}
     for node in nodes:
@@ -1130,6 +1180,13 @@ def _analysis_findings(
             )
             if treatment_id is None:
                 treatment_id = fallback
+            arm = _arm_type_treatment(attrs, patterns)
+            if arm is not None:
+                if treatment_id is None:
+                    treatment_id = arm
+                    from_arm_type.add(node_id)
+                elif arm != treatment_id and arm_stats is not None:
+                    arm_stats["disagreements"] = arm_stats.get("disagreements", 0) + 1
         treatment = name_of(treatment_id) if treatment_id else None
 
         # Trial: a direct edge first, then the NCT ids (registry mode), else
@@ -1200,6 +1257,8 @@ def _analysis_findings(
                 sources = [attrs["source"]]
             else:
                 sources = ["extracted"]
+            if node_id in from_arm_type:
+                finding["treatment_basis"] = "registry_arm_type"
             finding["significance_source"] = significance_source
             finding["sources"] = sources
             # An outcome whose name normalizes to nothing ("Change from baseline
@@ -1624,8 +1683,9 @@ def analyze_clinicaltrials_epistemic(output_dir: Path, graph_data: dict) -> dict
 
     # --- OutcomeAnalysis claims ---------------------------------------------
     registry_mode = _graph_has_registry_data(nodes)
+    arm_stats: dict = {}
     analysis_claims = _analysis_findings(
-        nodes, links, trial_lookup, doc_trials, registry_mode=registry_mode
+        nodes, links, trial_lookup, doc_trials, registry_mode=registry_mode, arm_stats=arm_stats
     )
     analysis_contested, analysis_contradictions = _analysis_contests(
         analysis_claims, registry_mode=registry_mode
@@ -1691,6 +1751,10 @@ def analyze_clinicaltrials_epistemic(output_dir: Path, graph_data: dict) -> dict
         summary["analysis_non_inferiority"] = sum(
             1 for f in analysis_claims if f.get("non_inferiority")
         )
+        summary["analysis_treatment_from_arm_type"] = sum(
+            1 for f in analysis_claims if f.get("treatment_basis") == "registry_arm_type"
+        )
+        summary["analysis_treatment_arm_type_disagreements"] = arm_stats.get("disagreements", 0)
 
     return {
         "metadata": {
