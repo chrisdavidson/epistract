@@ -1344,3 +1344,14 @@ def test_write_failure_is_atomic_and_reported(enrich, tmp_path, monkeypatch, cap
     assert "write_errors" not in report["results"]
     nodes, _ = _read_graph(tmp_path)
     assert len(_oa_nodes(nodes, WITH_RESULTS_A)) == 39
+
+
+@pytest.mark.unit
+def test_analysis_names_differing_only_in_punctuation_both_kept(enrich, tmp_path):
+    # IN-04: two analyses whose names slug to one id must both be written.
+    variant = "Percentage of Participants With an HbA1c Target Value of <=6.5% (48 mmol/Mol)"
+    study = _study_with_measure_copy(2, variant)
+    _seeded_graph(tmp_path)
+    _run(enrich, tmp_path, {WITH_RESULTS_A: study, WITH_RESULTS_B: _study(WITH_RESULTS_B)}, results=True)
+    nodes, _ = _read_graph(tmp_path)
+    assert len(_oa_nodes(nodes, WITH_RESULTS_A)) == 39 + 3
