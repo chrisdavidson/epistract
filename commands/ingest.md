@@ -25,7 +25,7 @@ Options:
   --fail-threshold <float>  Minimum extraction pass rate before graph build (default: 0.95, range: 0.0–1.0)
   --enrich                  Enrich graph via external APIs after build — clinicaltrials domain only
                             (Trial nodes → ClinicalTrials.gov v2; Compound nodes → PubChem PUG REST)
-  --enrich-results          Also import ClinicalTrials.gov posted results (implies --enrich) — clinicaltrials domain only
+  --enrich-results          Also parse ClinicalTrials.gov posted results and report counts; graph unchanged until results import lands (implies --enrich) — clinicaltrials domain only
 
 Examples:
   /epistract:ingest ./my-papers
@@ -42,7 +42,7 @@ Examples:
 - `--view` (optional): Open viewer after build (default: true)
 - `--fail-threshold <float>` (optional): Minimum post-normalization pass rate required before graph build (default: 0.95, range: [0.0, 1.0]). Pipeline aborts with a clear error if the pass rate falls below this threshold.
 - `--enrich` (optional flag): When present AND `--domain` is `clinicaltrials` (or aliases `clinicaltrial` / `clinical_trials`), triggers post-build enrichment against ClinicalTrials.gov v2 and PubChem PUG REST APIs. Trial nodes with NCT IDs get trial metadata; Compound nodes get molecular data. Non-blocking: API failures log counts but do not abort the pipeline.
-- `--enrich-results` (optional flag): Implies `--enrich`. enrich.py then also reads each trial's `resultsSection` from the same single ClinicalTrials.gov payload; trials without posted results are counted and skipped; network/HTTP/parse failures are counted, never fatal.
+- `--enrich-results` (optional flag): Implies `--enrich`. enrich.py then also reads each trial's `resultsSection` from the same single ClinicalTrials.gov payload; trials without posted results are counted and skipped; network/HTTP/parse failures are counted, never fatal. The graph is not modified yet: results are parsed and counted only, so `graph_data.json` is identical to a plain `--enrich` run.
 
 ## Pipeline Steps
 
@@ -165,7 +165,7 @@ What this step does:
 - For every Compound node, calls PubChem PUG REST (`/rest/pug/compound/name/{name}/property/.../JSON`) and attaches `pubchem_cid`, `molecular_formula`, `molecular_weight`, `canonical_smiles`, `inchi` as node attributes.
 - Saves the mutated graph back to `graph_data.json`.
 - Writes a summary to `<output_dir>/extractions/_enrichment_report.json` with per-entity-type counts (total / enriched / not_found / failed) and hit rates.
-- With `--results`, the report also has a `results` block: trials with/without results, results_failed, adverse events parsed (serious/other), analyses parsed, created, merged.
+- With `--results`, the report also has a `results` block: trials with/without results, results_failed, adverse events parsed (serious/other), analyses parsed, created, merged. `--results` does not modify the graph yet, so `created` and `merged` are 0; no adverse-event or analysis nodes are written.
 
 Enrichment is **non-blocking**. If the Python process exits non-zero, report the failure to the user and continue to Step 6. Do NOT abort the pipeline — the unenriched graph is still valid output.
 
