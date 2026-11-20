@@ -13,9 +13,10 @@ All notable changes to epistract are documented here. This project follows [Sema
 
 ### Fixed
 - **clinicaltrials `_ae_key` residual British spellings (Domain Builder iteration 23, commit 05d0850):** the AE matching key now merges Paraesthesia, Faecal incontinence, Gynaecomastia, Leucopenia, Hypooestrogenism and Angio-oedema with their US spellings. US compounds with an o-prefix (Angioedema, Hypoestrogenism, Phytoestrogen) keep their own keys, because the `oedem` and `oestr` stems are now anchored. `tests/test_ctgov_results.py` pins these pairs (commit e68179a).
+- **clinicaltrials `_ae_key` review fixes (Domain Builder iteration 24, commit aafcb45):** the `aesthe` stem also covers anaesthetic terms (Anaesthetic complication), `oestr` folds only at a word start or after o/er/yl so US Xenoestrogen and Proestrus keep their keys, and Leucovorin is no longer folded. Pinned in `tests/test_ctgov_results.py` (commit 296cec7).
 
 ### Measured
-- **corpus-07 AE count, iteration 22 to 23:** 1,118 to 1,118 (delta 0). The corpus holds only one spelling of each of the six pairs, so nothing merged (`docs/reports/v2.2-phase11/corpus07_ae_delta.json` in Domain Builder).
+- **corpus-07 AE count, iteration 22 to 23 and 24:** 1,118 to 1,118 (delta 0 for both). The corpus holds only one spelling of each of the six pairs, so nothing merged (`docs/reports/v2.2-phase11/corpus07_ae_delta.json` in Domain Builder).
 - **`pharma.yaml` adverse_event axis (Domain Builder crosswalk iteration 2, commit 1b3b446):** the clinicaltrials x pharmacovigilance join is 30 before and after. Seven further British-to-US pairs (anaem, paraesth, faec, oesophag, leucop, gynaecom, oestr) each measured +0, so none were added; the change records that measurement in the axis comment.
 
 ## [3.5.0] — 2026-11-20
