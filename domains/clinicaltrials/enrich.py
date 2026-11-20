@@ -17,9 +17,11 @@ Outcome and StatisticalMethod nodes with their edges. Every registry node and
 edge is tagged source "ctgov_results" with the NCT. Registry data is merged into
 matching extracted nodes (conflicts are kept as registry_<attr>), a repeated
 run changes nothing, and registry groups that match no extracted Cohort never
-create one. The "results" block of _enrichment_report.json counts the parsed
-records and the graph writes (created, merged). Without --results, behaviour
-is unchanged.
+create one. Analyses merge only into an extracted analysis of the same trial
+that compares the same arms (or has the same effect measure and estimate).
+The "results" block of _enrichment_report.json counts the parsed records and
+the graph writes (created, merged); a trial whose write fails is rolled back
+and listed under write_errors. Without --results, behaviour is unchanged.
 
 Non-blocking: API failures log counts but never abort the pipeline.
 ARCH-03: no core/ changes required; this module lives in the domain package.
@@ -32,6 +34,7 @@ Usage:
 """
 from __future__ import annotations
 
+import copy
 import json
 import re
 import sys
@@ -477,13 +480,14 @@ def _decimals(value) -> int:
 
 
 def _same_estimate(a, b) -> bool:
-    """Equal after rounding both to the fewer decimal places of the two."""
+    """Equal within rounding: at most half a unit of the coarser stated precision
+    apart, and never coarser than one decimal place (so 1.0 does not match 0.55)."""
     try:
         a, b = float(a), float(b)
     except (TypeError, ValueError):
         return False
-    places = min(_decimals(a), _decimals(b))
-    return round(a, places) == round(b, places)
+    places = max(1, min(_decimals(a), _decimals(b)))
+    return abs(a - b) <= 0.5 * 10 ** -places + 1e-9
 
 
 # ---------------------------------------------------------------------------
@@ -702,7 +706,28 @@ def _group_label(stat) -> str:
     return str(stat.get("group_title") or stat.get("group_id") or "")
 
 
-def _write_adverse_events(kg, nct, parsed, trial_ids, cohorts, match, counters) -> None:
+def _combined_stats(by_seriousness: dict, primary: dict) -> list:
+    """Per-group stats of one event. When the registry lists it in both the
+    serious and the other table, affected and event counts are summed per group
+    and the at-risk count is taken once per group (the larger value)."""
+    if len(by_seriousness) == 1:
+        return primary["stats"]
+    out: dict = {}
+    ordered = [primary] + [r for s, r in sorted(by_seriousness.items()) if r is not primary]
+    for record in ordered:
+        for stat in record["stats"]:
+            cur = out.setdefault(_group_label(stat), {
+                "group_id": stat.get("group_id"), "group_title": stat.get("group_title"),
+            })
+            for field in ("num_affected", "num_events"):
+                if isinstance(stat.get(field), (int, float)):
+                    cur[field] = cur.get(field, 0) + stat[field]
+            if isinstance(stat.get("num_at_risk"), (int, float)):
+                cur["num_at_risk"] = max(cur.get("num_at_risk", 0), stat["num_at_risk"])
+    return list(out.values())
+
+
+def _write_adverse_events(kg, nct, parsed, trial_ids, match, counters) -> None:
     records: dict = {}
     for ev in parsed["adverse_events"]:
         term = str(ev.get("term") or "").strip()
@@ -728,18 +753,12 @@ def _write_adverse_events(kg, nct, parsed, trial_ids, cohorts, match, counters) 
             nid for nid in known
             if any(_has_edge_from(kg, tid, "reports_adverse_event", nid) for tid in trial_ids)
         ]
-        if linked or known:
-            ae_id = (linked or known)[0]
-            _upsert_node(
-                kg, ae_id, "AdverseEvent", term, attrs, nct, counters,
-                rename={"reported_term": "registry_term"}, count=True,
-            )
-        else:
-            ae_id = f"adverseevent:{_slug(term)}"
-            _upsert_node(
-                kg, ae_id, "AdverseEvent", term, attrs, nct, counters,
-                rename={"reported_term": "registry_term"}, count=True,
-            )
+        ae_id = (linked or known or [f"adverseevent:{_slug(term)}"])[0]
+        created = _upsert_node(
+            kg, ae_id, "AdverseEvent", term, attrs, nct, counters,
+            rename={"reported_term": "registry_term"}, count=True,
+        )
+        if created:
             index.setdefault(key, []).append(ae_id)
             index[key].sort()
 
@@ -764,14 +783,18 @@ def _write_adverse_events(kg, nct, parsed, trial_ids, cohorts, match, counters) 
                 {}, counters,
             )
 
-        def _by_group(record) -> dict:
+        def _by_group(stats) -> dict:
             out = {}
-            for stat in record["stats"]:
+            for stat in stats:
                 label = _group_label(stat)
                 out[label] = {**_group_counts(stat), "cohort": match(stat.get("group_title"))}
             return out
 
-        stats = primary["stats"]
+        # Headline counts cover every table the event is listed in; the
+        # seriousness flag says whether any of it was serious.
+        stats = _combined_stats(by_seriousness, primary)
+        both = len(by_seriousness) > 1
+        label = "serious and other" if both else primary["seriousness"]
         edge_attrs = {
             "seriousness": primary["seriousness"],
             "assessment_type": primary.get("assessment_type"),
@@ -779,27 +802,28 @@ def _write_adverse_events(kg, nct, parsed, trial_ids, cohorts, match, counters) 
             "n_at_risk": _sum(stats, "num_at_risk"),
             "frequency_threshold": threshold,
             "frequency_threshold_source": threshold_source,
-            "by_group": _by_group(primary),
+            "by_group": _by_group(stats),
         }
-        if len(by_seriousness) > 1:
+        if both:
+            edge_attrs["count_basis"] = "serious+other"
             edge_attrs["by_seriousness"] = {
                 sers: {
                     "assessment_type": rec.get("assessment_type"),
                     "n_affected": _sum(rec["stats"], "num_affected"),
                     "n_at_risk": _sum(rec["stats"], "num_at_risk"),
-                    "by_group": _by_group(rec),
+                    "by_group": _by_group(rec["stats"]),
                 }
                 for sers, rec in sorted(by_seriousness.items())
             }
         evidence = (
-            f"ClinicalTrials.gov results {nct}: {term} ({primary['seriousness']}), "
+            f"ClinicalTrials.gov results {nct}: {term} ({label}), "
             f"{edge_attrs['n_affected']} of {edge_attrs['n_at_risk']} participants"
         )
         for tid in trial_ids:
             _upsert_edge(kg, tid, "reports_adverse_event", ae_id, nct, evidence, edge_attrs, counters)
 
         done = set()
-        for stat in primary["stats"]:
+        for stat in stats:
             cid = match(stat.get("group_title"))
             if cid is None or cid in done:
                 continue
@@ -818,7 +842,7 @@ def _write_adverse_events(kg, nct, parsed, trial_ids, cohorts, match, counters) 
             }
             _upsert_edge(
                 kg, ae_id, "observed_in", cid, nct,
-                f"ClinicalTrials.gov results {nct}: {term} ({primary['seriousness']}) "
+                f"ClinicalTrials.gov results {nct}: {term} ({label}) "
                 f"{stat.get('num_affected')}/{stat.get('num_at_risk')} in {_group_label(stat)}",
                 obs_attrs, counters,
             )
@@ -850,8 +874,66 @@ def _analysis_attrs(an: dict, titles: list, unmatched: list) -> dict:
     return {k: v for k, v in attrs.items() if v is not None}
 
 
-def _score_pair(reg_attrs: dict, reg_cohorts: set, cand_attrs: dict, cand_cohorts: set) -> int:
-    overlap = bool(reg_cohorts & cand_cohorts)
+def _plain_attrs(data) -> dict:
+    attrs = data.get("attributes")
+    return attrs if isinstance(attrs, dict) else {}
+
+
+def _is_placebo_cohort(kg, cid) -> bool:
+    """A comparator arm: placebo in its name or arm label, or it receives placebo."""
+    data = kg.graph.nodes[cid]
+    texts = [data.get("name"), _plain_attrs(data).get("arm_label")]
+    texts += [kg.graph.nodes[t].get("name") for t in _out_targets(kg, cid, "receives")]
+    return any("placebo" in str(t or "").lower() for t in texts)
+
+
+def _analysis_owned_by(kg, cand_id, nct, trial_cohort_ids: set) -> bool:
+    """True when an extracted OutcomeAnalysis belongs to trial nct.
+
+    An NCT number in its name or trial attributes decides. Otherwise every
+    compared cohort must belong to the trial, with at least one non-placebo arm
+    (a placebo cohort can be shared between trials). Otherwise its source
+    documents must name the NCT. Outcome nodes are shared across trials, so an
+    analysis on the same Outcome is not evidence on its own.
+    """
+    data = kg.graph.nodes[cand_id]
+    attrs = _plain_attrs(data)
+    named = {
+        m.upper()
+        for text in (data.get("name"), attrs.get("trial"), attrs.get("nct_id"), attrs.get("ctgov_nct_id"))
+        if text
+        for m in NCT_PATTERN.findall(str(text))
+    }
+    if named:
+        return nct in named
+    compared = set(_out_targets(kg, cand_id, "compares"))
+    active = {c for c in compared if not _is_placebo_cohort(kg, c)}
+    if compared and active and compared <= trial_cohort_ids:
+        return True
+    return any(nct in str(d).upper() for d in data.get("source_documents") or [])
+
+
+def _score_pair(
+    reg_attrs: dict, reg_cohorts: set, reg_complete: bool,
+    cand_attrs: dict, cand_cohorts: set, placebo: set,
+) -> int:
+    """Evidence that an extracted analysis is the same comparison as a registry one.
+
+    3: same arms and the same effect measure with the estimate within rounding;
+    2: same arms; 1: same effect measure and estimate, with no extracted arm
+    outside the registry's. Same arms means every registry group matched a
+    cohort and the compared cohorts are equal, or the extracted side names a
+    subset with the same non-placebo arms. A shared placebo arm alone is not
+    overlap.
+    """
+    active_reg = reg_cohorts - placebo
+    same_arms = (
+        reg_complete and bool(reg_cohorts) and bool(cand_cohorts)
+        and (
+            cand_cohorts == reg_cohorts
+            or (cand_cohorts <= reg_cohorts and bool(active_reg) and cand_cohorts - placebo == active_reg)
+        )
+    )
     measure = (
         reg_attrs.get("effect_measure") is not None
         and str(reg_attrs["effect_measure"]).lower() == str(cand_attrs.get("effect_measure", "")).lower()
@@ -862,16 +944,68 @@ def _score_pair(reg_attrs: dict, reg_cohorts: set, cand_attrs: dict, cand_cohort
         and cand_attrs.get("effect_estimate") is not None
         and _same_estimate(reg_attrs["effect_estimate"], cand_attrs["effect_estimate"])
     )
-    if overlap and estimate:
+    if same_arms and estimate:
         return 3
-    if overlap:
+    if same_arms:
         return 2
-    if estimate:
+    if estimate and cand_cohorts <= reg_cohorts:
         return 1
     return 0
 
 
-def _write_analyses(kg, nct, parsed, trial_ids, match, counters) -> None:
+def _same_text(a, b) -> bool:
+    return _WS_RE.sub(" ", str(a or "").lower()).strip() == _WS_RE.sub(" ", str(b or "").lower()).strip()
+
+
+def _outcome_fit(kg, oid, title, unit, time_frame):
+    """Rank of an Outcome node for a registry measure (lower is better), or None
+    when it is a different measure.
+
+    A registry-created Outcome is reused only for the same title and unit. An
+    extracted Outcome conflicts when its unit differs or a parenthetical in its
+    name (e.g. "(mmol/mol)") appears nowhere in the registry title, unit or time
+    frame.
+    """
+    data = kg.graph.nodes[oid]
+    attrs = _plain_attrs(data)
+    name = str(data.get("name", ""))
+    node_unit = attrs.get("unit")
+    if attrs.get("source") == REGISTRY_SOURCE:
+        if _same_text(name, title) and _same_text(node_unit, unit):
+            return (0, 0, 0, oid)
+        return None
+    if node_unit and unit and _norm_arm(node_unit) != _norm_arm(unit):
+        return None
+    hay = f" {_norm_arm(' '.join(str(x) for x in (title, unit, time_frame) if x))} "
+    qualifiers = [q for q in (_norm_arm(p) for p in re.findall(r"\(([^)]*)\)", name)) if q]
+    if any(f" {q} " not in hay for q in qualifiers):
+        return None
+    return (0 if _same_text(name, title) else 1, 0 if node_unit else 1, -len(qualifiers), oid)
+
+
+def _registry_outcome_id(kg, nct, title, unit) -> str:
+    """Id for a new registry Outcome: outcome:<slug>, or an NCT-scoped id when
+    that id is held by an extracted node or by a different registry measure."""
+    base = _slug(title)
+    candidates = [f"outcome:{base}", f"outcome:{_slug(nct)}_{base}"]
+    n = 2
+    while True:
+        for oid in candidates:
+            if not kg.graph.has_node(oid):
+                return oid
+            data = kg.graph.nodes[oid]
+            attrs = _plain_attrs(data)
+            if (
+                attrs.get("source") == REGISTRY_SOURCE
+                and _same_text(data.get("name"), title)
+                and _same_text(attrs.get("unit"), unit)
+            ):
+                return oid
+        candidates = [f"outcome:{_slug(nct)}_{base}_{n}"]
+        n += 1
+
+
+def _write_analyses(kg, nct, parsed, trial_ids, trial_cohort_ids, match, counters) -> None:
     analyses = parsed["analyses"]
     if not analyses:
         return
@@ -879,11 +1013,13 @@ def _write_analyses(kg, nct, parsed, trial_ids, match, counters) -> None:
     for tid in trial_ids:
         for oid in _out_targets(kg, tid, "has_outcome"):
             if _node_type(kg, oid) == "outcome":
-                outcome_by_norm.setdefault(
+                ids = outcome_by_norm.setdefault(
                     normalize_measure(str(kg.graph.nodes[oid].get("name", ""))), []
-                ).append(oid)
+                )
+                if oid not in ids:
+                    ids.append(oid)
 
-    seen_names: dict = {}
+    used_ids: set = set()
     prepared = []
     for an in analyses:
         title = str(an.get("outcome_title") or "").strip()
@@ -893,20 +1029,30 @@ def _write_analyses(kg, nct, parsed, trial_ids, match, counters) -> None:
         group_titles = [str(groups.get(gid) or gid) for gid in an.get("group_ids") or []]
         cohort_ids = [match(t) for t in group_titles]
         unmatched = [t for t, c in zip(group_titles, cohort_ids) if c is None]
+        # Deduplicate on the id, not the raw name: names differing only in
+        # punctuation ("≤6.5%" vs "<=6.5%") share a slug.
         base = f"{nct}: {title} — {' vs '.join(group_titles)}"
-        repeat = seen_names[base] = seen_names.get(base, 0) + 1
-        name = base if repeat == 1 else f"{base} ({repeat})"
+        name, repeat = base, 1
+        while _slug(name) in used_ids:
+            repeat += 1
+            name = f"{base} ({repeat})"
+        used_ids.add(_slug(name))
         norm = normalize_measure(title)
-        if norm in outcome_by_norm:
-            outcome_id = sorted(outcome_by_norm[norm])[0]
+        unit, time_frame = an.get("unit"), an.get("time_frame")
+        fits = [
+            (rank, oid) for oid in outcome_by_norm.get(norm, [])
+            if (rank := _outcome_fit(kg, oid, title, unit, time_frame)) is not None
+        ]
+        if fits:
+            outcome_id = min(fits)[1]
         else:
-            outcome_id = f"outcome:{_slug(title)}"
+            outcome_id = _registry_outcome_id(kg, nct, title, unit)
             _upsert_node(
                 kg, outcome_id, "Outcome", title,
                 {
                     "endpoint_type": str(an.get("outcome_type") or "").capitalize() or None,
-                    "timeframe": an.get("time_frame"),
-                    "unit": an.get("unit"),
+                    "timeframe": time_frame,
+                    "unit": unit,
                 },
                 nct, counters,
             )
@@ -919,17 +1065,26 @@ def _write_analyses(kg, nct, parsed, trial_ids, match, counters) -> None:
         prepared.append({
             "an": an, "title": title, "name": name, "id": f"outcomeanalysis:{_slug(name)}",
             "outcome": outcome_id, "cohorts": [c for c in cohort_ids if c],
+            "complete": not unmatched,
             "attrs": _analysis_attrs(an, group_titles, unmatched), "groups": group_titles,
         })
 
     # Resolve which registry analyses are already present (second run) or are
-    # absorbed by an extracted analysis, best evidence first.
+    # absorbed by an extracted analysis of this trial, best evidence first.
     holder_by_reg: dict = {}
     for node_id, data in kg.graph.nodes(data=True):
         if str(data.get("entity_type", "")).lower() != "outcomeanalysis":
             continue
         for rid in (data.get("attributes") or {}).get("ctgov_analysis_ids") or []:
             holder_by_reg[rid] = node_id
+    owned: dict = {}
+    placebo: dict = {}
+
+    def is_placebo(cid) -> bool:
+        if cid not in placebo:
+            placebo[cid] = _is_placebo_cohort(kg, cid)
+        return placebo[cid]
+
     pairs = []
     for idx, item in enumerate(prepared):
         if item["id"] in holder_by_reg or kg.graph.has_node(item["id"]):
@@ -938,10 +1093,18 @@ def _write_analyses(kg, nct, parsed, trial_ids, match, counters) -> None:
         for src, _, data in kg.graph.in_edges(item["outcome"], data=True):
             if data.get("relation_type") != "analyzes" or _node_type(kg, src) != "outcomeanalysis":
                 continue
-            cand = _node_attrs(kg, src)
+            cand = _plain_attrs(kg.graph.nodes[src])
             if cand.get("source") == REGISTRY_SOURCE or cand.get("ctgov_analysis_ids"):
                 continue
-            score = _score_pair(item["attrs"], reg_cohorts, cand, set(_out_targets(kg, src, "compares")))
+            if src not in owned:
+                owned[src] = _analysis_owned_by(kg, src, nct, trial_cohort_ids)
+            if not owned[src]:
+                continue
+            cand_cohorts = set(_out_targets(kg, src, "compares"))
+            score = _score_pair(
+                item["attrs"], reg_cohorts, item["complete"], cand, cand_cohorts,
+                {c for c in reg_cohorts | cand_cohorts if is_placebo(c)},
+            )
             if score:
                 pairs.append((-score, idx, src))
     taken_reg, taken_cand = set(), set()
@@ -1003,8 +1166,8 @@ def _write_results(kg, nct, parsed, trial_ids, counters) -> None:
             cache[title] = _match_cohort(title, cohorts)
         return cache[title]
 
-    _write_adverse_events(kg, nct, parsed, trial_ids, cohorts, match, counters)
-    _write_analyses(kg, nct, parsed, trial_ids, match, counters)
+    _write_adverse_events(kg, nct, parsed, trial_ids, match, counters)
+    _write_analyses(kg, nct, parsed, trial_ids, {c[0] for c in cohorts}, match, counters)
 
 
 # ---------------------------------------------------------------------------
@@ -1139,17 +1302,31 @@ def enrich_graph(
             )
         else:
             counters = _new_counters()
+            write_errors: dict = {}
             for nct in sorted(parsed_by_nct):
+                # One trial's write is atomic: on any error the graph and the
+                # counters go back to their state before this trial, so no
+                # partial write is stamped with the NCT (which would make every
+                # rerun skip it).
+                graph_before = copy.deepcopy(kg.graph)
+                counters_before = copy.deepcopy(counters)
                 try:
                     _write_results(
                         kg, nct, parsed_by_nct[nct], sorted(trial_ids_by_nct[nct]), counters
                     )
-                except Exception:
+                except Exception as exc:
+                    kg.graph = graph_before
+                    counters = counters_before
+                    message = f"{type(exc).__name__}: {exc}"
+                    write_errors[nct] = message
                     results_block["write_failed"] += 1
+                    print(f"enrich.py: registry write failed for {nct}: {message}", file=sys.stderr)
             results_block["created_nodes"] = counters["created_nodes"]
             results_block["created_edges"] = counters["created_edges"]
             results_block["created"] = counters["created_nodes"] + counters["created_edges"]
             results_block["merged"] = counters["merged"]
+            if write_errors:
+                results_block["write_errors"] = write_errors
 
     # Persist mutations
     if kg is not None:
