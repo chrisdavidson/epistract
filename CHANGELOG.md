@@ -9,6 +9,10 @@ All notable changes to epistract are documented here. This project follows [Sema
 
 ### Added
 - **`contributing_graphs`** in per-axis crosswalk stats: the sorted declaring graphs that hold at least one key on the axis. `declared_by` is unchanged.
+- **Domain Builder shared-crosswalk path:** `crosswalks/` is now tracked and validated by Domain Builder as `_crosswalks` (loaded by this repo's own crosswalk loaders), and an applied iteration can be committed to a named branch of this repo.
+
+### Measured
+- **`pharma.yaml` adverse_event axis (Domain Builder crosswalk iteration 2, commit 1b3b446):** the clinicaltrials x pharmacovigilance join is 30 before and after. Seven further British-to-US pairs (anaem, paraesth, faec, oesophag, leucop, gynaecom, oestr) each measured +0, so none were added; the change records that measurement in the axis comment.
 
 ## [3.5.0] — 2026-11-20
 
