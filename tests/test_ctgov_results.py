@@ -792,12 +792,15 @@ def test_group_to_arm_mapping(enrich, tmp_path):
         assert _eattr(link, "percent") == round(
             stat["num_affected"] / stat["num_at_risk"] * 100, 2
         )
+    unmatched_checked = 0
     for edge in _edges(links, "reports_adverse_event", TRIAL_A):
         if _eattr(edge, "by_group") and "3 mg Orforglipron" in _eattr(edge, "by_group"):
             entry = _eattr(edge, "by_group")["3 mg Orforglipron"]
             assert entry["cohort"] is None
             assert "n_affected" in entry
             assert _eattr(edge, "by_group")["Placebo"]["cohort"] == COHORT_PLACEBO
+            unmatched_checked += 1
+    assert unmatched_checked > 0
 
     other = [
         l for l in links
