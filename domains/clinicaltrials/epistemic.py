@@ -103,13 +103,34 @@ ANALYSIS_P_GROUP = ("p_value", "p_value_num", "p_value_qualifier")
 ANALYSIS_CI_GROUP = (
     "effect_estimate", "effect_measure", "ci_lower", "ci_upper", "ci_level", "ci_sides",
 )
+# Significance source of a finding nothing decided.
+NO_SOURCE = "none"
 # Comparator arms are told apart by name; arm_type is not a signal because
-# active arms carry "Active comparator".
-PLACEBO_KEYWORDS = ("placebo", "comparator", "standard of care", "usual care", "control")
-_PLACEBO_RE = re.compile(
-    r"(?<![A-Za-z0-9])(?:" + "|".join(re.escape(k) for k in PLACEBO_KEYWORDS) + r")(?![A-Za-z0-9])",
-    re.IGNORECASE,
-)
+# active arms carry "Active comparator". "placebo" and "comparator" always mark
+# a comparator arm. "standard of care", "usual care" and "control" also name
+# the background of active add-on arms ("Semaglutide 1 mg added to standard of
+# care"), so they mark a comparator only when no Compound of the graph is
+# named in the same text.
+HARD_PLACEBO_KEYWORDS = ("placebo", "comparator")
+SOFT_PLACEBO_KEYWORDS = ("standard of care", "usual care", "control")
+PLACEBO_KEYWORDS = HARD_PLACEBO_KEYWORDS + SOFT_PLACEBO_KEYWORDS
+
+
+def _keyword_re(words) -> re.Pattern:
+    return re.compile(
+        r"(?<![A-Za-z0-9])(?:" + "|".join(re.escape(k) for k in words) + r")(?![A-Za-z0-9])",
+        re.IGNORECASE,
+    )
+
+
+_PLACEBO_RE = _keyword_re(PLACEBO_KEYWORDS)
+_HARD_PLACEBO_RE = _keyword_re(HARD_PLACEBO_KEYWORDS)
+_SOFT_PLACEBO_RE = _keyword_re(SOFT_PLACEBO_KEYWORDS)
+# Registry non_inferiority_type values that make an analysis a
+# non-inferiority or equivalence test (NON_INFERIORITY, EQUIVALENCE,
+# NON_INFERIORITY_OR_EQUIVALENCE). SUPERIORITY, SUPERIORITY_OR_OTHER and
+# OTHER are superiority-or-unspecified tests and are graded as efficacy.
+_NON_INFERIORITY_RE = re.compile(r"NON[_\s-]?INFERIORITY|EQUIVALENCE", re.IGNORECASE)
 MIN_COMPOUND_NAME = 3
 NCT_RE = re.compile(r"NCT\d{8}", re.IGNORECASE)
 
@@ -476,20 +497,32 @@ def _is_registry_backed(attrs) -> bool:
     return isinstance(sources, list) and REGISTRY_SOURCE in sources
 
 
-def _significance_from_view(view: dict) -> bool | None:
+_QUALIFIERS = {"<": "<", "<=": "<=", "≤": "<=", ">": ">", ">=": ">=", "≥": ">=", "=": "="}
+
+
+def _significance_from_view(view: dict, use_qualifier: bool = False) -> bool | None:
     """Decide significance from p / CI statistics alone (no `significant` flag).
 
     The reported p text keeps its comparator ("<0.05"), so it decides first;
-    p_value_num is the fallback and must be a probability. Then the confidence
-    interval against the null (1.0 for ratio measures, 0 for differences; an
-    unknown measure decides only when both nulls agree).
+    p_value_num is the fallback and must be a probability. With use_qualifier
+    (registry statistics) p_value_num is read with its p_value_qualifier, so
+    a registry "<" 0.05 is significant and ">" 0.01 does not decide. Then the
+    confidence interval against the null (1.0 for ratio measures, 0 for
+    differences; an unknown measure decides only when both nulls agree).
     """
     decided = _p_significance(_parse_p_value(view.get("p_value")))
     if decided is not None:
         return decided
     p_num = _number(view.get("p_value_num"))
     if p_num is not None and 0.0 <= p_num <= 1.0:
-        return p_num < SIGNIFICANCE_LEVEL
+        qualifier = view.get("p_value_qualifier")
+        qualifier = _QUALIFIERS.get(qualifier.strip()) if isinstance(qualifier, str) else None
+        if use_qualifier and qualifier is not None:
+            decided = _p_significance((qualifier, p_num))
+            if decided is not None:
+                return decided
+        else:
+            return p_num < SIGNIFICANCE_LEVEL
 
     lower = _number(view.get("ci_lower"))
     upper = _number(view.get("ci_upper"))
@@ -505,6 +538,16 @@ def _significance_from_view(view: dict) -> bool | None:
             return excludes_diff_null
         # Unknown measure: decide only when both readings agree.
         return excludes_ratio_null if excludes_ratio_null == excludes_diff_null else None
+    return None
+
+
+def _non_inferiority_type(attrs: dict) -> str | None:
+    """The registry non_inferiority_type of a non-inferiority or equivalence
+    analysis, else None. The registry value of a merged node comes first."""
+    for key in ("registry_non_inferiority_type", "non_inferiority_type"):
+        value = attrs.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip() if _NON_INFERIORITY_RE.search(value) else None
     return None
 
 
@@ -528,47 +571,67 @@ def _registry_group_view(attrs: dict, group: tuple) -> dict | None:
     return view
 
 
+def _plain_group_view(attrs: dict, group: tuple) -> dict | None:
+    """The plain attributes of one statistic group, or None when it has none."""
+    view = {k: attrs[k] for k in group if attrs.get(k) is not None}
+    return view or None
+
+
 def _analysis_significance_with_source(node: dict) -> tuple[bool | None, str]:
     """(significance, source) of an OutcomeAnalysis node.
 
-    source is "ctgov_results" when a registry-backed statistic group decided,
-    else "extracted". On a registry-backed node a decision from the registry
-    p group or CI group wins over an extracted `significant` flag; the flag is
-    consulted only when neither registry group decides. A node that is not
-    registry-backed keeps the original order: the flag, then p, then CI.
+    source is "ctgov_results" when registry statistics decided (or, on a node
+    the registry import created, its own flag), "extracted" when extracted
+    values decided, and "none" when nothing decided.
+
+    On a merged node (sources include "ctgov_results") each statistic group is
+    read from the registry side and wins over an extracted `significant` flag.
+    The registry import fills a group the extracted node lacked entirely into
+    the plain attributes, and stores registry_<key> for a group the extracted
+    node had. So a group with no registry_<key> holds the registry's values,
+    filled in or equal to them, and is read as registry statistics. (When the
+    registry reported nothing for a group the extracted node had, its values
+    are read the same way; the import leaves no marker to tell them apart.)
+    A node that is not registry-backed keeps the original order: the flag,
+    then p, then CI.
     """
     attrs = node.get("attributes")
     if not isinstance(attrs, dict):
-        return None, "extracted"
+        return None, NO_SOURCE
 
-    if attrs.get("source") == REGISTRY_SOURCE:
+    registry_node = attrs.get("source") == REGISTRY_SOURCE
+    if registry_node:
         # A registry node: its plain statistics are the registry's.
-        decided = _significance_from_view(attrs)
+        decided = _significance_from_view(attrs, use_qualifier=True)
         if decided is not None:
             return decided, REGISTRY_SOURCE
     elif _is_registry_backed(attrs):
-        # A merged node: registry statistics sit beside the extracted ones.
+        # A merged node: per group, registry_<key> values beside extracted
+        # ones, else the plain group the registry filled or matched.
         for group in (ANALYSIS_P_GROUP, ANALYSIS_CI_GROUP):
             view = _registry_group_view(attrs, group)
             if view is None:
+                view = _plain_group_view(attrs, group)
+            if view is None:
                 continue
-            decided = _significance_from_view(view)
+            decided = _significance_from_view(view, use_qualifier=True)
             if decided is not None:
                 return decided, REGISTRY_SOURCE
 
     flag = attrs.get("significant")
     if isinstance(flag, bool):
-        return flag, "extracted"
-    if attrs.get("source") == REGISTRY_SOURCE:
-        return None, "extracted"
-    return _significance_from_view(attrs), "extracted"
+        return flag, REGISTRY_SOURCE if registry_node else "extracted"
+    if registry_node:
+        return None, NO_SOURCE
+    decided = _significance_from_view(attrs)
+    return decided, "extracted" if decided is not None else NO_SOURCE
 
 
 def _analysis_significance(node: dict) -> bool | None:
     """Whether an OutcomeAnalysis node reports a statistically significant result.
 
-    Precedence: on a registry-backed node, the registry p or CI statistics;
-    then a bool `significant` attribute, then the parsed `p_value` text (it
+    Precedence: on a registry-backed node, the registry p or CI statistics
+    (see _analysis_significance_with_source); then a bool `significant` attribute, then the parsed `p_value` text (it
     keeps its comparator; "NS" reads as not significant), then a
     `p_value_num` in [0, 1], then the confidence interval against the null
     (1.0 for ratio measures, 0 for differences; an unknown measure decides
@@ -732,19 +795,30 @@ def _compound_patterns(by_id: dict) -> list[tuple[str, re.Pattern]]:
 
 
 def _compounds_in_text(text, patterns: list[tuple[str, re.Pattern]]) -> set[str]:
-    """Compound ids whose name appears in text at a word boundary."""
-    if not isinstance(text, str) or not text or _PLACEBO_RE.search(text):
+    """Compound ids whose name appears in text at a word boundary.
+
+    Placebo / comparator text names no treatment ("Semaglutide placebo").
+    Standard-of-care / usual-care / control text names the compounds it
+    mentions ("Semaglutide 2.4 mg + usual care"); with none it yields nothing.
+    """
+    if not isinstance(text, str) or not text or _HARD_PLACEBO_RE.search(text):
         return set()
     return {compound_id for compound_id, pattern in patterns if pattern.search(text)}
 
 
-def _is_placebo_cohort(cohort: dict, received_names: list[str]) -> bool:
+def _is_placebo_cohort(cohort: dict, received_names: list[str], patterns=()) -> bool:
     """A comparator arm: a placebo/comparator keyword in its name, arm label or
-    group description, or every compound or intervention it receives is placebo.
+    group description; a standard-of-care / usual-care / control keyword there
+    with no Compound of the graph named in the same text; or every compound or
+    intervention it receives is placebo.
     """
     attrs = cohort.get("attributes") if isinstance(cohort.get("attributes"), dict) else {}
     for text in (cohort.get("name"), attrs.get("arm_label"), attrs.get("group_description")):
-        if isinstance(text, str) and _PLACEBO_RE.search(text):
+        if not isinstance(text, str):
+            continue
+        if _HARD_PLACEBO_RE.search(text):
+            return True
+        if _SOFT_PLACEBO_RE.search(text) and not any(p.search(text) for _, p in patterns):
             return True
     return bool(received_names) and all("placebo" in name.lower() for name in received_names)
 
@@ -757,27 +831,47 @@ def _registry_treatment(
     Placebo and comparator arms are dropped before any name match, because a
     placebo arm's name can contain the compound ("Semaglutide placebo 0.5 mg").
     Returns (compound id or None, non-placebo compared cohort ids). The
-    treatment is set only when exactly one compound results.
+    treatment is set only when exactly one compound results. When several
+    result, a compound that every compared arm receives (placebo arms
+    included) is background therapy and is dropped, if exactly one remains.
     """
-    cohorts = related(node_id, COMPARES, "cohort")
-    active = [c for c in cohorts if not cohort_info(c)[0]]
-    compounds: set[str] = set()
-    for cohort_id in active:
-        direct = related(cohort_id, RECEIVES, "compound")
-        found = set(direct)
+    def received(cohort_id) -> set[str]:
+        found = set(related(cohort_id, RECEIVES, "compound"))
         for intervention in related(cohort_id, RECEIVES, "intervention"):
             found.update(related(intervention, CONTAINS, "compound"))
+        return found
+
+    cohorts = related(node_id, COMPARES, "cohort")
+    active = [c for c in cohorts if not cohort_info(c)]
+    compounds: set[str] = set()
+    # Compounds per compared arm, for the background-therapy check.
+    arms: list[set[str]] = []
+    for cohort_id in cohorts:
+        if cohort_id not in active:
+            arms.append({
+                c for c in received(cohort_id)
+                if "placebo" not in str(by_id[c].get("name") or "").lower()
+            })
+            continue
+        found = received(cohort_id)
         if not found:
             found = _compounds_in_text(by_id[cohort_id].get("name"), patterns)
         compounds.update(found)
+        arms.append(found)
 
     # Group titles that matched no Cohort stand in for the missing arm. With no
     # compared Cohort, or only comparator ones, the active arm is one of the
     # compared group titles.
     titles = attrs.get("unmatched_groups") if active else attrs.get("compared_groups")
     for title in titles if isinstance(titles, list) else ():
-        compounds.update(_compounds_in_text(title, patterns))
+        found = _compounds_in_text(title, patterns)
+        compounds.update(found)
+        arms.append(found)
 
+    if len(compounds) > 1 and len(arms) > 1:
+        remaining = compounds - set.intersection(*arms)
+        if len(remaining) == 1:
+            compounds = remaining
     treatment = next(iter(compounds)) if len(compounds) == 1 else None
     return treatment, set(active)
 
@@ -828,7 +922,7 @@ def _analysis_findings(
         nct_trials = _trial_nct_map(trial_lookup)
         patterns = _compound_patterns(by_id)
 
-    def cohort_info(cohort_id) -> tuple[bool]:
+    def cohort_info(cohort_id) -> bool:
         if cohort_id not in placebo_cache:
             received = [
                 str(by_id[t].get("name") or "")
@@ -837,8 +931,8 @@ def _analysis_findings(
                     if r == RECEIVES and o in by_id
                 })
             ]
-            placebo_cache[cohort_id] = _is_placebo_cohort(by_id[cohort_id], received)
-        return (placebo_cache[cohort_id],)
+            placebo_cache[cohort_id] = _is_placebo_cohort(by_id[cohort_id], received, patterns)
+        return placebo_cache[cohort_id]
 
     findings: list[dict] = []
     # Per-finding data the supersession pass needs; never stored on the finding.
@@ -946,9 +1040,16 @@ def _analysis_findings(
                 sources = ["extracted"]
             finding["significance_source"] = significance_source
             finding["sources"] = sources
+            # An outcome whose name normalizes to nothing ("Change from baseline
+            # in (HbA1c)") keys on its own id, so it groups with no other.
             finding["standard_outcome_key"] = (
-                normalize_measure(standard_outcome) if standard_outcome else None
+                (normalize_measure(standard_outcome) or str(standard_outcome_id))
+                if standard_outcome else None
             )
+            if backed:
+                ni_type = _non_inferiority_type(attrs)
+                if ni_type:
+                    finding["non_inferiority"] = ni_type
             side[node_id] = {
                 "registry": attrs.get("source") == REGISTRY_SOURCE,
                 "backed": backed,
@@ -1000,8 +1101,9 @@ def _analysis_contests(findings: list[dict], registry_mode: bool = False) -> tup
 
     Returns (contested, contradictions). A contested entry is also a
     contradiction when both sides include a high_evidence analysis. In
-    registry mode analyses group by their normalized outcome key, and
-    superseded findings take no part.
+    registry mode analyses group by their normalized outcome key, superseded
+    and non-inferiority findings take no part, and the contest is decided per
+    trial (see _registry_contest_entry).
     """
     groups: dict[tuple[str, str], list[dict]] = defaultdict(list)
     for finding in findings:
@@ -1010,7 +1112,11 @@ def _analysis_contests(findings: list[dict], registry_mode: bool = False) -> tup
         if finding["standard_outcome"] is None or finding["treatment"] is None:
             continue
         if registry_mode:
-            if finding.get("superseded_by") or finding.get("standard_outcome_key") is None:
+            if (
+                finding.get("superseded_by")
+                or finding.get("non_inferiority")
+                or finding.get("standard_outcome_key") is None
+            ):
                 continue
             key = (str(finding["standard_outcome_key"]), str(finding["treatment"]).lower())
         else:
@@ -1019,7 +1125,15 @@ def _analysis_contests(findings: list[dict], registry_mode: bool = False) -> tup
 
     contested: list[dict] = []
     contradictions: list[dict] = []
-    for _key, group in sorted(groups.items()):
+    for key, group in sorted(groups.items()):
+        if registry_mode:
+            entry, is_contradiction = _registry_contest_entry(key, group)
+            if entry is None:
+                continue
+            contested.append({**entry, "epistemic_status": "contested"})
+            if is_contradiction:
+                contradictions.append({**entry, "epistemic_status": "contradiction"})
+            continue
         positive = [f for f in group if f["significant"] is True]
         negative = [f for f in group if f["significant"] is False]
         if not positive or not negative:
@@ -1056,6 +1170,85 @@ def _analysis_contests(findings: list[dict], registry_mode: bool = False) -> tup
         if "high_evidence" in positive_tiers and "high_evidence" in negative_tiers:
             contradictions.append({**entry, "epistemic_status": "contradiction"})
     return contested, contradictions
+
+
+def _registry_contest_entry(key: tuple[str, str], group: list[dict]) -> tuple[dict | None, bool]:
+    """Decide one registry-mode (outcome key, treatment) group at trial level.
+
+    A trial is positive when all its analyses in the group are significant,
+    negative when none is, and mixed otherwise (for example a dose-response
+    split between dose arms). Only positive trials contest negative trials;
+    mixed trials are listed but pair with nothing. The group is a
+    contradiction when a high_evidence positive trial (every one of its
+    analyses high_evidence) meets a high_evidence negative trial. The entry is
+    named from the group key and its sorted member outcome ids, so it does not
+    depend on node order. Returns (entry or None, is_contradiction).
+    """
+    by_trial: dict[str, list[dict]] = defaultdict(list)
+    for finding in group:
+        if finding["trial"] is not None:
+            by_trial[finding["trial"]].append(finding)
+    positive_trials, negative_trials, mixed_trials = [], [], []
+    for trial in sorted(by_trial, key=str):
+        verdicts = {f["significant"] for f in by_trial[trial]}
+        if verdicts == {True}:
+            positive_trials.append(trial)
+        elif verdicts == {False}:
+            negative_trials.append(trial)
+        else:
+            mixed_trials.append(trial)
+    if not positive_trials or not negative_trials:
+        return None, False
+
+    def members(trials, verdict=None):
+        return sorted(
+            (f for t in trials for f in by_trial[t] if verdict is None or f["significant"] is verdict),
+            key=lambda f: str(f["analysis"]),
+        )
+
+    def high(trial) -> bool:
+        return all(f["evidence_tier"] == "high_evidence" for f in by_trial[trial])
+
+    positive = members(positive_trials)
+    negative = members(negative_trials)
+    outcome_ids = sorted({
+        str(f["standard_outcome_id"]) for f in group if f.get("standard_outcome_id") is not None
+    })
+    representative = outcome_ids[0] if outcome_ids else None
+    treated = min(group, key=lambda f: (str(f.get("treatment_id")), str(f["analysis"])))
+    docs = sorted({d for f in group for d in f.get("support_documents") or []})
+    entry = {
+        "standard_outcome": key[0],
+        "standard_outcome_key": key[0],
+        "standard_outcome_ids": outcome_ids,
+        "treatment": treated["treatment"],
+        "positive": [f["analysis"] for f in positive],
+        "negative": [f["analysis"] for f in negative],
+        "positive_tiers": [f["evidence_tier"] for f in positive],
+        "negative_tiers": [f["evidence_tier"] for f in negative],
+        "positive_trials": positive_trials,
+        "negative_trials": negative_trials,
+        "mixed_trials": [
+            {
+                "trial": trial,
+                "positive": [f["analysis"] for f in members([trial], True)],
+                "negative": [f["analysis"] for f in members([trial], False)],
+            }
+            for trial in mixed_trials
+        ],
+        "trials": sorted(by_trial, key=str),
+        "basis": "outcome_analysis",
+        # Standard fields read by core/epistemic_health.py
+        "source": treated.get("treatment_id"),
+        "target": representative,
+        "source_entity": treated.get("treatment_id"),
+        "target_entity": representative,
+        "relation_type": ASSESSES,
+        "mentions": [{"source_document": d} for d in docs],
+        "support_documents": docs,
+    }
+    is_contradiction = any(high(t) for t in positive_trials) and any(high(t) for t in negative_trials)
+    return entry, is_contradiction
 
 
 # ---------------------------------------------------------------------------
@@ -1324,6 +1517,9 @@ def analyze_clinicaltrials_epistemic(output_dir: Path, graph_data: dict) -> dict
         summary["analysis_superseded"] = sum(1 for f in analysis_claims if f.get("superseded_by"))
         summary["analysis_treatment_unresolved"] = sum(
             1 for f in analysis_claims if f["treatment"] is None
+        )
+        summary["analysis_non_inferiority"] = sum(
+            1 for f in analysis_claims if f.get("non_inferiority")
         )
 
     return {
