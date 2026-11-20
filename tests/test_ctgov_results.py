@@ -1393,3 +1393,48 @@ def test_analysis_merge_ignores_cohorts_shared_with_another_trial(enrich, tmp_pa
     want = f"{WITH_RESULTS_A}: Change From Baseline in HbA1c — Placebo vs 36 mg Orforglipron"
     assert want in {n["name"] for n in _oa_nodes(nodes, WITH_RESULTS_A)}
     assert len(_oa_nodes(nodes, WITH_RESULTS_A)) == 39
+
+
+@pytest.mark.unit
+def test_estimate_only_match_requires_unambiguous_pair(enrich, tmp_path):
+    # WR-01 (iteration 2): an extracted analysis with no compares edges matches
+    # several registry SF-36 analyses on measure and estimate alone (-0.04 for
+    # 12 mg and 0.01 for 3 mg both round to 0.0). The tie must not be broken by
+    # registry order. A unique estimate-only match still merges.
+    sf36 = (
+        "Change From Baseline in Short Form-36 Health Survey Version 2 (SF-36v2) Acute Form "
+        "(Physical-Component and Mental-Component) Scores"
+    )
+    hba1c_nodes, hba1c_links = _hba1c_outcome_nodes()
+    sf_outcome = {
+        "id": "outcome:sf_36_seed", "name": sf36, "entity_type": "Outcome",
+        "source_documents": ["doc_seed"], "attributes": {"unit": "T-score"},
+    }
+    tie = {
+        "id": "outcomeanalysis:seed_sf36_mcs", "name": f"{WITH_RESULTS_A}: SF-36 MCS — 3 mg vs placebo",
+        "entity_type": "OutcomeAnalysis", "source_documents": ["doc_seed"],
+        "attributes": {"effect_measure": "LS Mean Difference (Net)", "effect_estimate": 0.0},
+    }
+    unique = {
+        "id": "outcomeanalysis:seed_hba1c_unique", "name": f"{WITH_RESULTS_A}: HbA1c — 12 mg vs placebo",
+        "entity_type": "OutcomeAnalysis", "source_documents": ["doc_seed"],
+        "attributes": {"effect_measure": "LS Mean Difference (Net)", "effect_estimate": -1.44},
+    }
+    links = [
+        *hba1c_links,
+        _link(TRIAL_A, "has_outcome", sf_outcome["id"]),
+        _link(tie["id"], "analyzes", sf_outcome["id"]),
+        _link(unique["id"], "analyzes", hba1c_nodes[0]["id"]),
+    ]
+    _, _, nodes, _ = _seeded_run(
+        enrich, tmp_path, extra_nodes=[*hba1c_nodes, sf_outcome, tie, unique], extra_links=links,
+    )
+    tie_attrs = nodes[tie["id"]].get("attributes") or {}
+    assert tie_attrs == tie["attributes"]
+    sf_names = {n["name"] for n in _oa_nodes(nodes, WITH_RESULTS_A) if f" {sf36} — " in n["name"]}
+    assert len(sf_names) == 6
+    want = f"{WITH_RESULTS_A}: Change From Baseline in HbA1c — Placebo vs 12 mg Orforglipron"
+    assert _nattr(nodes[unique["id"]], "ctgov_analysis_ids") == [
+        f"outcomeanalysis:{enrich._slug(want)}"
+    ]
+    assert len(_oa_nodes(nodes, WITH_RESULTS_A)) == 38
