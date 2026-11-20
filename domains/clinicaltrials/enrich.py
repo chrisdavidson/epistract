@@ -12,9 +12,14 @@ Opt-in results mode (--results): the same per-trial CT.gov payload that feeds
 the ct_* fields also carries resultsSection. With --results it is parsed
 (serious adverse events, other adverse events at or above the registry
 frequency threshold with a 5% floor, PRIMARY/SECONDARY outcome analyses) and
-counted in a "results" block of _enrichment_report.json. Parsed results are
-not yet written to the graph; the graph written with --results equals the
-graph written without it. Without --results, behaviour is unchanged.
+imported into the graph as AdverseEvent, OrganSystem, OutcomeAnalysis,
+Outcome and StatisticalMethod nodes with their edges. Every registry node and
+edge is tagged source "ctgov_results" with the NCT. Registry data is merged into
+matching extracted nodes (conflicts are kept as registry_<attr>), a repeated
+run changes nothing, and registry groups that match no extracted Cohort never
+create one. The "results" block of _enrichment_report.json counts the parsed
+records and the graph writes (created, merged). Without --results, behaviour
+is unchanged.
 
 Non-blocking: API failures log counts but never abort the pipeline.
 ARCH-03: no core/ changes required; this module lives in the domain package.
@@ -22,7 +27,7 @@ ARCH-03: no core/ changes required; this module lives in the domain package.
 Usage:
     python3 domains/clinicaltrials/enrich.py <output_dir> [--results] [--cache-dir DIR]
 
-    --results         also parse posted results and add a "results" report block
+    --results         also import posted results into the graph and add a "results" report block
     --cache-dir DIR   read/write one raw CT.gov payload per trial as DIR/<NCT>.json
 """
 from __future__ import annotations
@@ -57,6 +62,47 @@ PUBCHEM_URL = (
 PUBCHEM_TIMEOUT = 30
 PUBCHEM_RATE_SLEEP = 0.2  # 5 req/sec official limit
 PUBCHEM_MAX_RETRIES = 3
+
+REGISTRY_SOURCE = "ctgov_results"
+REGISTRY_CONFIDENCE = 0.99
+
+_MEASURE_PREFIXES = (
+    "percentage of participants achieving",
+    "change from baseline in",
+    "mean change in",
+    "change in",
+)
+
+_MEASURE_SYNONYMS = {
+    "body mass index": "bmi",
+    "glycated haemoglobin": "hba1c",
+    "glycated hemoglobin": "hba1c",
+    "hemoglobin a1c": "hba1c",
+    "haemoglobin a1c": "hba1c",
+    "systolic blood pressure": "sbp",
+}
+
+_PAREN_RE = re.compile(r"\([^)]*\)")
+_WEEK_RE = re.compile(r"\s+at\s+weeks?\s+\d+\s*$")
+_WS_RE = re.compile(r"\s+")
+
+_US_SPELLING = [
+    (re.compile(r"oe", re.IGNORECASE), "e"),
+    (re.compile(r"ae(?=m)", re.IGNORECASE), "e"),
+    (re.compile(r"haem", re.IGNORECASE), "hem"),
+    (re.compile(r"tumour", re.IGNORECASE), "tumor"),
+]
+
+_COHORT_STOP_WORDS = frozenset({
+    "mg", "mcg", "ug", "µg", "g", "iu", "unit", "units", "arm", "group", "cohort",
+    "dose", "once", "weekly", "daily", "qw", "qd", "sc", "s", "c", "oral", "the",
+    "of", "and", "or", "with",
+})
+
+_P_VALUE_RE = re.compile(
+    r"^p?\s*(<=|≤|>=|≥|<|>|=)?\s*((?:\d+\.?\d*|\.\d+)(?:e-?\d+)?)$"
+)
+_P_QUALIFIERS = {"<": "<", "<=": "<", "≤": "<", ">": ">", ">=": ">", "≥": ">", "=": "=", None: "="}
 
 # ---------------------------------------------------------------------------
 # Public helpers
@@ -317,6 +363,651 @@ def _fetch_pubchem(compound_name: str) -> dict | None:
 
 
 # ---------------------------------------------------------------------------
+# Registry results import: pure helpers
+# ---------------------------------------------------------------------------
+
+
+def _slug(text) -> str:
+    """Lowercase, runs of non [a-z0-9] collapsed to '_', ends stripped."""
+    return re.sub(r"[^a-z0-9]+", "_", str(text or "").lower()).strip("_")
+
+
+def _ae_key(name: str) -> str:
+    """Spelling/case/plural-insensitive key: equal keys are one adverse event."""
+    s = (name or "").lower().strip()
+    for rx, rep in _US_SPELLING:
+        s = rx.sub(rep, s)
+    s = re.sub(r"[^a-z0-9 ]+", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s[:-1] if s.endswith("s") and not s.endswith("ss") else s
+
+
+def normalize_measure(name: str) -> str:
+    """Reduce an outcome-measure name to a canonical key."""
+    s = _WS_RE.sub(" ", (name or "").lower()).strip()
+    for prefix in _MEASURE_PREFIXES:
+        if s.startswith(prefix) and (len(s) == len(prefix) or not s[len(prefix)].isalnum()):
+            s = s[len(prefix):].lstrip()
+            break
+    s = _PAREN_RE.sub(" ", s)
+    s = _WS_RE.sub(" ", s).strip()
+    s = _WEEK_RE.sub("", s)
+    s = re.sub(r"[\s.,;:]+$", "", s)
+    s = _WS_RE.sub(" ", s).strip()
+    return _MEASURE_SYNONYMS.get(s, s)
+
+
+def _parse_p_value(text) -> tuple:
+    """Return (numeric p-value, qualifier) from registry text, or (None, None)."""
+    if not isinstance(text, str):
+        return None, None
+    m = _P_VALUE_RE.match(text.strip().lower())
+    if not m:
+        return None, None
+    try:
+        return float(m.group(2)), _P_QUALIFIERS[m.group(1)]
+    except (ValueError, KeyError):
+        return None, None
+
+
+def _to_float(value) -> float | None:
+    """Float of a registry numeric string; None for absent, 'NA' or unparseable."""
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        out = float(str(value).strip())
+    except ValueError:
+        return None
+    return out if out == out and out not in (float("inf"), float("-inf")) else None
+
+
+def _norm_arm(text) -> str:
+    """Normalize an arm or group label for comparison."""
+    s = str(text or "").lower()
+    s = re.sub(r"(?<=\d)(?=[a-zµ])", " ", s)
+    s = re.sub(r"[^a-z0-9µ. ]+", " ", s)
+    s = re.sub(r"(?<!\d)\.|\.(?!\d)", " ", s)
+    return _WS_RE.sub(" ", s).strip()
+
+
+def _arm_tokens(text) -> tuple:
+    """(dose numbers, drug words) of a normalized arm label."""
+    doses, words = set(), set()
+    for tok in _norm_arm(text).split():
+        if re.fullmatch(r"\d+(?:\.\d+)?", tok):
+            doses.add(tok)
+        elif tok.isalpha() and tok not in _COHORT_STOP_WORDS:
+            words.add(tok)
+    return frozenset(doses), frozenset(words)
+
+
+def _match_cohort(title, cohorts) -> str | None:
+    """Return the id of the one cohort matching a registry group title, else None.
+
+    cohorts is a list of (cohort_id, name, arm_label_or_None). Exact normalized
+    match first; then equal dose numbers with a drug-word subset relation. Zero
+    or several candidates return None (a match is never guessed).
+    """
+    want = _norm_arm(title)
+    if not want:
+        return None
+    exact = {
+        cid for cid, name, label in cohorts
+        if want in (_norm_arm(name), _norm_arm(label) if label else None)
+    }
+    if exact:
+        return next(iter(exact)) if len(exact) == 1 else None
+    doses, words = _arm_tokens(title)
+    if not words:
+        return None
+    found = set()
+    for cid, name, label in cohorts:
+        for text in (name, label):
+            if not text:
+                continue
+            c_doses, c_words = _arm_tokens(text)
+            if c_doses == doses and c_words and (words <= c_words or c_words <= words):
+                found.add(cid)
+    return next(iter(found)) if len(found) == 1 else None
+
+
+def _decimals(value) -> int:
+    text = repr(float(value))
+    return len(text.split(".")[1].rstrip("0")) if "." in text and "e" not in text else 0
+
+
+def _same_estimate(a, b) -> bool:
+    """Equal after rounding both to the fewer decimal places of the two."""
+    try:
+        a, b = float(a), float(b)
+    except (TypeError, ValueError):
+        return False
+    places = min(_decimals(a), _decimals(b))
+    return round(a, places) == round(b, places)
+
+
+# ---------------------------------------------------------------------------
+# Registry results import: graph writes
+# ---------------------------------------------------------------------------
+
+
+def _new_counters() -> dict:
+    return {"created_nodes": 0, "created_edges": 0, "merged": 0, "ae_index": None}
+
+
+def _node_attrs(kg, node_id: str) -> dict:
+    data = kg.graph.nodes[node_id]
+    attrs = data.get("attributes")
+    if not isinstance(attrs, dict):
+        attrs = {}
+        data["attributes"] = attrs
+    return attrs
+
+
+def _append_unique(container: dict, key: str, value) -> bool:
+    """Append value to the list container[key] when absent; True when added."""
+    items = container.get(key)
+    if not isinstance(items, list):
+        items = [] if items in (None, "") else [items]
+        container[key] = items
+    if value in items:
+        return False
+    items.append(value)
+    return True
+
+
+def _merge_attrs(target: dict, attrs: dict, rename: dict | None = None) -> None:
+    """Fill missing attributes; keep a differing existing value, store the new
+    one as registry_<attr>. Never deletes or overwrites."""
+    rename = rename or {}
+    for key, value in attrs.items():
+        if value is None:
+            continue
+        current = target.get(key)
+        if current in (None, "", []):
+            target[key] = value
+        elif isinstance(current, dict) and isinstance(value, dict):
+            for sub, subvalue in value.items():
+                current.setdefault(sub, subvalue)
+        elif current != value:
+            target.setdefault(rename.get(key, f"registry_{key}"), value)
+
+
+def _merge_into_node(kg, node_id, attrs, nct, counters, rename=None, count=False) -> bool:
+    """Merge registry attributes into an existing node under the merge rules.
+
+    Returns True when this NCT was newly recorded on the node.
+    """
+    node = kg.graph.nodes[node_id]
+    target = _node_attrs(kg, node_id)
+    if nct in (target.get("ctgov_nct_ids") or []):
+        return False
+    if target.get("source") == REGISTRY_SOURCE:
+        _append_unique(node, "source_documents", f"ctgov:{nct}")
+        _merge_attrs(target, attrs, rename)
+    else:
+        _merge_attrs(target, attrs, rename)
+        _append_unique(target, "sources", REGISTRY_SOURCE)
+        if count:
+            counters["merged"] += 1
+    _append_unique(target, "ctgov_nct_ids", nct)
+    return True
+
+
+def _upsert_node(kg, node_id, etype, name, attrs, nct, counters, rename=None, count=False):
+    """Create a registry node, or merge into the existing node with this id."""
+    if kg.graph.has_node(node_id):
+        _merge_into_node(kg, node_id, attrs, nct, counters, rename, count)
+        return False
+    kg.add_entity(
+        node_id, etype, name,
+        confidence=REGISTRY_CONFIDENCE,
+        source_documents=[f"ctgov:{nct}"],
+        attributes={
+            **{k: v for k, v in attrs.items() if v is not None},
+            "source": REGISTRY_SOURCE,
+            "ctgov_nct_ids": [nct],
+        },
+    )
+    counters["created_nodes"] += 1
+    return True
+
+
+def _find_edge(kg, src, rel, tgt):
+    """(key, data) of the first edge src -rel-> tgt, or (None, None)."""
+    for key, data in sorted((kg.graph.get_edge_data(src, tgt) or {}).items(), key=lambda kv: str(kv[0])):
+        if data.get("relation_type") == rel:
+            return key, data
+    return None, None
+
+
+def _upsert_edge(kg, src, rel, tgt, nct, evidence, attrs, counters) -> bool:
+    """Create or merge a registry edge; a repeated call for the same NCT is a no-op."""
+    if not (kg.graph.has_node(src) and kg.graph.has_node(tgt)):
+        return False
+    attrs = {k: v for k, v in (attrs or {}).items() if v is not None}
+    _, data = _find_edge(kg, src, rel, tgt)
+    if data is None:
+        key = f"{src}|{rel}|{tgt}"
+        if not kg.add_relation(
+            key, src, tgt, rel, confidence=REGISTRY_CONFIDENCE,
+            evidence=evidence, source_document=f"ctgov:{nct}",
+        ):
+            return False
+        _, data = _find_edge(kg, src, rel, tgt)
+        data["attributes"] = {**attrs, "source": REGISTRY_SOURCE, "ctgov_nct_ids": [nct]}
+        counters["created_edges"] += 1
+        return True
+    target = data.get("attributes")
+    if not isinstance(target, dict):
+        target = {}
+        data["attributes"] = target
+    if nct in (target.get("ctgov_nct_ids") or []):
+        return False
+    if target.get("source") == REGISTRY_SOURCE:
+        # Another trial supports the same registry edge: add its mention but keep
+        # the first mention's evidence, which is what a reload would select.
+        first_evidence = data.get("evidence")
+        first_document = data.get("source_document")
+        kg.add_relation(
+            data.get("relation_id") or f"{src}|{rel}|{tgt}", src, tgt, rel,
+            confidence=REGISTRY_CONFIDENCE, evidence=evidence,
+            source_document=f"ctgov:{nct}",
+        )
+        _, data = _find_edge(kg, src, rel, tgt)
+        data["evidence"] = first_evidence
+        data["source_document"] = first_document
+    else:
+        _merge_attrs(target, attrs)
+        _append_unique(target, "sources", REGISTRY_SOURCE)
+    _append_unique(target, "ctgov_nct_ids", nct)
+    return True
+
+
+def _node_type(kg, node_id) -> str:
+    return str(kg.graph.nodes[node_id].get("entity_type", "")).lower()
+
+
+def _out_targets(kg, node_id, rel) -> list:
+    return sorted({
+        tgt for _, tgt, data in kg.graph.out_edges(node_id, data=True)
+        if data.get("relation_type") == rel
+    })
+
+
+def _trial_cohorts(kg, nct, trial_ids) -> list:
+    """(id, name, arm_label) of the cohorts belonging to the trial NCT."""
+    found = set()
+    for tid in trial_ids:
+        for tgt in _out_targets(kg, tid, "enrolls"):
+            if _node_type(kg, tgt) == "cohort":
+                found.add(tgt)
+    for node_id, data in kg.graph.nodes(data=True):
+        if str(data.get("entity_type", "")).lower() != "cohort":
+            continue
+        attrs = data.get("attributes") if isinstance(data.get("attributes"), dict) else {}
+        if str(attrs.get("trial", "")).upper() == nct or nct in str(data.get("name", "")).upper():
+            found.add(node_id)
+    out = []
+    for cid in sorted(found):
+        data = kg.graph.nodes[cid]
+        attrs = data.get("attributes") if isinstance(data.get("attributes"), dict) else {}
+        out.append((cid, str(data.get("name", "")), attrs.get("arm_label") or None))
+    return out
+
+
+def _ae_index(kg, counters) -> dict:
+    """AE key -> sorted node ids, built once per run and updated on creation."""
+    if counters["ae_index"] is None:
+        index: dict = {}
+        for node_id, data in kg.graph.nodes(data=True):
+            if str(data.get("entity_type", "")).lower() == "adverseevent":
+                index.setdefault(_ae_key(str(data.get("name", ""))), []).append(node_id)
+        for ids in index.values():
+            ids.sort()
+        counters["ae_index"] = index
+    return counters["ae_index"]
+
+
+def _has_edge_from(kg, src, rel, tgt) -> bool:
+    return _find_edge(kg, src, rel, tgt)[1] is not None
+
+
+def _registry_text(*parts) -> str:
+    return " ".join(str(p) for p in parts if p not in (None, ""))
+
+
+def _sum(stats, field) -> int | None:
+    values = [s[field] for s in stats if isinstance(s.get(field), (int, float))]
+    return sum(values) if values else None
+
+
+def _percent(affected, at_risk):
+    if isinstance(affected, (int, float)) and isinstance(at_risk, (int, float)) and at_risk > 0:
+        return round(affected / at_risk * 100, 2)
+    return None
+
+
+def _group_counts(stat) -> dict:
+    return {
+        k: v for k, v in (
+            ("n_affected", stat.get("num_affected")),
+            ("n_at_risk", stat.get("num_at_risk")),
+            ("n_events", stat.get("num_events")),
+        ) if v is not None
+    }
+
+
+def _group_label(stat) -> str:
+    return str(stat.get("group_title") or stat.get("group_id") or "")
+
+
+def _write_adverse_events(kg, nct, parsed, trial_ids, cohorts, match, counters) -> None:
+    records: dict = {}
+    for ev in parsed["adverse_events"]:
+        term = str(ev.get("term") or "").strip()
+        if not _slug(term):
+            continue
+        records.setdefault(_ae_key(term), {}).setdefault(ev["seriousness"], ev)
+    threshold = parsed["ae_threshold_pct"]
+    threshold_source = parsed["ae_threshold_source"]
+    index = _ae_index(kg, counters)
+
+    for key in sorted(records):
+        by_seriousness = records[key]
+        primary = by_seriousness.get("serious") or by_seriousness["other"]
+        term = str(primary["term"]).strip()
+        vocab = str(primary.get("source_vocabulary") or "")
+        attrs = {"reported_term": term}
+        if vocab.startswith("MedDRA"):
+            attrs["meddra_pt"] = term
+            attrs["meddra_version"] = vocab[len("MedDRA"):].strip() or None
+
+        known = index.get(key, [])
+        linked = [
+            nid for nid in known
+            if any(_has_edge_from(kg, tid, "reports_adverse_event", nid) for tid in trial_ids)
+        ]
+        if linked or known:
+            ae_id = (linked or known)[0]
+            _upsert_node(
+                kg, ae_id, "AdverseEvent", term, attrs, nct, counters,
+                rename={"reported_term": "registry_term"}, count=True,
+            )
+        else:
+            ae_id = f"adverseevent:{_slug(term)}"
+            _upsert_node(
+                kg, ae_id, "AdverseEvent", term, attrs, nct, counters,
+                rename={"reported_term": "registry_term"}, count=True,
+            )
+            index.setdefault(key, []).append(ae_id)
+            index[key].sort()
+
+        organ = str(primary.get("organ_system") or "").strip()
+        if _slug(organ):
+            organ_id = f"organsystem:{_slug(organ)}"
+            if not kg.graph.has_node(organ_id):
+                for nid, data in kg.graph.nodes(data=True):
+                    if (
+                        str(data.get("entity_type", "")).lower() == "organsystem"
+                        and str(data.get("name", "")).lower() == organ.lower()
+                    ):
+                        organ_id = nid
+                        break
+            _upsert_node(
+                kg, organ_id, "OrganSystem", organ,
+                {"classification": "system organ class"}, nct, counters,
+            )
+            _upsert_edge(
+                kg, ae_id, "affects_organ_system", organ_id, nct,
+                f"ClinicalTrials.gov results {nct}: {term} is classified under {organ}",
+                {}, counters,
+            )
+
+        def _by_group(record) -> dict:
+            out = {}
+            for stat in record["stats"]:
+                label = _group_label(stat)
+                out[label] = {**_group_counts(stat), "cohort": match(stat.get("group_title"))}
+            return out
+
+        stats = primary["stats"]
+        edge_attrs = {
+            "seriousness": primary["seriousness"],
+            "assessment_type": primary.get("assessment_type"),
+            "n_affected": _sum(stats, "num_affected"),
+            "n_at_risk": _sum(stats, "num_at_risk"),
+            "frequency_threshold": threshold,
+            "frequency_threshold_source": threshold_source,
+            "by_group": _by_group(primary),
+        }
+        if len(by_seriousness) > 1:
+            edge_attrs["by_seriousness"] = {
+                sers: {
+                    "assessment_type": rec.get("assessment_type"),
+                    "n_affected": _sum(rec["stats"], "num_affected"),
+                    "n_at_risk": _sum(rec["stats"], "num_at_risk"),
+                    "by_group": _by_group(rec),
+                }
+                for sers, rec in sorted(by_seriousness.items())
+            }
+        evidence = (
+            f"ClinicalTrials.gov results {nct}: {term} ({primary['seriousness']}), "
+            f"{edge_attrs['n_affected']} of {edge_attrs['n_at_risk']} participants"
+        )
+        for tid in trial_ids:
+            _upsert_edge(kg, tid, "reports_adverse_event", ae_id, nct, evidence, edge_attrs, counters)
+
+        done = set()
+        for stat in primary["stats"]:
+            cid = match(stat.get("group_title"))
+            if cid is None or cid in done:
+                continue
+            done.add(cid)
+            counts = {
+                sers: {**_group_counts(s), "percent": _percent(s.get("num_affected"), s.get("num_at_risk"))}
+                for sers, rec in sorted(by_seriousness.items())
+                for s in rec["stats"]
+                if match(s.get("group_title")) == cid
+            }
+            counts = {s: {k: v for k, v in c.items() if v is not None} for s, c in counts.items()}
+            obs_attrs = {
+                **_group_counts(stat),
+                "percent": _percent(stat.get("num_affected"), stat.get("num_at_risk")),
+                "registry_counts": {nct: counts},
+            }
+            _upsert_edge(
+                kg, ae_id, "observed_in", cid, nct,
+                f"ClinicalTrials.gov results {nct}: {term} ({primary['seriousness']}) "
+                f"{stat.get('num_affected')}/{stat.get('num_at_risk')} in {_group_label(stat)}",
+                obs_attrs, counters,
+            )
+
+
+def _analysis_attrs(an: dict, titles: list, unmatched: list) -> dict:
+    p_num, p_qual = _parse_p_value(an.get("p_value"))
+    p_raw = an.get("p_value")
+    ci_level = _to_float(an.get("ci_pct_value"))
+    if ci_level is not None and ci_level == int(ci_level):
+        ci_level = int(ci_level)
+    attrs = {
+        "p_value": p_raw if isinstance(p_raw, str) and p_raw.strip() else None,
+        "p_value_num": p_num,
+        "p_value_qualifier": p_qual,
+        "effect_estimate": _to_float(an.get("param_value")),
+        "effect_measure": an.get("param_type"),
+        "ci_lower": _to_float(an.get("ci_lower_limit")),
+        "ci_upper": _to_float(an.get("ci_upper_limit")),
+        "ci_level": ci_level,
+        "ci_sides": an.get("ci_num_sides"),
+        "endpoint_type": str(an.get("outcome_type") or "").lower() or None,
+        "non_inferiority_type": an.get("non_inferiority_type"),
+        "timepoint": an.get("time_frame"),
+        "unit": an.get("unit"),
+        "compared_groups": titles,
+        "unmatched_groups": unmatched,
+    }
+    return {k: v for k, v in attrs.items() if v is not None}
+
+
+def _score_pair(reg_attrs: dict, reg_cohorts: set, cand_attrs: dict, cand_cohorts: set) -> int:
+    overlap = bool(reg_cohorts & cand_cohorts)
+    measure = (
+        reg_attrs.get("effect_measure") is not None
+        and str(reg_attrs["effect_measure"]).lower() == str(cand_attrs.get("effect_measure", "")).lower()
+    )
+    estimate = (
+        measure
+        and reg_attrs.get("effect_estimate") is not None
+        and cand_attrs.get("effect_estimate") is not None
+        and _same_estimate(reg_attrs["effect_estimate"], cand_attrs["effect_estimate"])
+    )
+    if overlap and estimate:
+        return 3
+    if overlap:
+        return 2
+    if estimate:
+        return 1
+    return 0
+
+
+def _write_analyses(kg, nct, parsed, trial_ids, match, counters) -> None:
+    analyses = parsed["analyses"]
+    if not analyses:
+        return
+    outcome_by_norm: dict = {}
+    for tid in trial_ids:
+        for oid in _out_targets(kg, tid, "has_outcome"):
+            if _node_type(kg, oid) == "outcome":
+                outcome_by_norm.setdefault(
+                    normalize_measure(str(kg.graph.nodes[oid].get("name", ""))), []
+                ).append(oid)
+
+    seen_names: dict = {}
+    prepared = []
+    for an in analyses:
+        title = str(an.get("outcome_title") or "").strip()
+        if not _slug(title):
+            continue
+        groups = an.get("groups") or {}
+        group_titles = [str(groups.get(gid) or gid) for gid in an.get("group_ids") or []]
+        cohort_ids = [match(t) for t in group_titles]
+        unmatched = [t for t, c in zip(group_titles, cohort_ids) if c is None]
+        base = f"{nct}: {title} — {' vs '.join(group_titles)}"
+        repeat = seen_names[base] = seen_names.get(base, 0) + 1
+        name = base if repeat == 1 else f"{base} ({repeat})"
+        norm = normalize_measure(title)
+        if norm in outcome_by_norm:
+            outcome_id = sorted(outcome_by_norm[norm])[0]
+        else:
+            outcome_id = f"outcome:{_slug(title)}"
+            _upsert_node(
+                kg, outcome_id, "Outcome", title,
+                {
+                    "endpoint_type": str(an.get("outcome_type") or "").capitalize() or None,
+                    "timeframe": an.get("time_frame"),
+                    "unit": an.get("unit"),
+                },
+                nct, counters,
+            )
+            for tid in trial_ids:
+                _upsert_edge(
+                    kg, tid, "has_outcome", outcome_id, nct,
+                    f"ClinicalTrials.gov results {nct}: outcome {title}", {}, counters,
+                )
+            outcome_by_norm.setdefault(norm, []).append(outcome_id)
+        prepared.append({
+            "an": an, "title": title, "name": name, "id": f"outcomeanalysis:{_slug(name)}",
+            "outcome": outcome_id, "cohorts": [c for c in cohort_ids if c],
+            "attrs": _analysis_attrs(an, group_titles, unmatched), "groups": group_titles,
+        })
+
+    # Resolve which registry analyses are already present (second run) or are
+    # absorbed by an extracted analysis, best evidence first.
+    holder_by_reg: dict = {}
+    for node_id, data in kg.graph.nodes(data=True):
+        if str(data.get("entity_type", "")).lower() != "outcomeanalysis":
+            continue
+        for rid in (data.get("attributes") or {}).get("ctgov_analysis_ids") or []:
+            holder_by_reg[rid] = node_id
+    pairs = []
+    for idx, item in enumerate(prepared):
+        if item["id"] in holder_by_reg or kg.graph.has_node(item["id"]):
+            continue
+        reg_cohorts = set(item["cohorts"])
+        for src, _, data in kg.graph.in_edges(item["outcome"], data=True):
+            if data.get("relation_type") != "analyzes" or _node_type(kg, src) != "outcomeanalysis":
+                continue
+            cand = _node_attrs(kg, src)
+            if cand.get("source") == REGISTRY_SOURCE or cand.get("ctgov_analysis_ids"):
+                continue
+            score = _score_pair(item["attrs"], reg_cohorts, cand, set(_out_targets(kg, src, "compares")))
+            if score:
+                pairs.append((-score, idx, src))
+    taken_reg, taken_cand = set(), set()
+    for _, idx, cand_id in sorted(pairs):
+        if idx in taken_reg or cand_id in taken_cand:
+            continue
+        taken_reg.add(idx)
+        taken_cand.add(cand_id)
+        holder_by_reg[prepared[idx]["id"]] = cand_id
+
+    for item in prepared:
+        an = item["an"]
+        holder = holder_by_reg.get(item["id"])
+        if holder is not None and kg.graph.has_node(holder) and holder != item["id"]:
+            oa_id = holder
+            attrs = _node_attrs(kg, oa_id)
+            if nct not in (attrs.get("ctgov_nct_ids") or []):
+                _merge_into_node(kg, oa_id, item["attrs"], nct, counters, count=True)
+                _append_unique(attrs, "ctgov_analysis_ids", item["id"])
+        else:
+            oa_id = item["id"]
+            _upsert_node(
+                kg, oa_id, "OutcomeAnalysis", item["name"], item["attrs"], nct, counters, count=True,
+            )
+        text = _registry_text(
+            f"ClinicalTrials.gov results {nct}: {item['title']} — {' vs '.join(item['groups'])},",
+            an.get("param_type"), an.get("param_value"),
+            f"({an['ci_pct_value']}% CI {an.get('ci_lower_limit')} to {an.get('ci_upper_limit')}),"
+            if an.get("ci_pct_value") not in (None, "") else None,
+            f"p {an['p_value']}" if an.get("p_value") not in (None, "") else None,
+        ).rstrip(",")
+        _upsert_edge(kg, oa_id, "analyzes", item["outcome"], nct, text, {}, counters)
+        for cid in item["cohorts"]:
+            _upsert_edge(kg, oa_id, "compares", cid, nct, text, {}, counters)
+        targets = set()
+        for cid in item["cohorts"]:
+            for tgt in _out_targets(kg, cid, "receives"):
+                if (
+                    _node_type(kg, tgt) in ("compound", "intervention")
+                    and "placebo" not in str(kg.graph.nodes[tgt].get("name", "")).lower()
+                ):
+                    targets.add(tgt)
+        if len(targets) == 1:
+            _upsert_edge(kg, oa_id, "assesses_effect_of", next(iter(targets)), nct, text, {}, counters)
+        method = _WS_RE.sub(" ", str(an.get("statistical_method") or "")).strip()
+        if _slug(method):
+            method_id = f"statisticalmethod:{_slug(method)}"
+            _upsert_node(kg, method_id, "StatisticalMethod", method, {}, nct, counters)
+            _upsert_edge(kg, oa_id, "uses_method", method_id, nct, text, {}, counters)
+
+
+def _write_results(kg, nct, parsed, trial_ids, counters) -> None:
+    """Write one trial's parsed registry results into the graph."""
+    cohorts = _trial_cohorts(kg, nct, trial_ids)
+    cache: dict = {}
+
+    def match(title):
+        if title not in cache:
+            cache[title] = _match_cohort(title, cohorts)
+        return cache[title]
+
+    _write_adverse_events(kg, nct, parsed, trial_ids, cohorts, match, counters)
+    _write_analyses(kg, nct, parsed, trial_ids, match, counters)
+
+
+# ---------------------------------------------------------------------------
 # Main enrichment function
 # ---------------------------------------------------------------------------
 
@@ -330,6 +1021,9 @@ def _empty_results_block() -> dict:
         "analyses_parsed": 0,
         "created": 0,
         "merged": 0,
+        "created_nodes": 0,
+        "created_edges": 0,
+        "write_failed": 0,
     }
 
 
@@ -345,7 +1039,8 @@ def enrich_graph(
         output_dir: Directory containing graph_data.json.
         domain: Domain name stamped into the report.
         results: Also parse posted results from the same per-trial payload and
-            add a "results" block to the report (counts only; no graph writes).
+            import them into the graph (see module docstring) and add a "results"
+            block to the report.
         cache_dir: Optional directory caching one raw payload per trial.
 
     Returns:
@@ -373,6 +1068,9 @@ def enrich_graph(
     trials_total = trials_enriched = trials_not_found = trials_failed = 0
     compounds_total = compounds_enriched = compounds_not_found = compounds_failed = 0
     results_block = _empty_results_block()
+    studies_by_nct: dict = {}
+    trial_ids_by_nct: dict = {}
+    parsed_by_nct: dict = {}
 
     for node_id, data in node_iter:
         etype = str(data.get("entity_type", "")).lower()
@@ -389,12 +1087,16 @@ def enrich_graph(
             if not candidate:
                 trials_not_found += 1
                 continue
-            study, _ = _get_ct_gov_study(candidate, cache_dir)
+            first_sight = candidate not in studies_by_nct
+            if first_sight:
+                studies_by_nct[candidate], _ = _get_ct_gov_study(candidate, cache_dir)
+            study = studies_by_nct[candidate]
+            trial_ids_by_nct.setdefault(candidate, []).append(node_id)
             try:
                 enrichment = _parse_ct_protocol(study) if study is not None else None
             except (AttributeError, TypeError):
                 enrichment = None
-            if results:
+            if results and first_sight:
                 if study is None:
                     results_block["results_failed"] += 1
                 else:
@@ -407,6 +1109,7 @@ def enrich_graph(
                             results_block["trials_without_results"] += 1
                         else:
                             results_block["trials_with_results"] += 1
+                            parsed_by_nct[candidate] = parsed
                             for ev in parsed["adverse_events"]:
                                 results_block["adverse_events_parsed"][ev["seriousness"]] += 1
                             results_block["analyses_parsed"] += len(parsed["analyses"])
@@ -428,6 +1131,25 @@ def enrich_graph(
                 compounds_enriched += 1
             else:
                 compounds_failed += 1
+
+    if results and parsed_by_nct:
+        if kg is None:
+            results_block["skipped_reason"] = (
+                "sift_kg unavailable: registry results were parsed but not written"
+            )
+        else:
+            counters = _new_counters()
+            for nct in sorted(parsed_by_nct):
+                try:
+                    _write_results(
+                        kg, nct, parsed_by_nct[nct], sorted(trial_ids_by_nct[nct]), counters
+                    )
+                except Exception:
+                    results_block["write_failed"] += 1
+            results_block["created_nodes"] = counters["created_nodes"]
+            results_block["created_edges"] = counters["created_edges"]
+            results_block["created"] = counters["created_nodes"] + counters["created_edges"]
+            results_block["merged"] = counters["merged"]
 
     # Persist mutations
     if kg is not None:
