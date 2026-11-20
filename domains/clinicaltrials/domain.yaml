@@ -10,7 +10,8 @@ description: |
 system_context: |
   You are analyzing clinical trial documents to build a knowledge graph of
   trials, interventions, conditions, sponsors, investigators, outcomes,
-  biomarkers, cohorts, populations, trial phases, and sites.
+  biomarkers, cohorts, populations, trial phases, sites, adverse events, organ
+  systems, standard outcomes, outcome analyses, and statistical methods.
 
   NOMENCLATURE STANDARDS:
   - Trials: MUST use the NCT identifier (e.g. "NCT04303780") as the canonical
@@ -27,6 +28,16 @@ system_context: |
     whole corpus ("Type 2 Diabetes Mellitus", "Obesity", "Overweight").
     Split combined labels such as "overweight or obesity" into separate
     Condition entities.
+  - Adverse events: name each AdverseEvent by the event term itself ("Nausea",
+    "Acute pancreatitis"), never by the arm, timepoint or count. Use one node
+    per distinct event term across all arms.
+    Normalize names per SKILL.md 'Adverse Event Normalization' (rule-based, no MedDRA lookup); keep source wording in reported_term.
+  - Standard outcomes: one StandardOutcome per canonical measure across the
+    corpus ("HbA1c", "Body weight", "Systolic blood pressure"); strip "change
+    from baseline in", timepoints and units. The trial-specific wording stays
+    on the Outcome.
+  - Statistical methods: one canonical spelling per method ("ANCOVA", "MMRM",
+    "Paired t-test").
 
   PROTOCOL VS RESULT:
   - A protocol describes what a trial will test. Record that as
@@ -34,6 +45,8 @@ system_context: |
   - Use treats only when the text reports an observed result or an
     approved indication.
   - Comparator arms are compared_with, not co_intervention.
+  - Extract an OutcomeAnalysis only when the text reports a result (an effect
+    estimate or a p-value). Protocols produce none.
 
   CONFIDENCE CALIBRATION (score how strongly the text supports the
   extraction, not whether the treatment works):
@@ -84,6 +97,21 @@ entity_types:
   Site:
     description: "A clinical study site — specific hospital, clinic, or country listed as a location."
     display: { family: Actors, shape: diamond, color: "#889541" }
+  AdverseEvent:
+    description: "An adverse event or side effect reported among trial participants (e.g. 'Nausea', 'Acute pancreatitis'). Name it by the event itself, not by the arm or timepoint. Source wording goes in attributes.reported_term; attributes.meddra_pt only when confident of the MedDRA PT wording (never looked up)."
+    display: { family: Conditions, shape: square, color: "#d9480f" }
+  OrganSystem:
+    description: "The body or organ system an adverse event affects, named at system-organ-class level (e.g. 'Gastrointestinal disorders', 'Cardiac disorders')."
+    display: { family: Concepts, shape: triangleDown, color: "#5c7cfa" }
+  StandardOutcome:
+    description: "A canonical, reusable outcome measure or assessment instrument shared across trials (e.g. 'HbA1c', 'Body weight', 'Systolic blood pressure', 'SF-36 physical functioning', 'Overall survival'). The trial-specific wording stays on the Outcome node."
+    display: { family: Evidence, shape: star, color: "#0b7285" }
+  OutcomeAnalysis:
+    description: "A reported statistical comparison of arms on one outcome: the effect estimate, confidence interval, and p-value for treatment vs comparator at a timepoint."
+    display: { family: Evidence, shape: star, color: "#c2255c" }
+  StatisticalMethod:
+    description: "A statistical test or model used in an OutcomeAnalysis (e.g. 'ANCOVA', 'MMRM', 'Cox proportional hazards', 'Log-rank test')."
+    display: { family: Concepts, shape: triangleDown, color: "#5f3dc4" }
 
 relation_types:
   tests:
@@ -148,3 +176,58 @@ relation_types:
     source_types: [Compound, Intervention]
     target_types: [Compound, Intervention]
     symmetric: true
+  reports_adverse_event:
+    description: "A Trial reports an AdverseEvent among its participants."
+    category: provenance
+    source_types: [Trial]
+    target_types: [AdverseEvent]
+  observed_in:
+    description: "An AdverseEvent was observed in a specific arm/Cohort; put counts (n_affected, n_at_risk, percent) in relation evidence/attributes."
+    category: association
+    source_types: [AdverseEvent]
+    target_types: [Cohort]
+  affects_organ_system:
+    description: "An AdverseEvent belongs to an OrganSystem."
+    category: structural
+    source_types: [AdverseEvent]
+    target_types: [OrganSystem]
+  receives:
+    description: "A Cohort/arm receives a Compound or Intervention (CTKG Drug–EventGroup)."
+    category: therapeutic
+    source_types: [Cohort]
+    target_types: [Compound, Intervention]
+  contains_compound:
+    description: 'A dose- or regimen-specific Intervention ("Semaglutide 0.5 mg QW SC") contains a Compound ("semaglutide").'
+    category: structural
+    source_types: [Intervention]
+    target_types: [Compound]
+  uses_background_drug:
+    description: "Background, rescue, or auxiliary medication used in the trial but not under study (CTKG UsedDrug), e.g. metformin background therapy."
+    category: therapeutic
+    source_types: [Trial]
+    target_types: [Compound, Intervention]
+  measures:
+    description: "A trial-specific Outcome measures a canonical StandardOutcome (CTKG Outcome–StandardOutcome)."
+    category: association
+    source_types: [Outcome]
+    target_types: [StandardOutcome]
+  analyzes:
+    description: "An OutcomeAnalysis analyses a specific Outcome."
+    category: association
+    source_types: [OutcomeAnalysis]
+    target_types: [Outcome]
+  compares:
+    description: "An OutcomeAnalysis compares this arm (one edge per arm compared)."
+    category: structural
+    source_types: [OutcomeAnalysis]
+    target_types: [Cohort]
+  assesses_effect_of:
+    description: "The treatment whose effect the OutcomeAnalysis estimates (the experimental side of the comparison)."
+    category: therapeutic
+    source_types: [OutcomeAnalysis]
+    target_types: [Compound, Intervention]
+  uses_method:
+    description: "The StatisticalMethod used for the analysis."
+    category: structural
+    source_types: [OutcomeAnalysis]
+    target_types: [StatisticalMethod]

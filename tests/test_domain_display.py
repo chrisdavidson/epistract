@@ -28,7 +28,7 @@ DOMAIN_NAMES = [
 COUNTS = {
     "drug-discovery": (17, 30),
     "contracts": (9, 9),
-    "clinicaltrials": (12, 12),
+    "clinicaltrials": (17, 23),
     "pharmacovigilance": (12, 12),
     "fda-product-labels": (17, 16),
     "crosswalk": (6, 4),
@@ -53,11 +53,13 @@ ENTITY_FAMILIES: dict[str, dict[str, list[str]]] = {
         "Services": ["SERVICE"],
     },
     "clinicaltrials": {
-        "Evidence": ["Trial", "TrialPhase", "Outcome"],
+        "Evidence": [
+            "Trial", "TrialPhase", "Outcome", "StandardOutcome", "OutcomeAnalysis",
+        ],
         "Interventions": ["Intervention", "Compound"],
-        "Conditions": ["Condition"],
+        "Conditions": ["Condition", "AdverseEvent"],
         "Actors": ["Sponsor", "Investigator", "Site"],
-        "Concepts": ["Biomarker"],
+        "Concepts": ["Biomarker", "OrganSystem", "StatisticalMethod"],
         "Populations": ["Cohort", "Population"],
     },
     "pharmacovigilance": {
@@ -117,11 +119,20 @@ RELATION_CATS: dict[str, dict[str, list[str]]] = {
         "regulatory": ["REQUIRES_INSURANCE", "PENALIZES"],
     },
     "clinicaltrials": {
-        "therapeutic": ["tests", "treats", "evaluated_for", "compared_with", "co_intervention"],
+        "therapeutic": [
+            "tests", "treats", "evaluated_for", "compared_with", "co_intervention",
+            "receives", "uses_background_drug", "assesses_effect_of",
+        ],
         "organizational": ["sponsored_by", "investigates"],
-        "association": ["has_outcome", "uses_biomarker"],
-        "structural": ["enrolls", "is_phase"],
+        "association": [
+            "has_outcome", "uses_biomarker", "observed_in", "measures", "analyzes",
+        ],
+        "structural": [
+            "enrolls", "is_phase", "affects_organ_system", "contains_compound",
+            "compares", "uses_method",
+        ],
         "mechanism": ["targets"],
+        "provenance": ["reports_adverse_event"],
     },
     "pharmacovigilance": {
         "causal": [

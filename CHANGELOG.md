@@ -2,6 +2,54 @@
 
 All notable changes to epistract are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
+## [3.4.0] — 2026-11-19
+
+**Clinical trials schema v2: safety, outcome standardisation and evidence grading.** The `clinicaltrials` domain adopts the concepts and relations of the Clinical Trials Knowledge Graph (CTKG; Chen et al., *Sci Rep* 12:4724, 2022) for document extraction. It now models adverse events and the organ systems they affect, links every arm and dose-specific intervention to its compound, maps trial-specific outcomes to canonical measures, and grades efficacy claims from reported statistical analyses. All changes are additive: no type or relation was renamed or removed, and graphs built with 3.3.0 still analyse with identical results. The changes were reviewed and applied in six recorded iterations with the epistract Domain Builder.
+
+### Added
+
+- `clinicaltrials` entity types (12 → 17):
+  - `AdverseEvent`
+  - `OrganSystem`, a node type of its own at system-organ-class level
+  - `StandardOutcome`, the canonical measure shared across trials, such as "HbA1c" or "Body weight"
+  - `OutcomeAnalysis`, a reported comparison with its effect estimate, confidence interval and p-value
+  - `StatisticalMethod`
+- `clinicaltrials` relation types (12 → 23):
+  - Safety: `reports_adverse_event`, `observed_in`, `affects_organ_system`
+  - Drug linkage: `receives`, `contains_compound`, `uses_background_drug`
+  - Evidence: `measures`, `analyzes`, `compares`, `assesses_effect_of`, `uses_method`
+- Extraction guidance in `SKILL.md`:
+  - Drug-linkage rules: every dose-specific Intervention links to its Compound, and every arm links to what it receives.
+  - Standard-outcome identification rules, following CTKG §4.3.
+  - Canonical statistical-method names.
+  - OutcomeAnalysis naming and attributes, extracted only when a result is reported.
+  - New quality checks.
+- **Adverse Event Normalization**: rule-based naming with no MedDRA lookup, following CTKG §4.1.
+  - Strip asides, laterality and timeframes, and name the event rather than its grade or arm.
+  - Use US spelling and preferred-term-level wording, and merge spelling variants.
+  - Keep the source wording in `reported_term`. Add `meddra_pt` only when the extractor is confident of it.
+  - No MedDRA dictionary content is shipped, because its license does not allow it.
+- Evidence grading from OutcomeAnalysis in `epistemic.py`:
+  - A significant result counts as asserted, a non-significant one as negative, and an undecidable one as unresolved.
+  - Significance is read from p-value text first. That text may be "<0.001", "NS" or "0,03". The next fallback is a numeric p-value in [0, 1]. Last comes the confidence interval against the right null: ratio measures, such as aHR or "Hazard Ratio (HR)", are recognised by pattern.
+  - A standard outcome and treatment pair is contested only when results disagree across different trials. It is also a contradiction when both sides include high-evidence trials.
+  - New output keys:
+    - `summary.analysis_claims_found`, `analysis_graded`, `analysis_contested_found` and `analysis_status_counts`
+    - `base_domain.analysis_claims`
+- `clinicaltrials/crosswalk.yaml`: an `adverse_event` axis that matches on `meddra_pt` and falls back to the name, which is the same key as pharmacovigilance. There is also a `trial → adverse_event` edge.
+
+### Changed
+
+- The `clinicaltrials` crosswalk `outcome` axis now takes keys from `StandardOutcome` first, then `Outcome`. `clinicaltrials` now appears in `declared_by` for the `adverse_event` axis. Graphs extracted before 3.4.0 contribute no adverse-event keys.
+- The `clinicaltrials` workbench persona lists the new entity types.
+- `clinicaltrials` epistemic grading no longer needs enrichment. When the `enrich.py` registry fields are absent it falls back to the normalized extracted `attributes.phase` (3a/3b, roman numerals, 2/3 as 2, NA ignored), then to the linked `TrialPhase` node (`is_phase`), and reads blinding from strict design text (open-label wins; "placebo-controlled" or "randomised" alone is not blinding). OutcomeAnalysis contradictions can therefore fire on un-enriched graphs (Domain Builder iteration 7).
+- The test tables for the `clinicaltrials` schema were updated in `tests/test_domain_display.py`, `tests/test_unit.py` and `tests/test_crosswalk.py`. These are assertion changes only.
+
+### Notes
+
+- Re-extract existing `clinicaltrials` projects to populate the new types. On a 10-document GLP-1 registry corpus, compound linkage rose from 0% to 86% and 95% of outcomes mapped to a canonical measure. Registry protocol summaries carry no results, so OutcomeAnalysis and adverse-event coverage depend on documents that report results.
+- The shared `crosswalks/pharma.yaml` normalizers are unchanged.
+
 ## [3.3.0] — 2026-10-24
 
 **Workbench refresh: Material Paper theme, a richer Dashboard, and an offline `graph.html`.** The workbench gets a new visual identity, a Dashboard that shows where to start and the health of the evidence, a source viewer, and `/epistract:view` now writes the workbench graph as a single offline page. `graph.html` is built from the workbench graph renderer instead of sift-kg/pyvis, so the standalone page and the workbench look and behave alike.
