@@ -808,7 +808,18 @@ def _write_adverse_events(kg, nct, parsed, trial_ids, match, counters) -> None:
             nid for nid in known
             if any(_has_edge_from(kg, tid, "reports_adverse_event", nid) for tid in trial_ids)
         ]
-        ae_id = (linked or known or [f"adverseevent:{_slug(term)}"])[0]
+        # A registry AE merges only into an AE this trial already reports, or
+        # into a registry-only AE shared by registry trials. An extracted AE
+        # of another trial is never merged into; the registry AE then gets a
+        # trial-scoped id when the plain one is taken by that extracted AE.
+        shared = [
+            nid for nid in known
+            if _plain_attrs(kg.graph.nodes[nid]).get("source") == REGISTRY_SOURCE
+        ]
+        default_id = f"adverseevent:{_slug(term)}"
+        if not (linked or shared) and kg.graph.has_node(default_id):
+            default_id = f"adverseevent:{_slug(term)}_{_slug(nct)}"
+        ae_id = (linked or shared or [default_id])[0]
         created = _upsert_node(
             kg, ae_id, "AdverseEvent", term, attrs, nct, counters,
             rename={"reported_term": "registry_term"}, count=True,
