@@ -694,6 +694,14 @@ _BRITISH_US_AE_PAIRS = [
     ("Local anaesthetic systemic toxicity", "Local anesthetic systemic toxicity"),
     ("Ethinyloestradiol", "Ethinylestradiol"), ("Xenooestrogen", "Xenoestrogen"),
     ("Prooestrus", "Proestrus"),
+    # 999.5 round-2 review fix / clinicaltrials iteration 25
+    ("Diethylstilboestrol", "Diethylstilbestrol"), ("Stilboestrol", "Stilbestrol"),
+    ("Antioestrogen", "Antiestrogen"), ("Fosfoestrol", "Fosfestrol"), ("Hexoestrol", "Hexestrol"),
+    ("Dienoestrol", "Dienestrol"), ("Polyoestradiol", "Polyestradiol"), ("Dioestrus", "Diestrus"),
+    ("Anoestrus", "Anestrus"), ("Metoestrus", "Metestrus"), ("Oestradiol", "Estradiol"),
+    ("Anaesthetic", "Anesthetic"), ("Anaesthetist", "Anesthetist"),
+    ("Hyperaesthesia", "Hyperesthesia"), ("Leucoencephalopathy", "Leukoencephalopathy"),
+    ("Leucoderma", "Leukoderma"),
 ]
 
 
@@ -734,6 +742,32 @@ def test_ae_key_iteration24_word_table(enrich):
         "Angioedema": "angioedema",
         "Hypoestrogenism": "hypoestrogenism",
         "Phytoestrogen": "phytoestrogen",
+    }
+    for word, key in expected.items():
+        assert enrich._ae_key(word) == key, word
+
+
+@pytest.mark.unit
+def test_ae_key_iteration25_word_table(enrich):
+    """999.5 round-2 review fix (iteration 25): oestr folds everywhere except after
+    the US o-prefixes hyp/phyt/xen/pr; aesthe needs a preceding letter, so the US
+    word "aesthetic" is left alone; Leuconostoc (a genus) is not folded."""
+    expected = {
+        "Diethylstilboestrol": "diethylstilbestrol",
+        "Antioestrogen therapy": "antiestrogen therapy",
+        "Dioestrus": "diestru",
+        "Hypooestrogenism": "hypoestrogenism",
+        "Hypoestrogenism": "hypoestrogenism",
+        "Phytoestrogen": "phytoestrogen",
+        "Xenoestrogen": "xenoestrogen",
+        "Proestrus": "proestru",
+        "Anaesthesia": "anesthesia",
+        "Hyperaesthesia": "hyperesthesia",
+        "Aesthetic procedure complication": "aesthetic procedure complication",
+        "Leucoencephalopathy": "leukoencephalopathy",
+        "Leuconostoc infection": "leuconostoc infection",
+        "Leucine": "leucine",
+        "Leucovorin toxicity": "leucovorin toxicity",
     }
     for word, key in expected.items():
         assert enrich._ae_key(word) == key, word
