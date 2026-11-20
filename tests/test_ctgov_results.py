@@ -1198,3 +1198,36 @@ def test_registry_outcome_id_never_reuses_other_trial_node(enrich, tmp_path):
     target = next(iter(targets))
     assert _nattr(nodes[target], "source") == "ctgov_results"
     assert _edges(links, "has_outcome", TRIAL_A, target)
+
+
+@pytest.mark.unit
+def test_analysis_merge_requires_same_arms(enrich, tmp_path):
+    # CR-02: a shared placebo arm is not enough; the extracted 36 mg vs placebo
+    # analysis must absorb only the registry 36 mg vs placebo analysis.
+    outcome_nodes, outcome_links = _hba1c_outcome_nodes()
+    seed_id = "outcomeanalysis:seed_hba1c_36_vs_placebo"
+    seed = {
+        "id": seed_id, "name": "Seeded HbA1c 36 mg vs placebo",
+        "entity_type": "OutcomeAnalysis", "source_documents": ["doc_seed"],
+        "attributes": {"effect_measure": "ETD", "effect_estimate": -1.3},
+    }
+    links = [
+        *outcome_links,
+        _link(seed_id, "analyzes", outcome_nodes[0]["id"]),
+        _link(seed_id, "compares", COHORT_PLACEBO),
+        _link(seed_id, "compares", COHORT_36),
+    ]
+    _, _, nodes, links_out = _seeded_run(
+        enrich, tmp_path, extra_nodes=[*outcome_nodes, seed], extra_links=links,
+    )
+    want = f"{WITH_RESULTS_A}: Change From Baseline in HbA1c — Placebo vs 36 mg Orforglipron"
+    attrs = nodes[seed_id]["attributes"]
+    assert attrs["ctgov_analysis_ids"] == [f"outcomeanalysis:{enrich._slug(want)}"]
+    assert {l["target"] for l in _edges(links_out, "compares", seed_id)} == {
+        COHORT_PLACEBO, COHORT_36,
+    }
+    assert attrs["registry_effect_measure"] == _hba1c_analysis(enrich, "36 mg Orforglipron")["param_type"]
+    names = {n["name"] for n in _oa_nodes(nodes, WITH_RESULTS_A)}
+    for group in ("3 mg Orforglipron", "12 mg Orforglipron"):
+        assert f"{WITH_RESULTS_A}: Change From Baseline in HbA1c — Placebo vs {group}" in names
+    assert want not in names
