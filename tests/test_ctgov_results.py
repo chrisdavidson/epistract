@@ -1934,3 +1934,63 @@ def test_results_default_byte_identical_to_iteration20(enrich, tmp_path, monkeyp
     rep_old.pop("generated_at")
     rep_new.pop("generated_at")
     assert rep_old == rep_new and _same_key_order(rep_old, rep_new)
+
+
+# Iteration 22: a re-run under another floor never rewrites or misreports AEs
+
+
+def _ae_edge_state(directory):
+    _, links = _read_graph(directory)
+    return sorted(
+        (l["source"], l["target"], _eattr(l, "serious_min_pct")) for l in _edges(links, "reports_adverse_event")
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("first, second", [(0, 1), (1, 0), (0.5, 2), (2, 0.5)])
+def test_rerun_with_another_floor_leaves_aes_and_reports_conflict(enrich, tmp_path, first, second):
+    _write_graph(tmp_path, [WITH_RESULTS_A, WITH_RESULTS_B])
+    _run(enrich, tmp_path, _all_fixture_bodies(), results=True, serious_min_pct=first)
+    before = _ae_edge_state(tmp_path)
+    report, _ = _run(enrich, tmp_path, _all_fixture_bodies(), results=True, serious_min_pct=second)
+    block = report["results"]
+    assert _ae_edge_state(tmp_path) == before
+    assert block["created"] == 0 and block["merged"] == 0
+    assert block["serious_min_pct_conflicts"] == {
+        WITH_RESULTS_A: [float(first)], WITH_RESULTS_B: [float(first)],
+    }
+    if second > 0:
+        assert block["serious_min_pct"] == float(second)
+        assert block["serious_events_omitted"] == 0  # the floor was applied to no trial
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("floor", [0, 1])
+def test_rerun_with_the_same_floor_has_no_conflict(enrich, tmp_path, floor):
+    _write_graph(tmp_path, [WITH_RESULTS_A, WITH_RESULTS_B])
+    first, _ = _run(enrich, tmp_path, _all_fixture_bodies(), results=True, serious_min_pct=floor)
+    again, _ = _run(enrich, tmp_path, _all_fixture_bodies(), results=True, serious_min_pct=floor)
+    assert "serious_min_pct_conflicts" not in again["results"]
+    assert again["results"]["created"] == 0
+    assert again["results"].get("serious_events_omitted") == first["results"].get("serious_events_omitted")
+
+
+@pytest.mark.unit
+def test_floor_report_key_order_is_fixed(enrich, tmp_path):
+    _write_graph(tmp_path / "a", [WITH_RESULTS_A])
+    with_results, _ = _run(enrich, tmp_path / "a", _all_fixture_bodies(), results=True, serious_min_pct=1)
+    _write_graph(tmp_path / "b", [NO_RESULTS])
+    without, _ = _run(enrich, tmp_path / "b", _all_fixture_bodies(), results=True, serious_min_pct=1)
+    assert list(with_results["results"])[-2:] == list(without["results"])[-2:] == [
+        "serious_min_pct", "serious_events_omitted",
+    ]
+    assert without["results"]["serious_events_omitted"] == 0
+
+
+@pytest.mark.unit
+def test_cli_serious_min_pct_needs_results(tmp_path):
+    proc = subprocess.run(
+        [sys.executable, str(_module_path()), str(tmp_path), "--results-serious-min-pct", "1"],
+        capture_output=True, text=True, timeout=60,
+    )
+    assert proc.returncode == 2 and "needs --results" in proc.stderr
