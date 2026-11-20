@@ -1573,3 +1573,137 @@ def test_analysis_merge_fills_statistic_groups_whole(enrich, tmp_path):
     # Ungrouped attributes keep the per-attribute fill rule.
     assert attrs["endpoint_type"] == "primary"
     assert attrs["timepoint"] and attrs["unit"]
+
+
+# --- CT.gov arm groups on registry analyses ---------------------------------
+
+HEAD_TO_HEAD = "NCT03987919"
+
+
+def _h2h_bodies(strip_arm_groups: bool = False) -> dict:
+    study = _study(HEAD_TO_HEAD)
+    if strip_arm_groups:
+        study = copy.deepcopy(study)
+        del study["protocolSection"]["armsInterventionsModule"]["armGroups"]
+    return {HEAD_TO_HEAD: study}
+
+
+def _h2h_run(enrich, directory: Path, strip_arm_groups: bool = False):
+    _write_graph(directory, [HEAD_TO_HEAD])
+    report, _ = _run(enrich, directory, _h2h_bodies(strip_arm_groups), results=True)
+    return report, *_read_graph(directory)
+
+
+@pytest.mark.unit
+def test_parse_arm_groups(enrich):
+    arms = enrich._parse_ct_results(_study(HEAD_TO_HEAD))["arm_groups"]
+    assert [(a["label"], a["type"], a["interventions"]) for a in arms] == [
+        ("5 mg Tirzepatide", "EXPERIMENTAL", ["Drug: Tirzepatide"]),
+        ("10 mg Tirzepatide", "EXPERIMENTAL", ["Drug: Tirzepatide"]),
+        ("15 mg Tirzepatide", "EXPERIMENTAL", ["Drug: Tirzepatide"]),
+        ("1 mg Semaglutide", "ACTIVE_COMPARATOR", ["Drug: Semaglutide"]),
+    ]
+    other = enrich._parse_ct_results(_study(WITH_RESULTS_A))["arm_groups"]
+    assert [a["type"] for a in other].count("PLACEBO_COMPARATOR") == 1
+    assert [a["type"] for a in other].count("EXPERIMENTAL") == 3
+
+
+@pytest.mark.unit
+def test_match_label_is_the_cohort_matcher(enrich):
+    m = enrich._match_label
+    assert m("12 mg Orforglipron", [("a", ["Orforglipron 12mg"])]) == "a"
+    assert m("12 mg Orforglipron", [("a", ["Orforglipron 12mg"]), ("b", ["12 mg orforglipron QW"])]) is None
+    assert m("Placebo", [("a", ["Semaglutide placebo 0.5 mg"])]) is None
+    assert m("", [("a", ["x"])]) is None
+
+
+@pytest.mark.unit
+def test_analysis_arm_groups_written(enrich, tmp_path):
+    report, nodes, _ = _h2h_run(enrich, tmp_path)
+    analyses = _oa_nodes(nodes, HEAD_TO_HEAD)
+    assert analyses
+    for node in analyses:
+        attrs = node["attributes"]
+        groups = attrs["ctgov_arm_groups"]
+        assert [g["title"] for g in groups] == attrs["compared_groups"]
+        for g in groups:
+            assert set(g) == {"title", "arm_type", "interventions"}
+            if "Tirzepatide" in g["title"]:
+                assert g["arm_type"] == "EXPERIMENTAL"
+                assert g["interventions"] == ["Drug: Tirzepatide"]
+            else:
+                assert g["arm_type"] == "ACTIVE_COMPARATOR"
+                assert g["interventions"] == ["Drug: Semaglutide"]
+
+
+@pytest.mark.unit
+def test_analysis_arm_groups_unmatched_title(enrich, tmp_path):
+    study = copy.deepcopy(_study(HEAD_TO_HEAD))
+    arms = study["protocolSection"]["armsInterventionsModule"]["armGroups"]
+    study["protocolSection"]["armsInterventionsModule"]["armGroups"] = [
+        a for a in arms if a["label"] != "10 mg Tirzepatide"
+    ]
+    _write_graph(tmp_path, [HEAD_TO_HEAD])
+    _run(enrich, tmp_path, {HEAD_TO_HEAD: study}, results=True)
+    nodes, _ = _read_graph(tmp_path)
+    seen = False
+    for node in _oa_nodes(nodes, HEAD_TO_HEAD):
+        for g in node["attributes"].get("ctgov_arm_groups", []):
+            if g["title"] == "10 mg Tirzepatide":
+                seen = True
+                assert g["arm_type"] is None and g["interventions"] == []
+    assert seen
+
+
+@pytest.mark.unit
+def test_analysis_without_arm_groups_has_no_key(enrich, tmp_path):
+    with_dir, without_dir = tmp_path / "with", tmp_path / "without"
+    _, with_nodes, _ = _h2h_run(enrich, with_dir)
+    _, without_nodes, _ = _h2h_run(enrich, without_dir, strip_arm_groups=True)
+    a = {n["id"]: dict(n["attributes"]) for n in _oa_nodes(with_nodes)}
+    b = {n["id"]: dict(n["attributes"]) for n in _oa_nodes(without_nodes)}
+    assert a.keys() == b.keys() and a
+    for key in a:
+        assert "ctgov_arm_groups" not in b[key]
+        a[key].pop("ctgov_arm_groups")
+        assert a[key] == b[key]
+
+
+@pytest.mark.unit
+def test_analysis_merge_holder_gets_arm_groups(enrich, tmp_path):
+    ref, nodes_seed, links_seed = _extracted_analysis_seed(enrich)
+    _, _, nodes, _ = _seeded_run(enrich, tmp_path, extra_nodes=nodes_seed, extra_links=links_seed)
+    attrs = nodes["outcomeanalysis:seed_hba1c_36"]["attributes"]
+    assert [g["arm_type"] for g in attrs["ctgov_arm_groups"]] == ["PLACEBO_COMPARATOR", "EXPERIMENTAL"]
+    assert not any(k.startswith("registry_ctgov") for k in attrs)
+
+
+@pytest.mark.unit
+def test_analysis_merge_keeps_existing_arm_groups(enrich, tmp_path):
+    _, nodes_seed, links_seed = _extracted_analysis_seed(enrich)
+    keep = [{"title": "kept", "arm_type": "OTHER", "interventions": []}]
+    for n in nodes_seed:
+        if n["id"] == "outcomeanalysis:seed_hba1c_36":
+            n["attributes"]["ctgov_arm_groups"] = copy.deepcopy(keep)
+    _, _, nodes, _ = _seeded_run(enrich, tmp_path, extra_nodes=nodes_seed, extra_links=links_seed)
+    attrs = nodes["outcomeanalysis:seed_hba1c_36"]["attributes"]
+    assert attrs["ctgov_arm_groups"] == keep
+    assert "registry_ctgov_arm_groups" not in attrs
+
+
+@pytest.mark.unit
+def test_arm_groups_backfill_on_rerun(enrich, tmp_path):
+    _h2h_run(enrich, tmp_path)
+    path = tmp_path / "graph_data.json"
+    data = json.loads(path.read_text())
+    for n in data["nodes"]:
+        if n.get("entity_type") == "OutcomeAnalysis":
+            n["attributes"].pop("ctgov_arm_groups")
+    path.write_text(json.dumps(data, indent=2))
+    report, _ = _run(enrich, tmp_path, _h2h_bodies(), results=True)
+    nodes, _ = _read_graph(tmp_path)
+    assert report["results"]["created"] == 0 and report["results"]["merged"] == 0
+    assert all("ctgov_arm_groups" in n["attributes"] for n in _oa_nodes(nodes))
+    second = path.read_bytes()
+    _run(enrich, tmp_path, _h2h_bodies(), results=True)
+    assert _normalize_stamps(second) == _normalize_stamps(path.read_bytes())
