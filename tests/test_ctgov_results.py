@@ -1090,3 +1090,34 @@ def test_sift_kg_missing_skips_registry_writes(enrich, tmp_path, monkeypatch):
     nodes, links = _read_graph(tmp_path)
     assert not [n for n in nodes.values() if n.get("entity_type") == "AdverseEvent"]
     assert nodes[TRIAL_A]["ct_overall_status"]
+
+
+# --- Phase 7 review fixes (07-REVIEW.md) ------------------------------------
+
+
+def _study_with_measure_copy(index: int, title: str, time_frame: str | None = None) -> dict:
+    """Study A with a copy of outcome measure `index` appended under a new title."""
+    study = _study(WITH_RESULTS_A)
+    measures = study["resultsSection"]["outcomeMeasuresModule"]["outcomeMeasures"]
+    extra = copy.deepcopy(measures[index])
+    extra["title"] = title
+    if time_frame is not None:
+        extra["timeFrame"] = time_frame
+    measures.append(extra)
+    return study
+
+
+def _ctgov_ids(item) -> list:
+    return list((item.get("attributes") or {}).get("ctgov_nct_ids") or [])
+
+
+@pytest.mark.unit
+def test_same_estimate_requires_stated_precision(enrich):
+    # WR-01: an integer-valued side must not widen the match to +/-0.5.
+    assert enrich._same_estimate(1.0, 0.55) is False
+    assert enrich._same_estimate(-2, -1.62) is False
+    assert enrich._same_estimate(-1.0, -1.12) is False
+    assert enrich._same_estimate(-1.3, -1.30) is True
+    assert enrich._same_estimate(-1.4, -1.44) is True
+    assert enrich._same_estimate(0.66, 0.66) is True
+    assert enrich._same_estimate(1, 1.0) is True
