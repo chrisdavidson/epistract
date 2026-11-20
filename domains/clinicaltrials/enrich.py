@@ -26,6 +26,10 @@ An opt-in per-arm floor for serious events (--results-serious-min-pct X,
 default 0 = every serious event) keeps a serious event only when at least one
 arm reaches X percent affected; the report then records the floor and the
 number of serious records omitted, and the AE edges carry serious_min_pct.
+The floor applies to a trial's first import only: when a trial's registry AE
+edges were written under another floor, its AEs are left as they are and the
+trial is listed under serious_min_pct_conflicts (re-enrich the un-enriched
+graph to change the floor).
 The "results" block of _enrichment_report.json counts the parsed records and
 the graph writes (created, merged); a trial whose write fails is rolled back
 and listed under write_errors. Without --results, behaviour is unchanged.
@@ -42,7 +46,7 @@ Usage:
     --results-serious-min-pct X
                       opt-in volume control for --results: keep a serious adverse event only
                       when at least one arm has X percent or more affected (default 0: keep
-                      every serious event, the 3.5.0 behaviour)
+                      every serious event, the 3.5.0 behaviour); needs --results
 """
 from __future__ import annotations
 
@@ -1467,6 +1471,8 @@ def enrich_graph(
     trials_total = trials_enriched = trials_not_found = trials_failed = 0
     compounds_total = compounds_enriched = compounds_not_found = compounds_failed = 0
     results_block = _empty_results_block()
+    serious_omitted = 0
+    floor_conflicts: dict = {}
     studies_by_nct: dict = {}
     trial_ids_by_nct: dict = {}
     parsed_by_nct: dict = {}
@@ -1511,11 +1517,6 @@ def enrich_graph(
                             parsed_by_nct[candidate] = parsed
                             for ev in parsed["adverse_events"]:
                                 results_block["adverse_events_parsed"][ev["seriousness"]] += 1
-                            if serious_min_pct > 0:
-                                results_block["serious_events_omitted"] = (
-                                    results_block.get("serious_events_omitted", 0)
-                                    + parsed["serious_events_omitted"]
-                                )
                             results_block["analyses_parsed"] += len(parsed["analyses"])
             if enrichment:
                 data.update(enrichment)
@@ -1541,10 +1542,25 @@ def enrich_graph(
             results_block["skipped_reason"] = (
                 "sift_kg unavailable: registry results were parsed but not written"
             )
+            serious_omitted = sum(p.get("serious_events_omitted", 0) for p in parsed_by_nct.values())
         else:
             counters = _new_counters()
             write_errors: dict = {}
             for nct in sorted(parsed_by_nct):
+                to_write = parsed_by_nct[nct]
+                prior = _prior_serious_floors(kg, trial_ids_by_nct[nct], nct)
+                if prior and prior != {serious_min_pct}:
+                    # Already imported under another floor: registry writes are
+                    # idempotent per NCT, so applying this floor would only add
+                    # edges beside the old ones. Leave the AEs as they are.
+                    floor_conflicts[nct] = sorted(prior)
+                    to_write = {**to_write, "adverse_events": []}
+                    print(
+                        f"enrich.py: {nct} was imported with serious_min_pct "
+                        f"{sorted(prior)}, not {serious_min_pct}; its adverse events are "
+                        "unchanged (re-enrich the un-enriched graph to change the floor)",
+                        file=sys.stderr,
+                    )
                 # One trial's write is atomic: on any error the graph and the
                 # counters go back to their state before this trial, so no
                 # partial write is stamped with the NCT (which would make every
@@ -1553,8 +1569,10 @@ def enrich_graph(
                 counters_before = copy.deepcopy(counters)
                 try:
                     _write_results(
-                        kg, nct, parsed_by_nct[nct], sorted(trial_ids_by_nct[nct]), counters
+                        kg, nct, to_write, sorted(trial_ids_by_nct[nct]), counters
                     )
+                    if nct not in floor_conflicts:
+                        serious_omitted += to_write.get("serious_events_omitted", 0)
                 except Exception as exc:
                     kg.graph = graph_before
                     counters = counters_before
@@ -1589,7 +1607,9 @@ def enrich_graph(
     if results:
         if serious_min_pct > 0:
             results_block["serious_min_pct"] = serious_min_pct
-            results_block.setdefault("serious_events_omitted", 0)
+            results_block["serious_events_omitted"] = serious_omitted
+        if floor_conflicts:
+            results_block["serious_min_pct_conflicts"] = floor_conflicts
         report["results"] = results_block
     _write_report(output_dir, report)
     return report
@@ -1598,6 +1618,25 @@ def enrich_graph(
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+
+def _prior_serious_floors(kg, trial_ids, nct) -> set:
+    """The serious_min_pct values (0.0 when absent) of the registry
+    reports_adverse_event edges this NCT already wrote from its trial nodes;
+    empty when the trial's AEs were never imported."""
+    floors = set()
+    for tid in trial_ids:
+        if not kg.graph.has_node(tid):
+            continue
+        for _, _, data in kg.graph.out_edges(tid, data=True):
+            if data.get("relation_type") != "reports_adverse_event":
+                continue
+            attrs = _plain_attrs(data)
+            if nct not in (attrs.get("ctgov_nct_ids") or []):
+                continue
+            value = attrs.get("serious_min_pct", 0.0)
+            floors.add(float(value) if isinstance(value, (int, float)) else 0.0)
+    return floors
 
 
 def _check_serious_min_pct(value) -> float:
@@ -1674,6 +1713,8 @@ if __name__ == "__main__":
         serious_min_pct = _check_serious_min_pct(args.results_serious_min_pct)
     except ValueError as exc:
         parser.error(str(exc))
+    if serious_min_pct > 0 and not args.results:
+        parser.error("--results-serious-min-pct needs --results")
     report = enrich_graph(
         Path(args.output_dir), results=args.results, cache_dir=args.cache_dir,
         serious_min_pct=serious_min_pct,

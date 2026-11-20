@@ -766,16 +766,23 @@ _MEASURE_GENERIC_PREFIX_RE = re.compile(r"^change from baseline to [^:]{1,80}?\s
 # Cardiovascular Events", "3-point MACE" or by its three components
 # ("cardiovascular death, non-fatal MI or non-fatal stroke"; SUSTAIN-6 and
 # PIONEER 6 also report an all-cause-death variant), often after "Time (from
-# randomisation) to first occurrence of". All of these key as "mace".
-# Conservative: the components must be exactly death, non-fatal MI and
-# non-fatal stroke in that order, so expanded composites (revascularisation,
-# unstable angina, heart failure), 4-point MACE and single components keep
-# their own keys. Parentheticals ("(MACE)", "(myocardial infarction)") are
-# already removed by normalize_measure.
-_MACE_TIME_PREFIX_RE = re.compile(
-    r"^time (?:from randomi[sz]ation )?to (?:the )?first (?:occurrence|event) of\s*:?\s*(?:an? |the )?"
+# randomisation) to first (occurrence of)". All of these key as "mace".
+# Conservative: the check reads the whole title, before normalize_measure
+# strips anything, and only these parentheticals are dropped: "(MACE)",
+# "(3-point MACE)", "(MI)", "(myocardial infarction)", "(CV)",
+# "(cardiovascular)". Any other parenthetical, a " - ..." suffix or another
+# leading phrase ("Percentage of participants achieving") keeps the title off
+# the key. The components must be exactly death, non-fatal MI and non-fatal
+# stroke in that order, so expanded composites (revascularisation, unstable
+# angina, heart failure), 4-point MACE and single components keep their own
+# keys.
+_MACE_PAREN_RE = re.compile(
+    r"\s*\((?:mace|(?:3|three)[- ]?point mace|mi|myocardial infarction|cv|cardiovascular)\)"
 )
-_MACE_NAME = r"(?:(?:3|three)[- ]?point )?(?:mace|major adverse cardiovascular events?)"
+_MACE_TIME_PREFIX_RE = re.compile(
+    r"^time (?:from randomi[sz]ation )?to (?:the )?first(?: (?:occurrence|event) of)?\s*:?\s*(?:an? |the )?"
+)
+_MACE_NAME = r"(?:(?:3|three)[- ]?point (?:mace|major adverse cardiovascular events?)|mace(?:[- ]3)?|major adverse cardiovascular events?)"
 _MACE_NAME_RE = re.compile(rf"^{_MACE_NAME}$")
 _MACE_HEADER_RE = re.compile(
     rf"^(?:{_MACE_NAME}(?: composite(?: end ?point| outcome)?)?|(?:a )?composite(?: end ?point| outcome)?)"
@@ -788,24 +795,32 @@ _MACE_COMPONENTS_RE = re.compile(
 )
 
 
-def _mace_key(s: str) -> str:
-    """Return "mace" when normalized measure text s names a 3-point MACE composite, else s."""
-    t = _MACE_TIME_PREFIX_RE.sub("", s, count=1)
+def _is_mace(name) -> bool:
+    """True when an outcome-measure title names a 3-point MACE composite."""
+    t = _MEASURE_WS_RE.sub(" ", str(name or "").lower()).strip()
+    t = _MEASURE_WS_RE.sub(" ", _MACE_PAREN_RE.sub("", t)).strip()
+    t = re.sub(r"[\s.,;:]+$", "", t)
+    t = _MACE_TIME_PREFIX_RE.sub("", t, count=1)
     if _MACE_NAME_RE.match(t):
-        return "mace"
-    body = _MACE_HEADER_RE.sub("", t, count=1)
-    if _MACE_COMPONENTS_RE.match(body):
-        return "mace"
-    return s
+        return True
+    return bool(_MACE_COMPONENTS_RE.match(_MACE_HEADER_RE.sub("", t, count=1)))
 
 
 def normalize_measure(name) -> str:
     """Reduce an outcome-measure name to a canonical key.
 
-    3-point MACE composites share the key "mace" (see _mace_key). Only
+    3-point MACE composites share the key "mace" (see _is_mace). Only
     registry mode uses this key, so graphs without registry data group
     exactly as before.
     """
+    if _is_mace(name):
+        return "mace"
+    return _base_measure_key(name)
+
+
+def _base_measure_key(name) -> str:
+    """normalize_measure without the MACE key: the per-title key that registry
+    contests are decided on (see _analysis_contests)."""
     s = _MEASURE_WS_RE.sub(" ", str(name or "").lower()).strip()
     s = _MEASURE_SUFFIX_RE.sub("", s)
     s = _MEASURE_COMPARING_RE.sub("", s)
@@ -824,7 +839,12 @@ def normalize_measure(name) -> str:
     s = re.sub(r"[\s.,;:]+$", "", s)
     s = _MEASURE_WS_RE.sub(" ", s).strip()
     s = MEASURE_SYNONYMS.get(s, s)
-    return _mace_key(s) if s else s
+    if s and _is_mace(s) and not _is_mace(name):
+        # The stripping removed a qualifier ("MACE (4-point)", "MACE -
+        # expanded composite", "Percentage of participants achieving MACE"):
+        # keep the whole title so it never shares the 3-point MACE key.
+        return _MEASURE_WS_RE.sub(" ", str(name or "").lower()).strip()
+    return s
 
 
 _REGISTRY_STAT_KEYS = frozenset(
@@ -1370,11 +1390,13 @@ def _analysis_contests(
 
     Returns (contested, contradictions). A contested entry is also a
     contradiction when both sides include a high_evidence analysis. In
-    registry mode analyses group by their normalized outcome key, superseded
-    and non-inferiority findings take no part, and the contest is decided per
-    trial (see _registry_contest_entry). One (outcome key, treatment) group
-    gives at most one entry, so outcome titles that share a key (for example
-    "MACE" and its three components) are one contest, not one per title.
+    registry mode superseded and non-inferiority findings take no part, and the
+    contest is decided per trial (see _registry_contest_entry) on the per-title
+    measure key (_base_measure_key), so a trial significant on one MACE
+    variant and not on another is never made "mixed" by the shared key. The
+    entries are then merged so one (outcome key, treatment, positive trials,
+    negative trials) gives one entry: "MACE" and its three-component title
+    reported by the same two trials are one contest, not one per title.
     test_types maps a registry analysis id to its registry non_inferiority_type
     (registry mode only; see _registry_test_types).
     """
@@ -1391,22 +1413,17 @@ def _analysis_contests(
                 or finding.get("standard_outcome_key") is None
             ):
                 continue
-            key = (str(finding["standard_outcome_key"]), str(finding["treatment"]).lower())
+            fine = _base_measure_key(finding["standard_outcome"]) or str(finding["standard_outcome_id"])
+            key = (fine, str(finding["treatment"]).lower())
         else:
             key = (str(finding["standard_outcome"]).lower(), str(finding["treatment"]).lower())
         groups[key].append(finding)
 
     contested: list[dict] = []
     contradictions: list[dict] = []
+    if registry_mode:
+        return _registry_contests(groups, test_types)
     for key, group in sorted(groups.items()):
-        if registry_mode:
-            entry, is_contradiction = _registry_contest_entry(key, group, test_types)
-            if entry is None:
-                continue
-            contested.append({**entry, "epistemic_status": "contested"})
-            if is_contradiction:
-                contradictions.append({**entry, "epistemic_status": "contradiction"})
-            continue
         positive = [f for f in group if f["significant"] is True]
         negative = [f for f in group if f["significant"] is False]
         if not positive or not negative:
@@ -1445,9 +1462,52 @@ def _analysis_contests(
     return contested, contradictions
 
 
+def _registry_contests(groups: dict, test_types: dict | None) -> tuple[list[dict], list[dict]]:
+    """Decide registry contests per (per-title key, treatment) group, then merge
+    the entries that share (outcome key, treatment, positive trials, negative
+    trials) into one, rebuilt from the union of their analyses. The merged
+    entry is a contradiction when any of its parts is. Entries keep the order
+    of their first part."""
+    merged: dict[tuple, dict] = {}
+    for key, group in sorted(groups.items()):
+        entry, is_contradiction = _registry_contest_entry(key, group, test_types)
+        if entry is None:
+            continue
+        coarse = str(group[0]["standard_outcome_key"])
+        dedupe = (coarse, key[1], tuple(entry["positive_trials"]), tuple(entry["negative_trials"]))
+        slot = merged.setdefault(dedupe, {"entry": entry, "group": [], "parts": 0, "contradiction": False})
+        slot["group"].extend(group)
+        slot["parts"] += 1
+        slot["contradiction"] = slot["contradiction"] or is_contradiction
+    contested: list[dict] = []
+    contradictions: list[dict] = []
+    for (coarse, treatment, _, _), slot in merged.items():
+        entry = slot["entry"]
+        if slot["parts"] > 1:
+            entry, _ = _registry_contest_entry((coarse, treatment), slot["group"], test_types)
+        else:
+            entry = {**entry, "standard_outcome_key": coarse}
+        contested.append({**entry, "epistemic_status": "contested"})
+        if slot["contradiction"]:
+            contradictions.append({**entry, "epistemic_status": "contradiction"})
+    return contested, contradictions
+
+
+# CT.gov nonInferiorityType values. On a node that is not registry-sourced (an
+# extracted analysis that received registry data) a plain non_inferiority_type
+# is read only when it is one of these, so extracted free text never sets a
+# design note.
+CTGOV_TEST_TYPES = frozenset({
+    "SUPERIORITY", "SUPERIORITY_OR_OTHER", "NON_INFERIORITY", "EQUIVALENCE",
+    "NON_INFERIORITY_OR_EQUIVALENCE", "OTHER",
+})
+
+
 def _registry_test_types(nodes: list[dict]) -> dict[str, str]:
     """Map registry-backed OutcomeAnalysis id -> registry non_inferiority_type
-    (upper case; the registry value of a merged node first)."""
+    (upper case). A merged node's registry_non_inferiority_type comes first;
+    its plain value counts only when the node is registry-sourced or the
+    value is a CT.gov type (CTGOV_TEST_TYPES)."""
     out: dict[str, str] = {}
     for node in nodes:
         if not isinstance(node, dict) or str(node.get("entity_type", "")).lower() != ANALYSIS_TYPE:
@@ -1455,11 +1515,16 @@ def _registry_test_types(nodes: list[dict]) -> dict[str, str]:
         attrs = node.get("attributes")
         if not isinstance(attrs, dict) or not _is_registry_backed(attrs):
             continue
+        registry_sourced = attrs.get("source") == REGISTRY_SOURCE
         for key in ("registry_non_inferiority_type", "non_inferiority_type"):
             value = attrs.get(key)
-            if isinstance(value, str) and value.strip():
-                out[str(node.get("id"))] = value.strip().upper()
-                break
+            if not (isinstance(value, str) and value.strip()):
+                continue
+            value = value.strip()
+            if key == "non_inferiority_type" and not registry_sourced and value not in CTGOV_TEST_TYPES:
+                continue
+            out[str(node.get("id"))] = value.upper()
+            break
     return out
 
 
