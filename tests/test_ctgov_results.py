@@ -1313,3 +1313,34 @@ def test_serious_and_other_event_counts_combined(enrich, tmp_path):
     for r in records:
         assert breakdown[r["seriousness"]]["n_affected"] == sum(s["num_affected"] for s in r["stats"])
     assert f"{affected} of " in edge["evidence"]
+
+
+@pytest.mark.unit
+def test_write_failure_is_atomic_and_reported(enrich, tmp_path, monkeypatch, capsys):
+    # WR-04: a failing trial leaves no partial writes, is reported with its
+    # error, and a later run completes it.
+    original = enrich._write_analyses
+
+    def boom(kg, nct, *args, **kwargs):
+        if nct == WITH_RESULTS_A:
+            raise RuntimeError("injected failure")
+        return original(kg, nct, *args, **kwargs)
+
+    monkeypatch.setattr(enrich, "_write_analyses", boom)
+    report, _, nodes, links = _seeded_run(enrich, tmp_path)
+    block = report["results"]
+    assert block["write_failed"] == 1
+    assert "RuntimeError" in block["write_errors"][WITH_RESULTS_A]
+    assert "injected failure" in capsys.readouterr().err
+    assert not [n for n in nodes.values() if WITH_RESULTS_A in _ctgov_ids(n)]
+    assert not [l for l in links if WITH_RESULTS_A in _ctgov_ids(l)]
+    assert [n for n in nodes.values() if WITH_RESULTS_B in _ctgov_ids(n)]
+    assert block["created_nodes"] == len(_registry_nodes(nodes))
+    assert block["created_edges"] == sum(1 for l in links if _eattr(l, "source") == "ctgov_results")
+
+    monkeypatch.setattr(enrich, "_write_analyses", original)
+    report, _ = _run(enrich, tmp_path, _all_fixture_bodies(), results=True)
+    assert report["results"]["write_failed"] == 0
+    assert "write_errors" not in report["results"]
+    nodes, _ = _read_graph(tmp_path)
+    assert len(_oa_nodes(nodes, WITH_RESULTS_A)) == 39
