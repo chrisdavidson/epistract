@@ -671,6 +671,33 @@ def test_ae_key_does_not_overstrip_oe(enrich):
         assert enrich._ae_key(british) == enrich._ae_key(us)
 
 
+# British MedDRA preferred terms and their US spellings. Every pair here was one
+# key under the pre-iteration-16 "oe -> e" rule; narrowing a rule must never
+# split one of them again (09-REVIEW CR-01).
+_BRITISH_US_AE_PAIRS = [
+    ("Tachypnoea", "Tachypnea"), ("Orthopnoea", "Orthopnea"), ("Hypopnoea", "Hypopnea"),
+    ("Bradypnoea", "Bradypnea"), ("Hyperpnoea", "Hyperpnea"), ("Dyspnoea exertional", "Dyspnea exertional"),
+    ("Sleep apnoea syndrome", "Sleep apnea syndrome"), ("Amoebiasis", "Amebiasis"),
+    ("Amoebic dysentery", "Amebic dysentery"), ("Diarrhoea", "Diarrhea"), ("Gonorrhoea", "Gonorrhea"),
+    ("Amenorrhoea", "Amenorrhea"), ("Rhinorrhoea", "Rhinorrhea"), ("Oedema peripheral", "Edema peripheral"),
+    ("Oesophagitis", "Esophagitis"), ("Oestradiol increased", "Estradiol increased"),
+    ("Foetal distress syndrome", "Fetal distress syndrome"), ("Coeliac disease", "Celiac disease"),
+    ("Anaemia", "Anemia"), ("Haemorrhage", "Hemorrhage"), ("Tumour pain", "Tumor pain"),
+]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("british,us", _BRITISH_US_AE_PAIRS)
+def test_ae_key_merges_british_meddra_terms(enrich, british, us):
+    assert enrich._ae_key(british) == enrich._ae_key(us)
+
+
+@pytest.mark.unit
+def test_ae_key_pnoea_rule_keeps_toe(enrich):
+    assert enrich._ae_key("Toe pain") == "toe pain"
+    assert enrich._ae_key("Ingrown toenail") == "ingrown toenail"
+
+
 # --- Phase 7: registry adverse events ---------------------------------------
 
 
