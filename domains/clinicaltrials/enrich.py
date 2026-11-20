@@ -39,6 +39,7 @@ import json
 import re
 import sys
 import time
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -68,6 +69,13 @@ PUBCHEM_MAX_RETRIES = 3
 
 REGISTRY_SOURCE = "ctgov_results"
 REGISTRY_CONFIDENCE = 0.99
+# OutcomeAnalysis statistic fields that describe one statistic and merge as a
+# group: a group fills from the registry only when the extracted node has none
+# of its fields, so a node never pairs a paper's estimate with a registry CI.
+ANALYSIS_STAT_GROUPS = (
+    ("p_value", "p_value_num", "p_value_qualifier"),
+    ("effect_estimate", "effect_measure", "ci_lower", "ci_upper", "ci_level", "ci_sides"),
+)
 
 _MEASURE_PREFIXES = (
     "percentage of participants achieving",
@@ -520,12 +528,26 @@ def _append_unique(container: dict, key: str, value) -> bool:
     return True
 
 
-def _merge_attrs(target: dict, attrs: dict, rename: dict | None = None) -> None:
+def _merge_attrs(target: dict, attrs: dict, rename: dict | None = None, groups=()) -> None:
     """Fill missing attributes; keep a differing existing value, store the new
-    one as registry_<attr>. Never deletes or overwrites."""
+    one as registry_<attr>. Never deletes or overwrites.
+
+    For each group in groups: when the target has any of the group's fields,
+    none of them is filled; every new value that differs from or is absent on
+    the target is stored as registry_<attr> instead.
+    """
     rename = rename or {}
+    held: set = set()
+    for group in groups:
+        if not any(target.get(k) not in (None, "", []) for k in group):
+            continue
+        for key in group:
+            held.add(key)
+            value = attrs.get(key)
+            if value is not None and target.get(key) != value:
+                target.setdefault(rename.get(key, f"registry_{key}"), value)
     for key, value in attrs.items():
-        if value is None:
+        if value is None or key in held:
             continue
         current = target.get(key)
         if current in (None, "", []):
@@ -537,7 +559,7 @@ def _merge_attrs(target: dict, attrs: dict, rename: dict | None = None) -> None:
             target.setdefault(rename.get(key, f"registry_{key}"), value)
 
 
-def _merge_into_node(kg, node_id, attrs, nct, counters, rename=None, count=False) -> bool:
+def _merge_into_node(kg, node_id, attrs, nct, counters, rename=None, count=False, groups=()) -> bool:
     """Merge registry attributes into an existing node under the merge rules.
 
     Returns True when this NCT was newly recorded on the node.
@@ -550,7 +572,7 @@ def _merge_into_node(kg, node_id, attrs, nct, counters, rename=None, count=False
         _append_unique(node, "source_documents", f"ctgov:{nct}")
         _merge_attrs(target, attrs, rename)
     else:
-        _merge_attrs(target, attrs, rename)
+        _merge_attrs(target, attrs, rename, groups)
         _append_unique(target, "sources", REGISTRY_SOURCE)
         if count:
             counters["merged"] += 1
@@ -880,19 +902,58 @@ def _plain_attrs(data) -> dict:
 
 
 def _is_placebo_cohort(kg, cid) -> bool:
-    """A comparator arm: placebo in its name or arm label, or it receives placebo."""
+    """A comparator arm: placebo in its name or arm label, or every compound or
+    intervention it receives is a placebo. An active arm that also receives a
+    matching placebo (double-dummy or dose-blinding designs) is not placebo.
+    """
     data = kg.graph.nodes[cid]
-    texts = [data.get("name"), _plain_attrs(data).get("arm_label")]
-    texts += [kg.graph.nodes[t].get("name") for t in _out_targets(kg, cid, "receives")]
-    return any("placebo" in str(t or "").lower() for t in texts)
+    if any(
+        "placebo" in str(t or "").lower()
+        for t in (data.get("name"), _plain_attrs(data).get("arm_label"))
+    ):
+        return True
+    received = [
+        str(kg.graph.nodes[t].get("name") or "").lower()
+        for t in _out_targets(kg, cid, "receives")
+    ]
+    return bool(received) and all("placebo" in name for name in received)
+
+
+def _trial_nct(data) -> str | None:
+    """NCT of a Trial node: its name, then attributes.nct_id, then context."""
+    attrs = _plain_attrs(data)
+    for text in (data.get("name"), attrs.get("nct_id"), data.get("context")):
+        found = _extract_nct_id(str(text or ""))
+        if found:
+            return found
+    return None
+
+
+def _shared_with_other_trial(kg, cid, nct) -> bool:
+    """True when a cohort is tied to a trial other than nct: enrolled by a Trial
+    node with a different (or no) NCT, or naming another NCT itself."""
+    for src, _, d in kg.graph.in_edges(cid, data=True):
+        if (
+            d.get("relation_type") == "enrolls"
+            and _node_type(kg, src) == "trial"
+            and _trial_nct(kg.graph.nodes[src]) != nct
+        ):
+            return True
+    data = kg.graph.nodes[cid]
+    for text in (data.get("name"), _plain_attrs(data).get("trial")):
+        if any(m.upper() != nct for m in NCT_PATTERN.findall(str(text or ""))):
+            return True
+    return False
 
 
 def _analysis_owned_by(kg, cand_id, nct, trial_cohort_ids: set) -> bool:
     """True when an extracted OutcomeAnalysis belongs to trial nct.
 
     An NCT number in its name or trial attributes decides. Otherwise every
-    compared cohort must belong to the trial, with at least one non-placebo arm
-    (a placebo cohort can be shared between trials). Otherwise its source
+    compared cohort must belong to the trial, and at least one non-placebo
+    compared arm must be exclusive to it: Cohort nodes (placebo and active
+    doses alike) can be shared between trials, and a shared cohort is no
+    evidence of which trial the analysis reports. Otherwise its source
     documents must name the NCT. Outcome nodes are shared across trials, so an
     analysis on the same Outcome is not evidence on its own.
     """
@@ -907,8 +968,11 @@ def _analysis_owned_by(kg, cand_id, nct, trial_cohort_ids: set) -> bool:
     if named:
         return nct in named
     compared = set(_out_targets(kg, cand_id, "compares"))
-    active = {c for c in compared if not _is_placebo_cohort(kg, c)}
-    if compared and active and compared <= trial_cohort_ids:
+    exclusive = {
+        c for c in compared
+        if not _is_placebo_cohort(kg, c) and not _shared_with_other_trial(kg, c, nct)
+    }
+    if compared and exclusive and compared <= trial_cohort_ids:
         return True
     return any(nct in str(d).upper() for d in data.get("source_documents") or [])
 
@@ -1107,6 +1171,16 @@ def _write_analyses(kg, nct, parsed, trial_ids, trial_cohort_ids, match, counter
             )
             if score:
                 pairs.append((-score, idx, src))
+    # An estimate-only match (score 1) carries no arm evidence, so it is taken
+    # only when unambiguous on both sides: the extracted analysis fits exactly
+    # one registry analysis that way, and that registry analysis fits exactly
+    # one extracted analysis. A tie is never broken by registry order.
+    by_cand = Counter(src for s, _, src in pairs if s == -1)
+    by_reg = Counter(idx for s, idx, _ in pairs if s == -1)
+    pairs = [
+        p for p in pairs
+        if p[0] != -1 or (by_cand[p[2]] == 1 and by_reg[p[1]] == 1)
+    ]
     taken_reg, taken_cand = set(), set()
     for _, idx, cand_id in sorted(pairs):
         if idx in taken_reg or cand_id in taken_cand:
@@ -1122,7 +1196,9 @@ def _write_analyses(kg, nct, parsed, trial_ids, trial_cohort_ids, match, counter
             oa_id = holder
             attrs = _node_attrs(kg, oa_id)
             if nct not in (attrs.get("ctgov_nct_ids") or []):
-                _merge_into_node(kg, oa_id, item["attrs"], nct, counters, count=True)
+                _merge_into_node(
+                    kg, oa_id, item["attrs"], nct, counters, count=True, groups=ANALYSIS_STAT_GROUPS,
+                )
                 _append_unique(attrs, "ctgov_analysis_ids", item["id"])
         else:
             oa_id = item["id"]
