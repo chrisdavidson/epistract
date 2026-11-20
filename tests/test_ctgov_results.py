@@ -689,6 +689,11 @@ _BRITISH_US_AE_PAIRS = [
     ("Leucopenia", "Leukopenia"), ("Leucocytosis", "Leukocytosis"),
     ("Hypooestrogenism", "Hypoestrogenism"), ("Hyperoestrogenism", "Hyperestrogenism"),
     ("Angio-oedema", "Angioedema"), ("Lymphoedema", "Lymphedema"),
+    # 999.5 review fix / clinicaltrials iteration 24
+    ("Anaesthetic complication", "Anesthetic complication"),
+    ("Local anaesthetic systemic toxicity", "Local anesthetic systemic toxicity"),
+    ("Ethinyloestradiol", "Ethinylestradiol"), ("Xenooestrogen", "Xenoestrogen"),
+    ("Prooestrus", "Proestrus"),
 ]
 
 
@@ -711,6 +716,27 @@ def test_ae_key_leaves_us_o_prefix_compounds(enrich):
     assert enrich._ae_key("Phytoestrogen") == "phytoestrogen"
     assert enrich._ae_key("Toe pain") == "toe pain"
     assert "leuk" not in enrich._ae_key("Leucine aminopeptidase increased")
+
+
+@pytest.mark.unit
+def test_ae_key_iteration24_word_table(enrich):
+    """999.5 review fix (iteration 24): aesthe covers anaesthetic; oestr folds only
+    where British spelling puts it; Leucovorin is left alone; earlier negatives hold."""
+    expected = {
+        "Anaesthetic complication": "anesthetic complication",
+        "Xenoestrogen": "xenoestrogen",
+        "Proestrus": "proestru",
+        "Leucovorin toxicity": "leucovorin toxicity",
+        "Toe pain": "toe pain",
+        "Dyspnoea": "dyspnea",
+        "Amoeba": "ameba",
+        "Leucine": "leucine",
+        "Angioedema": "angioedema",
+        "Hypoestrogenism": "hypoestrogenism",
+        "Phytoestrogen": "phytoestrogen",
+    }
+    for word, key in expected.items():
+        assert enrich._ae_key(word) == key, word
 
 
 # --- Phase 7: registry adverse events ---------------------------------------
