@@ -7,16 +7,20 @@ Called by core/label_epistemic.py's convention-based dispatcher:
   base_domain, super_domain} envelope consumed by /epistract-epistemic.
 
 Evidence grading rules:
-1. Phase III trials -> high_evidence
+1. Phase III trials -> high_evidence. Phase comes from the registry ct_phase,
+   then the extracted attributes.phase, then the TrialPhase node linked by
+   is_phase, each normalized (3a/3b -> 3, roman numerals, 2/3 -> 2, NA ignored).
 2. Phase II -> medium_evidence
 3. Phase I or observational -> low_evidence
 4. Blinded trials bump up one tier. Blinding comes from the registry
-   (ct_masking SINGLE/DOUBLE/TRIPLE/QUADRUPLE, set by enrich.py); when the
-   registry is silent, randomized / blinded / placebo-controlled wording in
+   (ct_masking SINGLE/DOUBLE/TRIPLE/QUADRUPLE, set by enrich.py), then
+   attributes.masking (only when it carries masking vocabulary), then strict
+   design/allocation text (double-blind, masked; open-label wins). When all
+   of those are silent, randomized / blinded / placebo-controlled wording in
    the evidence quote is used instead.
 5. Large enrollment (>=300) bumps up one tier; small (<50) bumps down
-6. Open-label trials (ct_masking NONE, or "open-label" in the evidence when
-   the registry is silent) are capped at medium_evidence, after the
+6. Open-label trials (ct_masking NONE, open-label design text, or
+   "open-label" in the evidence when nothing else is stated) are capped at medium_evidence, after the
    enrollment bump, so size cannot buy back the missing blinding.
 7. OutcomeAnalysis nodes are graded from their reported significance (the
    significant flag, then the p-value, then the confidence interval against
@@ -26,6 +30,10 @@ Evidence grading rules:
    inside one trial (primary vs subgroup) is not. Ratio measures are
    recognised by pattern (aHR, "Hazard Ratio (HR)"); an unknown measure
    decides only when the ratio and difference nulls agree.
+
+Precedence, for both phase and blinding: registry ct_* fields > extracted
+attributes > graph-derived (linked TrialPhase, design text) > per-claim
+evidence text.
 """
 
 from __future__ import annotations
@@ -44,6 +52,17 @@ PHASE3_VALUES = {"PHASE3", "Phase 3", "Phase III", "PHASE_3"}
 PHASE2_VALUES = {"PHASE2", "Phase 2", "Phase II", "PHASE_2"}
 PHASE1_VALUES = {"PHASE1", "Phase 1", "Phase I", "PHASE_1"}
 OBSERVATIONAL_VALUES = {"OBSERVATIONAL", "Observational"}
+
+# Strict design-text patterns for blinding. Unlike BLINDING_RE they exclude
+# "randomised" and "placebo-controlled", which are not blinding evidence.
+DESIGN_OPEN_RE = re.compile(
+    r"\b(open[- ]label|unblinded|non[- ]blinded|no masking)\b",
+    re.IGNORECASE,
+)
+DESIGN_BLINDED_RE = re.compile(
+    r"\b((single|double|triple|quadruple)[- ]?(blind(ed)?|mask(ed)?)|masked|blinded)\b",
+    re.IGNORECASE,
+)
 
 BLINDING_RE = re.compile(
     r"\b(randomi[sz]ed|double[- ]blind|single[- ]blind|placebo[- ]controlled)\b",
@@ -126,37 +145,60 @@ RESULT_RE = re.compile(
 # ---------------------------------------------------------------------------
 
 
+_ROMAN = {"i": 1, "ii": 2, "iii": 3}
+_PHASE_NAMES = {1: "PHASE1", 2: "PHASE2", 3: "PHASE3"}
+_PHASE_TOKEN_RE = re.compile(r"^(?:phase)?(\d|iii|ii|i)[ab]?(?:/(\d|iii|ii|i)[ab]?)?$")
+
+
+def _normalize_phase(value) -> str | None:
+    """Return 'PHASE3'|'PHASE2'|'PHASE1'|'OBSERVATIONAL' for a phase label, else None.
+
+    Accepts the registry spellings plus free text: case and separator
+    variants ("phase_3"), 3a/3b suffixes, roman numerals. A combined phase
+    ("2/3", "II/III") maps to the lower phase. NA, Phase 4 and anything
+    unrecognised return None.
+    """
+    if not isinstance(value, str):
+        return None
+    if value in PHASE3_VALUES:
+        return "PHASE3"
+    if value in PHASE2_VALUES:
+        return "PHASE2"
+    if value in PHASE1_VALUES:
+        return "PHASE1"
+    if value in OBSERVATIONAL_VALUES:
+        return "OBSERVATIONAL"
+    text = re.sub(r"[\s_-]+", "", value.strip().lower())
+    if not text or text in {"na", "n/a", "notapplicable"}:
+        return None
+    if text == "observational":
+        return "OBSERVATIONAL"
+    match = _PHASE_TOKEN_RE.match(text)
+    if not match:
+        return None
+    numbers = []
+    for token in match.groups():
+        if token is None:
+            continue
+        numbers.append(_ROMAN.get(token) or int(token))
+    return _PHASE_NAMES.get(min(numbers))
+
+
 def _trial_phase(node: dict) -> str | None:
     """Return normalized phase ('PHASE3'|'PHASE2'|'PHASE1'|'OBSERVATIONAL') or None.
 
-    Reads node['ct_phase'] first (set by enrich.py in Plan 21-02), then falls
-    back to node['attributes']['phase'] if present.
+    Precedence: registry ct_phase, then attributes.phase, then the phase of
+    the TrialPhase node linked by is_phase (carried as _linked_phase on the
+    analyzer's trial copies). The first value that normalizes wins, so an
+    "NA" in attributes falls through to the linked node.
     """
-    # Check ct_phase attribute first (set by enrichment)
-    ct_phase = node.get("ct_phase")
-    if ct_phase:
-        if ct_phase in PHASE3_VALUES:
-            return "PHASE3"
-        if ct_phase in PHASE2_VALUES:
-            return "PHASE2"
-        if ct_phase in PHASE1_VALUES:
-            return "PHASE1"
-        if ct_phase in OBSERVATIONAL_VALUES:
-            return "OBSERVATIONAL"
-
-    # Fallback to attributes dict
-    attrs = node.get("attributes", {}) or {}
-    phase = attrs.get("phase", "")
-    if phase:
-        if phase in PHASE3_VALUES:
-            return "PHASE3"
-        if phase in PHASE2_VALUES:
-            return "PHASE2"
-        if phase in PHASE1_VALUES:
-            return "PHASE1"
-        if phase in OBSERVATIONAL_VALUES:
-            return "OBSERVATIONAL"
-
+    attrs = node.get("attributes") or {}
+    if not isinstance(attrs, dict):
+        attrs = {}
+    for raw in (node.get("ct_phase"), attrs.get("phase"), node.get("_linked_phase")):
+        phase = _normalize_phase(raw)
+        if phase:
+            return phase
     return None
 
 
@@ -197,19 +239,41 @@ def _bump_tier(tier: str, delta: int) -> str:
     return EVIDENCE_TIERS[new_idx]
 
 
-def _trial_blinding(node: dict) -> str | None:
-    """Return 'blinded', 'open', or None from registry masking on a Trial node.
-
-    Reads ct_masking (set by enrich.py) first, then attributes.masking.
-    """
-    attrs = node.get("attributes", {}) or {}
-    value = node.get("ct_masking") or attrs.get("masking")
+def _masking_verdict(value) -> str | None:
+    """Classify one registry-style masking value as 'open', 'blinded' or None."""
     if not value:
         return None
     masking = str(value).strip().upper().replace("-", "_")
     if masking in OPEN_MASKING or "OPEN" in masking:
         return "open"
     if masking in BLINDED_MASKING or "BLIND" in masking:
+        return "blinded"
+    return None
+
+
+def _trial_blinding(node: dict) -> str | None:
+    """Return 'blinded', 'open', or None from what the Trial node itself states.
+
+    Precedence: ct_masking (set by enrich.py), then attributes.masking when it
+    carries masking vocabulary (a value like "Placebo-controlled" is treated
+    as absent), then strict design/allocation text where open-label wins over
+    "assessors masked". Randomised or placebo-controlled alone is not evidence.
+    """
+    attrs = node.get("attributes") or {}
+    if not isinstance(attrs, dict):
+        attrs = {}
+    verdict = _masking_verdict(node.get("ct_masking"))
+    if verdict:
+        return verdict
+    verdict = _masking_verdict(attrs.get("masking"))
+    if verdict:
+        return verdict
+    text = " ".join(
+        v for v in (attrs.get("design"), attrs.get("allocation")) if isinstance(v, str)
+    )
+    if DESIGN_OPEN_RE.search(text):
+        return "open"
+    if DESIGN_BLINDED_RE.search(text):
         return "blinded"
     return None
 
@@ -605,6 +669,42 @@ def _analysis_contests(findings: list[dict]) -> tuple[list[dict], list[dict]]:
 # ---------------------------------------------------------------------------
 
 
+def _linked_phases(nodes: list[dict], links: list[dict], trial_ids: set) -> dict[str, str]:
+    """Map trial id -> name of its TrialPhase node, from is_phase links (either direction).
+
+    Only a TrialPhase-typed endpoint counts. A trial linked to several keeps
+    the most conservative (lowest) normalized phase, then the first seen.
+    """
+    phase_names = {
+        n["id"]: n.get("name")
+        for n in nodes
+        if str(n.get("entity_type", "")).lower().replace("_", "") == "trialphase"
+    }
+    order = {"PHASE1": 1, "PHASE2": 2, "PHASE3": 3}
+    found: dict[str, str] = {}
+    for link in links:
+        if link.get("relation_type") != "is_phase":
+            continue
+        src, tgt = link.get("source"), link.get("target")
+        if src in trial_ids and tgt in phase_names:
+            trial, name = src, phase_names[tgt]
+        elif tgt in trial_ids and src in phase_names:
+            trial, name = tgt, phase_names[src]
+        else:
+            continue
+        if not isinstance(name, str):
+            continue
+        current = found.get(trial)
+        if current is None:
+            found[trial] = name
+            continue
+        new_rank = order.get(_normalize_phase(name) or "", 0)
+        cur_rank = order.get(_normalize_phase(current) or "", 0)
+        if 0 < new_rank < cur_rank or cur_rank == 0 and new_rank:
+            found[trial] = name
+    return found
+
+
 def analyze_clinicaltrials_epistemic(output_dir: Path, graph_data: dict) -> dict:
     """Run clinical-trial epistemic analysis on a built graph.
 
@@ -640,9 +740,16 @@ def analyze_clinicaltrials_epistemic(output_dir: Path, graph_data: dict) -> dict
     links = graph_data.get("links", [])
 
     # Build Trial lookup (accept both capitalized 'Trial' and upper 'TRIAL')
-    trial_lookup: dict[str, dict] = {
-        n["id"]: n for n in nodes
+    trial_ids = {
+        n["id"] for n in nodes
         if str(n.get("entity_type", "")).lower() == "trial"
+    }
+    linked_phase = _linked_phases(nodes, links, trial_ids)
+    # Shallow copies carry the linked phase; the input nodes are never mutated.
+    trial_lookup: dict[str, dict] = {
+        n["id"]: ({**n, "_linked_phase": linked_phase[n["id"]]} if n["id"] in linked_phase else dict(n))
+        for n in nodes
+        if n["id"] in trial_ids
     }
     doc_trials = _doc_trial_map(links, trial_lookup)
     names = {n["id"]: str(n.get("name") or n["id"]) for n in nodes if "id" in n}

@@ -42,6 +42,7 @@ All notable changes to epistract are documented here. This project follows [Sema
 
 - The `clinicaltrials` crosswalk `outcome` axis now takes keys from `StandardOutcome` first, then `Outcome`. `clinicaltrials` now appears in `declared_by` for the `adverse_event` axis. Graphs extracted before 3.4.0 contribute no adverse-event keys.
 - The `clinicaltrials` workbench persona lists the new entity types.
+- `clinicaltrials` epistemic grading no longer needs enrichment. When the `enrich.py` registry fields are absent it falls back to the normalized extracted `attributes.phase` (3a/3b, roman numerals, 2/3 as 2, NA ignored), then to the linked `TrialPhase` node (`is_phase`), and reads blinding from strict design text (open-label wins; "placebo-controlled" or "randomised" alone is not blinding). OutcomeAnalysis contradictions can therefore fire on un-enriched graphs (Domain Builder iteration 7).
 - The test tables for the `clinicaltrials` schema were updated in `tests/test_domain_display.py`, `tests/test_unit.py` and `tests/test_crosswalk.py`. These are assertion changes only.
 
 ### Notes
