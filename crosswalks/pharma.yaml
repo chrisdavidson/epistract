@@ -59,6 +59,15 @@ axes:
     # are deliberately substring rules -- they also fire inside compound
     # words like "haemorrhage" and "peripheral oedema", not just as whole
     # terms.
+    #
+    # Measured against clinicaltrials (07_glp1_phase3_trials) x
+    # pharmacovigilance (09_pharmacovigilance) on epistract 4c86eca: the
+    # adverse_event join is 30. Seven further British->US candidates
+    # (anaem=anem, paraesth=paresth, faec=fec, oesophag=esophag,
+    # leucop=leukop, gynaecom=gynecom, oestr=estr) each measured +0, so none
+    # were added; neither graph holds the other side's spelling of those
+    # terms. Re-measure on new corpora before adding pairs
+    # (docs/reports/v2.2-phase10/ae_join_candidates.json in Domain Builder).
     normalize:
       - op: lowercase
       - op: collapse_whitespace
