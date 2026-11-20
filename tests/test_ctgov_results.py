@@ -1121,3 +1121,80 @@ def test_same_estimate_requires_stated_precision(enrich):
     assert enrich._same_estimate(-1.4, -1.44) is True
     assert enrich._same_estimate(0.66, 0.66) is True
     assert enrich._same_estimate(1, 1.0) is True
+
+
+@pytest.mark.unit
+def test_analysis_merge_same_trial_only(enrich, tmp_path):
+    # CR-01: an Outcome shared by two trials must not let trial B's extracted
+    # analysis absorb trial A's registry analysis.
+    outcome_nodes, outcome_links = _hba1c_outcome_nodes()
+    shared = outcome_nodes[0]["id"]
+    ref = _hba1c_analysis(enrich, "12 mg Orforglipron")
+    b_cohort = {
+        "id": "cohort:semaglutide_2_4_mg_arm", "name": "Semaglutide 2.4 mg arm",
+        "entity_type": "Cohort", "source_documents": ["doc_b"],
+    }
+    b_analysis = {
+        "id": "outcomeanalysis:trial_b_hba1c", "name": "Semaglutide HbA1c analysis",
+        "entity_type": "OutcomeAnalysis", "source_documents": ["doc_b"],
+        "attributes": {
+            "effect_measure": ref["param_type"],
+            "effect_estimate": round(float(ref["param_value"]), 1),
+        },
+    }
+    b_named = {
+        "id": "outcomeanalysis:nct03548935_hba1c", "name": f"{WITH_RESULTS_B}: HbA1c — sema vs placebo",
+        "entity_type": "OutcomeAnalysis", "source_documents": ["doc_b"],
+        "attributes": {
+            "effect_measure": ref["param_type"],
+            "effect_estimate": round(float(ref["param_value"]), 1),
+        },
+    }
+    links = [
+        *outcome_links,
+        _link(TRIAL_B, "has_outcome", shared),
+        _link(TRIAL_B, "enrolls", b_cohort["id"]),
+        _link(b_analysis["id"], "analyzes", shared),
+        _link(b_analysis["id"], "compares", b_cohort["id"]),
+        _link(b_named["id"], "analyzes", shared),
+    ]
+    _, _, nodes, links_out = _seeded_run(
+        enrich, tmp_path, extra_nodes=[*outcome_nodes, b_cohort, b_analysis, b_named],
+        extra_links=links,
+    )
+    for nid in (b_analysis["id"], b_named["id"]):
+        attrs = nodes[nid].get("attributes") or {}
+        assert WITH_RESULTS_A not in _ctgov_ids(nodes[nid]), nid
+        assert "p_value" not in attrs and "ctgov_analysis_ids" not in attrs, nid
+        assert "ctgov_results" not in (attrs.get("sources") or []), nid
+        assert {l["target"] for l in _edges(links_out, "compares", nid)} <= {b_cohort["id"]}
+    hba1c = [
+        n for n in _oa_nodes(nodes, WITH_RESULTS_A)
+        if " Change From Baseline in HbA1c — " in n["name"]
+    ]
+    assert len(hba1c) == 3
+
+
+@pytest.mark.unit
+def test_registry_outcome_id_never_reuses_other_trial_node(enrich, tmp_path):
+    # CR-01: the created registry Outcome id must not resolve to another
+    # trial's extracted node.
+    title = "Change From Baseline in Systolic Blood Pressure (SBP)"
+    other = {
+        "id": f"outcome:{enrich._slug(title)}", "name": title, "entity_type": "Outcome",
+        "source_documents": ["doc_b"], "attributes": {"timeframe": "Week 68"},
+    }
+    _, _, nodes, links = _seeded_run(
+        enrich, tmp_path, extra_nodes=[other],
+        extra_links=[_link(TRIAL_B, "has_outcome", other["id"])],
+    )
+    assert _ctgov_ids(nodes[other["id"]]) == []
+    assert "ctgov_results" not in (_nattr(nodes[other["id"]], "sources") or [])
+    assert not _edges(links, "has_outcome", TRIAL_A, other["id"])
+    sbp = [n for n in _oa_nodes(nodes, WITH_RESULTS_A) if f" {title} — " in n["name"]]
+    assert len(sbp) == 3
+    targets = {l["target"] for n in sbp for l in _edges(links, "analyzes", n["id"])}
+    assert len(targets) == 1 and other["id"] not in targets
+    target = next(iter(targets))
+    assert _nattr(nodes[target], "source") == "ctgov_results"
+    assert _edges(links, "has_outcome", TRIAL_A, target)
