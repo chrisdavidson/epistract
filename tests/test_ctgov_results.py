@@ -1707,3 +1707,46 @@ def test_arm_groups_backfill_on_rerun(enrich, tmp_path):
     second = path.read_bytes()
     _run(enrich, tmp_path, _h2h_bodies(), results=True)
     assert _normalize_stamps(second) == _normalize_stamps(path.read_bytes())
+
+
+# --- AE merge is limited to the same trial ----------------------------------
+
+
+@pytest.mark.unit
+def test_ae_not_merged_into_extracted_ae_of_another_trial(enrich, tmp_path):
+    ae, node, link, _ = _extracted_ae_seed(enrich)
+    key = enrich._ae_key(ae["term"])
+    assert key not in {
+        enrich._ae_key(a["term"]) for a in _parsed(enrich, WITH_RESULTS_B)["adverse_events"]
+    }
+    other = _link(TRIAL_B, "reports_adverse_event", node["id"], n_affected=999)
+    report, _, nodes, links = _seeded_run(
+        enrich, tmp_path, extra_nodes=[node], extra_links=[other]
+    )
+    seeded = nodes[node["id"]]
+    assert seeded["attributes"] == node["attributes"]
+    assert seeded["source_documents"] == ["doc_seed"]
+    assert not _edges(links, "reports_adverse_event", TRIAL_A, node["id"])
+    same = [n for n in nodes.values()
+            if n.get("entity_type") == "AdverseEvent" and enrich._ae_key(n["name"]) == key]
+    registry = [n for n in same if _nattr(n, "source") == "ctgov_results"]
+    assert len(same) == 2 and len(registry) == 1
+    assert registry[0]["id"] != node["id"]
+    assert _nattr(registry[0], "ctgov_nct_ids") == [WITH_RESULTS_A]
+    assert len(_edges(links, "reports_adverse_event", TRIAL_A, registry[0]["id"])) == 1
+    # A second run finds the registry node through the trial's own edge.
+    first, _ = _read_graph(tmp_path)
+    again, _ = _run(enrich, tmp_path, _all_fixture_bodies(), results=True)
+    assert again["results"]["created"] == 0 and again["results"]["merged"] == 0
+    assert set(_read_graph(tmp_path)[0]) == set(first)
+
+
+@pytest.mark.unit
+def test_ae_registry_node_shared_by_registry_trials(enrich, tmp_path):
+    _seeded_run(enrich, tmp_path)
+    nodes, links = _read_graph(tmp_path)
+    shared = {
+        n["id"] for n in _registry_nodes(nodes, "AdverseEvent")
+        if len(_nattr(n, "ctgov_nct_ids", [])) > 1
+    }
+    assert shared
