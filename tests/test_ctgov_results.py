@@ -683,6 +683,12 @@ _BRITISH_US_AE_PAIRS = [
     ("Oesophagitis", "Esophagitis"), ("Oestradiol increased", "Estradiol increased"),
     ("Foetal distress syndrome", "Fetal distress syndrome"), ("Coeliac disease", "Celiac disease"),
     ("Anaemia", "Anemia"), ("Haemorrhage", "Hemorrhage"), ("Tumour pain", "Tumor pain"),
+    # 999.5 / clinicaltrials iteration 23
+    ("Paraesthesia", "Paresthesia"), ("Hypoaesthesia", "Hypoesthesia"), ("Anaesthesia", "Anesthesia"),
+    ("Faecal incontinence", "Fecal incontinence"), ("Gynaecomastia", "Gynecomastia"),
+    ("Leucopenia", "Leukopenia"), ("Leucocytosis", "Leukocytosis"),
+    ("Hypooestrogenism", "Hypoestrogenism"), ("Hyperoestrogenism", "Hyperestrogenism"),
+    ("Angio-oedema", "Angioedema"), ("Lymphoedema", "Lymphedema"),
 ]
 
 
@@ -696,6 +702,15 @@ def test_ae_key_merges_british_meddra_terms(enrich, british, us):
 def test_ae_key_pnoea_rule_keeps_toe(enrich):
     assert enrich._ae_key("Toe pain") == "toe pain"
     assert enrich._ae_key("Ingrown toenail") == "ingrown toenail"
+
+
+@pytest.mark.unit
+def test_ae_key_leaves_us_o_prefix_compounds(enrich):
+    assert enrich._ae_key("Angioedema") == "angioedema"
+    assert enrich._ae_key("Hypoestrogenism") == "hypoestrogenism"
+    assert enrich._ae_key("Phytoestrogen") == "phytoestrogen"
+    assert enrich._ae_key("Toe pain") == "toe pain"
+    assert "leuk" not in enrich._ae_key("Leucine aminopeptidase increased")
 
 
 # --- Phase 7: registry adverse events ---------------------------------------
