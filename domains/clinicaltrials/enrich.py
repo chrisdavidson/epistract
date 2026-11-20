@@ -537,7 +537,10 @@ def _same_estimate(a, b) -> bool:
 
 
 def _new_counters() -> dict:
-    return {"created_nodes": 0, "created_edges": 0, "merged": 0, "ae_index": None}
+    return {
+        "created_nodes": 0, "created_edges": 0, "merged": 0, "ae_index": None,
+        "cross_trial_ae_links_ignored": 0,
+    }
 
 
 def _node_attrs(kg, node_id: str) -> dict:
@@ -728,6 +731,35 @@ def _ae_index(kg, counters) -> dict:
     return counters["ae_index"]
 
 
+def _trial_documents(kg, trial_ids) -> set:
+    """Ids (without a doc: prefix) of the documents the trial nodes are mentioned in."""
+    docs = set()
+    for tid in trial_ids:
+        for _, tgt, data in kg.graph.out_edges(tid, data=True):
+            if data.get("relation_type") == "MENTIONED_IN":
+                docs.add(str(tgt).removeprefix("doc:"))
+    return docs
+
+
+def _ae_linked_to_trial(kg, trial_ids, nid, trial_docs) -> bool:
+    """True when AE node nid is one this trial reports for its own reasons.
+
+    An edge from the trial counts unless the registry alone wrote it, the node
+    is an extracted one (not registry-only) and none of its source documents
+    belongs to the trial: that is a link left by a registry run that merged
+    across trials.
+    """
+    node_registry = _plain_attrs(kg.graph.nodes[nid]).get("source") == REGISTRY_SOURCE
+    own_docs = {str(d).removeprefix("doc:") for d in kg.graph.nodes[nid].get("source_documents") or []}
+    for tid in trial_ids:
+        _, data = _find_edge(kg, tid, "reports_adverse_event", nid)
+        if data is None:
+            continue
+        if node_registry or _plain_attrs(data).get("source") != REGISTRY_SOURCE or own_docs & trial_docs:
+            return True
+    return False
+
+
 def _has_edge_from(kg, src, rel, tgt) -> bool:
     return _find_edge(kg, src, rel, tgt)[1] is not None
 
@@ -792,6 +824,7 @@ def _write_adverse_events(kg, nct, parsed, trial_ids, match, counters) -> None:
     threshold = parsed["ae_threshold_pct"]
     threshold_source = parsed["ae_threshold_source"]
     index = _ae_index(kg, counters)
+    trial_docs = _trial_documents(kg, trial_ids)
 
     for key in sorted(records):
         by_seriousness = records[key]
@@ -804,21 +837,24 @@ def _write_adverse_events(kg, nct, parsed, trial_ids, match, counters) -> None:
             attrs["meddra_version"] = vocab[len("MedDRA"):].strip() or None
 
         known = index.get(key, [])
-        linked = [
+        reported = [
             nid for nid in known
             if any(_has_edge_from(kg, tid, "reports_adverse_event", nid) for tid in trial_ids)
         ]
+        linked = [nid for nid in reported if _ae_linked_to_trial(kg, trial_ids, nid, trial_docs)]
+        counters["cross_trial_ae_links_ignored"] += len(reported) - len(linked)
         # A registry AE merges only into an AE this trial already reports, or
         # into a registry-only AE shared by registry trials. An extracted AE
-        # of another trial is never merged into; the registry AE then gets a
-        # trial-scoped id when the plain one is taken by that extracted AE.
+        # of another trial is never merged into; the registry AE then gets one
+        # id shared by every registry trial (not tied to an NCT or to the order
+        # the trials run in) when the plain id is taken by that extracted AE.
         shared = [
             nid for nid in known
             if _plain_attrs(kg.graph.nodes[nid]).get("source") == REGISTRY_SOURCE
         ]
         default_id = f"adverseevent:{_slug(term)}"
         if not (linked or shared) and kg.graph.has_node(default_id):
-            default_id = f"adverseevent:{_slug(term)}_{_slug(nct)}"
+            default_id = f"{default_id}_ctgov"
         ae_id = (linked or shared or [default_id])[0]
         created = _upsert_node(
             kg, ae_id, "AdverseEvent", term, attrs, nct, counters,
@@ -1493,6 +1529,8 @@ def enrich_graph(
             results_block["created_edges"] = counters["created_edges"]
             results_block["created"] = counters["created_nodes"] + counters["created_edges"]
             results_block["merged"] = counters["merged"]
+            if counters["cross_trial_ae_links_ignored"]:
+                results_block["cross_trial_ae_links_ignored"] = counters["cross_trial_ae_links_ignored"]
             if write_errors:
                 results_block["write_errors"] = write_errors
 

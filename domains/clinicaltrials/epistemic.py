@@ -1073,10 +1073,14 @@ def _arm_type_treatment(attrs: dict, patterns) -> str | None:
     ):
         return None
     arm = experimental[0]
+    # A group typed EXPERIMENTAL but titled as a comparator (a blinded placebo
+    # arm) names no treatment, whatever its interventions list.
+    if _is_comparator_text(arm.get("title"), patterns):
+        return None
     found = _compounds_in_text(arm.get("title"), patterns)
     if not found:
         for intervention in arm.get("interventions") or ():
-            if isinstance(intervention, str):
+            if isinstance(intervention, str) and not _HARD_PLACEBO_RE.search(intervention):
                 found |= _compounds_in_text(_INTERVENTION_PREFIX_RE.sub("", intervention), patterns)
     return next(iter(found)) if len(found) == 1 else None
 
@@ -1185,7 +1189,7 @@ def _analysis_findings(
                 if treatment_id is None:
                     treatment_id = arm
                     from_arm_type.add(node_id)
-                elif arm != treatment_id and arm_stats is not None:
+                elif arm != treatment_id and etype(treatment_id) == "compound" and arm_stats is not None:
                     arm_stats["disagreements"] = arm_stats.get("disagreements", 0) + 1
         treatment = name_of(treatment_id) if treatment_id else None
 
