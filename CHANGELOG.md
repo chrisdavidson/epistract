@@ -2,6 +2,25 @@
 
 All notable changes to epistract are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
+## [3.5.0] — 2026-11-20
+
+**Clinical trials results enrichment from ClinicalTrials.gov.** The `clinicaltrials` domain can now fill adverse events and outcome analyses directly from a trial's posted results in the ClinicalTrials.gov API v2 (`resultsSection`). This is the same source the CTKG paper and AACT use, so these facts no longer depend on what the extractor happened to read. It is opt-in: without the new flag, `--enrich` output is byte-identical to 3.4.0, and graphs without registry data grade exactly as before. Domain Builder iterations 8–20 reviewed and applied the changes.
+
+### Added
+- **`/epistract:ingest --enrich-results`** (`enrich.py --results [--cache-dir DIR]`): fetches each trial once and reads protocol and results from the same payload. Network, HTTP and parse failures never stop the pipeline. `_enrichment_report.json` gains a `results` block with counts of trials with and without results, failures, parsed AEs and analyses, and created and merged nodes. `--cache-dir` makes runs reproducible offline.
+- **Registry adverse events:** every serious event, plus "other" events at or above the registry's reporting threshold in at least one arm. A 5% floor applies when the registry reports a threshold of 0. Each event has `reported_term`, and gets `meddra_pt`/`meddra_version` only when the registry says the term is MedDRA-coded; no dictionary is shipped. Events link to their `OrganSystem`, their `Trial`, and the matching `Cohort` arms, with per-arm counts on the edges. Arms that don't match an existing Cohort are never created.
+- **Registry outcome analyses:** analyses on PRIMARY and SECONDARY measures become `OutcomeAnalysis` nodes with p-value (keeping inequalities such as `<.001`), effect estimate and measure, CI, non-inferiority type and timeframe. They link to the Outcome, compared arms and a shared `StatisticalMethod`, and keep the registry arm types in `ctgov_arm_groups`.
+- **Provenance and merge:** every registry fact carries `source: ctgov_results` and its NCT ID. A registry fact merges into the extracted fact for the same event or analysis in the same trial, never across trials; conflicting registry values are kept under `registry_*` keys. Re-running enrichment is idempotent.
+
+### Changed
+- **Epistemic grading with registry analyses:** registry values decide significance over extracted ones, and each finding records `significance_source` and `treatment_basis`. Trials are found by NCT ID. The drug being tested is found from the compared arms, the registry arm types (EXPERIMENTAL vs comparator) or arm titles. Outcomes without a StandardOutcome are grouped by a normalised measure key. Non-inferiority analyses aren't graded as efficacy, and different doses within one trial don't count as contests. New summary keys: `analysis_by_source`, `analysis_superseded`, `analysis_treatment_unresolved`.
+- The AdverseEvent description allows `meddra_pt` to come from the registry. The AE matching key now handles British spellings by stem, and no longer strips "oe" from words like "toe".
+
+### Measured (corpus `07_glp1_phase3_trials`, 10 GLP-1 Phase 3 trials)
+- 1,118 adverse events, 27 organ systems, 177 analyses, 7 statistical methods. High-evidence claims went from 278 to 2,036, and every analysis from a blinded Phase 3 trial is high-evidence.
+- 2 analysis contradictions: SUSTAIN-6 vs PIONEER 6 (semaglutide, MACE). This is an injectable-vs-oral formulation and non-inferiority design difference.
+- The graph grows about 7.5x in nodes, because serious events are uncapped by design.
+
 ## [3.4.0] — 2026-11-19
 
 **Clinical trials schema v2: safety, outcome standardisation and evidence grading.** The `clinicaltrials` domain adopts the concepts and relations of the Clinical Trials Knowledge Graph (CTKG; Chen et al., *Sci Rep* 12:4724, 2022) for document extraction. It now models adverse events and the organ systems they affect, links every arm and dose-specific intervention to its compound, maps trial-specific outcomes to canonical measures, and grades efficacy claims from reported statistical analyses. All changes are additive: no type or relation was renamed or removed, and graphs built with 3.3.0 still analyse with identical results. The changes were reviewed and applied in six recorded iterations with the epistract Domain Builder.
