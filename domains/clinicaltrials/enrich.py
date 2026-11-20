@@ -22,6 +22,10 @@ that compares the same arms (or has the same effect measure and estimate).
 Each registry analysis also records ctgov_arm_groups: the CT.gov armGroup type
 and interventions of every compared group that names an armGroup, added only
 when missing (a re-run backfills it; an existing value is never overwritten).
+An opt-in per-arm floor for serious events (--results-serious-min-pct X,
+default 0 = every serious event) keeps a serious event only when at least one
+arm reaches X percent affected; the report then records the floor and the
+number of serious records omitted, and the AE edges carry serious_min_pct.
 The "results" block of _enrichment_report.json counts the parsed records and
 the graph writes (created, merged); a trial whose write fails is rolled back
 and listed under write_errors. Without --results, behaviour is unchanged.
@@ -31,9 +35,14 @@ ARCH-03: no core/ changes required; this module lives in the domain package.
 
 Usage:
     python3 domains/clinicaltrials/enrich.py <output_dir> [--results] [--cache-dir DIR]
+        [--results-serious-min-pct X]
 
     --results         also import posted results into the graph and add a "results" report block
     --cache-dir DIR   read/write one raw CT.gov payload per trial as DIR/<NCT>.json
+    --results-serious-min-pct X
+                      opt-in volume control for --results: keep a serious adverse event only
+                      when at least one arm has X percent or more affected (default 0: keep
+                      every serious event, the 3.5.0 behaviour)
 """
 from __future__ import annotations
 
@@ -59,6 +68,7 @@ CTGOV_TIMEOUT = 15
 CTGOV_RATE_SLEEP = 0.1  # per-request courtesy delay (CT.gov has no documented limit)
 
 AE_FREQUENCY_FLOOR_PCT = 5.0  # used when the registry frequencyThreshold is 0/absent
+SERIOUS_MIN_PCT_DEFAULT = 0.0  # opt-in per-arm floor for serious events; 0 keeps every one
 RESULTS_OUTCOME_TYPES = frozenset({"PRIMARY", "SECONDARY"})
 
 PUBCHEM_PROPS = "MolecularFormula,MolecularWeight,CanonicalSMILES,InChI"
@@ -217,12 +227,18 @@ def _as_dict(value) -> dict:
     return value if isinstance(value, dict) else {}
 
 
-def _parse_ct_results(study: dict) -> dict | None:
+def _parse_ct_results(study: dict, serious_min_pct: float = SERIOUS_MIN_PCT_DEFAULT) -> dict | None:
     """Parse posted results from a CT.gov study payload.
 
     Returns None when the trial has no posted results. Otherwise returns
     event groups, adverse events (all serious; other events at or above the
     frequency threshold) and PRIMARY/SECONDARY outcome analyses.
+
+    serious_min_pct > 0 also applies a per-arm floor to serious events: one is
+    kept only when some arm has at least that percent affected (an event with
+    no computable rate is dropped, as for other events). The result then gains
+    "serious_min_pct" and "serious_events_omitted"; with the default 0 the
+    result is unchanged.
     """
     if study.get("hasResults") is not True:
         return None
@@ -271,23 +287,27 @@ def _parse_ct_results(study: dict) -> dict | None:
             })
         return out
 
-    def _reaches(stats: list) -> bool:
+    def _reaches(stats: list, floor: float = threshold) -> bool:
         for st in stats:
             at_risk, affected = st["num_at_risk"], st["num_affected"]
             if (
                 isinstance(at_risk, (int, float)) and at_risk > 0
                 and isinstance(affected, (int, float))
-                and affected / at_risk * 100 >= threshold
+                and affected / at_risk * 100 >= floor
             ):
                 return True
         return False
 
     adverse_events = []
+    serious_omitted = 0
     for seriousness, key in (("serious", "seriousEvents"), ("other", "otherEvents")):
         for ev in _as_list(ae_mod.get(key)):
             ev = _as_dict(ev)
             stats = _stats(ev)
             if seriousness == "other" and not _reaches(stats):
+                continue
+            if seriousness == "serious" and serious_min_pct > 0 and not _reaches(stats, serious_min_pct):
+                serious_omitted += 1
                 continue
             adverse_events.append({
                 "term": ev.get("term"),
@@ -342,7 +362,7 @@ def _parse_ct_results(study: dict) -> dict | None:
             ],
         })
 
-    return {
+    parsed = {
         "nct_id": id_mod.get("nctId"),
         "ae_threshold_pct": threshold,
         "ae_threshold_source": source,
@@ -351,6 +371,10 @@ def _parse_ct_results(study: dict) -> dict | None:
         "analyses": analyses,
         "arm_groups": arm_groups,
     }
+    if serious_min_pct > 0:
+        parsed["serious_min_pct"] = serious_min_pct
+        parsed["serious_events_omitted"] = serious_omitted
+    return parsed
 
 
 def _fetch_pubchem(compound_name: str) -> dict | None:
@@ -906,6 +930,8 @@ def _write_adverse_events(kg, nct, parsed, trial_ids, match, counters) -> None:
             "frequency_threshold_source": threshold_source,
             "by_group": _by_group(stats),
         }
+        if "serious_min_pct" in parsed:
+            edge_attrs["serious_min_pct"] = parsed["serious_min_pct"]
         if both:
             edge_attrs["count_basis"] = "serious+other"
             edge_attrs["by_seriousness"] = {
@@ -1399,6 +1425,7 @@ def enrich_graph(
     domain: str = "clinicaltrials",
     results: bool = False,
     cache_dir: Path | None = None,
+    serious_min_pct: float = SERIOUS_MIN_PCT_DEFAULT,
 ) -> dict:
     """Load graph, enrich Trial + Compound nodes, save, write report.
 
@@ -1409,10 +1436,15 @@ def enrich_graph(
             import them into the graph (see module docstring) and add a "results"
             block to the report.
         cache_dir: Optional directory caching one raw payload per trial.
+        serious_min_pct: Opt-in per-arm floor (percent affected) for serious
+            adverse events in results mode. 0 (the default) keeps every
+            serious event. When > 0 the "results" block gains serious_min_pct
+            and serious_events_omitted. Must be a finite number from 0 to 100.
 
     Returns:
         Report dict with domain, trials counts, compounds counts, hit_rate.
     """
+    serious_min_pct = _check_serious_min_pct(serious_min_pct)
     output_dir = Path(output_dir)
     graph_path = output_dir / "graph_data.json"
     if not graph_path.exists():
@@ -1468,7 +1500,7 @@ def enrich_graph(
                     results_block["results_failed"] += 1
                 else:
                     try:
-                        parsed = _parse_ct_results(study)
+                        parsed = _parse_ct_results(study, serious_min_pct)
                     except Exception:
                         results_block["results_failed"] += 1
                     else:
@@ -1479,6 +1511,11 @@ def enrich_graph(
                             parsed_by_nct[candidate] = parsed
                             for ev in parsed["adverse_events"]:
                                 results_block["adverse_events_parsed"][ev["seriousness"]] += 1
+                            if serious_min_pct > 0:
+                                results_block["serious_events_omitted"] = (
+                                    results_block.get("serious_events_omitted", 0)
+                                    + parsed["serious_events_omitted"]
+                                )
                             results_block["analyses_parsed"] += len(parsed["analyses"])
             if enrichment:
                 data.update(enrichment)
@@ -1550,6 +1587,9 @@ def enrich_graph(
         compounds_total, compounds_enriched, compounds_not_found, compounds_failed,
     )
     if results:
+        if serious_min_pct > 0:
+            results_block["serious_min_pct"] = serious_min_pct
+            results_block.setdefault("serious_events_omitted", 0)
         report["results"] = results_block
     _write_report(output_dir, report)
     return report
@@ -1558,6 +1598,16 @@ def enrich_graph(
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+
+def _check_serious_min_pct(value) -> float:
+    """Validate the serious-event floor: a finite number from 0 to 100."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"serious_min_pct must be a number, got {value!r}")
+    value = float(value)
+    if not (0.0 <= value <= 100.0):  # also rejects NaN
+        raise ValueError(f"serious_min_pct must be from 0 to 100, got {value!r}")
+    return value
 
 
 def _build_report(
@@ -1618,8 +1668,14 @@ if __name__ == "__main__":
     parser.add_argument("output_dir")
     parser.add_argument("--results", action="store_true")
     parser.add_argument("--cache-dir", type=Path, default=None)
+    parser.add_argument("--results-serious-min-pct", type=float, default=SERIOUS_MIN_PCT_DEFAULT)
     args = parser.parse_args()
+    try:
+        serious_min_pct = _check_serious_min_pct(args.results_serious_min_pct)
+    except ValueError as exc:
+        parser.error(str(exc))
     report = enrich_graph(
-        Path(args.output_dir), results=args.results, cache_dir=args.cache_dir
+        Path(args.output_dir), results=args.results, cache_dir=args.cache_dir,
+        serious_min_pct=serious_min_pct,
     )
     print(json.dumps(report, indent=2))

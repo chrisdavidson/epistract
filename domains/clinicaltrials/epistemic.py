@@ -762,9 +762,50 @@ _MEASURE_COMPARING_RE = re.compile(r"\s+comparing\b.*$")
 # "change from baseline to week 68 in", "change from baseline to end of treatment in"
 _MEASURE_GENERIC_PREFIX_RE = re.compile(r"^change from baseline to [^:]{1,80}?\s+in\s+")
 
+# 3-point MACE. A registry names the same composite as "MACE", "Major Adverse
+# Cardiovascular Events", "3-point MACE" or by its three components
+# ("cardiovascular death, non-fatal MI or non-fatal stroke"; SUSTAIN-6 and
+# PIONEER 6 also report an all-cause-death variant), often after "Time (from
+# randomisation) to first occurrence of". All of these key as "mace".
+# Conservative: the components must be exactly death, non-fatal MI and
+# non-fatal stroke in that order, so expanded composites (revascularisation,
+# unstable angina, heart failure), 4-point MACE and single components keep
+# their own keys. Parentheticals ("(MACE)", "(myocardial infarction)") are
+# already removed by normalize_measure.
+_MACE_TIME_PREFIX_RE = re.compile(
+    r"^time (?:from randomi[sz]ation )?to (?:the )?first (?:occurrence|event) of\s*:?\s*(?:an? |the )?"
+)
+_MACE_NAME = r"(?:(?:3|three)[- ]?point )?(?:mace|major adverse cardiovascular events?)"
+_MACE_NAME_RE = re.compile(rf"^{_MACE_NAME}$")
+_MACE_HEADER_RE = re.compile(
+    rf"^(?:{_MACE_NAME}(?: composite(?: end ?point| outcome)?)?|(?:a )?composite(?: end ?point| outcome)?)"
+    r",?\s*(?:defined as|consisting of|comprising|of)?\s*:?\s*"
+)
+_MACE_DEATH = r"(?:(?:cardiovascular|cv|all[- ]cause) (?:death|mortality)|death from (?:cardiovascular|any) causes?)"
+_MACE_SEP = r"\s*(?:,\s*(?:and |or )?|and |or |/\s*)\s*"
+_MACE_COMPONENTS_RE = re.compile(
+    rf"^{_MACE_DEATH}{_MACE_SEP}non[- ]?fatal (?:myocardial infarction|mi){_MACE_SEP}non[- ]?fatal stroke$"
+)
+
+
+def _mace_key(s: str) -> str:
+    """Return "mace" when normalized measure text s names a 3-point MACE composite, else s."""
+    t = _MACE_TIME_PREFIX_RE.sub("", s, count=1)
+    if _MACE_NAME_RE.match(t):
+        return "mace"
+    body = _MACE_HEADER_RE.sub("", t, count=1)
+    if _MACE_COMPONENTS_RE.match(body):
+        return "mace"
+    return s
+
 
 def normalize_measure(name) -> str:
-    """Reduce an outcome-measure name to a canonical key."""
+    """Reduce an outcome-measure name to a canonical key.
+
+    3-point MACE composites share the key "mace" (see _mace_key). Only
+    registry mode uses this key, so graphs without registry data group
+    exactly as before.
+    """
     s = _MEASURE_WS_RE.sub(" ", str(name or "").lower()).strip()
     s = _MEASURE_SUFFIX_RE.sub("", s)
     s = _MEASURE_COMPARING_RE.sub("", s)
@@ -782,7 +823,8 @@ def normalize_measure(name) -> str:
     s = _MEASURE_WEEK_RE.sub("", s)
     s = re.sub(r"[\s.,;:]+$", "", s)
     s = _MEASURE_WS_RE.sub(" ", s).strip()
-    return MEASURE_SYNONYMS.get(s, s)
+    s = MEASURE_SYNONYMS.get(s, s)
+    return _mace_key(s) if s else s
 
 
 _REGISTRY_STAT_KEYS = frozenset(
@@ -1321,14 +1363,20 @@ def _mark_superseded(findings: list[dict], side: dict[str, dict]) -> None:
             finding["superseded_by"] = min(m["analysis"] for m in matches)
 
 
-def _analysis_contests(findings: list[dict], registry_mode: bool = False) -> tuple[list[dict], list[dict]]:
+def _analysis_contests(
+    findings: list[dict], registry_mode: bool = False, test_types: dict | None = None
+) -> tuple[list[dict], list[dict]]:
     """Find StandardOutcome + treatment pairs whose analyses disagree on significance.
 
     Returns (contested, contradictions). A contested entry is also a
     contradiction when both sides include a high_evidence analysis. In
     registry mode analyses group by their normalized outcome key, superseded
     and non-inferiority findings take no part, and the contest is decided per
-    trial (see _registry_contest_entry).
+    trial (see _registry_contest_entry). One (outcome key, treatment) group
+    gives at most one entry, so outcome titles that share a key (for example
+    "MACE" and its three components) are one contest, not one per title.
+    test_types maps a registry analysis id to its registry non_inferiority_type
+    (registry mode only; see _registry_test_types).
     """
     groups: dict[tuple[str, str], list[dict]] = defaultdict(list)
     for finding in findings:
@@ -1352,7 +1400,7 @@ def _analysis_contests(findings: list[dict], registry_mode: bool = False) -> tup
     contradictions: list[dict] = []
     for key, group in sorted(groups.items()):
         if registry_mode:
-            entry, is_contradiction = _registry_contest_entry(key, group)
+            entry, is_contradiction = _registry_contest_entry(key, group, test_types)
             if entry is None:
                 continue
             contested.append({**entry, "epistemic_status": "contested"})
@@ -1397,7 +1445,56 @@ def _analysis_contests(findings: list[dict], registry_mode: bool = False) -> tup
     return contested, contradictions
 
 
-def _registry_contest_entry(key: tuple[str, str], group: list[dict]) -> tuple[dict | None, bool]:
+def _registry_test_types(nodes: list[dict]) -> dict[str, str]:
+    """Map registry-backed OutcomeAnalysis id -> registry non_inferiority_type
+    (upper case; the registry value of a merged node first)."""
+    out: dict[str, str] = {}
+    for node in nodes:
+        if not isinstance(node, dict) or str(node.get("entity_type", "")).lower() != ANALYSIS_TYPE:
+            continue
+        attrs = node.get("attributes")
+        if not isinstance(attrs, dict) or not _is_registry_backed(attrs):
+            continue
+        for key in ("registry_non_inferiority_type", "non_inferiority_type"):
+            value = attrs.get(key)
+            if isinstance(value, str) and value.strip():
+                out[str(node.get("id"))] = value.strip().upper()
+                break
+    return out
+
+
+def _design_note(positive: list[dict], negative: list[dict], test_types: dict | None) -> str | None:
+    """A note when a compared analysis is registered with a non_inferiority_type
+    other than SUPERIORITY (for example SUPERIORITY_OR_OTHER or OTHER), else None.
+
+    The contest is kept: the note only says the registry does not record every
+    compared analysis as a superiority test. Analyses without a registry type
+    never add a note.
+    """
+    if not test_types:
+        return None
+
+    def side(findings) -> str:
+        counts: dict[str, int] = defaultdict(int)
+        for f in findings:
+            counts[test_types.get(str(f["analysis"]), "not recorded")] += 1
+        return ", ".join(f"{t} x{n}" for t, n in sorted(counts.items()))
+
+    members = positive + negative
+    if not any(
+        test_types.get(str(f["analysis"])) not in (None, "SUPERIORITY") for f in members
+    ):
+        return None
+    return (
+        "non_inferiority_type other than SUPERIORITY on a compared analysis "
+        f"(positive: {side(positive)}; negative: {side(negative)}); "
+        "the registry does not record every compared analysis as a superiority test"
+    )
+
+
+def _registry_contest_entry(
+    key: tuple[str, str], group: list[dict], test_types: dict | None = None
+) -> tuple[dict | None, bool]:
     """Decide one registry-mode (outcome key, treatment) group at trial level.
 
     A trial is positive when all its analyses in the group are significant,
@@ -1407,7 +1504,9 @@ def _registry_contest_entry(key: tuple[str, str], group: list[dict]) -> tuple[di
     contradiction when a high_evidence positive trial (every one of its
     analyses high_evidence) meets a high_evidence negative trial. The entry is
     named from the group key and its sorted member outcome ids, so it does not
-    depend on node order. Returns (entry or None, is_contradiction).
+    depend on node order. It carries design_note when a positive or negative
+    analysis is registered with a non_inferiority_type other than SUPERIORITY
+    (see _design_note). Returns (entry or None, is_contradiction).
     """
     by_trial: dict[str, list[dict]] = defaultdict(list)
     for finding in group:
@@ -1480,6 +1579,9 @@ def _registry_contest_entry(key: tuple[str, str], group: list[dict]) -> tuple[di
         "mentions": [{"source_document": d} for d in docs],
         "support_documents": docs,
     }
+    note = _design_note(positive, negative, test_types)
+    if note:
+        entry["design_note"] = note
     is_contradiction = any(high(t) for t in positive_trials) and any(high(t) for t in negative_trials)
     return entry, is_contradiction
 
@@ -1692,7 +1794,9 @@ def analyze_clinicaltrials_epistemic(output_dir: Path, graph_data: dict) -> dict
         nodes, links, trial_lookup, doc_trials, registry_mode=registry_mode, arm_stats=arm_stats
     )
     analysis_contested, analysis_contradictions = _analysis_contests(
-        analysis_claims, registry_mode=registry_mode
+        analysis_claims,
+        registry_mode=registry_mode,
+        test_types=_registry_test_types(nodes) if registry_mode else None,
     )
     contested.extend(analysis_contested)
     contradictions.extend(analysis_contradictions)
