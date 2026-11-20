@@ -106,12 +106,16 @@ ANALYSIS_CI_GROUP = (
 # Significance source of a finding nothing decided.
 NO_SOURCE = "none"
 # Comparator arms are told apart by name; arm_type is not a signal because
-# active arms carry "Active comparator". Every keyword below marks a comparator
-# arm, whatever compounds the text also names ("Standard of care (metformin)",
-# "Insulin glargine (control)"). The one exception is an active add-on arm: a
-# Compound of the graph named before an add-on connector that leads into a
-# standard-of-care / usual-care / control keyword ("Semaglutide 1 mg added to
-# standard of care", "Semaglutide 2.4 mg + usual care").
+# active arms carry "Active comparator". A hard keyword always marks a
+# comparator arm ("Semaglutide placebo 0.5 mg"). A soft keyword
+# (standard of care, usual care, control) marks one when it stands outside
+# parentheses with no Compound of the graph joined to it ("Usual care",
+# "Standard of care (metformin)"), or when it sits in a parenthetical
+# ("Insulin glargine (control)"). A Compound joined to a soft keyword by an
+# add-on connector, in either order, makes an active add-on arm whose
+# treatment is that compound ("Semaglutide 2.4 mg with usual care",
+# "Usual care + semaglutide 0.5 mg"). "control" qualified by what is
+# controlled ("glycaemic control", "weight control") is no keyword at all.
 HARD_PLACEBO_KEYWORDS = ("placebo", "comparator")
 SOFT_PLACEBO_KEYWORDS = ("standard of care", "usual care", "control")
 
@@ -126,7 +130,13 @@ def _keyword_re(words) -> re.Pattern:
 _HARD_PLACEBO_RE = _keyword_re(HARD_PLACEBO_KEYWORDS)
 _SOFT_PLACEBO_RE = _keyword_re(SOFT_PLACEBO_KEYWORDS)
 _ADD_ON_RE = re.compile(
-    r"\+|(?<![A-Za-z0-9])(?:plus|added to|add-on to|on top of|in addition to)(?![A-Za-z0-9])",
+    r"\+|(?<![A-Za-z0-9])(?:plus|with|and|added to|add-on to|on top of|in addition to)(?![A-Za-z0-9])",
+    re.IGNORECASE,
+)
+# A word naming what "control" controls; "glycaemic control" names no arm.
+_CONTROL_QUALIFIER_RE = re.compile(
+    r"(?<![A-Za-z0-9])(?:glyc\w*|glucose|weight|pressure|metabolic|lipids?|sugar|appetite|"
+    r"diabet\w*|disease|symptoms?|pain|rate|rhythm|infection)[\s-]+$",
     re.IGNORECASE,
 )
 # Registry non_inferiority_type values that make an analysis a
@@ -156,6 +166,13 @@ SIGNIFICANCE_LEVEL = 0.05
 
 _P_VALUE_RE = re.compile(
     r"^\s*p?\s*(<=|>=|\u2264|\u2265|<|>|=)?\s*(\d*\.?\d+(?:e[-+]?\d+)?)\s*$",
+    re.IGNORECASE,
+)
+# A registry p text with a trailing word qualifier and no further number
+# ("0.21 (ANCOVA)", "<0.001 two-sided"); "0.5 x 10-3" does not match.
+_LEADING_P_VALUE_RE = re.compile(
+    r"^\s*p?\s*(<=|>=|\u2264|\u2265|<|>|=)?\s*(\d*\.?\d+(?:e[-+]?\d+)?)"
+    r"\s*[(\[,;:]?\s*(?![xX](?![A-Za-z]))[A-Za-z][^\d]*$",
     re.IGNORECASE,
 )
 
@@ -560,24 +577,43 @@ def _registry_group_view(attrs: dict, group: tuple) -> dict | None:
     Present only when the registry import stored at least one registry_<key>
     of the group. For a group the extracted node already had, the import
     stores a registry value as registry_<key> only when it differs from the
-    plain one; an equal value is not stored again. So a plain field with no
-    registry_<key> twin holds the registry's value and completes the view
-    (the registry p_value_num and qualifier are parsed from its p_value text,
-    so a stored number or qualifier without registry_p_value means the texts
-    were equal). A one-sided registry interval reports a single bound, so its
-    missing bound is never borrowed from the extracted interval.
+    plain one, and stores nothing when the registry value is absent. A plain
+    field with no registry_<key> twin therefore holds either the registry's
+    equal value or a value the registry did not report. It completes the
+    view only where it cannot be the second kind:
+    - p: the registry p_value_num and qualifier are parsed from its p_value
+      text, so beside a registry_p_value text they are never taken from the
+      plain fields; a registry text the strict parser rejects is read by its
+      leading number when only a word qualifier follows ("0.21 (ANCOVA)"),
+      else it does not decide. A stored number or qualifier without
+      registry_p_value means the texts were equal, so the plain text completes
+      it when it parses to that number.
+    - CI: a bound is borrowed only when the registry stored neither bound
+      (both bounds are then the registry's, equal to the plain ones). A single
+      registry bound leaves the interval registry-incomplete (its partner may
+      be "NA" in the registry); a one-sided registry interval reports one
+      bound by design. Neither decides.
     """
     view = {
         k: attrs[f"registry_{k}"] for k in group if attrs.get(f"registry_{k}") is not None
     }
     if not view:
         return None
+    stored = set(view)
     sides = view.get("ci_sides", attrs.get("ci_sides"))
     one_sided = isinstance(sides, str) and "ONE" in sides.upper()
+    registry_bound = "ci_lower" in stored or "ci_upper" in stored
+    if "p_value" in stored and "p_value_num" not in stored and _parse_p_value(view["p_value"]) is None:
+        lead = _LEADING_P_VALUE_RE.match(str(view["p_value"]))
+        if lead is not None:
+            view["p_value_num"] = float(lead.group(2))
+            view.setdefault("p_value_qualifier", lead.group(1) or "=")
     for k in group:
         if k in view or attrs.get(k) is None:
             continue
-        if one_sided and k in ("ci_lower", "ci_upper"):
+        if (one_sided or registry_bound) and k in ("ci_lower", "ci_upper"):
+            continue
+        if "p_value" in stored and k in ("p_value_num", "p_value_qualifier"):
             continue
         if k == "p_value" and "p_value_num" in view:
             # Equal texts parse to the same number; a plain text that does
@@ -820,24 +856,89 @@ def _compound_patterns(by_id: dict) -> list[tuple[str, re.Pattern]]:
     return patterns
 
 
-def _add_on_compounds(text: str, patterns: list[tuple[str, re.Pattern]]) -> set[str]:
-    """Compounds of an active add-on arm ("Semaglutide 1 mg added to standard
-    of care"), else an empty set.
+def _soft_keyword_spans(text: str) -> list[tuple[int, int]]:
+    """(start, end) of every soft comparator keyword in text. "control"
+    qualified by what it controls ("glycaemic control", "blood pressure
+    control") names no comparator arm and is skipped."""
+    spans = []
+    for match in _SOFT_PLACEBO_RE.finditer(text):
+        if match.group(0).lower() == "control" and _CONTROL_QUALIFIER_RE.search(text, 0, match.start()):
+            continue
+        spans.append(match.span())
+    return spans
 
-    The text before the first standard-of-care / usual-care / control keyword
-    must name a Compound of the graph and then an add-on connector ("+",
-    "plus", "added to", "on top of", "in addition to"); the compounds named
-    before the last such connector are the arm's. A compound named after the
-    keyword is the comparator's background ("Standard of care (metformin)").
+
+def _split_parentheticals(text: str) -> tuple[str, list[str]]:
+    """(text with every parenthetical blanked to spaces, the contents of its
+    top-level parentheticals). Positions in the blanked text match text."""
+    outside: list[str] = []
+    segments: list[str] = []
+    inner: list[str] = []
+    depth = 0
+    for ch in text:
+        if ch == "(":
+            depth += 1
+            if depth == 1:
+                inner = []
+                outside.append(" ")
+                continue
+        elif ch == ")" and depth:
+            depth -= 1
+            if depth == 0:
+                segments.append("".join(inner))
+                outside.append(" ")
+                continue
+        if depth:
+            inner.append(ch)
+            outside.append(" ")
+        else:
+            outside.append(ch)
+    if depth:
+        segments.append("".join(inner))
+    return "".join(outside), segments
+
+
+def _joined_compounds(text: str, spans, patterns: list[tuple[str, re.Pattern]]) -> set[str]:
+    """Compounds joined to a soft keyword span by an add-on connector, in either
+    order ("Semaglutide 1 mg with usual care", "Usual care + semaglutide")."""
+    joined = set()
+    for compound_id, pattern in patterns:
+        for match in pattern.finditer(text):
+            for start, end in spans:
+                gap = (match.end(), start) if match.end() <= start else (end, match.start())
+                if gap[0] <= gap[1] and _ADD_ON_RE.search(text, gap[0], gap[1]):
+                    joined.add(compound_id)
+    return joined
+
+
+def _soft_arm(text: str, patterns: list[tuple[str, re.Pattern]]) -> tuple[bool, set[str]] | None:
+    """(is comparator, arm compounds) of a text with a soft keyword and no hard
+    one, or None when it has no soft keyword.
+
+    A soft keyword outside parentheses marks a comparator arm unless a
+    Compound named outside parentheses is joined to it by an add-on
+    connector; the joined compounds are then the active add-on arm's
+    ("Usual care + semaglutide 0.5 mg"), and a compound only in a
+    parenthetical is the comparator's background ("Standard of care
+    (metformin)"). A soft keyword only inside a parenthetical marks a
+    comparator ("Insulin glargine (control)") unless the parenthetical joins
+    it to the arm by a connector before it ("Semaglutide 1 mg (added to
+    standard of care)").
     """
-    keyword = _SOFT_PLACEBO_RE.search(text)
-    if keyword is None:
-        return set()
-    connectors = list(_ADD_ON_RE.finditer(text, 0, keyword.start()))
-    if not connectors:
-        return set()
-    head = text[:connectors[-1].start()]
-    return {compound_id for compound_id, pattern in patterns if pattern.search(head)}
+    outside, segments = _split_parentheticals(text)
+    spans = _soft_keyword_spans(outside)
+    if spans:
+        joined = _joined_compounds(outside, spans, patterns)
+        return (False, joined) if joined else (True, set())
+    inside = [segment for segment in segments if _soft_keyword_spans(segment)]
+    if not inside:
+        return None
+    named = {compound_id for compound_id, pattern in patterns if pattern.search(outside)}
+    for segment in inside:
+        first = _soft_keyword_spans(segment)[0]
+        if named and _ADD_ON_RE.search(segment, 0, first[0]):
+            return False, named
+    return True, set()
 
 
 def _is_comparator_text(text, patterns: list[tuple[str, re.Pattern]]) -> bool:
@@ -846,20 +947,22 @@ def _is_comparator_text(text, patterns: list[tuple[str, re.Pattern]]) -> bool:
         return False
     if _HARD_PLACEBO_RE.search(text):
         return True
-    return bool(_SOFT_PLACEBO_RE.search(text)) and not _add_on_compounds(text, patterns)
+    soft = _soft_arm(text, patterns)
+    return soft is not None and soft[0]
 
 
 def _compounds_in_text(text, patterns: list[tuple[str, re.Pattern]]) -> set[str]:
     """Compound ids whose name appears in text at a word boundary.
 
     Comparator text names no treatment ("Semaglutide placebo", "Usual care
-    (metformin)"); an active add-on arm names the compounds before its add-on
-    connector ("Semaglutide 2.4 mg + usual care").
+    (metformin)"); an active add-on arm names the compounds joined to its
+    soft keyword ("Semaglutide 2.4 mg + usual care").
     """
     if not isinstance(text, str) or not text or _HARD_PLACEBO_RE.search(text):
         return set()
-    if _SOFT_PLACEBO_RE.search(text):
-        return _add_on_compounds(text, patterns)
+    soft = _soft_arm(text, patterns)
+    if soft is not None:
+        return soft[1]
     return {compound_id for compound_id, pattern in patterns if pattern.search(text)}
 
 
