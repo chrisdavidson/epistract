@@ -1231,3 +1231,50 @@ def test_analysis_merge_requires_same_arms(enrich, tmp_path):
     for group in ("3 mg Orforglipron", "12 mg Orforglipron"):
         assert f"{WITH_RESULTS_A}: Change From Baseline in HbA1c — Placebo vs {group}" in names
     assert want not in names
+
+
+@pytest.mark.unit
+def test_outcome_match_keeps_distinct_measures(enrich, tmp_path):
+    # WR-02: registry titles that differ only in a parenthetical get their own
+    # Outcome nodes with their own time frame.
+    base = "Change From Baseline in Systolic Blood Pressure (SBP)"
+    variant = "Change From Baseline in Systolic Blood Pressure (Participants With Hypertension)"
+    study = _study_with_measure_copy(10, variant, "Baseline, Week 26")
+    _seeded_graph(tmp_path)
+    _run(enrich, tmp_path, {WITH_RESULTS_A: study, WITH_RESULTS_B: _study(WITH_RESULTS_B)}, results=True)
+    nodes, links = _read_graph(tmp_path)
+    by_title = {}
+    for n in _oa_nodes(nodes, WITH_RESULTS_A):
+        for title in (base, variant):
+            if f": {title} — " in n["name"]:
+                by_title.setdefault(title, set()).update(
+                    l["target"] for l in _edges(links, "analyzes", n["id"])
+                )
+    assert len(by_title[base]) == 1 and len(by_title[variant]) == 1
+    assert by_title[base] != by_title[variant]
+    variant_outcome = nodes[next(iter(by_title[variant]))]
+    assert variant_outcome["name"] == variant
+    assert _nattr(variant_outcome, "timeframe") == "Baseline, Week 26"
+
+
+@pytest.mark.unit
+def test_outcome_match_respects_unit_qualifier(enrich, tmp_path):
+    # WR-02: an extracted "HbA1c (mmol/mol)" outcome is not the registry's
+    # percentage HbA1c measure, whatever the id sort order.
+    outcome_nodes, outcome_links = _hba1c_outcome_nodes()
+    mmol = {
+        "id": "outcome:change_in_hba1c_mmol_mol", "name": "Change in HbA1c (mmol/mol)",
+        "entity_type": "Outcome", "source_documents": ["doc_seed"],
+    }
+    _, _, nodes, links = _seeded_run(
+        enrich, tmp_path, extra_nodes=[*outcome_nodes, mmol],
+        extra_links=[*outcome_links, _link(TRIAL_A, "has_outcome", mmol["id"])],
+    )
+    hba1c = [
+        n for n in _oa_nodes(nodes, WITH_RESULTS_A)
+        if " Change From Baseline in HbA1c — " in n["name"]
+    ]
+    assert len(hba1c) == 3
+    for oa in hba1c:
+        assert [l["target"] for l in _edges(links, "analyzes", oa["id"])] == [outcome_nodes[0]["id"]]
+    assert not _edges(links, "analyzes", tgt=mmol["id"])
