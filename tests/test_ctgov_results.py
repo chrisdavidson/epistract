@@ -1438,3 +1438,46 @@ def test_estimate_only_match_requires_unambiguous_pair(enrich, tmp_path):
         f"outcomeanalysis:{enrich._slug(want)}"
     ]
     assert len(_oa_nodes(nodes, WITH_RESULTS_A)) == 38
+
+
+@pytest.mark.unit
+def test_active_arm_with_matching_placebo_is_not_placebo(enrich, tmp_path):
+    # IN-01 (iteration 2): a double-dummy active arm also receives a matching
+    # placebo. It is still an active arm, so an un-NCT-named extracted analysis
+    # that compares it belongs to the trial and absorbs the 36 mg analysis.
+    from types import SimpleNamespace
+
+    import networkx as nx
+
+    g = nx.MultiDiGraph()
+    g.add_node("cohort:a", name="Semaglutide 1.0 mg", entity_type="Cohort")
+    g.add_node("cohort:b", name="Comparator arm", entity_type="Cohort")
+    g.add_node("cohort:c", name="Placebo", entity_type="Cohort")
+    g.add_node("cohort:d", name="Arm D", entity_type="Cohort", attributes={"arm_label": "Placebo arm"})
+    g.add_node("cohort:e", name="Arm E", entity_type="Cohort")
+    g.add_node("compound:sema", name="Semaglutide", entity_type="Compound")
+    g.add_node("intervention:pbo_sema", name="Placebo (semaglutide)", entity_type="Intervention")
+    for cid, tgt in (("cohort:a", "compound:sema"), ("cohort:a", "intervention:pbo_sema"),
+                     ("cohort:b", "intervention:pbo_sema")):
+        g.add_edge(cid, tgt, relation_type="receives")
+    kg = SimpleNamespace(graph=g)
+    assert enrich._is_placebo_cohort(kg, "cohort:a") is False
+    assert enrich._is_placebo_cohort(kg, "cohort:b") is True
+    assert enrich._is_placebo_cohort(kg, "cohort:c") is True
+    assert enrich._is_placebo_cohort(kg, "cohort:d") is True
+    assert enrich._is_placebo_cohort(kg, "cohort:e") is False
+
+    ref, nodes_seed, links_seed = _extracted_analysis_seed(enrich)
+    pbo = {
+        "id": "intervention:placebo_orforglipron", "name": "Placebo matching orforglipron",
+        "entity_type": "Intervention", "source_documents": ["doc_seed"],
+    }
+    seed_id = "outcomeanalysis:seed_hba1c_36"
+    _, _, nodes, links = _seeded_run(
+        enrich, tmp_path, extra_nodes=[*nodes_seed, pbo],
+        extra_links=[*links_seed, _link(COHORT_36, "receives", pbo["id"])],
+    )
+    want = f"{WITH_RESULTS_A}: Change From Baseline in HbA1c — Placebo vs 36 mg Orforglipron"
+    assert _nattr(nodes[seed_id], "ctgov_analysis_ids") == [f"outcomeanalysis:{enrich._slug(want)}"]
+    assert want not in {n["name"] for n in _oa_nodes(nodes, WITH_RESULTS_A)}
+    assert [l["target"] for l in _edges(links, "assesses_effect_of", seed_id)] == [COMPOUND]
