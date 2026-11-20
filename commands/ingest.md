@@ -25,10 +25,12 @@ Options:
   --fail-threshold <float>  Minimum extraction pass rate before graph build (default: 0.95, range: 0.0–1.0)
   --enrich                  Enrich graph via external APIs after build — clinicaltrials domain only
                             (Trial nodes → ClinicalTrials.gov v2; Compound nodes → PubChem PUG REST)
+  --enrich-results          Also import ClinicalTrials.gov posted results (implies --enrich) — clinicaltrials domain only
 
 Examples:
   /epistract:ingest ./my-papers
   /epistract:ingest ./papers --domain clinicaltrials --enrich
+  /epistract:ingest ./papers --domain clinicaltrials --enrich-results
   /epistract:ingest ./papers --domain contracts --output ./out --fail-threshold 0.9
 ```
 
@@ -40,6 +42,7 @@ Examples:
 - `--view` (optional): Open viewer after build (default: true)
 - `--fail-threshold <float>` (optional): Minimum post-normalization pass rate required before graph build (default: 0.95, range: [0.0, 1.0]). Pipeline aborts with a clear error if the pass rate falls below this threshold.
 - `--enrich` (optional flag): When present AND `--domain` is `clinicaltrials` (or aliases `clinicaltrial` / `clinical_trials`), triggers post-build enrichment against ClinicalTrials.gov v2 and PubChem PUG REST APIs. Trial nodes with NCT IDs get trial metadata; Compound nodes get molecular data. Non-blocking: API failures log counts but do not abort the pipeline.
+- `--enrich-results` (optional flag): Implies `--enrich`. enrich.py then also reads each trial's `resultsSection` from the same single ClinicalTrials.gov payload; trials without posted results are counted and skipped; network/HTTP/parse failures are counted, never fatal.
 
 ## Pipeline Steps
 
@@ -145,7 +148,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/core/run_sift.py build <output_dir> --domain ${CLA
 ### Step 5.5: Enrich Knowledge Graph (if --enrich flag provided)
 
 Skip this step entirely unless BOTH of these are true:
-1. The user passed `--enrich` to the command.
+1. The user passed `--enrich` or `--enrich-results` to the command.
 2. The resolved `--domain` is `clinicaltrials` (or one of its aliases: `clinicaltrial`, `clinical_trials`).
 
 When both conditions hold, invoke the domain's enrichment module:
@@ -154,12 +157,15 @@ When both conditions hold, invoke the domain's enrichment module:
 python3 ${CLAUDE_PLUGIN_ROOT}/domains/clinicaltrials/enrich.py <output_dir>
 ```
 
+If the user passed `--enrich-results`, append ` --results` to that command.
+
 What this step does:
 - Loads `<output_dir>/graph_data.json` via `sift_kg.KnowledgeGraph.load()`.
 - For every Trial node whose name matches `NCT\d{8}`, calls the ClinicalTrials.gov v2 API (`/api/v2/studies/{nctId}`) and attaches `ct_overall_status`, `ct_phase`, `ct_enrollment`, `ct_start_date`, `ct_completion_date`, `ct_brief_title` as node attributes.
 - For every Compound node, calls PubChem PUG REST (`/rest/pug/compound/name/{name}/property/.../JSON`) and attaches `pubchem_cid`, `molecular_formula`, `molecular_weight`, `canonical_smiles`, `inchi` as node attributes.
 - Saves the mutated graph back to `graph_data.json`.
 - Writes a summary to `<output_dir>/extractions/_enrichment_report.json` with per-entity-type counts (total / enriched / not_found / failed) and hit rates.
+- With `--results`, the report also has a `results` block: trials with/without results, results_failed, adverse events parsed (serious/other), analyses parsed, created, merged.
 
 Enrichment is **non-blocking**. If the Python process exits non-zero, report the failure to the user and continue to Step 6. Do NOT abort the pipeline — the unenriched graph is still valid output.
 
