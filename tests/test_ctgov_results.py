@@ -1750,3 +1750,62 @@ def test_ae_registry_node_shared_by_registry_trials(enrich, tmp_path):
         if len(_nattr(n, "ctgov_nct_ids", [])) > 1
     }
     assert shared
+
+
+# --- Registry AE ids are trial-order independent; stale cross-trial links ---
+
+
+def _common_ae_term(enrich) -> str:
+    def keys(nct):
+        return {enrich._ae_key(a["term"]): a["term"] for a in _parsed(enrich, nct)["adverse_events"]}
+    a, b = keys(WITH_RESULTS_A), keys(WITH_RESULTS_B)
+    for key in sorted(set(a) & set(b)):
+        if a[key] == b[key] and a[key] == a[key].capitalize() and " " not in a[key]:
+            return a[key]
+    raise AssertionError("no AE term shared by both fixtures")
+
+
+def _foreign_ae(term):
+    return {
+        "id": f"adverseevent:{term.lower()}", "name": term, "entity_type": "AdverseEvent",
+        "source_documents": ["doc_other"], "attributes": {"reported_term": "seeded wording"},
+    }
+
+
+@pytest.mark.unit
+def test_registry_ae_id_is_shared_and_trial_independent(enrich, tmp_path):
+    term = _common_ae_term(enrich)
+    node = _foreign_ae(term)
+    _, _, nodes, links = _seeded_run(enrich, tmp_path, extra_nodes=[node])
+    assert nodes[node["id"]]["attributes"] == node["attributes"]
+    registry_id = f"{node['id']}_ctgov"
+    assert registry_id in nodes
+    assert _nattr(nodes[registry_id], "source") == "ctgov_results"
+    assert _nattr(nodes[registry_id], "ctgov_nct_ids") == sorted([WITH_RESULTS_A, WITH_RESULTS_B])
+    assert not [i for i in nodes if re.search(r"_nct\d+$", i) and i.startswith("adverseevent:")]
+    for trial in (TRIAL_A, TRIAL_B):
+        assert len(_edges(links, "reports_adverse_event", trial, registry_id)) == 1
+        assert not _edges(links, "reports_adverse_event", trial, node["id"])
+
+
+@pytest.mark.unit
+def test_stale_registry_link_to_another_trials_ae_is_ignored(enrich, tmp_path):
+    term = _common_ae_term(enrich)
+    node = _foreign_ae(term)
+    own = _link(TRIAL_A, "reports_adverse_event", node["id"])
+    stale = _link(
+        TRIAL_B, "reports_adverse_event", node["id"], source_document=f"ctgov:{WITH_RESULTS_B}",
+        source="ctgov_results", ctgov_nct_ids=[WITH_RESULTS_B],
+    )
+    report, _, nodes, links = _seeded_run(
+        enrich, tmp_path, extra_nodes=[node], extra_links=[own, stale]
+    )
+    assert report["results"]["cross_trial_ae_links_ignored"] == 1
+    merged = nodes[node["id"]]
+    assert _nattr(merged, "ctgov_nct_ids") == [WITH_RESULTS_A]
+    registry = nodes[f"{node['id']}_ctgov"]
+    assert _nattr(registry, "ctgov_nct_ids") == [WITH_RESULTS_B]
+    assert len(_edges(links, "reports_adverse_event", TRIAL_B, registry["id"])) == 1
+    assert _edges(links, "reports_adverse_event", TRIAL_B, node["id"])  # never deleted
+    again, _ = _run(enrich, tmp_path, _all_fixture_bodies(), results=True)
+    assert again["results"]["created"] == 0 and again["results"]["merged"] == 0
