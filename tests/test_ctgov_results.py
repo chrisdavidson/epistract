@@ -308,7 +308,9 @@ def test_results_flag_does_not_change_graph(enrich, tmp_path):
     with_results = _write_graph(tmp_path / "res", ids)
     _run(enrich, plain, _all_fixture_bodies())
     _run(enrich, with_results, _all_fixture_bodies(), results=True)
-    assert (plain / "graph_data.json").read_bytes() == (with_results / "graph_data.json").read_bytes()
+    assert _normalize_stamps((plain / "graph_data.json").read_bytes()) == _normalize_stamps(
+        (with_results / "graph_data.json").read_bytes()
+    )
 
 
 @pytest.mark.unit
