@@ -1278,3 +1278,38 @@ def test_outcome_match_respects_unit_qualifier(enrich, tmp_path):
     for oa in hba1c:
         assert [l["target"] for l in _edges(links, "analyzes", oa["id"])] == [outcome_nodes[0]["id"]]
     assert not _edges(links, "analyzes", tgt=mmol["id"])
+
+
+@pytest.mark.unit
+def test_serious_and_other_event_counts_combined(enrich, tmp_path):
+    # WR-03: an event in both tables carries combined headline counts, a serious
+    # flag and the per-table breakdown.
+    _, _, nodes, links = _seeded_run(enrich, tmp_path)
+    parsed = _parsed(enrich, WITH_RESULTS_B)["adverse_events"]
+    records = [a for a in parsed if enrich._ae_key(a["term"]) == "nausea"]
+    assert {r["seriousness"] for r in records} == {"serious", "other"}
+    ae_id = next(
+        n["id"] for n in nodes.values()
+        if n.get("entity_type") == "AdverseEvent" and enrich._ae_key(n["name"]) == "nausea"
+    )
+    edge = _edges(links, "reports_adverse_event", TRIAL_B, ae_id)
+    assert len(edge) == 1
+    edge = edge[0]
+    affected = sum(s["num_affected"] for r in records for s in r["stats"])
+    groups = {}
+    for r in records:
+        for s in r["stats"]:
+            g = groups.setdefault(s["group_title"], {"n_affected": 0, "n_at_risk": 0})
+            g["n_affected"] += s["num_affected"]
+            g["n_at_risk"] = max(g["n_at_risk"], s["num_at_risk"])
+    assert _eattr(edge, "seriousness") == "serious"
+    assert _eattr(edge, "n_affected") == affected
+    assert _eattr(edge, "n_at_risk") == sum(g["n_at_risk"] for g in groups.values())
+    for title, g in groups.items():
+        assert _eattr(edge, "by_group")[title]["n_affected"] == g["n_affected"]
+        assert _eattr(edge, "by_group")[title]["n_at_risk"] == g["n_at_risk"]
+    breakdown = _eattr(edge, "by_seriousness")
+    assert set(breakdown) == {"serious", "other"}
+    for r in records:
+        assert breakdown[r["seriousness"]]["n_affected"] == sum(s["num_affected"] for s in r["stats"])
+    assert f"{affected} of " in edge["evidence"]
