@@ -98,7 +98,7 @@ entity_types:
     description: "A clinical study site — specific hospital, clinic, or country listed as a location."
     display: { family: Actors, shape: diamond, color: "#889541" }
   AdverseEvent:
-    description: "An adverse event or side effect reported among trial participants (e.g. 'Nausea', 'Acute pancreatitis'). Name it by the event itself, not by the arm or timepoint. Source wording goes in attributes.reported_term; attributes.meddra_pt only when confident of the MedDRA PT wording (never looked up)."
+    description: "An adverse event or side effect reported among trial participants (e.g. 'Nausea', 'Acute pancreatitis'). Name it by the event itself, not by the arm or timepoint. Source wording goes in attributes.reported_term; attributes.meddra_pt only when confident of the MedDRA PT wording, or when supplied by the ClinicalTrials.gov registry (never looked up by this tool). Registry-imported adverse events (enrich.py --results) carry attributes.source ctgov_results and ctgov_nct_ids."
     display: { family: Conditions, shape: square, color: "#d9480f" }
   OrganSystem:
     description: "The body or organ system an adverse event affects, named at system-organ-class level (e.g. 'Gastrointestinal disorders', 'Cardiac disorders')."
@@ -107,7 +107,7 @@ entity_types:
     description: "A canonical, reusable outcome measure or assessment instrument shared across trials (e.g. 'HbA1c', 'Body weight', 'Systolic blood pressure', 'SF-36 physical functioning', 'Overall survival'). The trial-specific wording stays on the Outcome node."
     display: { family: Evidence, shape: star, color: "#0b7285" }
   OutcomeAnalysis:
-    description: "A reported statistical comparison of arms on one outcome: the effect estimate, confidence interval, and p-value for treatment vs comparator at a timepoint."
+    description: "A reported statistical comparison of arms on one outcome: the effect estimate, confidence interval, and p-value for treatment vs comparator at a timepoint. Registry-imported analyses (enrich.py --results) carry attributes.source ctgov_results and ctgov_nct_ids."
     display: { family: Evidence, shape: star, color: "#c2255c" }
   StatisticalMethod:
     description: "A statistical test or model used in an OutcomeAnalysis (e.g. 'ANCOVA', 'MMRM', 'Cox proportional hazards', 'Log-rank test')."

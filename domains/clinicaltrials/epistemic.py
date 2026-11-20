@@ -91,6 +91,74 @@ MEASURES = "measures"
 ASSESSES = "assesses_effect_of"
 CONTAINS = "contains_compound"
 COMPARES = "compares"
+RECEIVES = "receives"
+HAS_OUTCOME = "has_outcome"
+
+# Provenance tag Phase 7 registry import writes on nodes it creates or merges into.
+REGISTRY_SOURCE = "ctgov_results"
+# Statistic groups merged as a unit by the registry import: when an extracted
+# value exists in a group, the registry values of that group are stored beside
+# it as registry_<key> instead of being filled in.
+ANALYSIS_P_GROUP = ("p_value", "p_value_num", "p_value_qualifier")
+ANALYSIS_CI_GROUP = (
+    "effect_estimate", "effect_measure", "ci_lower", "ci_upper", "ci_level", "ci_sides",
+)
+# Significance source of a finding nothing decided.
+NO_SOURCE = "none"
+# Comparator arms are told apart by name; arm_type is not a signal because
+# active arms carry "Active comparator". The registry armGroup type
+# (ctgov_arm_groups) is used only by the registry-mode treatment fallback
+# (_arm_type_treatment) and never to classify a Cohort as placebo. A hard keyword always marks a
+# comparator arm ("Semaglutide placebo 0.5 mg"). A soft keyword
+# (standard of care, usual care, control) marks one when it stands outside
+# parentheses with no Compound of the graph joined to it ("Usual care",
+# "Standard of care (metformin)"), or when it sits in a parenthetical
+# ("Insulin glargine (control)"). A Compound joined to a soft keyword by an
+# add-on connector, in either order, makes an active add-on arm whose
+# treatment is that compound ("Semaglutide 2.4 mg with usual care",
+# "Usual care + semaglutide 0.5 mg"). "control" qualified by what is
+# controlled ("glycaemic control", "weight control") is no keyword at all.
+HARD_PLACEBO_KEYWORDS = ("placebo", "comparator")
+SOFT_PLACEBO_KEYWORDS = ("standard of care", "usual care", "control")
+
+
+def _keyword_re(words) -> re.Pattern:
+    return re.compile(
+        r"(?<![A-Za-z0-9])(?:" + "|".join(re.escape(k) for k in words) + r")(?![A-Za-z0-9])",
+        re.IGNORECASE,
+    )
+
+
+_HARD_PLACEBO_RE = _keyword_re(HARD_PLACEBO_KEYWORDS)
+_SOFT_PLACEBO_RE = _keyword_re(SOFT_PLACEBO_KEYWORDS)
+_ADD_ON_RE = re.compile(
+    r"\+|(?<![A-Za-z0-9])(?:plus|with|and|added to|add-on to|on top of|in addition to)(?![A-Za-z0-9])",
+    re.IGNORECASE,
+)
+# A word naming what "control" controls; "glycaemic control" names no arm.
+_CONTROL_QUALIFIER_RE = re.compile(
+    r"(?<![A-Za-z0-9])(?:glyc\w*|glucose|weight|pressure|metabolic|lipids?|sugar|appetite|"
+    r"diabet\w*|disease|symptoms?|pain|rate|rhythm|infection)[\s-]+$",
+    re.IGNORECASE,
+)
+# Registry non_inferiority_type values that make an analysis a
+# non-inferiority or equivalence test (NON_INFERIORITY, EQUIVALENCE,
+# NON_INFERIORITY_OR_EQUIVALENCE). SUPERIORITY, SUPERIORITY_OR_OTHER and
+# OTHER are superiority-or-unspecified tests and are graded as efficacy.
+_NON_INFERIORITY_RE = re.compile(r"NON[_\s-]?INFERIORITY|EQUIVALENCE", re.IGNORECASE)
+MIN_COMPOUND_NAME = 3
+# CT.gov armGroup types (attribute ctgov_arm_groups of a registry analysis).
+ARM_EXPERIMENTAL = "EXPERIMENTAL"
+ARM_COMPARATOR_TYPES = frozenset({
+    "ACTIVE_COMPARATOR", "PLACEBO_COMPARATOR", "SHAM_COMPARATOR", "NO_INTERVENTION",
+})
+# "Drug: Tirzepatide" -> "Tirzepatide" (CT.gov intervention names carry the type).
+_INTERVENTION_PREFIX_RE = re.compile(
+    r"^\s*(?:Drug|Biological|Combination Product|Other|Dietary Supplement|Device|"
+    r"Procedure|Behavioral|Genetic|Radiation|Diagnostic Test)\s*:\s*",
+    re.IGNORECASE,
+)
+NCT_RE = re.compile(r"NCT\d{8}", re.IGNORECASE)
 
 # Effect measures whose null value is 1.0 (ratios); every other measure is
 # a difference with a null of 0.
@@ -111,6 +179,13 @@ SIGNIFICANCE_LEVEL = 0.05
 
 _P_VALUE_RE = re.compile(
     r"^\s*p?\s*(<=|>=|\u2264|\u2265|<|>|=)?\s*(\d*\.?\d+(?:e[-+]?\d+)?)\s*$",
+    re.IGNORECASE,
+)
+# A registry p text with a trailing word qualifier and no further number
+# ("0.21 (ANCOVA)", "<0.001 two-sided"); "0.5 x 10-3" does not match.
+_LEADING_P_VALUE_RE = re.compile(
+    r"^\s*p?\s*(<=|>=|\u2264|\u2265|<|>|=)?\s*(\d*\.?\d+(?:e[-+]?\d+)?)"
+    r"\s*[(\[,;:]?\s*(?![xX](?![A-Za-z]))[A-Za-z][^\d]*$",
     re.IGNORECASE,
 )
 
@@ -445,35 +520,47 @@ def _p_significance(parsed: tuple[str, float] | None) -> bool | None:
     return None
 
 
-def _analysis_significance(node: dict) -> bool | None:
-    """Whether an OutcomeAnalysis node reports a statistically significant result.
-
-    Precedence: a bool `significant` attribute, then the parsed `p_value` text
-    (it keeps its comparator; "NS" reads as not significant), then a
-    `p_value_num` in [0, 1], then the confidence interval against the null
-    (1.0 for ratio measures, 0 for differences; an unknown measure decides
-    only when both nulls agree). Returns None when nothing decides it.
-    """
-    attrs = node.get("attributes")
+def _is_registry_backed(attrs) -> bool:
+    """True for a node created by, or merged with, the registry import."""
     if not isinstance(attrs, dict):
-        return None
-    flag = attrs.get("significant")
-    if isinstance(flag, bool):
-        return flag
+        return False
+    if attrs.get("source") == REGISTRY_SOURCE:
+        return True
+    sources = attrs.get("sources")
+    return isinstance(sources, list) and REGISTRY_SOURCE in sources
 
-    # The reported text keeps its comparator ("<0.05"), so it decides first;
-    # p_value_num is the fallback and must be a probability.
-    decided = _p_significance(_parse_p_value(attrs.get("p_value")))
+
+_QUALIFIERS = {"<": "<", "<=": "<=", "≤": "<=", ">": ">", ">=": ">=", "≥": ">=", "=": "="}
+
+
+def _significance_from_view(view: dict, use_qualifier: bool = False) -> bool | None:
+    """Decide significance from p / CI statistics alone (no `significant` flag).
+
+    The reported p text keeps its comparator ("<0.05"), so it decides first;
+    p_value_num is the fallback and must be a probability. With use_qualifier
+    (registry statistics) p_value_num is read with its p_value_qualifier, so
+    a registry "<" 0.05 is significant and ">" 0.01 does not decide. Then the
+    confidence interval against the null (1.0 for ratio measures, 0 for
+    differences; an unknown measure decides only when both nulls agree).
+    """
+    decided = _p_significance(_parse_p_value(view.get("p_value")))
     if decided is not None:
         return decided
-    p_num = _number(attrs.get("p_value_num"))
+    p_num = _number(view.get("p_value_num"))
     if p_num is not None and 0.0 <= p_num <= 1.0:
-        return p_num < SIGNIFICANCE_LEVEL
+        qualifier = view.get("p_value_qualifier")
+        qualifier = _QUALIFIERS.get(qualifier.strip()) if isinstance(qualifier, str) else None
+        if use_qualifier and qualifier is not None:
+            decided = _p_significance((qualifier, p_num))
+            if decided is not None:
+                return decided
+        else:
+            return p_num < SIGNIFICANCE_LEVEL
 
-    lower = _number(attrs.get("ci_lower"))
-    upper = _number(attrs.get("ci_upper"))
+    lower = _number(view.get("ci_lower"))
+    upper = _number(view.get("ci_upper"))
     if lower is not None and upper is not None:
-        ratio = _is_ratio_measure(attrs.get("effect_measure"))
+        ratio = _is_ratio_measure(view.get("effect_measure"))
         if ratio is None and lower <= 0.0:
             ratio = False  # ratios are strictly positive, so this is a difference
         excludes_ratio_null = lower > 1.0 or upper < 1.0
@@ -485,6 +572,144 @@ def _analysis_significance(node: dict) -> bool | None:
         # Unknown measure: decide only when both readings agree.
         return excludes_ratio_null if excludes_ratio_null == excludes_diff_null else None
     return None
+
+
+def _non_inferiority_type(attrs: dict) -> str | None:
+    """The registry non_inferiority_type of a non-inferiority or equivalence
+    analysis, else None. The registry value of a merged node comes first."""
+    for key in ("registry_non_inferiority_type", "non_inferiority_type"):
+        value = attrs.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip() if _NON_INFERIORITY_RE.search(value) else None
+    return None
+
+
+def _registry_group_view(attrs: dict, group: tuple) -> dict | None:
+    """The registry side of one statistic group on a merged node, or None.
+
+    Present only when the registry import stored at least one registry_<key>
+    of the group. For a group the extracted node already had, the import
+    stores a registry value as registry_<key> only when it differs from the
+    plain one, and stores nothing when the registry value is absent. A plain
+    field with no registry_<key> twin therefore holds either the registry's
+    equal value or a value the registry did not report. It completes the
+    view only where it cannot be the second kind:
+    - p: the registry p_value_num and qualifier are parsed from its p_value
+      text, so beside a registry_p_value text they are never taken from the
+      plain fields; a registry text the strict parser rejects is read by its
+      leading number when only a word qualifier follows ("0.21 (ANCOVA)"),
+      else it does not decide. A stored number or qualifier without
+      registry_p_value means the texts were equal, so the plain text completes
+      it when it parses to that number.
+    - CI: a bound is borrowed only when the registry stored neither bound
+      (both bounds are then the registry's, equal to the plain ones). A single
+      registry bound leaves the interval registry-incomplete (its partner may
+      be "NA" in the registry); a one-sided registry interval reports one
+      bound by design. Neither decides.
+    """
+    view = {
+        k: attrs[f"registry_{k}"] for k in group if attrs.get(f"registry_{k}") is not None
+    }
+    if not view:
+        return None
+    stored = set(view)
+    sides = view.get("ci_sides", attrs.get("ci_sides"))
+    one_sided = isinstance(sides, str) and "ONE" in sides.upper()
+    registry_bound = "ci_lower" in stored or "ci_upper" in stored
+    if "p_value" in stored and "p_value_num" not in stored and _parse_p_value(view["p_value"]) is None:
+        lead = _LEADING_P_VALUE_RE.match(str(view["p_value"]))
+        if lead is not None:
+            view["p_value_num"] = float(lead.group(2))
+            view.setdefault("p_value_qualifier", lead.group(1) or "=")
+    for k in group:
+        if k in view or attrs.get(k) is None:
+            continue
+        if (one_sided or registry_bound) and k in ("ci_lower", "ci_upper"):
+            continue
+        if "p_value" in stored and k in ("p_value_num", "p_value_qualifier"):
+            continue
+        if k == "p_value" and "p_value_num" in view:
+            # Equal texts parse to the same number; a plain text that does
+            # not is not the registry's and is never read beside its number.
+            parsed = _parse_p_value(attrs[k])
+            if parsed is None or parsed[1] != _number(view["p_value_num"]):
+                continue
+        view[k] = attrs[k]
+    return view
+
+
+def _plain_group_view(attrs: dict, group: tuple) -> dict | None:
+    """The plain attributes of one statistic group, or None when it has none."""
+    view = {k: attrs[k] for k in group if attrs.get(k) is not None}
+    return view or None
+
+
+def _analysis_significance_with_source(node: dict) -> tuple[bool | None, str]:
+    """(significance, source) of an OutcomeAnalysis node.
+
+    source is "ctgov_results" when registry statistics decided (or, on a node
+    the registry import created, its own flag), "extracted" when extracted
+    values decided, and "none" when nothing decided.
+
+    On a merged node (sources include "ctgov_results") the registry
+    statistics win over an extracted `significant` flag. The registry import
+    fills a group the extracted node lacked entirely into the plain
+    attributes, and stores registry_<key> for differing values of a group the
+    extracted node had. A group carrying registry_<key> values is
+    unambiguously registry data and is read first (see _registry_group_view).
+    Only then is a group with no registry_<key> read from its plain values,
+    which are the registry's (filled in or equal) and graded as registry
+    statistics. (When the registry reported nothing for a group the extracted
+    node had, its values are read the same way; the import leaves no marker
+    to tell them apart.) A node that is not registry-backed keeps the
+    original order: the flag, then p, then CI.
+    """
+    attrs = node.get("attributes")
+    if not isinstance(attrs, dict):
+        return None, NO_SOURCE
+
+    registry_node = attrs.get("source") == REGISTRY_SOURCE
+    if registry_node:
+        # A registry node: its plain statistics are the registry's.
+        decided = _significance_from_view(attrs, use_qualifier=True)
+        if decided is not None:
+            return decided, REGISTRY_SOURCE
+    elif _is_registry_backed(attrs):
+        # A merged node: groups with registry_<key> values first, then the
+        # plain groups the registry filled or matched.
+        groups = (ANALYSIS_P_GROUP, ANALYSIS_CI_GROUP)
+        registry_views = [_registry_group_view(attrs, g) for g in groups]
+        plain_views = [
+            _plain_group_view(attrs, g) if v is None else None
+            for g, v in zip(groups, registry_views)
+        ]
+        for view in registry_views + plain_views:
+            if view is None:
+                continue
+            decided = _significance_from_view(view, use_qualifier=True)
+            if decided is not None:
+                return decided, REGISTRY_SOURCE
+
+    flag = attrs.get("significant")
+    if isinstance(flag, bool):
+        return flag, REGISTRY_SOURCE if registry_node else "extracted"
+    if registry_node:
+        return None, NO_SOURCE
+    decided = _significance_from_view(attrs)
+    return decided, "extracted" if decided is not None else NO_SOURCE
+
+
+def _analysis_significance(node: dict) -> bool | None:
+    """Whether an OutcomeAnalysis node reports a statistically significant result.
+
+    Precedence: on a registry-backed node, the registry p or CI statistics
+    (see _analysis_significance_with_source); then a bool `significant` attribute, then the parsed `p_value` text (it
+    keeps its comparator; "NS" reads as not significant), then a
+    `p_value_num` in [0, 1], then the confidence interval against the null
+    (1.0 for ratio measures, 0 for differences; an unknown measure decides
+    only when both nulls agree). Returns None when nothing decides it.
+    """
+    return _analysis_significance_with_source(node)[0]
 
 
 def _is_ratio_measure(measure) -> bool | None:
@@ -499,13 +724,450 @@ def _is_ratio_measure(measure) -> bool | None:
     return None
 
 
+# Outcome-measure normalization. A copy of the Domain Builder metrics helper,
+# extended for registry outcome titles, so differently worded titles of the
+# same measure ("Change From Baseline in Hemoglobin A1c (HbA1c) - Primary
+# Treatment Period", "... Glycosylated Haemoglobin (HbA1c)") share one key.
+MEASURE_PREFIXES = (
+    "change from baseline to last assessment in the trial in other treatment outcomes:",
+    "percentage of participants achieving",
+    "percent change from baseline in",
+    "relative change from baseline in",
+    "change from baseline in",
+    "relative change in",
+    "percent change in",
+    "mean change in",
+    "change in",
+)
+MEASURE_PREFIXES = tuple(sorted(MEASURE_PREFIXES, key=len, reverse=True))
+
+MEASURE_SYNONYMS = {
+    "body mass index": "bmi",
+    "glycated haemoglobin": "hba1c",
+    "glycated hemoglobin": "hba1c",
+    "glycosylated haemoglobin": "hba1c",
+    "glycosylated hemoglobin": "hba1c",
+    "hemoglobin a1c": "hba1c",
+    "haemoglobin a1c": "hba1c",
+    "hemoglobin a1c (hba1c)": "hba1c",
+    "systolic blood pressure": "sbp",
+}
+
+_MEASURE_PAREN_RE = re.compile(r"\([^)]*\)")
+_MEASURE_WEEK_RE = re.compile(r"\s+(?:from baseline )?(?:at|to)\s+weeks?\s+\d+\s*$")
+_MEASURE_WS_RE = re.compile(r"\s+")
+# " - primary treatment period", " - semaglutide 2.4 mg versus placebo"
+_MEASURE_SUFFIX_RE = re.compile(r"\s+-\s+.*$")
+_MEASURE_COMPARING_RE = re.compile(r"\s+comparing\b.*$")
+# "change from baseline to week 68 in", "change from baseline to end of treatment in"
+_MEASURE_GENERIC_PREFIX_RE = re.compile(r"^change from baseline to [^:]{1,80}?\s+in\s+")
+
+# 3-point MACE. A registry names the same composite as "MACE", "Major Adverse
+# Cardiovascular Events", "3-point MACE" or by its three components
+# ("cardiovascular death, non-fatal MI or non-fatal stroke"; SUSTAIN-6 and
+# PIONEER 6 also report an all-cause-death variant), often after "Time (from
+# randomisation) to first (occurrence of)". All of these key as "mace".
+# Conservative: the check reads the whole title, before normalize_measure
+# strips anything, and only these parentheticals are dropped: "(MACE)",
+# "(3-point MACE)", "(MI)", "(myocardial infarction)", "(CV)",
+# "(cardiovascular)". Any other parenthetical, a " - ..." suffix or another
+# leading phrase ("Percentage of participants achieving") keeps the title off
+# the key. The components must be exactly death, non-fatal MI and non-fatal
+# stroke in that order, so expanded composites (revascularisation, unstable
+# angina, heart failure), 4-point MACE and single components keep their own
+# keys.
+_MACE_PAREN_RE = re.compile(
+    r"\s*\((?:mace|(?:3|three)[- ]?point mace|mi|myocardial infarction|cv|cardiovascular)\)"
+)
+_MACE_TIME_PREFIX_RE = re.compile(
+    r"^time (?:from randomi[sz]ation )?to (?:the )?first(?: (?:occurrence|event) of)?\s*:?\s*(?:an? |the )?"
+)
+_MACE_NAME = r"(?:(?:3|three)[- ]?point (?:mace|major adverse cardiovascular events?)|mace(?:[- ]3)?|major adverse cardiovascular events?)"
+_MACE_NAME_RE = re.compile(rf"^{_MACE_NAME}$")
+_MACE_HEADER_RE = re.compile(
+    rf"^(?:{_MACE_NAME}(?: composite(?: end ?point| outcome)?)?|(?:a )?composite(?: end ?point| outcome)?)"
+    r",?\s*(?:defined as|consisting of|comprising|of)?\s*:?\s*"
+)
+_MACE_DEATH = r"(?:(?:cardiovascular|cv|all[- ]cause) (?:death|mortality)|death from (?:cardiovascular|any) causes?)"
+_MACE_SEP = r"\s*(?:,\s*(?:and |or )?|and |or |/\s*)\s*"
+_MACE_COMPONENTS_RE = re.compile(
+    rf"^{_MACE_DEATH}{_MACE_SEP}non[- ]?fatal (?:myocardial infarction|mi){_MACE_SEP}non[- ]?fatal stroke$"
+)
+
+
+def _is_mace(name) -> bool:
+    """True when an outcome-measure title names a 3-point MACE composite."""
+    t = _MEASURE_WS_RE.sub(" ", str(name or "").lower()).strip()
+    t = _MEASURE_WS_RE.sub(" ", _MACE_PAREN_RE.sub("", t)).strip()
+    t = re.sub(r"[\s.,;:]+$", "", t)
+    t = _MACE_TIME_PREFIX_RE.sub("", t, count=1)
+    if _MACE_NAME_RE.match(t):
+        return True
+    return bool(_MACE_COMPONENTS_RE.match(_MACE_HEADER_RE.sub("", t, count=1)))
+
+
+def normalize_measure(name) -> str:
+    """Reduce an outcome-measure name to a canonical key.
+
+    3-point MACE composites share the key "mace" (see _is_mace). Only
+    registry mode uses this key, so graphs without registry data group
+    exactly as before.
+    """
+    if _is_mace(name):
+        return "mace"
+    return _base_measure_key(name)
+
+
+def _base_measure_key(name) -> str:
+    """normalize_measure without the MACE key: the per-title key that registry
+    contests are decided on (see _analysis_contests)."""
+    s = _MEASURE_WS_RE.sub(" ", str(name or "").lower()).strip()
+    s = _MEASURE_SUFFIX_RE.sub("", s)
+    s = _MEASURE_COMPARING_RE.sub("", s)
+    stripped = False
+    for prefix in MEASURE_PREFIXES:
+        # Word boundary: "change in" must not eat the start of "change inflammation".
+        if s.startswith(prefix) and (len(s) == len(prefix) or not s[len(prefix)].isalnum()):
+            s = s[len(prefix):].lstrip()
+            stripped = True
+            break
+    if not stripped:
+        s = _MEASURE_GENERIC_PREFIX_RE.sub("", s, count=1)
+    s = _MEASURE_PAREN_RE.sub(" ", s)
+    s = _MEASURE_WS_RE.sub(" ", s).strip()
+    s = _MEASURE_WEEK_RE.sub("", s)
+    s = re.sub(r"[\s.,;:]+$", "", s)
+    s = _MEASURE_WS_RE.sub(" ", s).strip()
+    s = MEASURE_SYNONYMS.get(s, s)
+    if s and _is_mace(s) and not _is_mace(name):
+        # The stripping removed a qualifier ("MACE (4-point)", "MACE -
+        # expanded composite", "Percentage of participants achieving MACE"):
+        # keep the whole title so it never shares the 3-point MACE key.
+        return _MEASURE_WS_RE.sub(" ", str(name or "").lower()).strip()
+    return s
+
+
+_REGISTRY_STAT_KEYS = frozenset(
+    f"registry_{k}" for k in ANALYSIS_P_GROUP + ANALYSIS_CI_GROUP
+)
+
+
+def _graph_has_registry_data(nodes: list[dict]) -> bool:
+    """True when any node carries registry-import provenance, or an
+    OutcomeAnalysis carries a registry statistic stored beside an extracted one.
+
+    Other registry_<attr> conflict keys (a TrialPhase's registry_value, an
+    Intervention's registry_label) come from earlier registry enrichment and
+    do not make a graph one with registry analyses.
+    """
+    for node in nodes:
+        attrs = node.get("attributes") if isinstance(node, dict) else None
+        if not isinstance(attrs, dict):
+            continue
+        if _is_registry_backed(attrs):
+            return True
+        if (
+            str(node.get("entity_type", "")).lower() == ANALYSIS_TYPE
+            and _REGISTRY_STAT_KEYS & set(attrs)
+        ):
+            return True
+    return False
+
+
+def _node_ncts(node: dict, attrs: dict) -> list[str]:
+    """NCT ids of an analysis: its attributes, ctgov: documents, then its name."""
+    found: list[str] = []
+    ids = attrs.get("ctgov_nct_ids")
+    if isinstance(ids, list):
+        found.extend(str(i).strip() for i in ids)
+    if isinstance(attrs.get("ctgov_nct_id"), str):
+        found.append(attrs["ctgov_nct_id"].strip())
+    docs = node.get("source_documents")
+    for doc in docs if isinstance(docs, list) else ():
+        text = str(doc).strip()
+        if text.lower().startswith("ctgov:"):
+            found.append(text[len("ctgov:"):].strip())
+    prefix = NCT_RE.match(str(node.get("name") or ""))
+    if prefix:
+        found.append(prefix.group(0))
+    ncts: list[str] = []
+    for value in found:
+        value = value.upper()
+        if NCT_RE.fullmatch(value) and value not in ncts:
+            ncts.append(value)
+    return ncts
+
+
+def _trial_nct_map(trial_lookup: dict) -> dict[str, str]:
+    """NCT id -> the lowest Trial id carrying it (name, nct_id attribute or id)."""
+    mapping: dict[str, str] = {}
+    for trial_id in sorted(trial_lookup, key=str):
+        trial = trial_lookup[trial_id]
+        attrs = trial.get("attributes") if isinstance(trial.get("attributes"), dict) else {}
+        found = [str(trial.get("name") or "").strip().upper(), str(attrs.get("nct_id") or "").strip().upper()]
+        found.extend(m.upper() for m in NCT_RE.findall(str(trial_id)))
+        for nct in found:
+            if NCT_RE.fullmatch(nct):
+                mapping.setdefault(nct, trial_id)
+    return mapping
+
+
+def _compound_patterns(by_id: dict) -> list[tuple[str, re.Pattern]]:
+    """(compound id, word-boundary pattern) for every Compound name of 3+ chars
+    that is not a comparator keyword phrase."""
+    patterns = []
+    for node_id in sorted(by_id, key=str):
+        node = by_id[node_id]
+        if str(node.get("entity_type", "")).lower() != "compound":
+            continue
+        name = str(node.get("name") or "").strip()
+        # A Compound named like a comparator ("Standard of care") names no
+        # treatment.
+        if len(name) < MIN_COMPOUND_NAME or _HARD_PLACEBO_RE.search(name) or _SOFT_PLACEBO_RE.search(name):
+            continue
+        patterns.append((node_id, re.compile(
+            r"(?<![A-Za-z0-9])" + re.escape(name) + r"(?![A-Za-z0-9])", re.IGNORECASE
+        )))
+    return patterns
+
+
+def _soft_keyword_spans(text: str) -> list[tuple[int, int]]:
+    """(start, end) of every soft comparator keyword in text. "control"
+    qualified by what it controls ("glycaemic control", "blood pressure
+    control") names no comparator arm and is skipped."""
+    spans = []
+    for match in _SOFT_PLACEBO_RE.finditer(text):
+        if match.group(0).lower() == "control" and _CONTROL_QUALIFIER_RE.search(text, 0, match.start()):
+            continue
+        spans.append(match.span())
+    return spans
+
+
+def _split_parentheticals(text: str) -> tuple[str, list[str]]:
+    """(text with every parenthetical blanked to spaces, the contents of its
+    top-level parentheticals). Positions in the blanked text match text."""
+    outside: list[str] = []
+    segments: list[str] = []
+    inner: list[str] = []
+    depth = 0
+    for ch in text:
+        if ch == "(":
+            depth += 1
+            if depth == 1:
+                inner = []
+                outside.append(" ")
+                continue
+        elif ch == ")" and depth:
+            depth -= 1
+            if depth == 0:
+                segments.append("".join(inner))
+                outside.append(" ")
+                continue
+        if depth:
+            inner.append(ch)
+            outside.append(" ")
+        else:
+            outside.append(ch)
+    if depth:
+        segments.append("".join(inner))
+    return "".join(outside), segments
+
+
+def _joined_compounds(text: str, spans, patterns: list[tuple[str, re.Pattern]]) -> set[str]:
+    """Compounds joined to a soft keyword span by an add-on connector, in either
+    order ("Semaglutide 1 mg with usual care", "Usual care + semaglutide")."""
+    joined = set()
+    for compound_id, pattern in patterns:
+        for match in pattern.finditer(text):
+            for start, end in spans:
+                gap = (match.end(), start) if match.end() <= start else (end, match.start())
+                if gap[0] <= gap[1] and _ADD_ON_RE.search(text, gap[0], gap[1]):
+                    joined.add(compound_id)
+    return joined
+
+
+def _soft_arm(text: str, patterns: list[tuple[str, re.Pattern]]) -> tuple[bool, set[str]] | None:
+    """(is comparator, arm compounds) of a text with a soft keyword and no hard
+    one, or None when it has no soft keyword.
+
+    A soft keyword outside parentheses marks a comparator arm unless a
+    Compound named outside parentheses is joined to it by an add-on
+    connector; the joined compounds are then the active add-on arm's
+    ("Usual care + semaglutide 0.5 mg"), and a compound only in a
+    parenthetical is the comparator's background ("Standard of care
+    (metformin)"). A soft keyword only inside a parenthetical marks a
+    comparator ("Insulin glargine (control)") unless the parenthetical joins
+    it to the arm by a connector before it ("Semaglutide 1 mg (added to
+    standard of care)").
+    """
+    outside, segments = _split_parentheticals(text)
+    spans = _soft_keyword_spans(outside)
+    if spans:
+        joined = _joined_compounds(outside, spans, patterns)
+        return (False, joined) if joined else (True, set())
+    inside = [segment for segment in segments if _soft_keyword_spans(segment)]
+    if not inside:
+        return None
+    named = {compound_id for compound_id, pattern in patterns if pattern.search(outside)}
+    for segment in inside:
+        first = _soft_keyword_spans(segment)[0]
+        if named and _ADD_ON_RE.search(segment, 0, first[0]):
+            return False, named
+    return True, set()
+
+
+def _is_comparator_text(text, patterns: list[tuple[str, re.Pattern]]) -> bool:
+    """True when text names a comparator arm (see SOFT_PLACEBO_KEYWORDS)."""
+    if not isinstance(text, str) or not text:
+        return False
+    if _HARD_PLACEBO_RE.search(text):
+        return True
+    soft = _soft_arm(text, patterns)
+    return soft is not None and soft[0]
+
+
+def _compounds_in_text(text, patterns: list[tuple[str, re.Pattern]]) -> set[str]:
+    """Compound ids whose name appears in text at a word boundary.
+
+    Comparator text names no treatment ("Semaglutide placebo", "Usual care
+    (metformin)"); an active add-on arm names the compounds joined to its
+    soft keyword ("Semaglutide 2.4 mg + usual care").
+    """
+    if not isinstance(text, str) or not text or _HARD_PLACEBO_RE.search(text):
+        return set()
+    soft = _soft_arm(text, patterns)
+    if soft is not None:
+        return soft[1]
+    return {compound_id for compound_id, pattern in patterns if pattern.search(text)}
+
+
+def _is_placebo_cohort(cohort: dict, received_names: list[str], patterns=()) -> bool:
+    """A comparator arm: a comparator keyword in its name, arm label or group
+    description that is not an active add-on to standard of care (see
+    _is_comparator_text), or every compound or intervention it receives is
+    placebo.
+    """
+    attrs = cohort.get("attributes") if isinstance(cohort.get("attributes"), dict) else {}
+    for text in (cohort.get("name"), attrs.get("arm_label"), attrs.get("group_description")):
+        if _is_comparator_text(text, patterns):
+            return True
+    return bool(received_names) and all("placebo" in name.lower() for name in received_names)
+
+
+def _registry_treatment(
+    node_id, attrs: dict, related, by_id: dict, adjacency, patterns, cohort_info
+) -> tuple[str | None, set[str]]:
+    """Resolve the treatment compound from compares Cohorts and registry group titles.
+
+    Placebo and comparator arms are dropped before any name match, because a
+    placebo arm's name can contain the compound ("Semaglutide placebo 0.5 mg").
+    Returns (compound id or None, non-placebo compared cohort ids). The
+    treatment is set only when exactly one compound results. When several
+    result and at least one compared arm is a comparator arm, a compound that
+    every compared arm receives (the comparator included) is background
+    therapy and is dropped, if exactly one remains. Without a comparator arm
+    the shared compound is the comparison itself (CagriSema vs semaglutide),
+    so the treatment stays ambiguous.
+    """
+    def received(cohort_id) -> set[str]:
+        found = set(related(cohort_id, RECEIVES, "compound"))
+        for intervention in related(cohort_id, RECEIVES, "intervention"):
+            found.update(related(intervention, CONTAINS, "compound"))
+        return found
+
+    cohorts = related(node_id, COMPARES, "cohort")
+    active = [c for c in cohorts if not cohort_info(c)]
+    compounds: set[str] = set()
+    # Compounds per compared arm, for the background-therapy check.
+    arms: list[set[str]] = []
+    for cohort_id in cohorts:
+        if cohort_id not in active:
+            arms.append({
+                c for c in received(cohort_id)
+                if "placebo" not in str(by_id[c].get("name") or "").lower()
+            })
+            continue
+        found = received(cohort_id)
+        if not found:
+            found = _compounds_in_text(by_id[cohort_id].get("name"), patterns)
+        compounds.update(found)
+        arms.append(found)
+
+    # Group titles that matched no Cohort stand in for the missing arm. With no
+    # compared Cohort, or only comparator ones, the active arm is one of the
+    # compared group titles.
+    titles = attrs.get("unmatched_groups") if active else attrs.get("compared_groups")
+    has_comparator = len(active) < len(cohorts)
+    for title in titles if isinstance(titles, list) else ():
+        if _is_comparator_text(title, patterns):
+            has_comparator = True
+        found = _compounds_in_text(title, patterns)
+        compounds.update(found)
+        arms.append(found)
+
+    if has_comparator and len(compounds) > 1 and len(arms) > 1:
+        remaining = compounds - set.intersection(*arms)
+        if len(remaining) == 1:
+            compounds = remaining
+    treatment = next(iter(compounds)) if len(compounds) == 1 else None
+    return treatment, set(active)
+
+
+def _arm_type_treatment(attrs: dict, patterns) -> str | None:
+    """Treatment compound from the registry armGroup types of an analysis.
+
+    Needs ctgov_arm_groups with at least two entries, every one typed, exactly
+    one EXPERIMENTAL and all the others comparator types (active, placebo, sham,
+    no intervention). The compound is the one the EXPERIMENTAL group's title
+    names or, when the title names none, the one its interventions name. Zero
+    or several compounds give None.
+    """
+    groups = attrs.get("ctgov_arm_groups")
+    if not isinstance(groups, list) or len(groups) < 2:
+        return None
+    if not all(isinstance(g, dict) and isinstance(g.get("arm_type"), str) for g in groups):
+        return None
+    experimental = [g for g in groups if g["arm_type"] == ARM_EXPERIMENTAL]
+    if len(experimental) != 1:
+        return None
+    if not all(
+        g["arm_type"] in ARM_COMPARATOR_TYPES for g in groups if g is not experimental[0]
+    ):
+        return None
+    arm = experimental[0]
+    # A group typed EXPERIMENTAL but titled as a comparator (a blinded placebo
+    # arm) names no treatment, whatever its interventions list.
+    if _is_comparator_text(arm.get("title"), patterns):
+        return None
+    found = _compounds_in_text(arm.get("title"), patterns)
+    if not found:
+        for intervention in arm.get("interventions") or ():
+            if isinstance(intervention, str) and not _HARD_PLACEBO_RE.search(intervention):
+                found |= _compounds_in_text(_INTERVENTION_PREFIX_RE.sub("", intervention), patterns)
+    return next(iter(found)) if len(found) == 1 else None
+
+
 def _analysis_findings(
-    nodes: list[dict], links: list[dict], trial_lookup: dict, doc_trials: dict
+    nodes: list[dict], links: list[dict], trial_lookup: dict, doc_trials: dict,
+    registry_mode: bool = False, arm_stats: dict | None = None,
 ) -> list[dict]:
     """Grade every OutcomeAnalysis node into one finding dict.
 
     The outcome, treatment and trial are resolved through the graph's edges
     in either direction, so a reversed edge still resolves.
+
+    With registry_mode (the graph carries registry-import data) a registry
+    analysis also resolves its Trial through its NCT ids, its treatment through
+    its compared Cohorts or group titles, and its outcome to a normalized
+    measure key; findings then record their significance source and
+    registry-backed provenance, and an extracted analysis duplicated by a
+    registry analysis is marked superseded.
+
+    In registry mode an analysis whose treatment is still None takes the
+    EXPERIMENTAL group's compound when its ctgov_arm_groups are one
+    EXPERIMENTAL group against comparators (_arm_type_treatment). That rule
+    only fills a None, so an answer found any other way never changes; a
+    disagreeing rule answer is only counted in arm_stats["disagreements"].
     """
     by_id = {n["id"]: n for n in nodes if "id" in n}
     adjacency: dict[str, list[tuple[str, str]]] = defaultdict(list)
@@ -530,7 +1192,29 @@ def _analysis_findings(
         node = by_id.get(node_id)
         return str(node.get("name") or node_id) if node else None
 
+    nct_trials: dict[str, str] = {}
+    patterns: list[tuple[str, re.Pattern]] = []
+    placebo_cache: dict[str, bool] = {}
+    if registry_mode:
+        nct_trials = _trial_nct_map(trial_lookup)
+        patterns = _compound_patterns(by_id)
+
+    def cohort_info(cohort_id) -> bool:
+        if cohort_id not in placebo_cache:
+            received = [
+                str(by_id[t].get("name") or "")
+                for t in sorted({
+                    o for r, o in adjacency.get(cohort_id, ())
+                    if r == RECEIVES and o in by_id
+                })
+            ]
+            placebo_cache[cohort_id] = _is_placebo_cohort(by_id[cohort_id], received, patterns)
+        return placebo_cache[cohort_id]
+
     findings: list[dict] = []
+    from_arm_type: set = set()
+    # Per-finding data the supersession pass needs; never stored on the finding.
+    side: dict[str, dict] = {}
     for node in nodes:
         if str(node.get("entity_type", "")).lower() != ANALYSIS_TYPE:
             continue
@@ -555,12 +1239,31 @@ def _analysis_findings(
             if interventions:
                 contained = related(interventions[0], CONTAINS, "compound")
                 treatment_id = contained[0] if contained else interventions[0]
+        active_cohorts: set[str] = set()
+        if registry_mode:
+            fallback, active_cohorts = _registry_treatment(
+                node_id, attrs, related, by_id, adjacency, patterns, cohort_info
+            )
+            if treatment_id is None:
+                treatment_id = fallback
+            arm = _arm_type_treatment(attrs, patterns)
+            if arm is not None:
+                if treatment_id is None:
+                    treatment_id = arm
+                    from_arm_type.add(node_id)
+                elif arm != treatment_id and etype(treatment_id) == "compound" and arm_stats is not None:
+                    arm_stats["disagreements"] = arm_stats.get("disagreements", 0) + 1
         treatment = name_of(treatment_id) if treatment_id else None
 
-        # Trial: a direct edge first, else the trials of the source documents
+        # Trial: a direct edge first, then the NCT ids (registry mode), else
+        # the trials of the source documents
         candidates = sorted({
             other for rel, other in adjacency.get(node_id, ()) if other in trial_lookup
         })
+        if not candidates and registry_mode:
+            candidates = sorted({
+                nct_trials[nct] for nct in _node_ncts(node, attrs) if nct in nct_trials
+            }, key=str)
         if not candidates:
             seen: set[str] = set()
             for doc in node.get("source_documents") or []:
@@ -579,11 +1282,12 @@ def _analysis_findings(
         if trial_id is not None and tier not in EVIDENCE_TIERS:
             tier = "low_evidence"
 
-        significant = _analysis_significance(node)
+        significant, significance_source = _analysis_significance_with_source(node)
         p_value = attrs.get("p_value")
         if p_value is None:
             p_value = attrs.get("p_value_num")
-        findings.append({
+        support_documents = [str(d) for d in node.get("source_documents") or []]
+        finding = {
             "analysis": node_id,
             "analysis_name": node.get("name"),
             "trial": trial_id,
@@ -597,22 +1301,104 @@ def _analysis_findings(
             "p_value": p_value,
             "effect_estimate": attrs.get("effect_estimate"),
             "evidence_tier": tier,
-            "support_documents": [str(d) for d in node.get("source_documents") or []],
+            "support_documents": support_documents,
             "basis": "outcome_analysis",
             "epistemic_status": (
                 "asserted" if significant is True
                 else "negative" if significant is False
                 else "unresolved"
             ),
-        })
+        }
+        if registry_mode:
+            backed = _is_registry_backed(attrs)
+            if backed:
+                for nct in _node_ncts(node, attrs):
+                    doc = f"ctgov:{nct}"
+                    if doc not in support_documents:
+                        support_documents.append(doc)
+            raw_sources = attrs.get("sources")
+            if isinstance(raw_sources, list):
+                sources = [str(s) for s in raw_sources]
+            elif isinstance(attrs.get("source"), str):
+                sources = [attrs["source"]]
+            else:
+                sources = ["extracted"]
+            if node_id in from_arm_type:
+                finding["treatment_basis"] = "registry_arm_type"
+            finding["significance_source"] = significance_source
+            finding["sources"] = sources
+            # An outcome whose name normalizes to nothing ("Change from baseline
+            # in (HbA1c)") keys on its own id, so it groups with no other.
+            finding["standard_outcome_key"] = (
+                (normalize_measure(standard_outcome) or str(standard_outcome_id))
+                if standard_outcome else None
+            )
+            if backed:
+                ni_type = _non_inferiority_type(attrs)
+                if ni_type:
+                    finding["non_inferiority"] = ni_type
+            side[node_id] = {
+                "registry": attrs.get("source") == REGISTRY_SOURCE,
+                "backed": backed,
+                "cohorts": set(related(node_id, COMPARES, "cohort")),
+                "active": active_cohorts,
+            }
+        findings.append(finding)
+
+    if registry_mode:
+        _mark_superseded(findings, side)
     return findings
 
 
-def _analysis_contests(findings: list[dict]) -> tuple[list[dict], list[dict]]:
+def _mark_superseded(findings: list[dict], side: dict[str, dict]) -> None:
+    """Mark extracted findings that a registry finding of the same comparison replaces.
+
+    Same resolved trial, outcome key and treatment, and a shared non-placebo
+    compared Cohort. When either side has no compared Cohorts the pair matches
+    only if exactly one registry finding is a candidate. With several matches
+    the lowest registry analysis id wins. Both findings stay in the claims.
+    """
+    registry = [f for f in findings if side[f["analysis"]]["registry"]]
+    for finding in findings:
+        info = side[finding["analysis"]]
+        if info["backed"]:
+            continue
+        if finding["trial"] is None or finding["standard_outcome_key"] is None or finding["treatment"] is None:
+            continue
+        candidates = [
+            r for r in registry
+            if r["trial"] == finding["trial"]
+            and r["standard_outcome_key"] == finding["standard_outcome_key"]
+            and str(r["treatment"]).lower() == str(finding["treatment"]).lower()
+        ]
+        matches = []
+        for candidate in candidates:
+            other = side[candidate["analysis"]]
+            if info["cohorts"] and other["cohorts"]:
+                if info["active"] & other["active"]:
+                    matches.append(candidate)
+            elif len(candidates) == 1:
+                matches.append(candidate)
+        if matches:
+            finding["superseded_by"] = min(m["analysis"] for m in matches)
+
+
+def _analysis_contests(
+    findings: list[dict], registry_mode: bool = False, test_types: dict | None = None
+) -> tuple[list[dict], list[dict]]:
     """Find StandardOutcome + treatment pairs whose analyses disagree on significance.
 
     Returns (contested, contradictions). A contested entry is also a
-    contradiction when both sides include a high_evidence analysis.
+    contradiction when both sides include a high_evidence analysis. In
+    registry mode superseded and non-inferiority findings take no part, and the
+    contest is decided per trial (see _registry_contest_entry) on the per-title
+    measure key (_base_measure_key), so a trial significant on one MACE
+    variant and not on another is never made "mixed" by the shared key. The
+    entries are then merged so one (outcome key, treatment, positive trials,
+    negative trials) gives one entry: "MACE" and its three-component title
+    reported by the same two trials are one contest, not one per title.
+    test_types maps a registry analysis id to its registry non_inferiority_type
+    (registry mode only; see _registry_test_types).
     """
     groups: dict[tuple[str, str], list[dict]] = defaultdict(list)
     for finding in findings:
@@ -620,12 +1406,24 @@ def _analysis_contests(findings: list[dict]) -> tuple[list[dict], list[dict]]:
             continue
         if finding["standard_outcome"] is None or finding["treatment"] is None:
             continue
-        key = (str(finding["standard_outcome"]).lower(), str(finding["treatment"]).lower())
+        if registry_mode:
+            if (
+                finding.get("superseded_by")
+                or finding.get("non_inferiority")
+                or finding.get("standard_outcome_key") is None
+            ):
+                continue
+            fine = _base_measure_key(finding["standard_outcome"]) or str(finding["standard_outcome_id"])
+            key = (fine, str(finding["treatment"]).lower())
+        else:
+            key = (str(finding["standard_outcome"]).lower(), str(finding["treatment"]).lower())
         groups[key].append(finding)
 
     contested: list[dict] = []
     contradictions: list[dict] = []
-    for _key, group in sorted(groups.items()):
+    if registry_mode:
+        return _registry_contests(groups, test_types)
+    for key, group in sorted(groups.items()):
         positive = [f for f in group if f["significant"] is True]
         negative = [f for f in group if f["significant"] is False]
         if not positive or not negative:
@@ -662,6 +1460,195 @@ def _analysis_contests(findings: list[dict]) -> tuple[list[dict], list[dict]]:
         if "high_evidence" in positive_tiers and "high_evidence" in negative_tiers:
             contradictions.append({**entry, "epistemic_status": "contradiction"})
     return contested, contradictions
+
+
+def _registry_contests(groups: dict, test_types: dict | None) -> tuple[list[dict], list[dict]]:
+    """Decide registry contests per (per-title key, treatment) group, then merge
+    the entries that share (outcome key, treatment, positive trials, negative
+    trials) into one, rebuilt from the union of their analyses. The merged
+    entry is a contradiction when any of its parts is. Entries keep the order
+    of their first part."""
+    merged: dict[tuple, dict] = {}
+    for key, group in sorted(groups.items()):
+        entry, is_contradiction = _registry_contest_entry(key, group, test_types)
+        if entry is None:
+            continue
+        coarse = str(group[0]["standard_outcome_key"])
+        dedupe = (coarse, key[1], tuple(entry["positive_trials"]), tuple(entry["negative_trials"]))
+        slot = merged.setdefault(dedupe, {"entry": entry, "group": [], "parts": 0, "contradiction": False})
+        slot["group"].extend(group)
+        slot["parts"] += 1
+        slot["contradiction"] = slot["contradiction"] or is_contradiction
+    contested: list[dict] = []
+    contradictions: list[dict] = []
+    for (coarse, treatment, _, _), slot in merged.items():
+        entry = slot["entry"]
+        if slot["parts"] > 1:
+            entry, _ = _registry_contest_entry((coarse, treatment), slot["group"], test_types)
+        else:
+            entry = {**entry, "standard_outcome_key": coarse}
+        contested.append({**entry, "epistemic_status": "contested"})
+        if slot["contradiction"]:
+            contradictions.append({**entry, "epistemic_status": "contradiction"})
+    return contested, contradictions
+
+
+# CT.gov nonInferiorityType values. On a node that is not registry-sourced (an
+# extracted analysis that received registry data) a plain non_inferiority_type
+# is read only when it is one of these, so extracted free text never sets a
+# design note.
+CTGOV_TEST_TYPES = frozenset({
+    "SUPERIORITY", "SUPERIORITY_OR_OTHER", "NON_INFERIORITY", "EQUIVALENCE",
+    "NON_INFERIORITY_OR_EQUIVALENCE", "OTHER",
+})
+
+
+def _registry_test_types(nodes: list[dict]) -> dict[str, str]:
+    """Map registry-backed OutcomeAnalysis id -> registry non_inferiority_type
+    (upper case). A merged node's registry_non_inferiority_type comes first;
+    its plain value counts only when the node is registry-sourced or the
+    value is a CT.gov type (CTGOV_TEST_TYPES)."""
+    out: dict[str, str] = {}
+    for node in nodes:
+        if not isinstance(node, dict) or str(node.get("entity_type", "")).lower() != ANALYSIS_TYPE:
+            continue
+        attrs = node.get("attributes")
+        if not isinstance(attrs, dict) or not _is_registry_backed(attrs):
+            continue
+        registry_sourced = attrs.get("source") == REGISTRY_SOURCE
+        for key in ("registry_non_inferiority_type", "non_inferiority_type"):
+            value = attrs.get(key)
+            if not (isinstance(value, str) and value.strip()):
+                continue
+            value = value.strip()
+            if key == "non_inferiority_type" and not registry_sourced and value not in CTGOV_TEST_TYPES:
+                continue
+            out[str(node.get("id"))] = value.upper()
+            break
+    return out
+
+
+def _design_note(positive: list[dict], negative: list[dict], test_types: dict | None) -> str | None:
+    """A note when a compared analysis is registered with a non_inferiority_type
+    other than SUPERIORITY (for example SUPERIORITY_OR_OTHER or OTHER), else None.
+
+    The contest is kept: the note only says the registry does not record every
+    compared analysis as a superiority test. Analyses without a registry type
+    never add a note.
+    """
+    if not test_types:
+        return None
+
+    def side(findings) -> str:
+        counts: dict[str, int] = defaultdict(int)
+        for f in findings:
+            counts[test_types.get(str(f["analysis"]), "not recorded")] += 1
+        return ", ".join(f"{t} x{n}" for t, n in sorted(counts.items()))
+
+    members = positive + negative
+    if not any(
+        test_types.get(str(f["analysis"])) not in (None, "SUPERIORITY") for f in members
+    ):
+        return None
+    return (
+        "non_inferiority_type other than SUPERIORITY on a compared analysis "
+        f"(positive: {side(positive)}; negative: {side(negative)}); "
+        "the registry does not record every compared analysis as a superiority test"
+    )
+
+
+def _registry_contest_entry(
+    key: tuple[str, str], group: list[dict], test_types: dict | None = None
+) -> tuple[dict | None, bool]:
+    """Decide one registry-mode (outcome key, treatment) group at trial level.
+
+    A trial is positive when all its analyses in the group are significant,
+    negative when none is, and mixed otherwise (for example a dose-response
+    split between dose arms). Only positive trials contest negative trials;
+    mixed trials are listed but pair with nothing. The group is a
+    contradiction when a high_evidence positive trial (every one of its
+    analyses high_evidence) meets a high_evidence negative trial. The entry is
+    named from the group key and its sorted member outcome ids, so it does not
+    depend on node order. It carries design_note when a positive or negative
+    analysis is registered with a non_inferiority_type other than SUPERIORITY
+    (see _design_note). Returns (entry or None, is_contradiction).
+    """
+    by_trial: dict[str, list[dict]] = defaultdict(list)
+    for finding in group:
+        if finding["trial"] is not None:
+            by_trial[finding["trial"]].append(finding)
+    positive_trials, negative_trials, mixed_trials = [], [], []
+    for trial in sorted(by_trial, key=str):
+        verdicts = {f["significant"] for f in by_trial[trial]}
+        if verdicts == {True}:
+            positive_trials.append(trial)
+        elif verdicts == {False}:
+            negative_trials.append(trial)
+        else:
+            mixed_trials.append(trial)
+    if not positive_trials or not negative_trials:
+        return None, False
+
+    def members(trials, verdict=None):
+        return sorted(
+            (f for t in trials for f in by_trial[t] if verdict is None or f["significant"] is verdict),
+            key=lambda f: str(f["analysis"]),
+        )
+
+    def high(trial) -> bool:
+        return all(f["evidence_tier"] == "high_evidence" for f in by_trial[trial])
+
+    positive = members(positive_trials)
+    negative = members(negative_trials)
+    outcome_ids = sorted({
+        str(f["standard_outcome_id"]) for f in group if f.get("standard_outcome_id") is not None
+    })
+    representative = outcome_ids[0] if outcome_ids else None
+    treated = min(group, key=lambda f: (str(f.get("treatment_id")), str(f["analysis"])))
+    docs = sorted({d for f in group for d in f.get("support_documents") or []})
+    # An outcome whose name normalizes to nothing keys on its own id; name the
+    # entry after that outcome rather than the id.
+    display = key[0]
+    if key[0] in outcome_ids:
+        display = next((
+            str(f["standard_outcome"]) for f in sorted(group, key=lambda f: str(f["analysis"]))
+            if str(f.get("standard_outcome_id")) == key[0] and f.get("standard_outcome")
+        ), key[0])
+    entry = {
+        "standard_outcome": display,
+        "standard_outcome_key": key[0],
+        "standard_outcome_ids": outcome_ids,
+        "treatment": treated["treatment"],
+        "positive": [f["analysis"] for f in positive],
+        "negative": [f["analysis"] for f in negative],
+        "positive_tiers": [f["evidence_tier"] for f in positive],
+        "negative_tiers": [f["evidence_tier"] for f in negative],
+        "positive_trials": positive_trials,
+        "negative_trials": negative_trials,
+        "mixed_trials": [
+            {
+                "trial": trial,
+                "positive": [f["analysis"] for f in members([trial], True)],
+                "negative": [f["analysis"] for f in members([trial], False)],
+            }
+            for trial in mixed_trials
+        ],
+        "trials": sorted(by_trial, key=str),
+        "basis": "outcome_analysis",
+        # Standard fields read by core/epistemic_health.py
+        "source": treated.get("treatment_id"),
+        "target": representative,
+        "source_entity": treated.get("treatment_id"),
+        "target_entity": representative,
+        "relation_type": ASSESSES,
+        "mentions": [{"source_document": d} for d in docs],
+        "support_documents": docs,
+    }
+    note = _design_note(positive, negative, test_types)
+    if note:
+        entry["design_note"] = note
+    is_contradiction = any(high(t) for t in positive_trials) and any(high(t) for t in negative_trials)
+    return entry, is_contradiction
 
 
 # ---------------------------------------------------------------------------
@@ -866,8 +1853,16 @@ def analyze_clinicaltrials_epistemic(output_dir: Path, graph_data: dict) -> dict
                 hypothesized_links.append(link)
 
     # --- OutcomeAnalysis claims ---------------------------------------------
-    analysis_claims = _analysis_findings(nodes, links, trial_lookup, doc_trials)
-    analysis_contested, analysis_contradictions = _analysis_contests(analysis_claims)
+    registry_mode = _graph_has_registry_data(nodes)
+    arm_stats: dict = {}
+    analysis_claims = _analysis_findings(
+        nodes, links, trial_lookup, doc_trials, registry_mode=registry_mode, arm_stats=arm_stats
+    )
+    analysis_contested, analysis_contradictions = _analysis_contests(
+        analysis_claims,
+        registry_mode=registry_mode,
+        test_types=_registry_test_types(nodes) if registry_mode else None,
+    )
     contested.extend(analysis_contested)
     contradictions.extend(analysis_contradictions)
     # Kept separate from epistemic_status_counts: the analysis edges are already
@@ -900,6 +1895,40 @@ def analyze_clinicaltrials_epistemic(output_dir: Path, graph_data: dict) -> dict
         for link in hypothesized_links
     ]
 
+    summary = {
+        "evidence_tier_counts": dict(evidence_counts),
+        # v3 standard key — enables narrator + workbench chat parity across domains.
+        "epistemic_status_counts": dict(status_counts),
+        "contradictions_found": len(contradictions),
+        "contested_found": len(contested),
+        "mixed_tier_found": len(mixed_tier),
+        "hypothesized_found": len(hypothesized_links),
+        # v3 standard key shared with drug-discovery (hypothesis groups).
+        "hypotheses_found": len(hypotheses),
+        "trials_with_phase": sum(1 for n in trial_lookup.values() if _trial_phase(n)),
+        "trials_with_enrollment": sum(1 for n in trial_lookup.values() if _enrollment(n) is not None),
+        "analysis_claims_found": len(analysis_claims),
+        "analysis_graded": sum(1 for f in analysis_claims if f["significant"] is not None),
+        "analysis_contested_found": len(analysis_contested),
+        "analysis_status_counts": dict(analysis_status_counts),
+    }
+    if registry_mode:
+        by_source: dict[str, int] = defaultdict(int)
+        for finding in analysis_claims:
+            by_source[finding["significance_source"]] += 1
+        summary["analysis_by_source"] = dict(sorted(by_source.items()))
+        summary["analysis_superseded"] = sum(1 for f in analysis_claims if f.get("superseded_by"))
+        summary["analysis_treatment_unresolved"] = sum(
+            1 for f in analysis_claims if f["treatment"] is None
+        )
+        summary["analysis_non_inferiority"] = sum(
+            1 for f in analysis_claims if f.get("non_inferiority")
+        )
+        summary["analysis_treatment_from_arm_type"] = sum(
+            1 for f in analysis_claims if f.get("treatment_basis") == "registry_arm_type"
+        )
+        summary["analysis_treatment_arm_type_disagreements"] = arm_stats.get("disagreements", 0)
+
     return {
         "metadata": {
             "description": "Clinical-trial epistemic layer — phase-based evidence grading",
@@ -908,23 +1937,7 @@ def analyze_clinicaltrials_epistemic(output_dir: Path, graph_data: dict) -> dict
             "total_relations": claim_count,
             "trial_count": len(trial_lookup),
         },
-        "summary": {
-            "evidence_tier_counts": dict(evidence_counts),
-            # v3 standard key — enables narrator + workbench chat parity across domains.
-            "epistemic_status_counts": dict(status_counts),
-            "contradictions_found": len(contradictions),
-            "contested_found": len(contested),
-            "mixed_tier_found": len(mixed_tier),
-            "hypothesized_found": len(hypothesized_links),
-            # v3 standard key shared with drug-discovery (hypothesis groups).
-            "hypotheses_found": len(hypotheses),
-            "trials_with_phase": sum(1 for n in trial_lookup.values() if _trial_phase(n)),
-            "trials_with_enrollment": sum(1 for n in trial_lookup.values() if _enrollment(n) is not None),
-            "analysis_claims_found": len(analysis_claims),
-            "analysis_graded": sum(1 for f in analysis_claims if f["significant"] is not None),
-            "analysis_contested_found": len(analysis_contested),
-            "analysis_status_counts": dict(analysis_status_counts),
-        },
+        "summary": summary,
         "base_domain": {
             "description": "High-evidence relations from Phase 3, randomized, or large-enrollment trials",
             "relation_count": evidence_counts.get("high_evidence", 0),
