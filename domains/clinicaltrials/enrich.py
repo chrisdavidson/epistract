@@ -98,7 +98,14 @@ _WEEK_RE = re.compile(r"\s+at\s+weeks?\s+\d+\s*$")
 _WS_RE = re.compile(r"\s+")
 
 _US_SPELLING = [
-    (re.compile(r"oe", re.IGNORECASE), "e"),
+    (re.compile(r"oedem", re.IGNORECASE), "edem"),
+    (re.compile(r"oesophag", re.IGNORECASE), "esophag"),
+    (re.compile(r"rhoe", re.IGNORECASE), "rhe"),
+    (re.compile(r"dyspnoe", re.IGNORECASE), "dyspne"),
+    (re.compile(r"apnoe", re.IGNORECASE), "apne"),
+    (re.compile(r"oestr", re.IGNORECASE), "estr"),
+    (re.compile(r"foet", re.IGNORECASE), "fet"),
+    (re.compile(r"coeliac", re.IGNORECASE), "celiac"),
     (re.compile(r"ae(?=m)", re.IGNORECASE), "e"),
     (re.compile(r"haem", re.IGNORECASE), "hem"),
     (re.compile(r"tumour", re.IGNORECASE), "tumor"),
