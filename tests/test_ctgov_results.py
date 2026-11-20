@@ -700,7 +700,14 @@ def test_meddra_attribute_rules(enrich, tmp_path):
     for n in aes:
         assert _nattr(n, "reported_term") == n["name"]
         assert _nattr(n, "meddra_pt") == n["name"]
-        assert _nattr(n, "meddra_version") == "27.1"
+        # One node serves every trial that reports the event. A node shared with
+        # a trial on another MedDRA release keeps the first release and records
+        # this one as registry_meddra_version.
+        assert "27.1" in (
+            _nattr(n, "meddra_version"), _nattr(n, "registry_meddra_version")
+        ), n["id"]
+        if _nattr(n, "ctgov_nct_ids") == [WITH_RESULTS_A]:
+            assert _nattr(n, "meddra_version") == "27.1"
 
     study = _study(WITH_RESULTS_A)
     module = study["resultsSection"]["adverseEventsModule"]
@@ -1001,7 +1008,7 @@ def test_analysis_merge(enrich, tmp_path):
     assert attrs["effect_estimate"] == round(float(ref["param_value"]), 1)
     if float(ref["param_value"]) != attrs["effect_estimate"]:
         assert attrs["registry_effect_estimate"] == float(ref["param_value"])
-    assert len(attrs["ctgov_analysis_ids"]) == 1
+    assert attrs["ctgov_analysis_ids"] == [f"outcomeanalysis:{enrich._slug(dup_name)}"]
     assert report["results"]["merged"] >= 1
     assert len(_oa_nodes(nodes, WITH_RESULTS_A)) == 38
 
