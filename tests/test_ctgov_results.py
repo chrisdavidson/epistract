@@ -1355,3 +1355,41 @@ def test_analysis_names_differing_only_in_punctuation_both_kept(enrich, tmp_path
     _run(enrich, tmp_path, {WITH_RESULTS_A: study, WITH_RESULTS_B: _study(WITH_RESULTS_B)}, results=True)
     nodes, _ = _read_graph(tmp_path)
     assert len(_oa_nodes(nodes, WITH_RESULTS_A)) == 39 + 3
+
+
+# --- Phase 7 review fixes, iteration 2 (07-REVIEW.md) ----------------------
+
+
+@pytest.mark.unit
+def test_analysis_merge_ignores_cohorts_shared_with_another_trial(enrich, tmp_path):
+    # CR-01 (iteration 2): trial B also enrolls the 36 mg and placebo cohorts.
+    # Its extracted analysis carries no NCT, so comparing cohorts that trial A
+    # enrolls too is no evidence that it belongs to trial A.
+    outcome_nodes, outcome_links = _hba1c_outcome_nodes()
+    shared = outcome_nodes[0]["id"]
+    b_analysis = {
+        "id": "outcomeanalysis:paper_b_hba1c", "name": "Orforglipron high dose HbA1c analysis (paper B)",
+        "entity_type": "OutcomeAnalysis", "source_documents": ["doc_b"],
+        "attributes": {"effect_measure": "ETD", "effect_estimate": -0.4, "p_value_num": 0.3},
+    }
+    links = [
+        *outcome_links,
+        _link(TRIAL_B, "has_outcome", shared),
+        _link(TRIAL_B, "enrolls", COHORT_36),
+        _link(TRIAL_B, "enrolls", COHORT_PLACEBO),
+        _link(b_analysis["id"], "analyzes", shared),
+        _link(b_analysis["id"], "compares", COHORT_36),
+        _link(b_analysis["id"], "compares", COHORT_PLACEBO),
+    ]
+    _, _, nodes, links_out = _seeded_run(
+        enrich, tmp_path, extra_nodes=[*outcome_nodes, b_analysis], extra_links=links,
+    )
+    attrs = nodes[b_analysis["id"]].get("attributes") or {}
+    assert _ctgov_ids(nodes[b_analysis["id"]]) == []
+    assert attrs == b_analysis["attributes"]
+    assert {l["target"] for l in _edges(links_out, "compares", b_analysis["id"])} == {
+        COHORT_36, COHORT_PLACEBO,
+    }
+    want = f"{WITH_RESULTS_A}: Change From Baseline in HbA1c — Placebo vs 36 mg Orforglipron"
+    assert want in {n["name"] for n in _oa_nodes(nodes, WITH_RESULTS_A)}
+    assert len(_oa_nodes(nodes, WITH_RESULTS_A)) == 39
