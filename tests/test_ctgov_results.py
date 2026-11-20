@@ -92,7 +92,7 @@ def _router(bodies: dict):
     return _get
 
 
-def _write_graph(directory: Path, nct_ids, extra_nodes=()):
+def _write_graph(directory: Path, nct_ids, extra_nodes=(), extra_links=()):
     directory.mkdir(parents=True, exist_ok=True)
     nodes = [
         {"id": f"trial:{n.lower()}", "name": n, "entity_type": "Trial"} for n in nct_ids
@@ -104,7 +104,7 @@ def _write_graph(directory: Path, nct_ids, extra_nodes=()):
             "updated_at": "2026-01-01T00:00:00+00:00",
         },
         "nodes": nodes,
-        "links": [],
+        "links": list(extra_links),
     }
     (directory / "graph_data.json").write_text(json.dumps(graph, indent=2))
     return directory
@@ -135,6 +135,175 @@ def _run(enrich, directory: Path, bodies: dict, **kwargs):
 def _stat_pct(stat) -> float:
     at_risk = stat["num_at_risk"]
     return stat["num_affected"] / at_risk * 100 if at_risk else 0.0
+
+
+
+# --- Phase 7 helpers --------------------------------------------------------
+
+TRIAL_A = f"trial:{WITH_RESULTS_A.lower()}"
+TRIAL_B = f"trial:{WITH_RESULTS_B.lower()}"
+COHORT_PLACEBO = "cohort:placebo"
+COHORT_12 = "cohort:orforglipron_12mg"
+COHORT_36 = "cohort:orforglipron_high_dose"
+COMPOUND = "compound:orforglipron"
+GROUP_TO_COHORT = {
+    "Placebo": COHORT_PLACEBO,
+    "12 mg Orforglipron": COHORT_12,
+    "36 mg Orforglipron": COHORT_36,
+}
+
+
+def _link(src, rel, tgt, source_document="doc_seed", **attrs):
+    key = f"{src}|{rel}|{tgt}"
+    link = {
+        "source": src,
+        "target": tgt,
+        "relation_type": rel,
+        "relation_id": key,
+        "canonical_key": key,
+        "confidence": 0.9,
+        "evidence": "seed",
+        "source_document": source_document,
+    }
+    if attrs:
+        link["attributes"] = attrs
+    return link
+
+
+def _seed_cohorts():
+    def cohort(cid, name, **attrs):
+        return {
+            "id": cid, "name": name, "entity_type": "Cohort",
+            "attributes": {"trial": WITH_RESULTS_A, **attrs},
+            "source_documents": ["doc_seed"],
+        }
+
+    nodes = [
+        cohort(COHORT_PLACEBO, "Placebo"),
+        cohort(COHORT_12, "Orforglipron 12mg"),
+        cohort(COHORT_36, "Orforglipron high dose", arm_label="36 mg Orforglipron"),
+        {"id": COMPOUND, "name": "Orforglipron", "entity_type": "Compound",
+         "source_documents": ["doc_seed"]},
+    ]
+    links = [_link(TRIAL_A, "enrolls", c) for c in (COHORT_PLACEBO, COHORT_12, COHORT_36)]
+    links += [_link(c, "receives", COMPOUND) for c in (COHORT_12, COHORT_36)]
+    return nodes, links
+
+
+def _seeded_graph(directory: Path, extra_nodes=(), extra_links=()):
+    nodes, links = _seed_cohorts()
+    return _write_graph(
+        directory, [WITH_RESULTS_A, WITH_RESULTS_B],
+        [*nodes, *extra_nodes], [*links, *extra_links],
+    )
+
+
+def _read_graph(directory: Path):
+    data = json.loads((directory / "graph_data.json").read_text())
+    return {n["id"]: n for n in data["nodes"]}, data["links"]
+
+
+def _edges(links, rel, src=None, tgt=None):
+    return [
+        l for l in links
+        if l.get("relation_type") == rel
+        and (src is None or l["source"] == src)
+        and (tgt is None or l["target"] == tgt)
+    ]
+
+
+def _nattr(node, key, default=None):
+    return (node.get("attributes") or {}).get(key, default)
+
+
+def _eattr(link, key, default=None):
+    # sift_kg flattens edge fields into the link dict, where "source" is the
+    # endpoint; registry edge attributes therefore live in link["attributes"].
+    return (link.get("attributes") or {}).get(key, default)
+
+
+def _registry_nodes(nodes, entity_type=None):
+    return [
+        n for n in nodes.values()
+        if _nattr(n, "source") == "ctgov_results"
+        and (entity_type is None or n.get("entity_type") == entity_type)
+    ]
+
+
+def _parsed(enrich, nct):
+    return enrich._parse_ct_results(_study(nct))
+
+
+def _hba1c_outcome_nodes():
+    node = {
+        "id": "outcome:glycated_hemoglobin_hba1c", "name": "Glycated hemoglobin (HbA1c)",
+        "entity_type": "Outcome", "source_documents": ["doc_seed"],
+        "attributes": {"endpoint_type": "Primary", "timeframe": "Week 40"},
+    }
+    return [node], [_link(TRIAL_A, "has_outcome", node["id"])]
+
+
+def _hba1c_analysis(enrich, other_group):
+    return next(
+        a for a in _parsed(enrich, WITH_RESULTS_A)["analyses"]
+        if a["outcome_title"] == "Change From Baseline in HbA1c"
+        and a["groups"][a["group_ids"][1]] == other_group
+    )
+
+
+def _extracted_ae_seed(enrich):
+    """An extracted AE whose key equals that of a registry 'other' term."""
+    res = _parsed(enrich, WITH_RESULTS_A)
+    keys = [enrich._ae_key(a["term"]) for a in res["adverse_events"]]
+    for ae in res["adverse_events"]:
+        term = ae["term"]
+        if ae["seriousness"] != "other" or keys.count(enrich._ae_key(term)) != 1:
+            continue
+        if term.lower().endswith("s"):
+            continue
+        for variant in (term.upper(), term.lower() + "s"):
+            if enrich._ae_key(variant) == enrich._ae_key(term) and variant != term:
+                node = {
+                    "id": f"adverseevent:{enrich._slug(variant)}", "name": variant,
+                    "entity_type": "AdverseEvent", "source_documents": ["doc_seed"],
+                    "attributes": {"reported_term": "seeded wording", "n_affected": 999},
+                }
+                link = _link(TRIAL_A, "reports_adverse_event", node["id"], n_affected=999)
+                total = sum(s["num_affected"] for s in ae["stats"])
+                return ae, node, link, total
+    raise AssertionError("no suitable AE term in fixture")
+
+
+def _extracted_analysis_seed(enrich):
+    ref = _hba1c_analysis(enrich, "36 mg Orforglipron")
+    outcome_nodes, outcome_links = _hba1c_outcome_nodes()
+    node = {
+        "id": "outcomeanalysis:seed_hba1c_36", "name": "Seeded HbA1c analysis",
+        "entity_type": "OutcomeAnalysis", "source_documents": ["doc_seed"],
+        "attributes": {
+            "effect_measure": ref["param_type"],
+            "effect_estimate": round(float(ref["param_value"]), 1),
+        },
+    }
+    links = [
+        *outcome_links,
+        _link(node["id"], "analyzes", outcome_nodes[0]["id"]),
+        _link(node["id"], "compares", COHORT_36),
+    ]
+    return ref, [*outcome_nodes, node], links
+
+
+def _fully_seeded(enrich, directory: Path):
+    _, ae_node, ae_link, _ = _extracted_ae_seed(enrich)
+    _, an_nodes, an_links = _extracted_analysis_seed(enrich)
+    return _seeded_graph(directory, [ae_node, *an_nodes], [ae_link, *an_links])
+
+
+def _seeded_run(enrich, directory: Path, **seed):
+    _seeded_graph(directory, **seed)
+    report, m = _run(enrich, directory, _all_fixture_bodies(), results=True)
+    return report, m, *_read_graph(directory)
+
 
 
 # ---------------------------------------------------------------------------
@@ -279,19 +448,23 @@ def test_malformed_results_section_counted(enrich, tmp_path):
     assert node["ct_overall_status"]
 
 
+REPORT_KEYS = [
+    "trials_with_results", "trials_without_results", "results_failed",
+    "adverse_events_parsed", "analyses_parsed", "created", "merged",
+    "created_nodes", "created_edges", "write_failed",
+]
+
+
 @pytest.mark.unit
 def test_results_report_block(enrich, tmp_path):
     _write_graph(tmp_path, [WITH_RESULTS_A, WITH_RESULTS_B])
     report, _ = _run(enrich, tmp_path, _all_fixture_bodies(), results=True)
     block = report["results"]
-    assert set(block) == {
-        "trials_with_results", "trials_without_results", "results_failed",
-        "adverse_events_parsed", "analyses_parsed", "created", "merged",
-    }
+    assert set(block) == set(REPORT_KEYS)
     assert block["trials_with_results"] == 2
     assert block["adverse_events_parsed"] == {"serious": 178, "other": 39}
     assert block["analyses_parsed"] == 43
-    assert block["created"] == 0
+    assert block["created"] > 0
     assert block["merged"] == 0
     written = json.loads((tmp_path / "extractions" / "_enrichment_report.json").read_text())
     assert written["results"] == block
@@ -302,15 +475,27 @@ def test_results_report_block(enrich, tmp_path):
 
 
 @pytest.mark.unit
-def test_results_flag_does_not_change_graph(enrich, tmp_path):
+def test_results_graph_is_superset_with_provenance(enrich, tmp_path):
     ids = [WITH_RESULTS_A, WITH_RESULTS_B, NO_RESULTS]
     plain = _write_graph(tmp_path / "plain", ids)
     with_results = _write_graph(tmp_path / "res", ids)
     _run(enrich, plain, _all_fixture_bodies())
     _run(enrich, with_results, _all_fixture_bodies(), results=True)
-    assert _normalize_stamps((plain / "graph_data.json").read_bytes()) == _normalize_stamps(
-        (with_results / "graph_data.json").read_bytes()
-    )
+    p_nodes, p_links = _read_graph(plain)
+    r_nodes, r_links = _read_graph(with_results)
+    for node_id, node in p_nodes.items():
+        assert r_nodes.get(node_id) == node, node_id
+    r_rel_ids = {l.get("relation_id") for l in r_links}
+    assert {l.get("relation_id") for l in p_links} <= r_rel_ids
+    extra_nodes = [n for i, n in r_nodes.items() if i not in p_nodes]
+    assert extra_nodes
+    for node in extra_nodes:
+        assert _nattr(node, "source") == "ctgov_results", node["id"]
+    plain_rel_ids = {l.get("relation_id") for l in p_links}
+    extra_links = [l for l in r_links if l.get("relation_id") not in plain_rel_ids]
+    assert extra_links
+    for link in extra_links:
+        assert _eattr(link, "source") == "ctgov_results", link["relation_id"]
 
 
 @pytest.mark.unit
@@ -417,4 +602,481 @@ def test_cli_help_mentions_flags():
     )
     assert proc.returncode == 0
     assert "--results" in proc.stdout
+    assert "not yet written" not in proc.stdout
     assert "--cache-dir" in proc.stdout
+
+
+# --- Phase 7: pure helpers --------------------------------------------------
+
+
+@pytest.mark.unit
+def test_slug(enrich):
+    assert enrich._slug("Semaglutide 0.5 mg") == "semaglutide_0_5_mg"
+    assert enrich._slug("  Regression, Logistic ") == "regression_logistic"
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        ("<.001", (0.001, "<")),
+        ("0.0017", (0.0017, "=")),
+        ("=0.03", (0.03, "=")),
+        ("<=0.05", (0.05, "<")),
+        ("≤0.05", (0.05, "<")),
+        (">0.99", (0.99, ">")),
+        (">=0.99", (0.99, ">")),
+        ("≥0.99", (0.99, ">")),
+        ("NA", (None, None)),
+        ("", (None, None)),
+        (None, (None, None)),
+        ("n/a", (None, None)),
+        ("ns", (None, None)),
+    ],
+)
+def test_parse_p_value(enrich, text, expected):
+    assert enrich._parse_p_value(text) == expected
+
+
+@pytest.mark.unit
+def test_match_cohort(enrich):
+    m = enrich._match_cohort
+    assert m("12 mg Orforglipron", [("c1", "Orforglipron 12mg", None)]) == "c1"
+    assert m("3 mg Orforglipron", [("c1", "36 mg Orforglipron", None)]) is None
+    assert m("Placebo", [("c1", "Semaglutide placebo 0.5 mg", None)]) is None
+    assert m(
+        "12 mg Orforglipron",
+        [("c1", "Orforglipron 12mg", None), ("c2", "12 mg orforglipron QW", None)],
+    ) is None
+    assert m("12 mg Orforglipron", [("c1", "High cohort", "12 mg Orforglipron")]) == "c1"
+    assert m("Placebo", [("c1", "Placebo", None), ("c2", "Orforglipron 12mg", None)]) == "c1"
+
+
+@pytest.mark.unit
+def test_ae_key_and_normalize_measure(enrich):
+    assert enrich._ae_key("Diarrhoeas") == enrich._ae_key("diarrhea")
+    assert enrich.normalize_measure("Change From Baseline in HbA1c") == enrich.normalize_measure(
+        "Glycated hemoglobin (HbA1c)"
+    )
+
+
+# --- Phase 7: registry adverse events ---------------------------------------
+
+
+@pytest.mark.unit
+def test_registry_ae_threshold_floor(enrich, tmp_path):
+    _, _, nodes, _ = _seeded_run(enrich, tmp_path)
+    got = {
+        enrich._ae_key(n["name"])
+        for n in nodes.values()
+        if n.get("entity_type") == "AdverseEvent"
+        and WITH_RESULTS_A in (_nattr(n, "ctgov_nct_ids") or [])
+    }
+    parsed = _parsed(enrich, WITH_RESULTS_A)["adverse_events"]
+    assert got == {enrich._ae_key(a["term"]) for a in parsed}
+
+    module = _study(WITH_RESULTS_A)["resultsSection"]["adverseEventsModule"]
+    kept = {enrich._ae_key(a["term"]) for a in parsed}
+    below = [
+        ev["term"] for ev in module["otherEvents"]
+        if all(
+            (s["numAffected"] / s["numAtRisk"] * 100 if s["numAtRisk"] else 0) < 5
+            for s in ev["stats"]
+        )
+    ]
+    assert below
+    serious_keys = {enrich._ae_key(e["term"]) for e in module["seriousEvents"]}
+    for term in below:
+        if enrich._ae_key(term) not in serious_keys:
+            assert enrich._ae_key(term) not in got, term
+
+
+@pytest.mark.unit
+def test_meddra_attribute_rules(enrich, tmp_path):
+    _, _, nodes, _ = _seeded_run(enrich, tmp_path / "meddra")
+    aes = [n for n in _registry_nodes(nodes, "AdverseEvent")
+           if WITH_RESULTS_A in _nattr(n, "ctgov_nct_ids", [])]
+    assert aes
+    for n in aes:
+        assert _nattr(n, "reported_term") == n["name"]
+        assert _nattr(n, "meddra_pt") == n["name"]
+        assert _nattr(n, "meddra_version") == "27.1"
+
+    study = _study(WITH_RESULTS_A)
+    module = study["resultsSection"]["adverseEventsModule"]
+    for key in ("seriousEvents", "otherEvents"):
+        for ev in module[key]:
+            ev["sourceVocabulary"] = "Custom dictionary"
+    _write_graph(tmp_path / "custom", [WITH_RESULTS_A])
+    _run(enrich, tmp_path / "custom", {WITH_RESULTS_A: study}, results=True)
+    custom_nodes, _ = _read_graph(tmp_path / "custom")
+    custom = _registry_nodes(custom_nodes, "AdverseEvent")
+    assert custom
+    for n in custom:
+        assert _nattr(n, "reported_term")
+        assert "meddra_pt" not in (n.get("attributes") or {})
+        assert "meddra_version" not in (n.get("attributes") or {})
+    assert "meddra_dictionary" not in _module_path().read_text()
+
+
+@pytest.mark.unit
+def test_ae_links(enrich, tmp_path):
+    _, _, nodes, links = _seeded_run(enrich, tmp_path)
+    parsed = _parsed(enrich, WITH_RESULTS_A)
+    titles = {g["title"] for g in parsed["event_groups"]}
+    by_key = {}
+    for a in parsed["adverse_events"]:
+        by_key.setdefault(enrich._ae_key(a["term"]), []).append(a)
+    checked = 0
+    for node in _registry_nodes(nodes, "AdverseEvent"):
+        key = enrich._ae_key(node["name"])
+        if WITH_RESULTS_A not in _nattr(node, "ctgov_nct_ids", []) or len(by_key.get(key, [])) != 1:
+            continue
+        record = by_key[key][0]
+        organ = f"organsystem:{enrich._slug(record['organ_system'])}"
+        assert organ in nodes
+        assert _nattr(nodes[organ], "classification") == "system organ class"
+        assert _edges(links, "affects_organ_system", node["id"], organ)
+        reports = _edges(links, "reports_adverse_event", TRIAL_A, node["id"])
+        assert len(reports) == 1
+        edge = reports[0]
+        assert _eattr(edge, "seriousness") == record["seriousness"]
+        assert _eattr(edge, "assessment_type") == record["assessment_type"]
+        assert _eattr(edge, "n_affected") == sum(s["num_affected"] for s in record["stats"])
+        assert _eattr(edge, "n_at_risk") == sum(s["num_at_risk"] for s in record["stats"])
+        assert _eattr(edge, "frequency_threshold") == 5.0
+        assert set(_eattr(edge, "by_group")) == titles
+        assert edge["source_document"] == f"ctgov:{WITH_RESULTS_A}"
+        assert edge["evidence"].startswith(f"ClinicalTrials.gov results {WITH_RESULTS_A}:")
+        checked += 1
+    assert checked > 10
+
+
+@pytest.mark.unit
+def test_group_to_arm_mapping(enrich, tmp_path):
+    _seeded_graph(tmp_path)
+    before, _ = _read_graph(tmp_path)
+    cohorts_before = {i for i, n in before.items() if n.get("entity_type") == "Cohort"}
+    _run(enrich, tmp_path, _all_fixture_bodies(), results=True)
+    nodes, links = _read_graph(tmp_path)
+    assert {i for i, n in nodes.items() if n.get("entity_type") == "Cohort"} == cohorts_before
+
+    parsed = _parsed(enrich, WITH_RESULTS_A)
+    by_key = {}
+    for a in parsed["adverse_events"]:
+        by_key.setdefault(enrich._ae_key(a["term"]), []).append(a)
+    observed = [
+        l for l in _edges(links, "observed_in")
+        if l.get("source_document") == f"ctgov:{WITH_RESULTS_A}"
+    ]
+    assert observed
+    assert {l["target"] for l in observed} <= set(GROUP_TO_COHORT.values())
+    for link in observed:
+        record = by_key.get(enrich._ae_key(nodes[link["source"]]["name"]), [None])
+        if len(record) != 1 or record[0] is None:
+            continue
+        stat = next(
+            s for s in record[0]["stats"]
+            if GROUP_TO_COHORT.get(s["group_title"]) == link["target"]
+        )
+        assert _eattr(link, "n_affected") == stat["num_affected"]
+        assert _eattr(link, "n_at_risk") == stat["num_at_risk"]
+        assert _eattr(link, "n_events") == stat["num_events"]
+        assert _eattr(link, "percent") == round(
+            stat["num_affected"] / stat["num_at_risk"] * 100, 2
+        )
+    for edge in _edges(links, "reports_adverse_event", TRIAL_A):
+        if _eattr(edge, "by_group") and "3 mg Orforglipron" in _eattr(edge, "by_group"):
+            entry = _eattr(edge, "by_group")["3 mg Orforglipron"]
+            assert entry["cohort"] is None
+            assert "n_affected" in entry
+            assert _eattr(edge, "by_group")["Placebo"]["cohort"] == COHORT_PLACEBO
+
+    other = [
+        l for l in links
+        if l.get("source_document") == f"ctgov:{WITH_RESULTS_B}"
+        and l["relation_type"] in ("observed_in", "compares")
+    ]
+    assert other == []
+
+
+@pytest.mark.unit
+def test_provenance_on_created(enrich, tmp_path):
+    _, _, nodes, links = _seeded_run(enrich, tmp_path)
+    created = _registry_nodes(nodes)
+    assert created
+    for n in created:
+        assert _nattr(n, "ctgov_nct_ids")
+        assert any(str(d).startswith("ctgov:") for d in n.get("source_documents", []))
+    ctgov_edges = [l for l in links if str(l.get("source_document", "")).startswith("ctgov:")]
+    assert ctgov_edges
+    for l in ctgov_edges:
+        assert _eattr(l, "source") == "ctgov_results" or "ctgov_results" in (
+            _eattr(l, "sources") or []
+        ), l["relation_id"]
+        assert _eattr(l, "ctgov_nct_ids")
+
+
+# --- Phase 7: outcome analyses ----------------------------------------------
+
+
+def _oa_nodes(nodes, nct=None):
+    out = [n for n in _registry_nodes(nodes, "OutcomeAnalysis")]
+    if nct:
+        out = [n for n in out if nct in _nattr(n, "ctgov_nct_ids", [])]
+    return out
+
+
+@pytest.mark.unit
+def test_analysis_attributes(enrich, tmp_path):
+    _, _, nodes, links = _seeded_run(enrich, tmp_path)
+    ref = _hba1c_analysis(enrich, "3 mg Orforglipron")
+    study = _study(WITH_RESULTS_A)
+    measure = next(
+        om for om in study["resultsSection"]["outcomeMeasuresModule"]["outcomeMeasures"]
+        if om["title"] == "Change From Baseline in HbA1c"
+    )
+    name = (
+        f"{WITH_RESULTS_A}: Change From Baseline in HbA1c — "
+        "Placebo vs 3 mg Orforglipron"
+    )
+    by_name = {n["name"]: n for n in nodes.values()}
+    node = by_name[name]
+    attrs = node["attributes"]
+    assert node["entity_type"] == "OutcomeAnalysis"
+    assert attrs["p_value"] == "<.001"
+    assert attrs["p_value_num"] == 0.001
+    assert attrs["p_value_qualifier"] == "<"
+    assert attrs["effect_estimate"] == -1.12
+    assert attrs["effect_measure"] == ref["param_type"]
+    assert attrs["ci_lower"] == -1.43
+    assert attrs["ci_upper"] == -0.8
+    assert attrs["ci_level"] == 95 and isinstance(attrs["ci_level"], int)
+    assert attrs["ci_sides"] == "TWO_SIDED"
+    assert attrs["endpoint_type"] == "primary"
+    assert attrs["non_inferiority_type"] == "SUPERIORITY"
+    assert attrs["timepoint"] == measure["timeFrame"]
+    assert attrs["unit"] == measure["unitOfMeasure"]
+    assert attrs["compared_groups"] == ["Placebo", "3 mg Orforglipron"]
+    assert attrs["unmatched_groups"] == ["3 mg Orforglipron"]
+    assert all(v is not None for v in attrs.values())
+    assert [l["target"] for l in _edges(links, "compares", node["id"])] == [COHORT_PLACEBO]
+    uses = _edges(links, "uses_method", node["id"])
+    assert [l["target"] for l in uses] == ["statisticalmethod:mixed_models_analysis"]
+    analyzes = _edges(links, "analyzes", node["id"])
+    assert len(analyzes) == 1
+    assert _edges(links, "has_outcome", TRIAL_A, analyzes[0]["target"])
+    assert len(_oa_nodes(nodes, WITH_RESULTS_A)) == len(
+        _parsed(enrich, WITH_RESULTS_A)["analyses"]
+    ) == 39
+
+
+@pytest.mark.unit
+def test_assesses_effect_of(enrich, tmp_path):
+    _, _, nodes, links = _seeded_run(enrich, tmp_path)
+    by_name = {n["name"]: n for n in nodes.values()}
+    both = by_name[
+        f"{WITH_RESULTS_A}: Change From Baseline in HbA1c — Placebo vs 12 mg Orforglipron"
+    ]
+    effect = _edges(links, "assesses_effect_of", both["id"])
+    assert [l["target"] for l in effect] == [COMPOUND]
+    none = by_name[
+        f"{WITH_RESULTS_A}: Change From Baseline in HbA1c — Placebo vs 3 mg Orforglipron"
+    ]
+    assert _edges(links, "assesses_effect_of", none["id"]) == []
+
+
+@pytest.mark.unit
+def test_other_and_post_hoc_excluded(enrich, tmp_path):
+    study = _study(WITH_RESULTS_A)
+    measures = study["resultsSection"]["outcomeMeasuresModule"]["outcomeMeasures"]
+    extra_titles = []
+    for kind in ("OTHER_PRE_SPECIFIED", "POST_HOC"):
+        extra = copy.deepcopy(measures[0])
+        extra["type"] = kind
+        extra["title"] = f"Zzdistinct {kind.lower()} measure"
+        extra_titles.append(extra["title"])
+        measures.append(extra)
+    _write_graph(tmp_path, [WITH_RESULTS_A])
+    _run(enrich, tmp_path, {WITH_RESULTS_A: study}, results=True)
+    nodes, _ = _read_graph(tmp_path)
+    for n in nodes.values():
+        if n.get("entity_type") in ("OutcomeAnalysis", "Outcome"):
+            assert not any(t in n["name"] for t in extra_titles), n["name"]
+    assert len(_oa_nodes(nodes, WITH_RESULTS_A)) == 39
+
+
+@pytest.mark.unit
+def test_statistical_method_shared(enrich, tmp_path):
+    _, _, nodes, links = _seeded_run(enrich, tmp_path)
+    methods = {
+        enrich._slug(a["statistical_method"])
+        for nct in (WITH_RESULTS_A, WITH_RESULTS_B)
+        for a in _parsed(enrich, nct)["analyses"]
+        if a.get("statistical_method")
+    }
+    method_nodes = [n for n in nodes.values() if n.get("entity_type") == "StatisticalMethod"]
+    assert {n["id"] for n in method_nodes} == {f"statisticalmethod:{m}" for m in methods}
+    ancova = "statisticalmethod:ancova"
+    sources = {nodes[l["source"]]["name"].split(":")[0] for l in _edges(links, "uses_method", tgt=ancova)}
+    assert sources == {WITH_RESULTS_A, WITH_RESULTS_B}
+    assert set(_nattr(nodes[ancova], "ctgov_nct_ids")) == {WITH_RESULTS_A, WITH_RESULTS_B}
+
+
+@pytest.mark.unit
+def test_outcome_match_or_create(enrich, tmp_path):
+    outcome_nodes, outcome_links = _hba1c_outcome_nodes()
+    seeded_id = outcome_nodes[0]["id"]
+    _, _, nodes, links = _seeded_run(
+        enrich, tmp_path, extra_nodes=outcome_nodes, extra_links=outcome_links
+    )
+    hba1c = [
+        n for n in _oa_nodes(nodes, WITH_RESULTS_A)
+        if " Change From Baseline in HbA1c — " in n["name"]
+    ]
+    assert len(hba1c) == 3
+    for oa in hba1c:
+        assert [l["target"] for l in _edges(links, "analyzes", oa["id"])] == [seeded_id]
+    assert not any(n["name"] == "Change From Baseline in HbA1c" for n in nodes.values())
+    assert nodes[seeded_id]["attributes"]["timeframe"] == "Week 40"
+
+    analyses = _parsed(enrich, WITH_RESULTS_A)["analyses"]
+    other = next(
+        a for a in analyses
+        if a["outcome_title"] == "Change From Baseline in Systolic Blood Pressure (SBP)"
+    )
+    oid = f"outcome:{enrich._slug(other['outcome_title'])}"
+    created = nodes[oid]
+    attrs = created["attributes"]
+    assert created["name"] == other["outcome_title"]
+    assert attrs["endpoint_type"] == other["outcome_type"].capitalize() == "Secondary"
+    assert attrs["timeframe"] == other["time_frame"]
+    assert "time_frame" not in attrs
+    assert attrs["unit"] == other["unit"]
+    assert attrs["source"] == "ctgov_results"
+    assert _edges(links, "has_outcome", TRIAL_A, oid)
+
+
+@pytest.mark.unit
+def test_ae_merge_with_extracted(enrich, tmp_path):
+    ae, node, link, total = _extracted_ae_seed(enrich)
+    report, _, nodes, links = _seeded_run(
+        enrich, tmp_path, extra_nodes=[node], extra_links=[link]
+    )
+    key = enrich._ae_key(ae["term"])
+    same = [n for n in nodes.values()
+            if n.get("entity_type") == "AdverseEvent" and enrich._ae_key(n["name"]) == key]
+    assert len(same) == 1
+    merged = same[0]
+    assert merged["name"] == node["name"]
+    attrs = merged["attributes"]
+    assert attrs["reported_term"] == "seeded wording"
+    assert attrs["registry_term"] == ae["term"]
+    assert attrs["meddra_pt"] == ae["term"]
+    assert "ctgov_results" in attrs["sources"]
+    assert attrs["ctgov_nct_ids"] == [WITH_RESULTS_A]
+    assert merged["source_documents"] == ["doc_seed"]
+    edge = _edges(links, "reports_adverse_event", TRIAL_A, merged["id"])
+    assert len(edge) == 1
+    assert _eattr(edge[0], "n_affected") == 999
+    assert _eattr(edge[0], "registry_n_affected") == total
+    assert report["results"]["merged"] >= 1
+
+
+@pytest.mark.unit
+def test_analysis_merge(enrich, tmp_path):
+    ref, nodes_seed, links_seed = _extracted_analysis_seed(enrich)
+    seed_id = "outcomeanalysis:seed_hba1c_36"
+    report, _, nodes, links = _seeded_run(
+        enrich, tmp_path, extra_nodes=nodes_seed, extra_links=links_seed
+    )
+    dup_name = f"{WITH_RESULTS_A}: Change From Baseline in HbA1c — Placebo vs 36 mg Orforglipron"
+    assert not [n for n in _registry_nodes(nodes, "OutcomeAnalysis") if n["name"] == dup_name]
+    attrs = nodes[seed_id]["attributes"]
+    assert nodes[seed_id]["name"] == "Seeded HbA1c analysis"
+    assert attrs["p_value"] == ref["p_value"]
+    assert attrs["p_value_num"] == 0.001
+    assert attrs["ci_lower"] == float(ref["ci_lower_limit"])
+    assert attrs["ci_upper"] == float(ref["ci_upper_limit"])
+    assert attrs["effect_estimate"] == round(float(ref["param_value"]), 1)
+    if float(ref["param_value"]) != attrs["effect_estimate"]:
+        assert attrs["registry_effect_estimate"] == float(ref["param_value"])
+    assert len(attrs["ctgov_analysis_ids"]) == 1
+    assert report["results"]["merged"] >= 1
+    assert len(_oa_nodes(nodes, WITH_RESULTS_A)) == 38
+
+
+# --- Phase 7: idempotence, report, dedupe, fallback -------------------------
+
+
+@pytest.mark.unit
+def test_idempotent_second_run(enrich, tmp_path):
+    _fully_seeded(enrich, tmp_path)
+    _run(enrich, tmp_path, _all_fixture_bodies(), results=True)
+    first = (tmp_path / "graph_data.json").read_bytes()
+    n1, l1 = _read_graph(tmp_path)
+    report, _ = _run(enrich, tmp_path, _all_fixture_bodies(), results=True)
+    second = (tmp_path / "graph_data.json").read_bytes()
+    n2, l2 = _read_graph(tmp_path)
+    assert len(n1) == len(n2) and len(l1) == len(l2)
+    assert _normalize_stamps(first) == _normalize_stamps(second)
+    assert report["results"]["created"] == 0
+    assert report["results"]["merged"] == 0
+    m1 = {l["relation_id"]: len(l.get("mentions", [])) for l in l1}
+    m2 = {l["relation_id"]: len(l.get("mentions", [])) for l in l2}
+    assert m1 == m2
+
+
+@pytest.mark.unit
+def test_report_created_merged_counts(enrich, tmp_path):
+    _fully_seeded(enrich, tmp_path)
+    report, _ = _run(enrich, tmp_path, _all_fixture_bodies(), results=True)
+    block = report["results"]
+    nodes, links = _read_graph(tmp_path)
+    assert list(block) == REPORT_KEYS
+    assert block["created"] == block["created_nodes"] + block["created_edges"]
+    assert block["created_nodes"] == len(_registry_nodes(nodes))
+    assert block["created_edges"] == sum(1 for l in links if _eattr(l, "source") == "ctgov_results")
+    gained = [
+        n for n in nodes.values()
+        if n.get("entity_type") in ("AdverseEvent", "OutcomeAnalysis")
+        and _nattr(n, "source") != "ctgov_results"
+        and "ctgov_results" in (_nattr(n, "sources") or [])
+    ]
+    assert len(gained) == 2
+    assert block["merged"] == sum(len(_nattr(n, "ctgov_nct_ids", [])) for n in gained)
+    assert block["write_failed"] == 0
+
+
+@pytest.mark.unit
+def test_duplicate_nct_trial_nodes(enrich, tmp_path):
+    single = _write_graph(tmp_path / "single", [WITH_RESULTS_A])
+    single_report, _ = _run(enrich, single, _all_fixture_bodies(), results=True)
+
+    dup_node = {"id": "trial:achieve_1", "name": f"ACHIEVE-1 ({WITH_RESULTS_A})",
+                "entity_type": "Trial"}
+    dup = _write_graph(tmp_path / "dup", [WITH_RESULTS_A], [dup_node])
+    report, m = _run(enrich, dup, _all_fixture_bodies(), results=True)
+    assert _ctgov_calls(m) == 1
+    block = report["results"]
+    assert block["trials_with_results"] == 1
+    assert block["adverse_events_parsed"] == single_report["results"]["adverse_events_parsed"]
+    assert block["analyses_parsed"] == single_report["results"]["analyses_parsed"]
+    nodes, links = _read_graph(dup)
+    for tid in (TRIAL_A, "trial:achieve_1"):
+        assert nodes[tid]["ct_overall_status"]
+        assert _edges(links, "reports_adverse_event", tid)
+
+
+@pytest.mark.unit
+def test_sift_kg_missing_skips_registry_writes(enrich, tmp_path, monkeypatch):
+    monkeypatch.setitem(sys.modules, "sift_kg", None)
+    _seeded_graph(tmp_path)
+    report, _ = _run(enrich, tmp_path, _all_fixture_bodies(), results=True)
+    block = report["results"]
+    assert isinstance(block.get("skipped_reason"), str) and block["skipped_reason"]
+    assert list(block)[-1] == "skipped_reason"
+    assert block["created"] == 0
+    nodes, links = _read_graph(tmp_path)
+    assert not [n for n in nodes.values() if n.get("entity_type") == "AdverseEvent"]
+    assert nodes[TRIAL_A]["ct_overall_status"]
