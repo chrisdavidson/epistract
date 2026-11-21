@@ -152,3 +152,121 @@ def analyze_pharmacovigilance_epistemic(
 #     CUSTOM_RULES.append(my_rule)
 
 CUSTOM_RULES: list = []
+
+
+def _pv_index(nodes, links):
+    """Return (node-by-id, outgoing edges by (source, relation), incoming by (target, relation))."""
+    by_id = {n.get("id"): n for n in nodes}
+    out: dict = defaultdict(list)
+    inc: dict = defaultdict(list)
+    for link in links:
+        rel = link.get("relation_type")
+        src, tgt = link.get("source"), link.get("target")
+        if src in by_id and tgt in by_id:
+            out[(src, rel)].append(tgt)
+            inc[(tgt, rel)].append(src)
+    return by_id, out, inc
+
+
+def _name(by_id, node_id):
+    return by_id.get(node_id, {}).get("name", node_id)
+
+
+def confounding_by_indication(nodes, links, context):
+    """Flag adverse events that are a worsening of a treated indication.
+
+    An AdverseEvent with WORSENING_OF -> Indication, where a Drug that is
+    INDICATED_FOR that Indication is also linked to the event by CAUSES or
+    OCCURRED_AFTER, may be disease progression rather than a drug effect.
+    """
+    by_id, out, inc = _pv_index(nodes, links)
+    findings = []
+    for ae_id, node in by_id.items():
+        if node.get("entity_type") != "AdverseEvent":
+            continue
+        for ind_id in out.get((ae_id, "WORSENING_OF"), []):
+            treating = set(inc.get((ind_id, "INDICATED_FOR"), []))
+            attributed = set(inc.get((ae_id, "CAUSES"), [])) | set(out.get((ae_id, "OCCURRED_AFTER"), []))
+            implicated = sorted(treating & attributed)
+            findings.append({
+                "rule_name": "confounding_by_indication",
+                "type": "confounding_by_indication",
+                "severity": "WARNING" if implicated else "INFO",
+                "description": (
+                    f"'{_name(by_id, ae_id)}' is a worsening of the indication "
+                    f"'{_name(by_id, ind_id)}'"
+                    + (f", which {', '.join(_name(by_id, d) for d in implicated)} treats; "
+                       "a causal attribution may be confounded by indication."
+                       if implicated else "; no drug both treats it and is linked to the event.")
+                ),
+                "evidence": {
+                    "adverse_event": ae_id,
+                    "indication": ind_id,
+                    "implicated_drugs": implicated,
+                },
+            })
+    return findings
+
+
+def unanchored_causality_signal(nodes, links, context):
+    """Flag CausalitySignals that do not name a full Drug-AdverseEvent pair.
+
+    A signal must ASSESS at least one Drug/Concomitant and one AdverseEvent to
+    be comparable (and contestable via CONTRADICTS) with other signals.
+    """
+    by_id, out, inc = _pv_index(nodes, links)
+    findings = []
+    for sig_id, node in by_id.items():
+        if node.get("entity_type") != "CausalitySignal":
+            continue
+        assessed = [by_id[t].get("entity_type") for t in out.get((sig_id, "ASSESSES"), [])]
+        has_drug = any(t in ("Drug", "Concomitant") for t in assessed)
+        has_event = "AdverseEvent" in assessed
+        support = inc.get((sig_id, "SUPPORTS"), [])
+        if has_drug and has_event:
+            continue
+        missing = [m for m, ok in (("drug", has_drug), ("adverse_event", has_event)) if not ok]
+        findings.append({
+            "rule_name": "unanchored_causality_signal",
+            "type": "unanchored_causality_signal",
+            "severity": "INFO",
+            "description": (
+                f"CausalitySignal '{_name(by_id, sig_id)}' does not ASSESS a "
+                f"{' or '.join(m.replace('_', ' ') for m in missing)}."
+            ),
+            "evidence": {"signal": sig_id, "missing": missing, "supporting_evidence": len(support)},
+        })
+    return findings
+
+
+def interaction_signal(nodes, links, context):
+    """Surface adverse events caused by both members of an INTERACTS_WITH pair."""
+    by_id, out, inc = _pv_index(nodes, links)
+    findings = []
+    seen = set()
+    for link in links:
+        if link.get("relation_type") != "INTERACTS_WITH":
+            continue
+        a, b = link.get("source"), link.get("target")
+        if a not in by_id or b not in by_id:
+            continue
+        pair = tuple(sorted((a, b)))
+        if pair in seen:
+            continue
+        seen.add(pair)
+        shared = sorted(set(out.get((a, "CAUSES"), [])) & set(out.get((b, "CAUSES"), [])))
+        findings.append({
+            "rule_name": "interaction_signal",
+            "type": "interaction_signal",
+            "severity": "WARNING" if shared else "INFO",
+            "description": (
+                f"Interaction {_name(by_id, pair[0])} + {_name(by_id, pair[1])}"
+                + (f" is linked to {', '.join(_name(by_id, e) for e in shared)} by both drugs."
+                   if shared else " has no adverse event caused by both drugs.")
+            ),
+            "evidence": {"drugs": list(pair), "shared_adverse_events": shared},
+        })
+    return findings
+
+
+CUSTOM_RULES.extend([confounding_by_indication, unanchored_causality_signal, interaction_signal])
