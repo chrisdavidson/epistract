@@ -99,7 +99,7 @@ RELATION_CATS: dict[str, dict[str, list[str]]] = {
     "drug-discovery": {
         "mechanism": [
             "TARGETS", "INHIBITS", "ACTIVATES", "BINDS_TO", "HAS_MECHANISM",
-            "PARTICIPATES_IN", "INTERACTS_WITH", "METABOLIZED_BY", "PHOSPHORYLATES",
+            "PARTICIPATES_IN", "INTERACTS_WITH", "METABOLIZES", "PHOSPHORYLATES",
             "FORMS_COMPLEX_WITH", "REGULATES_EXPRESSION",
         ],
         "therapeutic": ["INDICATED_FOR", "CONTRAINDICATED_FOR", "EVALUATED_IN", "COMBINED_WITH"],
@@ -109,12 +109,12 @@ RELATION_CATS: dict[str, dict[str, list[str]]] = {
             "DERIVED_FROM", "ENCODES", "EXPRESSED_IN", "HAS_VARIANT", "HAS_DOMAIN",
             "LOCALIZED_TO",
         ],
-        "organizational": ["DEVELOPED_BY"],
+        "organizational": ["DEVELOPS"],
         "provenance": ["PUBLISHED_IN"],
         "regulatory": ["GRANTS_APPROVAL_FOR"],
     },
     "contracts": {
-        "organizational": ["OBLIGATED_TO", "SIGNED_BY", "PROVIDES_SERVICE", "HELD_AT"],
+        "organizational": ["OBLIGATED_TO", "SIGNS", "PROVIDES_SERVICE", "HELD_AT"],
         "structural": ["HAS_DEADLINE", "COSTS", "CROSS_REFERENCES"],
         "regulatory": ["REQUIRES_INSURANCE", "PENALIZES"],
     },
@@ -150,13 +150,13 @@ RELATION_CATS: dict[str, dict[str, list[str]]] = {
     },
     "fda-product-labels": {
         "structural": ["HAS_ACTIVE_INGREDIENT", "HAS_INACTIVE_INGREDIENT", "BELONGS_TO_CLASS"],
-        "organizational": ["MANUFACTURED_BY"],
+        "organizational": ["MANUFACTURES"],
         "therapeutic": [
             "INDICATED_FOR", "CONTRAINDICATED_IN", "DOSED_VIA", "EVALUATED_IN",
             "CONTRAINDICATED_WITH",
         ],
         "causal": ["CAUSES_ADVERSE_REACTION"],
-        "regulatory": ["HAS_WARNING", "IDENTIFIED_BY"],
+        "regulatory": ["HAS_WARNING", "IDENTIFIES"],
         "mechanism": ["INTERACTS_WITH", "HAS_MECHANISM", "HAS_PK_PROPERTY"],
         "association": ["STUDIED_IN_POPULATION"],
     },
