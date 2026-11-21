@@ -152,3 +152,36 @@ def test_fda_skill_forbids_placeholder_endpoints():
     # endpoints such as DRUG_PRODUCT_1; the prompt must rule them out.
     skill = (ROOT / "domains" / "fda-product-labels" / "SKILL.md").read_text()
     assert "Never use placeholder IDs" in skill
+
+
+@pytest.mark.integration
+def test_fda_interaction_population_unii_survive_build(tmp_path):
+    """fda-product-labels it.5: interaction agent/consequence, population scope, UNII -> ingredient."""
+    sift = pytest.importorskip("sift_kg")
+    ents = [("Lipitor", "DRUG_PRODUCT"), ("atorvastatin calcium", "ACTIVE_INGREDIENT"),
+            ("clarithromycin", "ACTIVE_INGREDIENT"), ("UNII 48A5M73Z4Q", "REGULATORY_IDENTIFIER"),
+            ("Strong CYP3A4 inhibitors — increased atorvastatin exposure", "DRUG_INTERACTION"),
+            ("rhabdomyolysis", "ADVERSE_REACTION"), ("Risk of myopathy and rhabdomyolysis", "WARNING"),
+            ("Patients 65 years of age or older", "PATIENT_POPULATION"),
+            ("Pediatric HeFH dosage: 10 mg to 20 mg once daily", "DOSAGE_REGIMEN")]
+    rels = [("Lipitor", "INTERACTS_WITH", ents[4][0]),
+            (ents[4][0], "INVOLVES", "clarithromycin"),
+            (ents[4][0], "INCREASES_RISK_OF", "rhabdomyolysis"),
+            ("Risk of myopathy and rhabdomyolysis", "SPECIFIC_TO", "Patients 65 years of age or older"),
+            ("Pediatric HeFH dosage: 10 mg to 20 mg once daily", "SPECIFIC_TO", "Patients 65 years of age or older"),
+            ("UNII 48A5M73Z4Q", "IDENTIFIES", "atorvastatin calcium")]
+    doc = {"document_id": "fda_case", "document_path": "", "chunks_processed": 1,
+           "domain_name": "fda-product-labels",
+           "entities": [{"name": n, "entity_type": t, "attributes": {}, "confidence": 0.9, "context": n}
+                        for n, t in ents],
+           "relations": [{"relation_type": r, "source_entity": s, "target_entity": t,
+                          "confidence": 0.9, "evidence": "x"} for s, r, t in rels]}
+    out = tmp_path / "out"
+    (out / "extractions").mkdir(parents=True)
+    (out / "extractions" / "fda_case.json").write_text(json.dumps(doc))
+    sift.run_build(out, sift.load_domain(domain_path=ROOT / "domains" / "fda-product-labels" / "domain.yaml"))
+    g = json.loads((out / "graph_data.json").read_text())
+    nodes = {n["id"]: n for n in g["nodes"]}
+    got = {(nodes[l["source"]]["name"], l["relation_type"], nodes[l["target"]]["name"])
+           for l in g["links"] if l["relation_type"] != "MENTIONED_IN"}
+    assert got == set(rels)
