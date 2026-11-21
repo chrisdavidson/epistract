@@ -100,6 +100,17 @@ Tell the user:
 - How this complements the community structure
 - Whether `epistemic_narrative.md` was produced (print the `narrative_status` value from the JSON output — `ok` / `no-persona` / `disabled` / `error: …`)
 
+### clinicaltrials: registry contests
+
+For the `clinicaltrials` domain, graphs enriched with `--results` get registry-aware contest detection on outcome analyses:
+
+- **Contest key:** (measure, `outcome_kind`, treatment, dose). `outcome_kind` is `responder`, `continuous` or `time_to_event`, so a responder analysis and a continuous one on the same measure are not contested against each other. Dose (`dose_mg`) is part of the key only when every finding in the contest carries one (`dose_aware: true`); otherwise the contest falls back to the dose-unaware key (`dose_aware: false`).
+- **Treatment precedence:** an `assesses_effect_of` edge first, then the registry arm types, then the arm and outcome titles.
+- **Flags on findings:** `ambiguous_active_comparator` (an active comparator that cannot be told from the experimental arm), `label_conflict` (an arm label that disagrees with the registry arm type or dose; dose is left null on such a cohort) and `registry_withdrawn` (the registry fact was withdrawn from the payload; it keeps its significance but is not corroboration).
+- **Summary keys:** `analysis_treatment_from_arm_type`, `analysis_treatment_arm_type_disagreements`, `analysis_treatment_ambiguous_active_comparator`, `analysis_label_conflicts`, `analysis_registry_withdrawn`, `analysis_outcome_kind_counts`, `analysis_contests_dose_aware` and `analysis_contests_dose_fallback`.
+
+Without registry data, the output is unchanged.
+
 ### Step 3: Suggest Next Steps
 
 - Review contradictions manually (highest-value findings)
