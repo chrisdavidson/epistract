@@ -2040,6 +2040,8 @@ def _write_analyses(
     for item in prepared:
         an = item["an"]
         holder = holder_by_reg.get(item["id"])
+        ctx = _refresh_ctx(counters, nct)
+        updated_before = ctx["stats"]["updated_nodes"] if ctx is not None else None
         if holder is not None and kg.graph.has_node(holder) and holder != item["id"]:
             oa_id = holder
             attrs = _node_attrs(kg, oa_id)
@@ -2053,18 +2055,26 @@ def _write_analyses(
             _upsert_node(
                 kg, oa_id, "OutcomeAnalysis", item["name"], item["attrs"], nct, counters, count=True,
             )
-        if item["arm_groups"]:
-            node_attrs = _node_attrs(kg, oa_id)
-            if (
-                _refresh_ctx(counters, nct) is not None
-                and oa_id == item["id"]
-                and _owned_by(node_attrs, nct)
-            ):
-                # A refresh re-reads the arm types of a registry-owned analysis,
-                # so the stored groups follow the payload the edge is written from.
+        node_attrs = _node_attrs(kg, oa_id)
+        if ctx is not None and oa_id == item["id"] and _owned_by(node_attrs, nct):
+            # A refresh re-reads the arm types of a registry-owned analysis, so
+            # the stored groups follow the payload the edge is written from: they
+            # are replaced, or removed when the payload gives none any more (no
+            # armGroups, or no compared group matches an arm), so grading cannot
+            # resolve the old compound from them. A change counts as an updated
+            # node, once per node.
+            previous = node_attrs.get("ctgov_arm_groups")
+            if item["arm_groups"]:
                 node_attrs["ctgov_arm_groups"] = item["arm_groups"]
             else:
-                node_attrs.setdefault("ctgov_arm_groups", item["arm_groups"])
+                node_attrs.pop("ctgov_arm_groups", None)
+            if (
+                previous != node_attrs.get("ctgov_arm_groups")
+                and ctx["stats"]["updated_nodes"] == updated_before
+            ):
+                ctx["stats"]["updated_nodes"] += 1
+        elif item["arm_groups"]:
+            node_attrs.setdefault("ctgov_arm_groups", item["arm_groups"])
         text = _registry_text(
             f"ClinicalTrials.gov results {nct}: {item['title']} — {' vs '.join(item['groups'])},",
             an.get("param_type"), an.get("param_value"),

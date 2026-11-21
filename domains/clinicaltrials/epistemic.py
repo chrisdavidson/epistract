@@ -1253,9 +1253,12 @@ def _arm_type_treatment(attrs: dict, patterns) -> str | None:
 OUTCOME_KINDS = ("responder", "continuous", "time_to_event")
 # Registry analysis paramType (the effect measure) naming a time-to-event model.
 # "HR" is read only here, never in a title, where it is usually heart rate.
-_TIME_TO_EVENT_EFFECT_RE = re.compile(r"hazard|\bHR\b|\bcox\b", re.IGNORECASE)
+# The abbreviations HR, OR and RR are matched case-sensitively, so the words
+# "or" and "hr" in a free-text effect measure name no model; the descriptive
+# phrases are matched in any case.
+_TIME_TO_EVENT_EFFECT_RE = re.compile(r"(?i:hazard|\bcox\b)|\bHR\b")
 _RESPONDER_EFFECT_RE = re.compile(
-    r"odds\s+ratio|risk\s+ratio|relative\s+risk|risk\s+difference|\bOR\b|\bRR\b", re.IGNORECASE
+    r"(?i:odds\s+ratio|risk\s+ratio|relative\s+risk|risk\s+difference)|\bOR\b|\bRR\b"
 )
 # Registry outcome-measure paramType values (outcome_param_type).
 _RESPONDER_PARAM_TYPES = frozenset({"COUNT_OF_PARTICIPANTS"})
@@ -1348,14 +1351,30 @@ def _outcome_kind(title, unit=None, effect_measure=None, param_type=None) -> str
 
 # CONTEST-01: dose in mg from arm and group titles. A number may carry
 # thousands separators ("1,000 mg" is 1000 mg). A range ("12-45 mg", "0.25 to
-# 1 mg") names both ends, so it is never one dose.
+# 1 mg") names both ends, so it is never one dose. A match never starts inside
+# a number ("1,000", "12-45") but may follow a name and a hyphen
+# ("Semaglutide-1 mg", "LY3298176-5mg").
 _DOSE_UNITS = r"(?:milligrams?|mg|mcg|µg|μg|ug|g)"
 _DOSE_NUM = r"(?:\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)"
-_DOSE_START = r"(?<![\w.,\-–—])"
+_DOSE_START = r"(?<![\w.,])(?<!\d[-–—])"
 _DOSE_END = r"(?![A-Za-z0-9µμ])"
+# Per-weight and concentration values ("10 mg/kg", "0.5-5.0 mg/ml") are no dose.
+_DOSE_PER_UNIT = r"(?!\s*/\s*(?:kg|m2|m²|dl|ml|l)\b)"
 _DOSE_RANGE_RE = re.compile(
-    _DOSE_START + r"(" + _DOSE_NUM + r")\s*(?:" + _DOSE_UNITS + r")?\s*(?:-|–|—|\s+to\s+)\s*("
-    + _DOSE_NUM + r")\s*(" + _DOSE_UNITS + r")" + _DOSE_END,
+    _DOSE_START + r"(" + _DOSE_NUM + r")\s*(" + _DOSE_UNITS + r")?\s*(?:-|–|—|\s+to\s+)\s*("
+    + _DOSE_NUM + r")\s*(" + _DOSE_UNITS + r")" + _DOSE_END + _DOSE_PER_UNIT,
+    re.IGNORECASE,
+)
+# A hyphen joining a name or code that contains a letter to a number
+# ("Semaglutide-1 mg", "LY3298176-5mg") separates the name from the dose; a
+# hyphen between two plain numbers ("12-45 mg") is a range.
+_DOSE_NAME_HYPHEN_RE = re.compile(r"(?<![\w.])((?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]+)[-–—](?=\d)")
+# A unit-less number right after a label word is the label's number, not the
+# low end of a range: "Cohort 2 - 10 mg" and "Group 1 to 4 mg" name one dose.
+_DOSE_LABEL_BEFORE_RE = re.compile(
+    r"\b(?:cohorts?|parts?|groups?|arms?|periods?|weeks?|wks?|days?|stages?|steps?|phases?|"
+    r"levels?|visits?|panels?|sequences?|segments?|blocks?|regimens?|treatments?|"
+    r"months?|years?|no|nos|numbers?)\.?\s*(?:#|no\.?|number)?\s*[:#]?\s*$",
     re.IGNORECASE,
 )
 _DOSE_POOL_RE = re.compile(
@@ -1363,8 +1382,7 @@ _DOSE_POOL_RE = re.compile(
     re.IGNORECASE,
 )
 _DOSE_RE = re.compile(
-    _DOSE_START + r"(" + _DOSE_NUM + r")\s*(" + _DOSE_UNITS + r")" + _DOSE_END
-    + r"(?!\s*/\s*(?:kg|m2|m²|dl|ml|l)\b)",
+    _DOSE_START + r"(" + _DOSE_NUM + r")\s*(" + _DOSE_UNITS + r")" + _DOSE_END + _DOSE_PER_UNIT,
     re.IGNORECASE,
 )
 _DOSE_SEGMENT_RE = re.compile(
@@ -1387,14 +1405,32 @@ def _parse_dose(text) -> set[float]:
 
     Thousands separators are read ("1,000 mg" is 1000). A range ("12-45 mg",
     "0.25 to 1 mg") gives both ends, so it never reads as one dose.
-    Per-weight and concentration values ("10 mg/kg") are not doses.
+    Per-weight and concentration values ("10 mg/kg", "10-20 mg/kg",
+    "0.5-5.0 mg/ml") are not doses. A label number before a dash or "to"
+    ("Cohort 2 - 10 mg", "Part 1 - 5 mg", "Group 1 to 4 mg") is no range end,
+    unless it carries a unit itself.
     """
-    text = str(text or "")
+    text = _DOSE_NAME_HYPHEN_RE.sub(r"\1 ", str(text or ""))
     found: set[float] = set()
-    for match in _DOSE_RANGE_RE.finditer(text):
-        found.add(_to_mg(match.group(1), match.group(3)))
-        found.add(_to_mg(match.group(2), match.group(3)))
-    text = _DOSE_RANGE_RE.sub(" ", text)
+    kept: list[str] = []
+    pos = 0
+    search_from = 0
+    while True:
+        match = _DOSE_RANGE_RE.search(text, search_from)
+        if match is None:
+            break
+        if match.group(2) is None and _DOSE_LABEL_BEFORE_RE.search(text, 0, match.start()):
+            # Not a range: retry after the label number, so the dose after
+            # the separator is still read (by the single-dose pattern).
+            search_from = match.end(1)
+            continue
+        found.add(_to_mg(match.group(1), match.group(2) or match.group(4)))
+        found.add(_to_mg(match.group(3), match.group(4)))
+        kept.append(text[pos:match.start()])
+        kept.append(" ")
+        pos = search_from = match.end()
+    kept.append(text[pos:])
+    text = "".join(kept)
     for match in _DOSE_POOL_RE.finditer(text):
         for number in re.split(r"\s*/\s*", match.group(1)):
             found.add(_to_mg(number, match.group(2)))
