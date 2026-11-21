@@ -313,3 +313,274 @@ def test_no_registry_identity_on_fixture_graph(ep, base_ep):
 def test_no_registry_identity_on_glp1_corpus_graph(ep, base_ep):
     graph = json.loads(GLP1_GRAPH.read_text())
     assert _dumped(_run(ep, graph)) == _dumped(_run(base_ep, graph))
+
+
+# --- CONTEST-03: arm types first, ambiguity, label conflicts -------------------
+
+SEMA_NAMES = ["Semaglutide", "Metformin", "Insulin Glargine", "Tirzepatide"]
+
+
+def _c03_graph(analysis_attrs=None, extra_nodes=(), extra_links=(), nct="NCT00000001", names=SEMA_NAMES):
+    nodes = [_n(f"c_{name.split()[0].lower()}", "Compound", name) for name in names]
+    nodes += [_trial(nct), _n("oc", "Outcome", CHANGE_TITLE)]
+    attrs = {"source": "ctgov_results", "ctgov_nct_ids": [nct], "p_value": "<0.001"}
+    attrs.update(analysis_attrs or {})
+    nodes.append(_n("ra", "OutcomeAnalysis", f"{nct}: {CHANGE_TITLE}",
+                    source_documents=[f"ctgov:{nct}"], attributes=attrs))
+    nodes += list(extra_nodes)
+    return {"nodes": nodes, "links": [_e("ra", "oc", "analyzes"), *extra_links]}
+
+
+def _arm(title, arm_type, interventions=()):
+    return {"title": title, "arm_type": arm_type, "interventions": list(interventions)}
+
+
+@pytest.mark.unit
+def test_contest03_add_on_background_is_dropped_by_arm_types(ep):
+    titles = ["Semaglutide + Metformin", "Insulin Glargine + Metformin"]
+    graph = _c03_graph({
+        "compared_groups": titles, "unmatched_groups": titles,
+        "ctgov_arm_groups": [_arm(titles[0], "EXPERIMENTAL"), _arm(titles[1], "ACTIVE_COMPARATOR")],
+    })
+    result = _run(ep, graph)
+    finding = _claims(result)["ra"]
+    assert finding["treatment"] == "Semaglutide"
+    assert finding["treatment_basis"] == "registry_arm_type"
+    assert result["summary"]["analysis_treatment_from_arm_type"] == 1
+
+
+@pytest.mark.unit
+def test_contest03_arm_types_come_before_the_title_rule(ep):
+    titles = ["Tirzepatide", "Placebo"]
+    arms = [_arm("Semaglutide", "EXPERIMENTAL"), _arm("Placebo", "PLACEBO_COMPARATOR")]
+    graph = _c03_graph({"compared_groups": titles, "unmatched_groups": titles, "ctgov_arm_groups": arms})
+    result = _run(ep, graph)
+    finding = _claims(result)["ra"]
+    assert finding["treatment"] == "Semaglutide"
+    assert finding["treatment_basis"] == "registry_arm_type"
+    assert result["summary"]["analysis_treatment_from_arm_type"] == 1
+    assert result["summary"]["analysis_treatment_arm_type_disagreements"] == 1
+
+
+@pytest.mark.unit
+def test_contest03_assesses_edge_still_wins_over_arm_types(ep):
+    titles = ["Tirzepatide", "Placebo"]
+    arms = [_arm("Semaglutide", "EXPERIMENTAL"), _arm("Placebo", "PLACEBO_COMPARATOR")]
+    graph = _c03_graph({"compared_groups": titles, "unmatched_groups": titles, "ctgov_arm_groups": arms},
+                       extra_links=[_e("ra", "c_tirzepatide", "assesses_effect_of")])
+    result = _run(ep, graph)
+    finding = _claims(result)["ra"]
+    assert finding["treatment"] == "Tirzepatide"
+    assert "treatment_basis" not in finding
+    assert result["summary"]["analysis_treatment_from_arm_type"] == 0
+    assert result["summary"]["analysis_treatment_arm_type_disagreements"] == 1
+
+
+@pytest.mark.unit
+def test_contest03_agreement_leaves_no_basis_and_no_count(ep):
+    titles = ["Semaglutide", "Placebo"]
+    arms = [_arm("Semaglutide", "EXPERIMENTAL"), _arm("Placebo", "PLACEBO_COMPARATOR")]
+    result = _run(ep, _c03_graph({"compared_groups": titles, "unmatched_groups": titles, "ctgov_arm_groups": arms}))
+    finding = _claims(result)["ra"]
+    assert finding["treatment"] == "Semaglutide"
+    assert "treatment_basis" not in finding
+    assert result["summary"]["analysis_treatment_from_arm_type"] == 0
+    assert result["summary"]["analysis_treatment_arm_type_disagreements"] == 0
+
+
+@pytest.mark.unit
+def test_contest03_keywordless_active_comparator_is_marked_ambiguous(ep):
+    titles = ["Tirzepatide", "Insulin Glargine"]
+    result = _run(ep, _c03_graph({"compared_groups": titles, "unmatched_groups": titles}))
+    finding = _claims(result)["ra"]
+    assert finding["treatment"] is None
+    assert finding["treatment_basis"] == "ambiguous_active_comparator"
+    assert result["summary"]["analysis_treatment_ambiguous_active_comparator"] == 1
+    assert result["summary"]["analysis_treatment_unresolved"] == 1
+
+
+@pytest.mark.unit
+def test_contest03_typed_arms_or_placebo_are_never_ambiguous(ep):
+    titles = ["Tirzepatide", "Insulin Glargine"]
+    arms = [_arm("Tirzepatide", "EXPERIMENTAL"), _arm("Insulin Glargine", "ACTIVE_COMPARATOR")]
+    result = _run(ep, _c03_graph({"compared_groups": titles, "unmatched_groups": titles, "ctgov_arm_groups": arms}))
+    assert _claims(result)["ra"]["treatment"] == "Tirzepatide"
+    assert result["summary"]["analysis_treatment_ambiguous_active_comparator"] == 0
+    titles = ["Tirzepatide", "Placebo"]
+    result = _run(ep, _c03_graph({"compared_groups": titles, "unmatched_groups": titles}))
+    finding = _claims(result)["ra"]
+    assert finding["treatment"] == "Tirzepatide"
+    assert "treatment_basis" not in finding
+    assert result["summary"]["analysis_treatment_ambiguous_active_comparator"] == 0
+
+
+def _cohort_graph(co1_name, co1_label, co2_name="Placebo", co2_label=None, extra_attrs=None):
+    def cohort(i, name, label):
+        return _n(i, "Cohort", name, attributes={"arm_label": label} if label else {})
+    # Registry group titles follow the registry arm label, not the extracted name.
+    attrs = {"compared_groups": [co1_label or co1_name, co2_label or co2_name], "unmatched_groups": []}
+    attrs.update(extra_attrs or {})
+    return _c03_graph(
+        attrs,
+        extra_nodes=[cohort("co1", co1_name, co1_label), cohort("co2", co2_name, co2_label)],
+        extra_links=[_e("ra", "co1", "compares"), _e("ra", "co2", "compares")],
+    )
+
+
+@pytest.mark.unit
+def test_contest03_label_conflict_prefers_the_registry_label(ep):
+    result = _run(ep, _cohort_graph("Tirzepatide 5 mg", "Tirzepatide 15 mg"))
+    finding = _claims(result)["ra"]
+    assert finding["treatment"] == "Tirzepatide"
+    assert finding["dose_mg"] == 15.0
+    assert finding["label_conflict"] == [
+        {"cohort": "co1", "cohort_name": "Tirzepatide 5 mg", "arm_label": "Tirzepatide 15 mg"}
+    ]
+    assert result["summary"]["analysis_label_conflicts"] == 1
+
+
+@pytest.mark.unit
+def test_contest03_spacing_is_not_a_label_conflict(ep):
+    result = _run(ep, _cohort_graph("Tirzepatide 15mg", "tirzepatide 15 mg"))
+    finding = _claims(result)["ra"]
+    assert "label_conflict" not in finding
+    assert result["summary"]["analysis_label_conflicts"] == 0
+
+
+@pytest.mark.unit
+def test_contest03_placebo_named_cohort_with_active_label_is_active(ep):
+    result = _run(ep, _cohort_graph("Placebo", "Tirzepatide 5 mg", co2_name="Placebo B"))
+    finding = _claims(result)["ra"]
+    assert finding["treatment"] == "Tirzepatide"
+    assert finding["label_conflict"][0]["cohort"] == "co1"
+    assert finding["dose_mg"] == 5.0
+
+
+@pytest.mark.unit
+def test_contest03_edge_treatment_basis_is_copied_and_counted(ep):
+    link = {**_e("ra", "c_tirzepatide", "assesses_effect_of"),
+            "attributes": {"source": "ctgov_results", "treatment_basis": "registry_arm_type"}}
+    result = _run(ep, _c03_graph(extra_links=[link]))
+    finding = _claims(result)["ra"]
+    assert finding["treatment"] == "Tirzepatide"
+    assert finding["treatment_basis"] == "registry_arm_type"
+    assert result["summary"]["analysis_treatment_from_arm_type"] == 1
+
+
+# --- WR-02 follow-up: withdrawn registry facts are not corroboration -----------
+
+def _contest_graph(first_attrs=None):
+    graph = _graph([_spec("ra1", "NCT00000001", "Tirzepatide", "<0.001"),
+                    _spec("ra2", "NCT00000002", "Tirzepatide", "0.40")])
+    for node in graph["nodes"]:
+        if node["id"] == "ra1":
+            node["attributes"].update(first_attrs or {})
+    return graph
+
+
+@pytest.mark.unit
+def test_withdrawn_registry_analysis_takes_no_part_in_contests(ep):
+    control = _run(ep, _contest_graph())
+    assert len(_entries(control)) == 1
+    result = _run(ep, _contest_graph({"ctgov_withdrawn": True}))
+    assert _entries(result) == []
+    finding = _claims(result)["ra1"]
+    assert finding["registry_withdrawn"] is True
+    assert finding["significant"] is True
+    assert finding["significance_source"] == "ctgov_withdrawn"
+    assert result["summary"]["analysis_registry_withdrawn"] == 1
+    assert result["summary"]["analysis_by_source"]["ctgov_withdrawn"] == 1
+
+
+@pytest.mark.unit
+def test_withdrawn_by_nct_on_every_nct_equals_withdrawn(ep):
+    result = _run(ep, _contest_graph({"ctgov_withdrawn_by_nct": {"nct00000001": True}}))
+    assert _entries(result) == []
+    assert _claims(result)["ra1"]["registry_withdrawn"] is True
+
+
+def _supersede_graph(withdrawn):
+    graph = _c03_graph({"compared_groups": ["Tirzepatide", "Placebo"], "unmatched_groups": ["Tirzepatide", "Placebo"],
+                        **({"ctgov_withdrawn": True} if withdrawn else {})},
+                       extra_links=[_e("ra", "c_tirzepatide", "assesses_effect_of")])
+    graph["nodes"].append(_n("ex", "OutcomeAnalysis", "extracted", source_documents=["doc:x"],
+                             attributes={"p_value": "0.5"}))
+    graph["links"] += [_e("ex", "oc", "analyzes"), _e("ex", "c_tirzepatide", "assesses_effect_of"),
+                       _e("ex", "trial:nct00000001", "reported_in")]
+    return graph
+
+
+@pytest.mark.unit
+def test_withdrawn_registry_analysis_supersedes_nothing(ep):
+    assert "superseded_by" in _claims(_run(ep, _supersede_graph(False)))["ex"]
+    assert "superseded_by" not in _claims(_run(ep, _supersede_graph(True)))["ex"]
+
+
+def _merged_graph(attrs, docs=("doc:x",)):
+    graph = _c03_graph(extra_links=[_e("ra", "c_tirzepatide", "assesses_effect_of")])
+    for node in graph["nodes"]:
+        if node["id"] == "ra":
+            node["attributes"] = {"sources": ["extracted", "ctgov_results"], **attrs}
+            node["source_documents"] = list(docs)
+    return graph
+
+
+MERGED = {"p_value": "0.30", "registry_p_value": "0.001", "ctgov_nct_ids": ["NCT00000001"],
+          "ci_lower": -0.5, "ci_upper": 0.4}
+
+
+@pytest.mark.unit
+def test_withdrawn_merged_analysis_is_graded_from_extracted_values(ep):
+    control = _claims(_run(ep, _merged_graph(MERGED)))["ra"]
+    assert control["significant"] is True
+    assert control["significance_source"] == "ctgov_results"
+    assert "ctgov:NCT00000001" in control["support_documents"]
+    result = _run(ep, _merged_graph({**MERGED, "ctgov_withdrawn_by_nct": {"NCT00000001": True}}))
+    finding = _claims(result)["ra"]
+    assert finding["significant"] is False
+    assert finding["significance_source"] == "extracted"
+    assert finding["registry_withdrawn"] is True
+    assert "ctgov:NCT00000001" not in finding["support_documents"]
+    assert result["summary"]["analysis_registry_withdrawn"] == 1
+
+
+@pytest.mark.unit
+def test_withdrawn_partially_keeps_corroboration_for_the_other_nct(ep):
+    attrs = {**MERGED, "ctgov_nct_ids": ["NCT00000001", "NCT00000002"],
+             "ctgov_withdrawn_by_nct": {"NCT00000001": True}}
+    finding = _claims(_run(ep, _merged_graph(attrs)))["ra"]
+    assert finding["significance_source"] == "ctgov_results"
+    assert "ctgov:NCT00000002" in finding["support_documents"]
+    assert "ctgov:NCT00000001" not in finding["support_documents"]
+    assert "registry_withdrawn" not in finding
+
+
+@pytest.mark.unit
+def test_withdrawn_registry_edge_is_ignored_but_extracted_edge_counts(ep):
+    titles = ["Semaglutide", "Placebo"]
+    arms = [_arm("Semaglutide", "EXPERIMENTAL"), _arm("Placebo", "PLACEBO_COMPARATOR")]
+    base = {"compared_groups": titles, "unmatched_groups": titles, "ctgov_arm_groups": arms}
+
+    def link(**attributes):
+        return {**_e("ra", "c_tirzepatide", "assesses_effect_of"), "attributes": attributes}
+
+    kept = _claims(_run(ep, _c03_graph(base, extra_links=[
+        link(source="ctgov_results", treatment_basis="registry_arm_type")])))["ra"]
+    assert kept["treatment"] == "Tirzepatide"
+    dropped = _claims(_run(ep, _c03_graph(base, extra_links=[
+        link(source="ctgov_results", treatment_basis="registry_arm_type", ctgov_withdrawn=True)])))["ra"]
+    assert dropped["treatment"] == "Semaglutide"
+    extracted = _claims(_run(ep, _c03_graph(base, extra_links=[
+        link(ctgov_withdrawn_by_nct={"NCT00000001": True})])))["ra"]
+    assert extracted["treatment"] == "Tirzepatide"
+
+
+@pytest.mark.unit
+def test_withdrawn_only_registry_graph_is_still_registry_mode(ep):
+    graph = _contest_graph({"ctgov_withdrawn": True})
+    for node in graph["nodes"]:
+        if node["id"] == "ra2":
+            node["attributes"]["ctgov_withdrawn"] = True
+    assert ep._graph_has_registry_data(graph["nodes"]) is True
+    result = _run(ep, graph)
+    assert result["summary"]["analysis_registry_withdrawn"] == 2
