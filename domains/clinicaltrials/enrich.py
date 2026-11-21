@@ -15,9 +15,14 @@ frequency threshold with a 5% floor, PRIMARY/SECONDARY outcome analyses) and
 imported into the graph as AdverseEvent, OrganSystem, OutcomeAnalysis,
 Outcome and StatisticalMethod nodes with their edges. Every registry node and
 edge is tagged source "ctgov_results" with the NCT. Registry data is merged into
-matching extracted nodes (conflicts are kept as registry_<attr>), a repeated
-run changes nothing, and registry groups that match no extracted Cohort never
-create one. Analyses merge only into an extracted analysis of the same trial
+matching extracted nodes (the first conflicting value is kept as
+registry_<attr>; every conflicting value is also kept as
+registry_<attr>_by_nct = {NCT: value}), a repeated run changes nothing, and
+registry groups that match no extracted Cohort never create one. When several
+Trial nodes carry one NCT, the registry edges that start at a Trial
+(reports_adverse_event, has_outcome) are written once, from the canonical Trial
+node (the lowest id); the other Trial nodes of that NCT get the attribute
+same_trial_as = <canonical id> and no registry edges. Analyses merge only into an extracted analysis of the same trial
 that compares the same arms (or has the same effect measure and estimate).
 Each registry analysis also records ctgov_arm_groups: the CT.gov armGroup type
 and interventions of every compared group that names an armGroup, added only
@@ -31,7 +36,9 @@ edges were written under another floor, its AEs are left as they are and the
 trial is listed under serious_min_pct_conflicts (re-enrich the un-enriched
 graph to change the floor).
 The "results" block of _enrichment_report.json counts the parsed records and
-the graph writes (created, merged); a trial whose write fails is rolled back
+the graph writes (created, merged; merged_by_type splits merged into
+AdverseEvent, OutcomeAnalysis and Outcome, where an Outcome merge is a registry
+analysis reusing an extracted Outcome); a trial whose write fails is rolled back
 and listed under write_errors. Without --results, behaviour is unchanged.
 
 Non-blocking: API failures log counts but never abort the pipeline.
@@ -595,6 +602,7 @@ def _new_counters() -> dict:
     return {
         "created_nodes": 0, "created_edges": 0, "merged": 0, "ae_index": None,
         "cross_trial_ae_links_ignored": 0,
+        "merged_by_type": {"AdverseEvent": 0, "OutcomeAnalysis": 0, "Outcome": 0},
     }
 
 
@@ -619,15 +627,32 @@ def _append_unique(container: dict, key: str, value) -> bool:
     return True
 
 
-def _merge_attrs(target: dict, attrs: dict, rename: dict | None = None, groups=()) -> None:
+def _merge_attrs(
+    target: dict, attrs: dict, rename: dict | None = None, groups=(), nct: str | None = None,
+) -> None:
     """Fill missing attributes; keep a differing existing value, store the new
     one as registry_<attr>. Never deletes or overwrites.
+
+    REFRESH-03: registry_<attr> keeps the first conflicting value; when nct is
+    given, every conflicting value is also stored as registry_<attr>_by_nct
+    = {nct: value}.
 
     For each group in groups: when the target has any of the group's fields,
     none of them is filled; every new value that differs from or is absent on
     the target is stored as registry_<attr> instead.
     """
     rename = rename or {}
+
+    def conflict(key, value) -> None:
+        name = rename.get(key, f"registry_{key}")
+        target.setdefault(name, value)
+        if nct is not None:
+            by_nct = target.get(f"{name}_by_nct")
+            if not isinstance(by_nct, dict):
+                by_nct = {}
+                target[f"{name}_by_nct"] = by_nct
+            by_nct[nct] = value
+
     held: set = set()
     for group in groups:
         if not any(target.get(k) not in (None, "", []) for k in group):
@@ -636,7 +661,7 @@ def _merge_attrs(target: dict, attrs: dict, rename: dict | None = None, groups=(
             held.add(key)
             value = attrs.get(key)
             if value is not None and target.get(key) != value:
-                target.setdefault(rename.get(key, f"registry_{key}"), value)
+                conflict(key, value)
     for key, value in attrs.items():
         if value is None or key in held:
             continue
@@ -647,7 +672,7 @@ def _merge_attrs(target: dict, attrs: dict, rename: dict | None = None, groups=(
             for sub, subvalue in value.items():
                 current.setdefault(sub, subvalue)
         elif current != value:
-            target.setdefault(rename.get(key, f"registry_{key}"), value)
+            conflict(key, value)
 
 
 def _merge_into_node(kg, node_id, attrs, nct, counters, rename=None, count=False, groups=()) -> bool:
@@ -661,12 +686,15 @@ def _merge_into_node(kg, node_id, attrs, nct, counters, rename=None, count=False
         return False
     if target.get("source") == REGISTRY_SOURCE:
         _append_unique(node, "source_documents", f"ctgov:{nct}")
-        _merge_attrs(target, attrs, rename)
+        _merge_attrs(target, attrs, rename, nct=nct)
     else:
-        _merge_attrs(target, attrs, rename, groups)
+        _merge_attrs(target, attrs, rename, groups, nct=nct)
         _append_unique(target, "sources", REGISTRY_SOURCE)
         if count:
             counters["merged"] += 1
+            by_type = counters.setdefault("merged_by_type", {})
+            etype = str(node.get("entity_type") or "")
+            by_type[etype] = by_type.get(etype, 0) + 1
     _append_unique(target, "ctgov_nct_ids", nct)
     return True
 
@@ -735,7 +763,7 @@ def _upsert_edge(kg, src, rel, tgt, nct, evidence, attrs, counters) -> bool:
         data["evidence"] = first_evidence
         data["source_document"] = first_document
     else:
-        _merge_attrs(target, attrs)
+        _merge_attrs(target, attrs, nct=nct)
         _append_unique(target, "sources", REGISTRY_SOURCE)
     _append_unique(target, "ctgov_nct_ids", nct)
     return True
@@ -978,8 +1006,8 @@ def _write_adverse_events(kg, nct, parsed, trial_ids, match, counters) -> None:
             f"ClinicalTrials.gov results {nct}: {term} ({label}), "
             f"{edge_attrs['n_affected']} of {edge_attrs['n_at_risk']} participants"
         )
-        for tid in trial_ids:
-            _upsert_edge(kg, tid, "reports_adverse_event", ae_id, nct, evidence, edge_attrs, counters)
+        # REFRESH-02: one edge, from the canonical Trial node (lowest id).
+        _upsert_edge(kg, trial_ids[0], "reports_adverse_event", ae_id, nct, evidence, edge_attrs, counters)
 
         done = set()
         for stat in stats:
@@ -1234,6 +1262,7 @@ def _write_analyses(
                     ids.append(oid)
 
     used_ids: set = set()
+    outcome_merges: set = set()
     prepared = []
     for an in analyses:
         title = str(an.get("outcome_title") or "").strip()
@@ -1259,7 +1288,11 @@ def _write_analyses(
         ]
         if fits:
             outcome_id = min(fits)[1]
+            reused_extracted = (
+                _plain_attrs(kg.graph.nodes[outcome_id]).get("source") != REGISTRY_SOURCE
+            )
         else:
+            reused_extracted = False
             outcome_id = _registry_outcome_id(kg, nct, title, unit)
             _upsert_node(
                 kg, outcome_id, "Outcome", title,
@@ -1270,15 +1303,16 @@ def _write_analyses(
                 },
                 nct, counters,
             )
-            for tid in trial_ids:
-                _upsert_edge(
-                    kg, tid, "has_outcome", outcome_id, nct,
-                    f"ClinicalTrials.gov results {nct}: outcome {title}", {}, counters,
-                )
+            # REFRESH-02: one edge, from the canonical Trial node (lowest id).
+            _upsert_edge(
+                kg, trial_ids[0], "has_outcome", outcome_id, nct,
+                f"ClinicalTrials.gov results {nct}: outcome {title}", {}, counters,
+            )
             outcome_by_norm.setdefault(norm, []).append(outcome_id)
         prepared.append({
             "an": an, "title": title, "name": name, "id": f"outcomeanalysis:{_slug(name)}",
-            "outcome": outcome_id, "cohorts": [c for c in cohort_ids if c],
+            "outcome": outcome_id, "reused_extracted": reused_extracted,
+            "cohorts": [c for c in cohort_ids if c],
             "complete": not unmatched,
             "attrs": _analysis_attrs(an, group_titles, unmatched), "groups": group_titles,
             "arm_groups": _compared_arm_groups(group_titles, parsed.get("arm_groups"), arm_match),
@@ -1365,7 +1399,14 @@ def _write_analyses(
             if an.get("ci_pct_value") not in (None, "") else None,
             f"p {an['p_value']}" if an.get("p_value") not in (None, "") else None,
         ).rstrip(",")
-        _upsert_edge(kg, oa_id, "analyzes", item["outcome"], nct, text, {}, counters)
+        wrote_analyzes = _upsert_edge(kg, oa_id, "analyzes", item["outcome"], nct, text, {}, counters)
+        if wrote_analyzes and item["reused_extracted"] and item["outcome"] not in outcome_merges:
+            # REFRESH-03: a registry analysis reusing an extracted Outcome is one
+            # merge per (outcome, NCT); the Outcome node itself is not modified.
+            outcome_merges.add(item["outcome"])
+            counters["merged"] += 1
+            by_type = counters.setdefault("merged_by_type", {})
+            by_type["Outcome"] = by_type.get("Outcome", 0) + 1
         for cid in item["cohorts"]:
             _upsert_edge(kg, oa_id, "compares", cid, nct, text, {}, counters)
         targets = set()
@@ -1406,6 +1447,20 @@ def _compared_arm_groups(group_titles, arm_groups, arm_match) -> list | None:
     return out if matched else None
 
 
+def _has_registry_edge(kg, nct, trial_ids) -> bool:
+    """True when an edge out of any of these Trial nodes carries this NCT from the registry."""
+    for tid in trial_ids:
+        for _, _, data in kg.graph.out_edges(tid, data=True):
+            attrs = data.get("attributes")
+            if (
+                isinstance(attrs, dict)
+                and attrs.get("source") == REGISTRY_SOURCE
+                and nct in (attrs.get("ctgov_nct_ids") or [])
+            ):
+                return True
+    return False
+
+
 def _write_results(kg, nct, parsed, trial_ids, counters) -> None:
     """Write one trial's parsed registry results into the graph."""
     cohorts = _trial_cohorts(kg, nct, trial_ids)
@@ -1425,10 +1480,15 @@ def _write_results(kg, nct, parsed, trial_ids, counters) -> None:
             arm_cache[title] = _match_label(title, arm_candidates)
         return arm_cache[title]
 
+    first_import = len(trial_ids) > 1 and not _has_registry_edge(kg, nct, trial_ids)
     _write_adverse_events(kg, nct, parsed, trial_ids, match, counters)
     _write_analyses(
         kg, nct, parsed, trial_ids, {c[0] for c in cohorts}, match, counters, arm_match,
     )
+    if first_import and _has_registry_edge(kg, nct, trial_ids):
+        # REFRESH-02: the registry edges live on the canonical Trial node only.
+        for tid in trial_ids[1:]:
+            _node_attrs(kg, tid).setdefault("same_trial_as", trial_ids[0])
 
 
 # ---------------------------------------------------------------------------
@@ -1445,6 +1505,7 @@ def _empty_results_block() -> dict:
         "analyses_parsed": 0,
         "created": 0,
         "merged": 0,
+        "merged_by_type": {"AdverseEvent": 0, "OutcomeAnalysis": 0, "Outcome": 0},
         "created_nodes": 0,
         "created_edges": 0,
         "write_failed": 0,
@@ -1611,6 +1672,7 @@ def enrich_graph(
             results_block["created_edges"] = counters["created_edges"]
             results_block["created"] = counters["created_nodes"] + counters["created_edges"]
             results_block["merged"] = counters["merged"]
+            results_block["merged_by_type"] = dict(counters["merged_by_type"])
             if counters["cross_trial_ae_links_ignored"]:
                 results_block["cross_trial_ae_links_ignored"] = counters["cross_trial_ae_links_ignored"]
             if write_errors:
