@@ -15,6 +15,7 @@ import re
 import subprocess
 import sys
 import time
+from types import SimpleNamespace
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -87,10 +88,40 @@ def _load_enrich(name: str = "_ct_enrich_under_test", path: Path | None = None):
 
 
 @pytest.fixture
-def enrich(monkeypatch):
+def enrich_arm(monkeypatch):
+    """The module under test with every feature live (CONTEST-04 arm-type edges)."""
     mod = _load_enrich()
     monkeypatch.setattr(mod.time, "sleep", lambda s: None)
     return mod
+
+
+@pytest.fixture
+def enrich(enrich_arm, monkeypatch):
+    """The module under test with the CONTEST-04 arm-type edges and the
+    outcome_param_type attribute switched off.
+
+    The pinned-identity tests for iterations 20-31 compare a --results run with
+    the older module; the arm-type edges (iteration 35) and the registry
+    outcome-measure paramType on analyses (iteration 36) are the intended
+    differences since then, and the iteration-32 and iteration-35 tests below
+    pin them exactly. Switching both off keeps every older comparison a strict
+    identity.
+    """
+    if hasattr(enrich_arm, "_arm_type_compound"):
+        monkeypatch.setattr(enrich_arm, "_arm_type_compound", lambda *args, **kwargs: None)
+    if hasattr(enrich_arm, "_outcome_param_type"):
+        monkeypatch.setattr(enrich_arm, "_outcome_param_type", lambda *args, **kwargs: None)
+    return enrich_arm
+
+
+@pytest.fixture
+def enrich_it35(enrich_arm, monkeypatch):
+    """The module under test with the arm-type edges live and the iteration-36
+    outcome_param_type attribute switched off: the behaviour the iteration-32
+    delta tests pin (arm-type edges are the one difference from iteration 32)."""
+    if hasattr(enrich_arm, "_outcome_param_type"):
+        monkeypatch.setattr(enrich_arm, "_outcome_param_type", lambda *args, **kwargs: None)
+    return enrich_arm
 
 
 def _router(bodies: dict):
@@ -3858,3 +3889,613 @@ def test_default_runs_iteration31_delta_is_the_late_trial_copy(enrich, tmp_path,
     for rep in (rep_old, rep_new):
         rep.pop("generated_at")
     assert rep_old == rep_new and _same_key_order(rep_old, rep_new)
+
+
+# ---------------------------------------------------------------------------
+# 13-03 CONTEST-04: assesses_effect_of edges from registry arm types
+# (clinicaltrials iteration 35)
+# ---------------------------------------------------------------------------
+
+ITERATION32_COMMIT = "40d38346617572f22d418013f1ebe084f20b53c2"
+ARM_BASIS = "registry_arm_type"
+ADDON_EXP = "Semaglutide + Metformin"
+ADDON_CMP = "Insulin Glargine + Metformin"
+
+
+def _addon_study(groups=None, arm_groups=None, nct=WITH_RESULTS_A):
+    """A copy of a WITH_RESULTS study with one outcome measure and one analysis
+    comparing two groups, and the given armGroups."""
+    groups = groups or [ADDON_EXP, ADDON_CMP]
+    study = _study(nct)
+    measure = copy.deepcopy(study["resultsSection"]["outcomeMeasuresModule"]["outcomeMeasures"][0])
+    measure["groups"] = [
+        {"id": f"OG00{i}", "title": title, "description": title} for i, title in enumerate(groups)
+    ]
+    analysis = copy.deepcopy(measure["analyses"][0])
+    analysis["groupIds"] = [g["id"] for g in measure["groups"]]
+    measure["analyses"] = [analysis]
+    study["resultsSection"]["outcomeMeasuresModule"]["outcomeMeasures"] = [measure]
+    if arm_groups is None:
+        arm_groups = [
+            {"label": ADDON_EXP, "type": "EXPERIMENTAL",
+             "interventionNames": ["Drug: Semaglutide", "Drug: Metformin"]},
+            {"label": ADDON_CMP, "type": "ACTIVE_COMPARATOR",
+             "interventionNames": ["Drug: Insulin Glargine", "Drug: Metformin"]},
+        ]
+    study["protocolSection"]["armsInterventionsModule"]["armGroups"] = arm_groups
+    return study
+
+
+def _compound_nodes(*names):
+    return [
+        {"id": f"compound:{n.lower().replace(' ', '_')}", "name": n, "entity_type": "Compound",
+         "source_documents": ["doc_seed"]}
+        for n in names
+    ]
+
+
+def _addon_graph(directory: Path, extra_nodes=()):
+    return _write_graph(
+        directory, [WITH_RESULTS_A],
+        [*_compound_nodes("Semaglutide", "Insulin Glargine", "Metformin"), *extra_nodes],
+    )
+
+
+def _arm_edges(links):
+    return [l for l in _edges(links, "assesses_effect_of") if _eattr(l, "treatment_basis") == ARM_BASIS]
+
+
+def _graph_json(directory: Path):
+    return json.loads(_normalize_stamps((directory / "graph_data.json").read_bytes()))
+
+
+def _without_arm_edges(graph):
+    kept = [
+        l for l in graph["links"]
+        if not (l.get("relation_type") == "assesses_effect_of"
+                and (l.get("attributes") or {}).get("treatment_basis") == ARM_BASIS)
+    ]
+    meta = {**graph["metadata"], "relation_count": graph["metadata"]["relation_count"] - (len(graph["links"]) - len(kept))}
+    return {**graph, "metadata": meta, "links": kept}
+
+
+@pytest.mark.unit
+def test_contest04_add_on_arm_types_write_one_registry_edge(enrich_arm, tmp_path):
+    directory = _addon_graph(tmp_path / "g")
+    report, _ = _run(enrich_arm, directory, {WITH_RESULTS_A: _addon_study()}, results=True)
+    nodes, links = _read_graph(directory)
+    analyses = [n for n in _registry_nodes(nodes, "OutcomeAnalysis")]
+    assert len(analyses) == 1
+    effect = _edges(links, "assesses_effect_of", analyses[0]["id"])
+    assert [l["target"] for l in effect] == ["compound:semaglutide"]
+    edge = effect[0]
+    assert _eattr(edge, "source") == "ctgov_results"
+    assert _eattr(edge, "ctgov_nct_ids") == [WITH_RESULTS_A]
+    assert _eattr(edge, "treatment_basis") == ARM_BASIS
+    assert edge["source_document"] == f"ctgov:{WITH_RESULTS_A}"
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("case", ["two_experimental", "untyped_group", "placebo_experimental", "two_compounds"])
+def test_contest04_ambiguous_arm_types_write_no_edge(enrich_arm, tmp_path, case):
+    groups = [ADDON_EXP, ADDON_CMP]
+    arms = [
+        {"label": ADDON_EXP, "type": "EXPERIMENTAL", "interventionNames": ["Drug: Semaglutide", "Drug: Metformin"]},
+        {"label": ADDON_CMP, "type": "ACTIVE_COMPARATOR", "interventionNames": ["Drug: Insulin Glargine", "Drug: Metformin"]},
+    ]
+    if case == "two_experimental":
+        arms[1]["type"] = "EXPERIMENTAL"
+    elif case == "untyped_group":
+        arms = arms[:1]
+    elif case == "placebo_experimental":
+        groups = ["Placebo", ADDON_CMP]
+        arms = [
+            {"label": "Placebo", "type": "EXPERIMENTAL", "interventionNames": ["Drug: Semaglutide"]},
+            arms[1],
+        ]
+    elif case == "two_compounds":
+        groups = ["Semaglutide + Insulin Glargine", "Placebo"]
+        arms = [
+            {"label": groups[0], "type": "EXPERIMENTAL", "interventionNames": []},
+            {"label": "Placebo", "type": "PLACEBO_COMPARATOR", "interventionNames": ["Drug: Placebo"]},
+        ]
+    directory = _addon_graph(tmp_path / "g")
+    study = _addon_study(groups=groups, arm_groups=arms)
+    _run(enrich_arm, directory, {WITH_RESULTS_A: study}, results=True)
+    nodes, links = _read_graph(directory)
+    assert _registry_nodes(nodes, "OutcomeAnalysis")
+    assert _edges(links, "assesses_effect_of") == []
+
+
+@pytest.mark.unit
+def test_contest04_name_shared_by_two_compounds_is_ambiguous(enrich_arm, tmp_path):
+    twin = {"id": "compound:semaglutide_2", "name": "semaglutide", "entity_type": "Compound",
+            "source_documents": ["doc_seed"]}
+    directory = _addon_graph(tmp_path / "g", [twin])
+    _run(enrich_arm, directory, {WITH_RESULTS_A: _addon_study()}, results=True)
+    _, links = _read_graph(directory)
+    assert _edges(links, "assesses_effect_of") == []
+
+
+@pytest.mark.unit
+def test_contest04_extracted_analysis_holder_gets_no_arm_type_edge(enrich_arm, tmp_path):
+    directory = _fully_seeded(enrich_arm, tmp_path / "g")
+    _run(enrich_arm, directory, _all_fixture_bodies(), results=True)
+    nodes, links = _read_graph(directory)
+    arm = _arm_edges(links)
+    assert arm
+    for link in arm:
+        assert _nattr(nodes[link["source"]], "source") == "ctgov_results"
+    holder = "outcomeanalysis:seed_hba1c_36"
+    assert _nattr(nodes[holder], "ctgov_analysis_ids")
+    assert not [l for l in _edges(links, "assesses_effect_of", holder) if _eattr(l, "treatment_basis")]
+
+
+@pytest.mark.unit
+def test_contest04_cohort_rule_edge_is_kept_and_not_doubled(enrich_arm, tmp_path):
+    _, _, nodes, links = _seeded_run(enrich_arm, tmp_path)
+    by_name = {n["name"]: n for n in nodes.values()}
+    both = by_name[f"{WITH_RESULTS_A}: Change From Baseline in HbA1c — Placebo vs 12 mg Orforglipron"]
+    effect = _edges(links, "assesses_effect_of", both["id"])
+    assert [(l["target"], _eattr(l, "treatment_basis")) for l in effect] == [(COMPOUND, None)]
+    three = by_name[f"{WITH_RESULTS_A}: Change From Baseline in HbA1c — Placebo vs 3 mg Orforglipron"]
+    effect = _edges(links, "assesses_effect_of", three["id"])
+    assert [(l["target"], _eattr(l, "treatment_basis")) for l in effect] == [(COMPOUND, ARM_BASIS)]
+
+
+def _old32(tmp_path, monkeypatch, name="_ct_enrich_iter32"):
+    return _load_old_enrich(tmp_path, ITERATION32_COMMIT, name, monkeypatch)
+
+
+def _arm_variant_graph(variant, directory, enrich):
+    if variant == "seeded":
+        return _fully_seeded(enrich, directory), _all_fixture_bodies()
+    return _addon_graph(directory), {WITH_RESULTS_A: _addon_study()}
+
+
+@pytest.mark.unit
+def test_default_runs_iteration32_protocol_only_identical(enrich_it35, tmp_path, monkeypatch):
+    old = _old32(tmp_path, monkeypatch, "_ct_enrich_iter32_plain")
+    d_old = _seeded_graph(tmp_path / "old")
+    d_new = _seeded_graph(tmp_path / "new")
+    bodies = _all_fixture_bodies()
+    rep_old = _enrich_with(old, d_old, bodies)
+    rep_new = _enrich_with(enrich_it35, d_new, bodies)
+    assert _normalize_stamps((d_old / "graph_data.json").read_bytes()) == _normalize_stamps(
+        (d_new / "graph_data.json").read_bytes()
+    )
+    rep_old.pop("generated_at")
+    rep_new.pop("generated_at")
+    assert rep_old == rep_new and _same_key_order(rep_old, rep_new) and "results" not in rep_new
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("variant", ["seeded", "add_on"])
+def test_default_runs_iteration32_fresh_results_delta_is_the_arm_type_edges(
+    enrich_it35, tmp_path, monkeypatch, variant,
+):
+    old = _old32(tmp_path, monkeypatch)
+    d_old, bodies = _arm_variant_graph(variant, tmp_path / "old", enrich_it35)
+    d_new, _ = _arm_variant_graph(variant, tmp_path / "new", enrich_it35)
+    rep_old = _enrich_with(old, d_old, bodies, results=True)
+    rep_new = _enrich_with(enrich_it35, d_new, bodies, results=True)
+    g_old, g_new = _graph_json(d_old), _graph_json(d_new)
+    added = _arm_edges(g_new["links"])
+    assert added
+    assert _without_arm_edges(g_new) == g_old
+    assert _same_key_order(g_old, _without_arm_edges(g_new))
+    rep_old.pop("generated_at")
+    rep_new.pop("generated_at")
+    for key in ("created_edges", "created"):
+        assert rep_new["results"][key] == rep_old["results"][key] + len(added)
+        rep_new["results"][key] = rep_old["results"][key]
+    assert rep_old == rep_new and _same_key_order(rep_old, rep_new)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("variant", ["seeded", "add_on"])
+def test_default_runs_iteration32_rerun_adds_only_the_arm_type_edges(
+    enrich_it35, tmp_path, monkeypatch, variant,
+):
+    old = _old32(tmp_path, monkeypatch)
+    directory, bodies = _arm_variant_graph(variant, tmp_path / "g", enrich_it35)
+    _enrich_with(old, directory, bodies, results=True)
+    before = _graph_json(directory)
+    assert not _arm_edges(before["links"])
+    report = _enrich_with(enrich_it35, directory, bodies, results=True)
+    after = _graph_json(directory)
+    added = _arm_edges(after["links"])
+    assert added and _without_arm_edges(after) == before
+    assert report["results"]["merged"] == 0 and report["results"]["created_nodes"] == 0
+    assert report["results"]["created_edges"] == report["results"]["created"] == len(added)
+    again = _normalize_stamps((directory / "graph_data.json").read_bytes())
+    report = _enrich_with(enrich_it35, directory, bodies, results=True)
+    assert _normalize_stamps((directory / "graph_data.json").read_bytes()) == again
+    assert report["results"]["created_edges"] == 0
+    refresh = _assert_refresh_noop(enrich_it35, directory, bodies)
+    assert refresh["results"]["refresh"]["withdrawn"] == 0
+
+
+@pytest.mark.unit
+def test_contest04_refresh_withdraws_the_arm_type_edge_with_its_analysis(enrich_arm, tmp_path):
+    directory = _addon_graph(tmp_path / "g")
+    _run(enrich_arm, directory, {WITH_RESULTS_A: _addon_study()}, results=True)
+    _, links = _read_graph(directory)
+    assert len(_arm_edges(links)) == 1
+    gone = _addon_study()
+    gone["resultsSection"]["outcomeMeasuresModule"]["outcomeMeasures"][0]["analyses"] = []
+    _run(enrich_arm, directory, {WITH_RESULTS_A: gone}, results=True, refresh=True)
+    nodes, links = _read_graph(directory)
+    edges = _arm_edges(links)
+    assert len(edges) == 1
+    assert _eattr(edges[0], "ctgov_withdrawn") is True
+    assert _nattr(nodes[edges[0]["source"]], "ctgov_withdrawn") is True
+
+
+def _load_live_epistemic():
+    override = os.environ.get("CT_EPISTEMIC_PATH")
+    path = Path(override) if override else EPI_ROOT / "domains" / "clinicaltrials" / "epistemic.py"
+    spec = importlib.util.spec_from_file_location("_ct_epistemic_for_contest04", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+@pytest.mark.unit
+def test_contest04_epistemic_reads_the_arm_type_edge_first(enrich_arm, tmp_path):
+    ep = _load_live_epistemic()
+    directory = _addon_graph(tmp_path / "g")
+    _run(enrich_arm, directory, {WITH_RESULTS_A: _addon_study()}, results=True)
+    graph = json.loads((directory / "graph_data.json").read_text())
+    result = ep.analyze_clinicaltrials_epistemic(directory, graph)
+    findings = result["base_domain"]["analysis_claims"]
+    assert len(findings) == 1
+    assert findings[0]["treatment"] == "Semaglutide"
+    assert findings[0]["treatment_basis"] == ARM_BASIS
+    # refreshed with the analysis withdrawn: the withdrawn edge is ignored
+    gone = _addon_study()
+    gone["resultsSection"]["outcomeMeasuresModule"]["outcomeMeasures"][0]["analyses"] = []
+    _run(enrich_arm, directory, {WITH_RESULTS_A: gone}, results=True, refresh=True)
+    graph = json.loads((directory / "graph_data.json").read_text())
+    for node in graph["nodes"]:
+        # isolate the edge: without ctgov_arm_groups the arm-type fallback cannot answer
+        (node.get("attributes") or {}).pop("ctgov_arm_groups", None)
+    result = ep.analyze_clinicaltrials_epistemic(directory, graph)
+    assert result["base_domain"]["analysis_claims"]
+    for finding in result["base_domain"]["analysis_claims"]:
+        assert finding.get("treatment_basis") != ARM_BASIS
+
+
+# --- 13-REVIEW round 1 (iteration 36) ------------------------------------------
+
+ITERATION35_COMMIT = "84742eb2cdd871e3ab3be80dd137cbc05bb5b578"
+
+
+def _old35(tmp_path, monkeypatch, name="_ct_enrich_iter35"):
+    return _load_old_enrich(tmp_path, ITERATION35_COMMIT, name, monkeypatch)
+
+
+def _without_param_type(value):
+    if isinstance(value, dict):
+        return {k: _without_param_type(v) for k, v in value.items() if k != "outcome_param_type"}
+    if isinstance(value, list):
+        return [_without_param_type(v) for v in value]
+    return value
+
+
+@pytest.mark.unit
+def test_default_runs_iteration35_protocol_only_identical(enrich_arm, tmp_path, monkeypatch):
+    old = _old35(tmp_path, monkeypatch, "_ct_enrich_iter35_plain")
+    d_old = _seeded_graph(tmp_path / "old")
+    d_new = _seeded_graph(tmp_path / "new")
+    bodies = _all_fixture_bodies()
+    rep_old = _enrich_with(old, d_old, bodies)
+    rep_new = _enrich_with(enrich_arm, d_new, bodies)
+    assert _normalize_stamps((d_old / "graph_data.json").read_bytes()) == _normalize_stamps(
+        (d_new / "graph_data.json").read_bytes()
+    )
+    rep_old.pop("generated_at")
+    rep_new.pop("generated_at")
+    assert rep_old == rep_new and _same_key_order(rep_old, rep_new) and "results" not in rep_new
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("variant", ["seeded", "add_on"])
+def test_default_runs_iteration35_fresh_results_delta_is_the_param_type(
+    enrich_arm, tmp_path, monkeypatch, variant,
+):
+    """WR-03: a fresh --results run differs from iteration 35 only by
+    outcome_param_type on analyses; on these fixtures the arm-type edges are the
+    same (the WR-06 comparator rules change no resolution here)."""
+    old = _old35(tmp_path, monkeypatch)
+    d_old, bodies = _arm_variant_graph(variant, tmp_path / "old", enrich_arm)
+    d_new, _ = _arm_variant_graph(variant, tmp_path / "new", enrich_arm)
+    rep_old = _enrich_with(old, d_old, bodies, results=True)
+    rep_new = _enrich_with(enrich_arm, d_new, bodies, results=True)
+    g_old, g_new = _graph_json(d_old), _graph_json(d_new)
+    typed = [n for n in g_new["nodes"] if "outcome_param_type" in (n.get("attributes") or {})]
+    assert typed
+    assert all(str(n.get("entity_type")) == "OutcomeAnalysis" for n in typed)
+    assert _without_param_type(g_new) == g_old
+    rep_old.pop("generated_at")
+    rep_new.pop("generated_at")
+    assert rep_old == rep_new and _same_key_order(rep_old, rep_new)
+
+
+@pytest.mark.unit
+def test_review1_outcome_param_type_written_from_the_measure(enrich_arm, tmp_path):
+    study = _addon_study()
+    measure = study["resultsSection"]["outcomeMeasuresModule"]["outcomeMeasures"][0]
+    measure["paramType"] = "LEAST_SQUARES_MEAN"
+    directory = _addon_graph(tmp_path / "g")
+    _run(enrich_arm, directory, {WITH_RESULTS_A: study}, results=True)
+    nodes, _ = _read_graph(directory)
+    analyses = _registry_nodes(nodes, "OutcomeAnalysis")
+    assert [_nattr(n, "outcome_param_type") for n in analyses] == ["LEAST_SQUARES_MEAN"]
+    # a refresh with a changed paramType replaces it on the registry-owned analysis
+    measure["paramType"] = "MEAN"
+    _run(enrich_arm, directory, {WITH_RESULTS_A: study}, results=True, refresh=True)
+    nodes, _ = _read_graph(directory)
+    assert [_nattr(n, "outcome_param_type") for n in _registry_nodes(nodes, "OutcomeAnalysis")] == ["MEAN"]
+
+
+def _arm_ab_study(interventions, arm_type="EXPERIMENTAL"):
+    """Group titles that name no compound, so only the armGroup interventions resolve."""
+    return _addon_study(groups=["Arm A", "Arm B"], arm_groups=[
+        {"label": "Arm A", "type": arm_type, "interventionNames": list(interventions)},
+        {"label": "Arm B", "type": "PLACEBO_COMPARATOR", "interventionNames": ["Drug: Placebo"]},
+    ])
+
+
+def _live_arm_edges(links):
+    return sorted(
+        (l["target"], bool(_eattr(l, "ctgov_withdrawn"))) for l in _arm_edges(links)
+    )
+
+
+@pytest.mark.unit
+def test_review1_refresh_moves_the_arm_type_edge_to_the_new_compound(enrich_arm, tmp_path):
+    directory = _write_graph(tmp_path / "g", [WITH_RESULTS_A], _compound_nodes("Semaglutide", "Tirzepatide"))
+    _run(enrich_arm, directory, {WITH_RESULTS_A: _arm_ab_study(["Drug: Semaglutide"])}, results=True)
+    _, links = _read_graph(directory)
+    assert _live_arm_edges(links) == [("compound:semaglutide", False)]
+    changed = {WITH_RESULTS_A: _arm_ab_study(["Drug: Tirzepatide"])}
+    _run(enrich_arm, directory, changed, results=True, refresh=True)
+    nodes, links = _read_graph(directory)
+    assert _live_arm_edges(links) == [("compound:semaglutide", True), ("compound:tirzepatide", False)]
+    analysis = _registry_nodes(nodes, "OutcomeAnalysis")[0]
+    assert _nattr(analysis, "ctgov_arm_groups")[0]["interventions"] == ["Drug: Tirzepatide"]
+    # the refreshed state is stable
+    _assert_refresh_noop(enrich_arm, directory, changed)
+
+
+@pytest.mark.unit
+def test_review1_withdrawn_arm_type_edge_does_not_block_a_new_one(enrich_arm, tmp_path):
+    directory = _write_graph(tmp_path / "g", [WITH_RESULTS_A], _compound_nodes("Semaglutide", "Tirzepatide"))
+    _run(enrich_arm, directory, {WITH_RESULTS_A: _arm_ab_study(["Drug: Semaglutide"])}, results=True)
+    # the arm types stop resolving: the edge is withdrawn
+    unresolved = {WITH_RESULTS_A: _arm_ab_study(["Drug: Semaglutide"], arm_type="OTHER")}
+    _run(enrich_arm, directory, unresolved, results=True, refresh=True)
+    _, links = _read_graph(directory)
+    assert _live_arm_edges(links) == [("compound:semaglutide", True)]
+    # a later payload resolves another compound: the withdrawn edge blocks nothing
+    _run(enrich_arm, directory, {WITH_RESULTS_A: _arm_ab_study(["Drug: Tirzepatide"])}, results=True, refresh=True)
+    _, links = _read_graph(directory)
+    assert _live_arm_edges(links) == [("compound:semaglutide", True), ("compound:tirzepatide", False)]
+
+
+@pytest.mark.unit
+def test_review1_live_arm_type_edge_is_kept_outside_a_refresh(enrich_arm, tmp_path):
+    directory = _write_graph(tmp_path / "g", [WITH_RESULTS_A], _compound_nodes("Semaglutide", "Tirzepatide"))
+    _run(enrich_arm, directory, {WITH_RESULTS_A: _arm_ab_study(["Drug: Semaglutide"])}, results=True)
+    # a plain re-run never rewrites recorded facts, so no second live edge appears
+    _run(enrich_arm, directory, {WITH_RESULTS_A: _arm_ab_study(["Drug: Tirzepatide"])}, results=True)
+    _, links = _read_graph(directory)
+    assert _live_arm_edges(links) == [("compound:semaglutide", False)]
+
+
+# --- 13-REVIEW round 2 (iteration 37) ------------------------------------------
+
+def _graded_treatments(directory):
+    ep = _load_live_epistemic()
+    graph = json.loads((directory / "graph_data.json").read_text())
+    result = ep.analyze_clinicaltrials_epistemic(directory, graph)
+    return [(f.get("treatment"), f.get("treatment_basis")) for f in result["base_domain"]["analysis_claims"]]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("drop", ["empty", "absent", "retitled"])
+def test_review2_refresh_without_arm_groups_removes_the_stored_groups(enrich_arm, tmp_path, drop):
+    """WR-04: a refresh whose payload gives no usable arm groups (none, or none
+    matching a compared group) withdraws the arm-type edge and removes the
+    stored ctgov_arm_groups, so grading cannot resolve the old compound."""
+    directory = _write_graph(tmp_path / "g", [WITH_RESULTS_A], _compound_nodes("Semaglutide", "Tirzepatide"))
+    _run(enrich_arm, directory, {WITH_RESULTS_A: _arm_ab_study(["Drug: Semaglutide"])}, results=True)
+    nodes, links = _read_graph(directory)
+    assert _live_arm_edges(links) == [("compound:semaglutide", False)]
+    assert _nattr(_registry_nodes(nodes, "OutcomeAnalysis")[0], "ctgov_arm_groups")
+    assert ("Semaglutide", ARM_BASIS) in _graded_treatments(directory)
+    changed = _arm_ab_study(["Drug: Semaglutide"])
+    arms = changed["protocolSection"]["armsInterventionsModule"]
+    if drop == "empty":
+        arms["armGroups"] = []
+    elif drop == "absent":
+        del arms["armGroups"]
+    else:
+        for k, arm in enumerate(arms["armGroups"]):
+            arm["label"] = f"Treatment sequence {k + 1}"
+    report, _ = _run(enrich_arm, directory, {WITH_RESULTS_A: changed}, results=True, refresh=True)
+    nodes, links = _read_graph(directory)
+    assert _live_arm_edges(links) == [("compound:semaglutide", True)]
+    analysis = _registry_nodes(nodes, "OutcomeAnalysis")[0]
+    assert "ctgov_arm_groups" not in (analysis.get("attributes") or {})
+    assert report["results"]["refresh"]["updated_nodes"] >= 1
+    for treatment, basis in _graded_treatments(directory):
+        assert treatment != "Semaglutide" and basis != ARM_BASIS
+    _assert_refresh_noop(enrich_arm, directory, {WITH_RESULTS_A: changed})
+
+
+@pytest.mark.unit
+def test_review2_arm_group_only_refresh_counts_an_updated_node(enrich_arm, tmp_path):
+    """IN-01: a refresh that changes only the stored arm groups (same compound,
+    same edge) reports the analysis as an updated node, once."""
+    directory = _write_graph(tmp_path / "g", [WITH_RESULTS_A], _compound_nodes("Semaglutide", "Tirzepatide"))
+    _run(enrich_arm, directory, {WITH_RESULTS_A: _arm_ab_study(["Drug: Semaglutide"])}, results=True)
+    changed = {WITH_RESULTS_A: _arm_ab_study(["Drug: Semaglutide", "Device: Pen injector"])}
+    report, _ = _run(enrich_arm, directory, changed, results=True, refresh=True)
+    refresh = report["results"]["refresh"]
+    assert (refresh["updated_nodes"], refresh["updated_edges"], refresh["withdrawn"]) == (1, 0, 0)
+    nodes, links = _read_graph(directory)
+    assert _live_arm_edges(links) == [("compound:semaglutide", False)]
+    analysis = _registry_nodes(nodes, "OutcomeAnalysis")[0]
+    assert _nattr(analysis, "ctgov_arm_groups")[0]["interventions"] == ["Drug: Semaglutide", "Device: Pen injector"]
+    _assert_refresh_noop(enrich_arm, directory, changed)
+
+
+@pytest.mark.unit
+def test_review2_refresh_that_changes_attributes_and_arm_groups_counts_one_update(enrich_arm, tmp_path):
+    """IN-01: the arm-group change of an analysis whose attributes also changed
+    is not counted twice."""
+    directory = _write_graph(tmp_path / "g", [WITH_RESULTS_A], _compound_nodes("Semaglutide", "Tirzepatide"))
+    _run(enrich_arm, directory, {WITH_RESULTS_A: _arm_ab_study(["Drug: Semaglutide"])}, results=True)
+    study = _arm_ab_study(["Drug: Semaglutide", "Device: Pen injector"])
+    analysis = study["resultsSection"]["outcomeMeasuresModule"]["outcomeMeasures"][0]["analyses"][0]
+    analysis["pValue"] = "0.987"
+    report, _ = _run(enrich_arm, directory, {WITH_RESULTS_A: study}, results=True, refresh=True)
+    assert report["results"]["refresh"]["updated_nodes"] == 1
+
+
+# --- 13-REVIEW round 3 (iteration 38) ------------------------------------------
+
+@pytest.mark.unit
+def test_review3_analysis_created_by_a_refresh_is_not_counted_as_updated(enrich_arm, tmp_path):
+    """WR-02 (round 3): an analysis the refresh creates counts as created only;
+    its arm groups are no update of an existing node."""
+    directory = _write_graph(tmp_path / "g", [WITH_RESULTS_A], _compound_nodes("Semaglutide", "Tirzepatide"))
+    empty = _arm_ab_study(["Drug: Semaglutide"])
+    for measure in empty["resultsSection"]["outcomeMeasuresModule"]["outcomeMeasures"]:
+        measure["analyses"] = []
+    _run(enrich_arm, directory, {WITH_RESULTS_A: empty}, results=True)
+    nodes, _ = _read_graph(directory)
+    assert _registry_nodes(nodes, "OutcomeAnalysis") == []
+    full = {WITH_RESULTS_A: _arm_ab_study(["Drug: Semaglutide"])}
+    report, _ = _run(enrich_arm, directory, full, results=True, refresh=True)
+    nodes, links = _read_graph(directory)
+    analyses = _registry_nodes(nodes, "OutcomeAnalysis")
+    assert len(analyses) == 1 and _nattr(analyses[0], "ctgov_arm_groups")
+    assert _live_arm_edges(links) == [("compound:semaglutide", False)]
+    assert report["results"]["refresh"]["updated_nodes"] == 0
+    assert report["results"]["created_nodes"] >= 1
+    _assert_refresh_noop(enrich_arm, directory, full)
+
+
+# WR-06: the enrich resolver and the epistemic resolver agree. Each row: compared
+# armGroups as (title, arm_type, interventions), and the expected compound name.
+PARITY_NAMES = ("Semaglutide", "Metformin", "Insulin Glargine", "Tirzepatide")
+PARITY_ROWS = [
+    ([("Semaglutide + Metformin", "EXPERIMENTAL", ["Drug: Semaglutide", "Drug: Metformin"]),
+      ("Insulin Glargine + Metformin", "ACTIVE_COMPARATOR", ["Drug: Insulin Glargine", "Drug: Metformin"])],
+     "Semaglutide"),
+    ([("Semaglutide + usual care", "EXPERIMENTAL", ["Drug: Semaglutide"]),
+      ("Usual care", "ACTIVE_COMPARATOR", [])], "Semaglutide"),
+    ([("Semaglutide 1 mg (added to standard of care)", "EXPERIMENTAL", []),
+      ("Standard of care", "ACTIVE_COMPARATOR", [])], "Semaglutide"),
+    ([("Semaglutide + Metformin", "EXPERIMENTAL", []),
+      ("Usual care (metformin)", "ACTIVE_COMPARATOR", [])], None),
+    ([("Semaglutide + Metformin", "EXPERIMENTAL", []),
+      ("Usual care (metformin)", "ACTIVE_COMPARATOR", ["Drug: Metformin"])], "Semaglutide"),
+    ([("Tirzepatide for glycaemic control", "EXPERIMENTAL", []),
+      ("Placebo", "PLACEBO_COMPARATOR", ["Drug: Placebo"])], "Tirzepatide"),
+    ([("Usual care", "EXPERIMENTAL", ["Drug: Semaglutide"]),
+      ("Placebo", "PLACEBO_COMPARATOR", [])], None),
+    ([("Insulin Glargine (control)", "EXPERIMENTAL", []),
+      ("Placebo", "PLACEBO_COMPARATOR", [])], None),
+    ([("Placebo", "EXPERIMENTAL", ["Drug: Semaglutide"]),
+      ("Insulin Glargine", "ACTIVE_COMPARATOR", [])], None),
+    ([("Arm A", "EXPERIMENTAL", ["Drug: Tirzepatide", "Drug: Placebo"]),
+      ("Arm B", "PLACEBO_COMPARATOR", ["Drug: Placebo"])], "Tirzepatide"),
+    ([("Tirzepatide", "EXPERIMENTAL", []), ("Insulin Glargine", "EXPERIMENTAL", [])], None),
+    ([("Tirzepatide", "EXPERIMENTAL", []), ("Insulin Glargine", None, [])], None),
+    ([("Semaglutide + Insulin Glargine", "EXPERIMENTAL", []),
+      ("Placebo", "PLACEBO_COMPARATOR", [])], None),
+]
+
+
+def _parity_resolvers(enrich_mod, names=PARITY_NAMES):
+    import networkx as nx
+
+    ep = _load_live_epistemic()
+    nodes = [{"id": f"c{i}", "entity_type": "Compound", "name": n} for i, n in enumerate(names)]
+    graph = nx.MultiDiGraph()
+    for node in nodes:
+        graph.add_node(node["id"], **{k: v for k, v in node.items() if k != "id"})
+    index = enrich_mod._compound_index(SimpleNamespace(graph=graph))
+    patterns = ep._compound_patterns({n["id"]: n for n in nodes})
+    name_of = {n["id"]: n["name"] for n in nodes}
+
+    def both(rows):
+        groups = [{"title": t, "arm_type": a, "interventions": list(i)} for t, a, i in rows]
+        e = enrich_mod._arm_type_compound(groups, index)
+        g = ep._arm_type_treatment({"ctgov_arm_groups": groups}, patterns)
+        return (name_of.get(e) if e else None), (name_of.get(g) if g else None)
+
+    return both
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("rows, expected", PARITY_ROWS)
+def test_contest04_resolver_parity_with_epistemic(enrich_arm, rows, expected):
+    both = _parity_resolvers(enrich_arm)
+    assert both(rows) == (expected, expected)
+
+
+@pytest.mark.unit
+def test_contest04_resolver_parity_shared_name_is_conservative(enrich_arm):
+    both = _parity_resolvers(enrich_arm, PARITY_NAMES + ("metformin",))
+    rows = PARITY_ROWS[0][0]
+    from_enrich, from_epistemic = both(rows)
+    assert from_enrich is None
+    assert from_epistemic == "Semaglutide"
+
+
+@pytest.mark.unit
+def test_contest04_comparator_keywords_match_epistemic(enrich_arm):
+    ep = _load_live_epistemic()
+    assert enrich_arm.ARM_HARD_COMPARATOR_KEYWORDS == ep.HARD_PLACEBO_KEYWORDS
+    assert enrich_arm.ARM_SOFT_COMPARATOR_KEYWORDS == ep.SOFT_PLACEBO_KEYWORDS
+    assert enrich_arm._ARM_ADD_ON_RE.pattern == ep._ADD_ON_RE.pattern
+    assert enrich_arm._ARM_CONTROL_QUALIFIER_RE.pattern == ep._CONTROL_QUALIFIER_RE.pattern
+    assert enrich_arm.ARM_COMPARATOR_TYPES == ep.ARM_COMPARATOR_TYPES
+
+
+@pytest.mark.unit
+def test_review1_add_on_to_usual_care_gets_an_arm_type_edge(enrich_arm, tmp_path):
+    groups = ["Semaglutide + usual care", "Usual care"]
+    study = _addon_study(groups=groups, arm_groups=[
+        {"label": groups[0], "type": "EXPERIMENTAL", "interventionNames": ["Drug: Semaglutide"]},
+        {"label": groups[1], "type": "ACTIVE_COMPARATOR", "interventionNames": []},
+    ])
+    directory = _addon_graph(tmp_path / "g")
+    _run(enrich_arm, directory, {WITH_RESULTS_A: study}, results=True)
+    _, links = _read_graph(directory)
+    assert [l["target"] for l in _arm_edges(links)] == ["compound:semaglutide"]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("variant", ["seeded", "add_on"])
+def test_default_runs_iteration35_rerun_is_identical_and_refresh_adds_param_type(
+    enrich_arm, tmp_path, monkeypatch, variant,
+):
+    old = _old35(tmp_path, monkeypatch)
+    directory, bodies = _arm_variant_graph(variant, tmp_path / "g", enrich_arm)
+    _enrich_with(old, directory, bodies, results=True)
+    before = _normalize_stamps((directory / "graph_data.json").read_bytes())
+    report = _enrich_with(enrich_arm, directory, bodies, results=True)
+    assert _normalize_stamps((directory / "graph_data.json").read_bytes()) == before
+    assert report["results"]["created"] == 0 and report["results"]["merged"] == 0
+    report = _enrich_with(enrich_arm, directory, bodies, results=True, refresh=True)
+    graph = _graph_json(directory)
+    assert _without_param_type(graph) == json.loads(before)
+    assert [n for n in graph["nodes"] if "outcome_param_type" in (n.get("attributes") or {})]
+    assert report["results"]["refresh"]["withdrawn"] == 0
+    _assert_refresh_noop(enrich_arm, directory, bodies)

@@ -100,6 +100,18 @@ Tell the user:
 - How this complements the community structure
 - Whether `epistemic_narrative.md` was produced (print the `narrative_status` value from the JSON output — `ok` / `no-persona` / `disabled` / `error: …`)
 
+### clinicaltrials: registry contests
+
+For the `clinicaltrials` domain, graphs enriched with `--results` get registry-aware contest detection on outcome analyses:
+
+- **Contest key:** (measure, `outcome_kind`, treatment, dose). `outcome_kind` is `responder`, `continuous` or `time_to_event`, so a responder analysis and a continuous one on the same measure are not contested against each other. The kind comes from the registry measure `paramType` (`outcome_param_type` on the analysis: `COUNT_OF_PARTICIPANTS` is responder, `MEAN`, `LEAST_SQUARES_MEAN` and the geometric means are continuous) and `unitOfMeasure` first, then the measure title; a hazard-ratio effect measure is always time-to-event. The abbreviations HR, OR and RR count only in capitals, so the words "or" and "hr" in a free-text effect measure do not change the kind. "HR" in a title (heart rate) and a threshold that names a subgroup of a continuous measure do not change the kind, and a measured duration ("Time to Exhaustion") is not time-to-event. An analysis whose kind is unknown joins the one known kind of its measure and treatment; it stays separate only when two or more kinds are present.
+- **Dose:** `dose_mg` is read from the compared arm titles. Thousands separators are read ("1,000 mg" is 1000 mg). A range ("12-45 mg", "0.25 to 1 mg") is not a single dose. Per-weight and concentration values ("10 mg/kg", "10-20 mg/kg", "0.5-5.0 mg/ml") are not doses, so "Semaglutide 1 mg (0.5-5.0 mg/ml)" is 1 mg. A range whose upper end is per-weight names no dose at either end ("10 mg - 20 mg/kg" names none). A whole label number before a dash or "to" is not the low end of a range ("Cohort 2 - 10 mg", "Group 1 to 4 mg" and "Week 4 - 2.4 mg" are 10 mg, 4 mg and 2.4 mg). A decimal is never a label number, and "treatment" and "regimen" are not label words, so titration ranges such as "Semaglutide treatment 0.25 to 2.4 mg" and "Titration regimen 5 to 10 mg" are ranges with no single dose. Also, a dose joined to a name by a hyphen is read ("Semaglutide-1 mg" is 1 mg). Dose is part of the key only when every finding in the contest carries one (`dose_aware: true`); otherwise the contest falls back to the dose-unaware key (`dose_aware: false`). A single finding without a dose is enough to make its whole group fall back.
+- **Treatment precedence:** an `assesses_effect_of` edge first, then the registry arm types, then the arm and outcome titles.
+- **Flags on findings:** `ambiguous_active_comparator` (no usable arm types, and an active comparator that cannot be told from the experimental arm), `label_conflict` (an extracted Cohort name that disagrees with its registry arm label on compound, dose or comparator status; the label is used for matching, and when the two name different doses the finding's `dose_mg` is null) and `registry_withdrawn` (the registry fact was withdrawn from the payload; it keeps its significance but is not corroboration, and its `ctgov:` document is not a support document).
+- **Summary keys:** `analysis_treatment_from_arm_type`, `analysis_treatment_arm_type_disagreements`, `analysis_treatment_ambiguous_active_comparator`, `analysis_label_conflicts`, `analysis_registry_withdrawn`, `analysis_outcome_kind_counts`, `analysis_contests_dose_aware` and `analysis_contests_dose_fallback`.
+
+Without registry data, the output is unchanged.
+
 ### Step 3: Suggest Next Steps
 
 - Review contradictions manually (highest-value findings)

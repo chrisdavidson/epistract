@@ -29,7 +29,21 @@ Evidence grading rules:
    non-significant analyses from DIFFERENT trials is contested; a split
    inside one trial (primary vs subgroup) is not. Ratio measures are
    recognised by pattern (aHR, "Hazard Ratio (HR)"); an unknown measure
-   decides only when the ratio and difference nulls agree.
+   decides only when the ratio and difference nulls agree. With registry data
+   the contest key also carries the outcome kind (responder, continuous,
+   time-to-event) so a responder analysis never contests a continuous one, and
+   the dose (mg) when every analysis of the group names one, so different doses
+   of one drug in different trials do not contest each other; a group missing a
+   dose keeps the dose-free key and its entry says dose_aware: false.
+
+With registry data a treatment resolves from an assesses_effect_of edge, then
+the registry arm types (add-on background compounds dropped), then the Cohort
+/ group-title rule; an active-comparator set with no comparator keyword stays
+unresolved and is marked ambiguous_active_comparator, and a Cohort whose name
+conflicts with its registry arm_label is matched on the label
+(label_conflict). Registry facts withdrawn by a refresh (ctgov_withdrawn,
+ctgov_withdrawn_by_nct) are not corroboration: no ctgov: support document, no
+registry statistics, no supersession and no part in contests.
 
 Precedence, for both phase and blinding: registry ct_* fields > extracted
 attributes > graph-derived (linked TrialPhase, design text) > per-claim
@@ -520,14 +534,58 @@ def _p_significance(parsed: tuple[str, float] | None) -> bool | None:
     return None
 
 
-def _is_registry_backed(attrs) -> bool:
-    """True for a node created by, or merged with, the registry import."""
+def _has_registry_provenance(attrs) -> bool:
+    """True for a node created by, or merged with, the registry import.
+
+    This only says the registry import touched the node. It is what decides
+    whether a graph is in registry mode; whether the node still counts as
+    registry corroboration is _is_registry_backed.
+    """
     if not isinstance(attrs, dict):
         return False
     if attrs.get("source") == REGISTRY_SOURCE:
         return True
     sources = attrs.get("sources")
     return isinstance(sources, list) and REGISTRY_SOURCE in sources
+
+
+def _withdrawn_ncts(attrs) -> set[str]:
+    """NCT ids marked withdrawn in ctgov_withdrawn_by_nct (upper case)."""
+    marks = attrs.get("ctgov_withdrawn_by_nct") if isinstance(attrs, dict) else None
+    if not isinstance(marks, dict):
+        return set()
+    return {str(k).strip().upper() for k, v in marks.items() if v is True}
+
+
+def _is_withdrawn(attrs) -> bool:
+    """True when the registry withdrew its support for a node's facts.
+
+    The node is flagged ctgov_withdrawn, or every NCT it records is marked
+    withdrawn in ctgov_withdrawn_by_nct. A node some NCT still supports is not
+    withdrawn. WR-02 follow-up: a withdrawn fact is not corroboration.
+    """
+    if not isinstance(attrs, dict):
+        return False
+    if attrs.get("ctgov_withdrawn") is True:
+        return True
+    ids = attrs.get("ctgov_nct_ids")
+    if isinstance(ids, list) and ids:
+        withdrawn = _withdrawn_ncts(attrs)
+        return all(str(i).strip().upper() in withdrawn for i in ids)
+    return False
+
+
+def _is_registry_backed(attrs) -> bool:
+    """True for a node the registry import created or merged into, whose
+    registry support has not been withdrawn (see _is_withdrawn).
+
+    Withdrawn registry facts are not corroboration: they are not registry
+    statistics, add no ctgov: support documents, supersede nothing and take
+    no part in contests. Registry-mode detection uses _has_registry_provenance
+    instead, so a graph whose only registry facts are withdrawn stays in
+    registry mode.
+    """
+    return _has_registry_provenance(attrs) and not _is_withdrawn(attrs)
 
 
 _QUALIFIERS = {"<": "<", "<=": "<=", "≤": "<=", ">": ">", ">=": ">=", "≥": ">=", "=": "="}
@@ -649,7 +707,13 @@ def _analysis_significance_with_source(node: dict) -> tuple[bool | None, str]:
 
     source is "ctgov_results" when registry statistics decided (or, on a node
     the registry import created, its own flag), "extracted" when extracted
-    values decided, and "none" when nothing decided.
+    values decided, and "none" when nothing decided. A withdrawn registry fact
+    (see _is_withdrawn) is no registry statistic: a registry node keeps its
+    significance with source "ctgov_withdrawn", and a merged node is graded in
+    the non-registry order below with source "extracted", ignoring its
+    registry_<key> values. The plain values the registry import filled into a
+    group the extracted node lacked carry no marker, so on a withdrawn merged
+    node they cannot be told from extracted ones and are graded as extracted.
 
     On a merged node (sources include "ctgov_results") the registry
     statistics win over an extracted `significant` flag. The registry import
@@ -669,11 +733,12 @@ def _analysis_significance_with_source(node: dict) -> tuple[bool | None, str]:
         return None, NO_SOURCE
 
     registry_node = attrs.get("source") == REGISTRY_SOURCE
+    registry_label = "ctgov_withdrawn" if _is_withdrawn(attrs) else REGISTRY_SOURCE
     if registry_node:
         # A registry node: its plain statistics are the registry's.
         decided = _significance_from_view(attrs, use_qualifier=True)
         if decided is not None:
-            return decided, REGISTRY_SOURCE
+            return decided, registry_label
     elif _is_registry_backed(attrs):
         # A merged node: groups with registry_<key> values first, then the
         # plain groups the registry filled or matched.
@@ -692,7 +757,7 @@ def _analysis_significance_with_source(node: dict) -> tuple[bool | None, str]:
 
     flag = attrs.get("significant")
     if isinstance(flag, bool):
-        return flag, REGISTRY_SOURCE if registry_node else "extracted"
+        return flag, registry_label if registry_node else "extracted"
     if registry_node:
         return None, NO_SOURCE
     decided = _significance_from_view(attrs)
@@ -864,7 +929,7 @@ def _graph_has_registry_data(nodes: list[dict]) -> bool:
         attrs = node.get("attributes") if isinstance(node, dict) else None
         if not isinstance(attrs, dict):
             continue
-        if _is_registry_backed(attrs):
+        if _has_registry_provenance(attrs):
             return True
         if (
             str(node.get("entity_type", "")).lower() == ANALYSIS_TYPE
@@ -896,6 +961,14 @@ def _node_ncts(node: dict, attrs: dict) -> list[str]:
         if NCT_RE.fullmatch(value) and value not in ncts:
             ncts.append(value)
     return ncts
+
+
+def _ctgov_doc_key(doc) -> str | None:
+    """"ctgov:<NCT>" with the NCT upper-cased (as _node_ncts reads it), else None."""
+    text = str(doc).strip()
+    if not text.lower().startswith("ctgov:"):
+        return None
+    return "ctgov:" + text[len("ctgov:"):].strip().upper()
 
 
 def _trial_nct_map(trial_lookup: dict) -> dict[str, str]:
@@ -1055,14 +1128,21 @@ def _is_placebo_cohort(cohort: dict, received_names: list[str], patterns=()) -> 
 
 
 def _registry_treatment(
-    node_id, attrs: dict, related, by_id: dict, adjacency, patterns, cohort_info
-) -> tuple[str | None, set[str]]:
+    node_id, attrs: dict, related, by_id: dict, adjacency, patterns, cohort_info,
+    label_of=None,
+) -> tuple[str | None, set[str], bool]:
     """Resolve the treatment compound from compares Cohorts and registry group titles.
 
     Placebo and comparator arms are dropped before any name match, because a
     placebo arm's name can contain the compound ("Semaglutide placebo 0.5 mg").
-    Returns (compound id or None, non-placebo compared cohort ids). The
-    treatment is set only when exactly one compound results. When several
+    Returns (compound id or None, non-placebo compared cohort ids, ambiguous).
+    label_of maps a Cohort whose extracted name conflicts with its registry
+    arm_label to that label; such a cohort is matched on the label alone
+    (CONTEST-03). ambiguous is True for an active-comparator set with no
+    comparator keyword: at least two arms each naming a compound, no
+    comparator or placebo arm, and the arms' compounds not all the same
+    (Tirzepatide vs Insulin Glargine), so the treatment is genuinely unclear.
+    The treatment is set only when exactly one compound results. When several
     result and at least one compared arm is a comparator arm, a compound that
     every compared arm receives (the comparator included) is background
     therapy and is dropped, if exactly one remains. Without a comparator arm
@@ -1070,6 +1150,9 @@ def _registry_treatment(
     so the treatment stays ambiguous.
     """
     def received(cohort_id) -> set[str]:
+        label = label_of(cohort_id) if label_of else None
+        if label:
+            return _compounds_in_text(label, patterns)
         found = set(related(cohort_id, RECEIVES, "compound"))
         for intervention in related(cohort_id, RECEIVES, "intervention"):
             found.update(related(intervention, CONTAINS, "compound"))
@@ -1088,7 +1171,7 @@ def _registry_treatment(
             })
             continue
         found = received(cohort_id)
-        if not found:
+        if not found and not (label_of and label_of(cohort_id)):
             found = _compounds_in_text(by_id[cohort_id].get("name"), patterns)
         compounds.update(found)
         arms.append(found)
@@ -1110,7 +1193,23 @@ def _registry_treatment(
         if len(remaining) == 1:
             compounds = remaining
     treatment = next(iter(compounds)) if len(compounds) == 1 else None
-    return treatment, set(active)
+    ambiguous = (
+        not has_comparator
+        and len(arms) >= 2
+        and all(arms)
+        and len({frozenset(a) for a in arms}) > 1
+    )
+    return treatment, set(active), ambiguous
+
+
+def _group_compounds(group: dict, patterns) -> set[str]:
+    """Compounds an armGroup names: its title, else its non-placebo interventions."""
+    found = _compounds_in_text(group.get("title"), patterns)
+    if not found:
+        for intervention in group.get("interventions") or ():
+            if isinstance(intervention, str) and not _HARD_PLACEBO_RE.search(intervention):
+                found |= _compounds_in_text(_INTERVENTION_PREFIX_RE.sub("", intervention), patterns)
+    return found
 
 
 def _arm_type_treatment(attrs: dict, patterns) -> str | None:
@@ -1119,8 +1218,11 @@ def _arm_type_treatment(attrs: dict, patterns) -> str | None:
     Needs ctgov_arm_groups with at least two entries, every one typed, exactly
     one EXPERIMENTAL and all the others comparator types (active, placebo, sham,
     no intervention). The compound is the one the EXPERIMENTAL group's title
-    names or, when the title names none, the one its interventions name. Zero
-    or several compounds give None.
+    names or, when the title names none, the one its interventions name.
+    CONTEST-03: when that names several compounds, every compound all the
+    comparator groups also name is add-on background (semaglutide + metformin
+    against insulin glargine + metformin) and is dropped. Zero or several
+    remaining compounds give None.
     """
     groups = attrs.get("ctgov_arm_groups")
     if not isinstance(groups, list) or len(groups) < 2:
@@ -1130,21 +1232,254 @@ def _arm_type_treatment(attrs: dict, patterns) -> str | None:
     experimental = [g for g in groups if g["arm_type"] == ARM_EXPERIMENTAL]
     if len(experimental) != 1:
         return None
-    if not all(
-        g["arm_type"] in ARM_COMPARATOR_TYPES for g in groups if g is not experimental[0]
-    ):
+    comparators = [g for g in groups if g is not experimental[0]]
+    if not all(g["arm_type"] in ARM_COMPARATOR_TYPES for g in comparators):
         return None
     arm = experimental[0]
     # A group typed EXPERIMENTAL but titled as a comparator (a blinded placebo
     # arm) names no treatment, whatever its interventions list.
     if _is_comparator_text(arm.get("title"), patterns):
         return None
-    found = _compounds_in_text(arm.get("title"), patterns)
-    if not found:
-        for intervention in arm.get("interventions") or ():
-            if isinstance(intervention, str) and not _HARD_PLACEBO_RE.search(intervention):
-                found |= _compounds_in_text(_INTERVENTION_PREFIX_RE.sub("", intervention), patterns)
+    found = _group_compounds(arm, patterns)
+    if len(found) > 1 and comparators:
+        background = set.intersection(*(_group_compounds(g, patterns) for g in comparators))
+        if found - background:
+            found = found - background
     return next(iter(found)) if len(found) == 1 else None
+
+
+# CONTEST-02: outcome kind from the registry paramType and unitOfMeasure first,
+# then the measure title (and the registry effect measure).
+OUTCOME_KINDS = ("responder", "continuous", "time_to_event")
+# Registry analysis paramType (the effect measure) naming a time-to-event model.
+# "HR" is read only here, never in a title, where it is usually heart rate.
+# The abbreviations HR, OR and RR are matched case-sensitively, so the words
+# "or" and "hr" in a free-text effect measure name no model; the descriptive
+# phrases are matched in any case.
+_TIME_TO_EVENT_EFFECT_RE = re.compile(r"(?i:hazard|\bcox\b)|\bHR\b")
+_RESPONDER_EFFECT_RE = re.compile(
+    r"(?i:odds\s+ratio|risk\s+ratio|relative\s+risk|risk\s+difference)|\bOR\b|\bRR\b"
+)
+# Registry outcome-measure paramType values (outcome_param_type).
+_RESPONDER_PARAM_TYPES = frozenset({"COUNT_OF_PARTICIPANTS"})
+_CONTINUOUS_PARAM_TYPES = frozenset({
+    "MEAN", "LEAST_SQUARES_MEAN", "GEOMETRIC_MEAN", "GEOMETRIC_LEAST_SQUARES_MEAN", "LOG_MEAN",
+})
+# A unit counting participants (or their percentage) is a responder unit.
+_RESPONDER_UNIT_RE = re.compile(
+    r"(?:percentage|percent|proportion|number|count)\s+of\s+(?:participants|patients|subjects)|"
+    r"^\s*(?:participants|patients|subjects)\s*$",
+    re.IGNORECASE,
+)
+# Units that measure a quantity, never a share of participants ("%" and
+# "percent" are ambiguous and decide only after the title, see _outcome_kind).
+_CONTINUOUS_STRONG_UNIT_RE = re.compile(
+    r"\bkg\b|kilogram|mmol|mg/dl|\bcm\b|mmhg|\bpounds?\b|\blbs?\b|\bkg/m|beats\s+per\s+minute|\bbpm\b",
+    re.IGNORECASE,
+)
+_CONTINUOUS_UNIT_RE = re.compile(
+    r"\bkg\b|kilogram|%|percent|mmol|mg/dl|\bcm\b|mmhg|\bpounds?\b|\blbs?\b|\bkg/m", re.IGNORECASE
+)
+# "Time to" names a time-to-event outcome only with event wording ("Time to
+# First Occurrence of MACE"); "Time to Exhaustion" is a measured duration.
+_TIME_TO_EVENT_TITLE_RE = re.compile(
+    r"hazard\s+ratio|\btime\s+to\s+(?:the\s+)?(?:first|onset|occurrence|event|death|progression|"
+    r"relapse|recurrence|discontinu|rescue|hospitali[sz]|withdrawal|treatment\s+failure|failure|"
+    r"initiation|need|requir|development|confirmed|sustained)|\bevent[-\s]free\b|\bsurvival\b",
+    re.IGNORECASE,
+)
+_RESPONDER_TITLE_RE = re.compile(
+    r"percentage\s+of\s+(?:participants|patients|subjects)|\bproportion\b|\bachiev|\bresponders?\b|"
+    r"number\s+of\s+(?:participants|patients|subjects)|"
+    r"^\s*(?:count\s+of\s+)?participants\s*$",
+    re.IGNORECASE,
+)
+# A threshold ("≥5%") makes a responder title only when no continuous marker
+# says the measure is a change ("Change From Baseline in Body Weight in
+# Participants With Baseline HbA1c >=8%" is a continuous subgroup).
+_THRESHOLD_RE = re.compile(r"(?:≥|>=|≤|<=|<|>)\s*\d+(?:\.\d+)?\s*%")
+_CONTINUOUS_TITLE_RE = re.compile(
+    r"change\s+from\s+baseline|\bmean\b|\bls\s+mean\b|least\s+squares?\s+mean",
+    re.IGNORECASE,
+)
+
+
+def _outcome_kind(title, unit=None, effect_measure=None, param_type=None) -> str | None:
+    """Classify an outcome as responder, continuous or time_to_event, else None.
+
+    Order: a time-to-event effect measure (hazard ratio, HR, Cox); the
+    registry paramType (COUNT_OF_PARTICIPANTS responder; MEAN, LEAST_SQUARES_MEAN
+    and the geometric means continuous); the unitOfMeasure (participant counts
+    responder; kg, mmol, mmHg and similar continuous); a responder effect
+    measure (odds or risk ratio, risk difference, "proportion of
+    participants"); then the title:
+    time-to-event wording ("hazard ratio", "time to first ...", not a measured
+    duration such as "Time to Exhaustion"), responder wording ("percentage of
+    participants", "achieving"), continuous wording ("change from baseline",
+    "mean"), a responder threshold ("≥5%") in a title with no continuous
+    wording, and last a "%" or "percent" unit (continuous).
+    """
+    title = str(title or "")
+    unit = str(unit or "")
+    effect = str(effect_measure or "")
+    param = str(param_type or "").strip().upper().replace(" ", "_")
+    if _TIME_TO_EVENT_EFFECT_RE.search(effect):
+        return "time_to_event"
+    if param in _RESPONDER_PARAM_TYPES:
+        return "responder"
+    if param in _CONTINUOUS_PARAM_TYPES:
+        return "continuous"
+    if _RESPONDER_UNIT_RE.search(unit):
+        return "responder"
+    if _CONTINUOUS_STRONG_UNIT_RE.search(unit):
+        return "continuous"
+    if _RESPONDER_EFFECT_RE.search(effect) or _RESPONDER_TITLE_RE.search(effect):
+        return "responder"
+    continuous_title = bool(_CONTINUOUS_TITLE_RE.search(title))
+    if _TIME_TO_EVENT_TITLE_RE.search(title) and not re.search(r"change\s+from\s+baseline", title, re.I):
+        return "time_to_event"
+    if _RESPONDER_TITLE_RE.search(title):
+        return "responder"
+    if continuous_title or re.search(r"mean\s+difference", effect, re.IGNORECASE):
+        return "continuous"
+    if _THRESHOLD_RE.search(title):
+        return "responder"
+    if _CONTINUOUS_UNIT_RE.search(unit):
+        return "continuous"
+    return None
+
+
+# CONTEST-01: dose in mg from arm and group titles. A number may carry
+# thousands separators ("1,000 mg" is 1000 mg). A range ("12-45 mg", "0.25 to
+# 1 mg") names both ends, so it is never one dose. A match never starts inside
+# a number ("1,000", "12-45") but may follow a name and a hyphen
+# ("Semaglutide-1 mg", "LY3298176-5mg").
+_DOSE_UNITS = r"(?:milligrams?|mg|mcg|µg|μg|ug|g)"
+_DOSE_NUM = r"(?:\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)"
+_DOSE_START = r"(?<![\w.,])(?<!\d[-–—])"
+_DOSE_END = r"(?![A-Za-z0-9µμ])"
+# Per-weight and concentration values ("10 mg/kg", "0.5-5.0 mg/ml") are no dose.
+_PER_UNIT_TAIL = r"\s*/\s*(?:kg|m2|m²|dl|ml|l)\b"
+_DOSE_PER_UNIT = r"(?!" + _PER_UNIT_TAIL + r")"
+_DOSE_RANGE_BODY = (
+    _DOSE_START + r"(" + _DOSE_NUM + r")\s*(" + _DOSE_UNITS + r")?\s*(?:-|–|—|\s+to\s+)\s*("
+    + _DOSE_NUM + r")\s*(" + _DOSE_UNITS + r")" + _DOSE_END
+)
+_DOSE_RANGE_RE = re.compile(_DOSE_RANGE_BODY + _DOSE_PER_UNIT, re.IGNORECASE)
+# A range whose upper end is per-weight or a concentration ("10 mg - 20 mg/kg")
+# is per-weight as a whole: neither end is read as a dose.
+_DOSE_PER_UNIT_RANGE_RE = re.compile(_DOSE_RANGE_BODY + r"(?=" + _PER_UNIT_TAIL + r")", re.IGNORECASE)
+# A hyphen joining a name or code that contains a letter to a number
+# ("Semaglutide-1 mg", "LY3298176-5mg") separates the name from the dose; a
+# hyphen between two plain numbers ("12-45 mg") is a range, and so is one after
+# a unit ("1 mg-2 mg").
+_DOSE_NAME_HYPHEN_RE = re.compile(
+    r"(?<![\w.])(?!(?i:" + _DOSE_UNITS + r")[-–—])((?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]+)[-–—](?=\d)"
+)
+# A unit-less whole number right after a label word is the label's number, not
+# the low end of a range: "Cohort 2 - 10 mg" and "Group 1 to 4 mg" name one
+# dose. A decimal ("treatment 0.25 to 2.4 mg") is never a label number, and
+# descriptor words ("treatment", "regimen") are no labels: "Titration regimen
+# 5 to 10 mg" is a range.
+_DOSE_LABEL_BEFORE_RE = re.compile(
+    r"\b(?:cohorts?|parts?|groups?|arms?|periods?|weeks?|wks?|days?|stages?|steps?|phases?|"
+    r"levels?|visits?|panels?|sequences?|segments?|blocks?|"
+    r"months?|years?|no|nos|numbers?)\.?\s*(?:#|no\.?|number)?\s*[:#]?\s*$",
+    re.IGNORECASE,
+)
+_DOSE_POOL_RE = re.compile(
+    _DOSE_START + r"((?:" + _DOSE_NUM + r"\s*/\s*)+" + _DOSE_NUM + r")\s*(" + _DOSE_UNITS + r")(?![A-Za-z0-9µμ/])",
+    re.IGNORECASE,
+)
+_DOSE_RE = re.compile(
+    _DOSE_START + r"(" + _DOSE_NUM + r")\s*(" + _DOSE_UNITS + r")" + _DOSE_END + _DOSE_PER_UNIT,
+    re.IGNORECASE,
+)
+_DOSE_SEGMENT_RE = re.compile(
+    r"\s*(?:\+|;|,(?!\d)|\s+plus\s+|\s+and\s+|\s+with\s+|\s+vs\.?\s+)\s*", re.IGNORECASE
+)
+
+
+def _to_mg(value: str, unit: str) -> float:
+    unit = unit.lower()
+    number = float(value.replace(",", ""))
+    if unit in ("mcg", "µg", "μg", "ug"):
+        number /= 1000.0
+    elif unit == "g":
+        number *= 1000.0
+    return round(number, 4)
+
+
+def _parse_dose(text) -> set[float]:
+    """Doses in mg named by a text (a slash-pooled "5/10/15 mg" gives several).
+
+    Thousands separators are read ("1,000 mg" is 1000). A range ("12-45 mg",
+    "0.25 to 1 mg") gives both ends, so it never reads as one dose.
+    Per-weight and concentration values ("10 mg/kg", "10-20 mg/kg",
+    "0.5-5.0 mg/ml") are not doses, and neither end of a range whose upper
+    end is one ("10 mg - 20 mg/kg") is. A whole label number before a dash or
+    "to" ("Cohort 2 - 10 mg", "Part 1 - 5 mg", "Group 1 to 4 mg") is no range
+    end, unless it carries a unit itself; a decimal always is.
+    """
+    text = _DOSE_NAME_HYPHEN_RE.sub(r"\1 ", str(text or ""))
+    text = _DOSE_PER_UNIT_RANGE_RE.sub(" ", text)
+    found: set[float] = set()
+    kept: list[str] = []
+    pos = 0
+    search_from = 0
+    while True:
+        match = _DOSE_RANGE_RE.search(text, search_from)
+        if match is None:
+            break
+        if (
+            match.group(2) is None
+            and "." not in match.group(1)
+            and _DOSE_LABEL_BEFORE_RE.search(text, 0, match.start())
+        ):
+            # Not a range: retry after the label number, so the dose after
+            # the separator is still read (by the single-dose pattern).
+            search_from = match.end(1)
+            continue
+        found.add(_to_mg(match.group(1), match.group(2) or match.group(4)))
+        found.add(_to_mg(match.group(3), match.group(4)))
+        kept.append(text[pos:match.start()])
+        kept.append(" ")
+        pos = search_from = match.end()
+    kept.append(text[pos:])
+    text = "".join(kept)
+    for match in _DOSE_POOL_RE.finditer(text):
+        for number in re.split(r"\s*/\s*", match.group(1)):
+            found.add(_to_mg(number, match.group(2)))
+    remainder = _DOSE_POOL_RE.sub(" ", text)
+    for match in _DOSE_RE.finditer(remainder):
+        found.add(_to_mg(match.group(1), match.group(2)))
+    return found
+
+
+def _finding_dose(texts, treatment_id, patterns) -> float | None:
+    """The single dose (mg) of the treatment compound across its arm texts, else None.
+
+    A text that names compounds counts only the segments (split on "+", "plus",
+    "and", "with", ",", ";", "vs") that name the treatment; a segment naming no
+    compound follows the segment before it. A text that names no compound
+    contributes its doses as they are. Several distinct doses give None.
+    """
+    doses: set[float] = set()
+    for text in texts:
+        text = str(text or "")
+        if not text.strip():
+            continue
+        if not _compounds_in_text(text, patterns):
+            doses |= _parse_dose(text)
+            continue
+        current = False
+        for segment in _DOSE_SEGMENT_RE.split(text):
+            named = _compounds_in_text(segment, patterns)
+            if named:
+                current = treatment_id in named
+            if current:
+                doses |= _parse_dose(segment)
+    return next(iter(doses)) if len(doses) == 1 else None
 
 
 def _analysis_findings(
@@ -1163,11 +1498,24 @@ def _analysis_findings(
     registry-backed provenance, and an extracted analysis duplicated by a
     registry analysis is marked superseded.
 
-    In registry mode an analysis whose treatment is still None takes the
-    EXPERIMENTAL group's compound when its ctgov_arm_groups are one
-    EXPERIMENTAL group against comparators (_arm_type_treatment). That rule
-    only fills a None, so an answer found any other way never changes; a
-    disagreeing rule answer is only counted in arm_stats["disagreements"].
+    CONTEST-03: in registry mode the treatment comes from an assesses_effect_of
+    edge first, then from the registry arm types (_arm_type_treatment: one
+    EXPERIMENTAL group against comparators, add-on background dropped), then
+    from the Cohort / group-title rule (_registry_treatment). An edge answer
+    always stands and an arm answer that differs from it is only counted in
+    arm_stats["disagreements"]. treatment_basis "registry_arm_type" is set
+    only when the arm answer fills a None or overrides a different title
+    answer (also counted as a disagreement); an edge's own treatment_basis is
+    copied. With no answer, no usable arm types and an ambiguous active
+    comparator set the basis is "ambiguous_active_comparator". A compared
+    Cohort whose name conflicts with its registry arm_label is matched on the
+    label and recorded in label_conflict; when the name and the label name
+    different doses the finding's dose_mg is None (SA-01). An assesses_effect_of link written
+    by the registry import and withdrawn (_is_withdrawn) is ignored.
+    A withdrawn registry fact is not corroboration (WR-02 follow-up): no
+    ctgov: support document for a withdrawn NCT (also not one inherited from
+    the node's source_documents), registry_withdrawn on the
+    finding, and a withdrawn registry analysis does not supersede anything.
     """
     by_id = {n["id"]: n for n in nodes if "id" in n}
     adjacency: dict[str, list[tuple[str, str]]] = defaultdict(list)
@@ -1199,7 +1547,68 @@ def _analysis_findings(
         nct_trials = _trial_nct_map(trial_lookup)
         patterns = _compound_patterns(by_id)
 
+    # assesses_effect_of link attributes per (analysis, target), both directions.
+    assess_attrs: dict[tuple, list[dict]] = defaultdict(list)
+    for link in links:
+        if link.get("relation_type") != ASSESSES:
+            continue
+        link_attrs = link.get("attributes") if isinstance(link.get("attributes"), dict) else {}
+        assess_attrs[(link.get("source"), link.get("target"))].append(link_attrs)
+        assess_attrs[(link.get("target"), link.get("source"))].append(link_attrs)
+
+    def kept_edges(node_id, other) -> list[dict]:
+        """Attributes of the assesses links between two nodes that still count:
+        a registry-written link that is withdrawn is dropped (WR-02 follow-up)."""
+        return [
+            a for a in assess_attrs.get((node_id, other), ())
+            if not (registry_mode and a.get("source") == REGISTRY_SOURCE and _is_withdrawn(a))
+        ]
+
+    def assesses(node_id, entity_type: str) -> list[str]:
+        return [o for o in related(node_id, ASSESSES, entity_type) if kept_edges(node_id, o)]
+
+    conflict_cache: dict[str, dict | None] = {}
+
+    def label_conflict(cohort_id) -> dict | None:
+        """CONTEST-03: the cohort's name and registry arm_label disagree on
+        compounds, dose or comparator status (a missing compound or dose on
+        one side is not a disagreement)."""
+        if cohort_id not in conflict_cache:
+            cohort = by_id[cohort_id]
+            cattrs = cohort.get("attributes") if isinstance(cohort.get("attributes"), dict) else {}
+            name, label = cohort.get("name"), cattrs.get("arm_label")
+            conflict = None
+            if isinstance(label, str) and label.strip() and isinstance(name, str):
+                name_compounds = _compounds_in_text(name, patterns)
+                label_compounds = _compounds_in_text(label, patterns)
+                name_doses, label_doses = _parse_dose(name), _parse_dose(label)
+                if (
+                    _is_comparator_text(name, patterns) != _is_comparator_text(label, patterns)
+                    or (name_compounds and label_compounds and name_compounds != label_compounds)
+                    or (name_doses and label_doses and name_doses != label_doses)
+                ):
+                    conflict = {"cohort": cohort_id, "cohort_name": name, "arm_label": label}
+            conflict_cache[cohort_id] = conflict
+        return conflict_cache[cohort_id]
+
+    def label_of(cohort_id) -> str | None:
+        conflict = label_conflict(cohort_id)
+        return conflict["arm_label"] if conflict else None
+
+    def dose_conflict(cohort_id) -> bool:
+        """The cohort's name and registry arm_label both name doses and the
+        doses differ: the arm's dose is unknown (SA-01, conservative)."""
+        if not label_conflict(cohort_id):
+            return False
+        cohort = by_id[cohort_id]
+        cattrs = cohort.get("attributes") if isinstance(cohort.get("attributes"), dict) else {}
+        name_doses = _parse_dose(cohort.get("name"))
+        label_doses = _parse_dose(cattrs.get("arm_label"))
+        return bool(name_doses and label_doses and name_doses != label_doses)
+
     def cohort_info(cohort_id) -> bool:
+        if cohort_id not in placebo_cache and label_of(cohort_id):
+            placebo_cache[cohort_id] = _is_comparator_text(label_of(cohort_id), patterns)
         if cohort_id not in placebo_cache:
             received = [
                 str(by_id[t].get("name") or "")
@@ -1212,7 +1621,6 @@ def _analysis_findings(
         return placebo_cache[cohort_id]
 
     findings: list[dict] = []
-    from_arm_type: set = set()
     # Per-finding data the supersession pass needs; never stored on the finding.
     side: dict[str, dict] = {}
     for node in nodes:
@@ -1231,28 +1639,48 @@ def _analysis_findings(
 
         # Treatment: a Compound, or an Intervention resolved to its Compound
         treatment_id = None
-        compounds = related(node_id, ASSESSES, "compound")
+        edge_target = None
+        compounds = assesses(node_id, "compound")
         if compounds:
-            treatment_id = compounds[0]
+            treatment_id = edge_target = compounds[0]
         else:
-            interventions = related(node_id, ASSESSES, "intervention")
+            interventions = assesses(node_id, "intervention")
             if interventions:
+                edge_target = interventions[0]
                 contained = related(interventions[0], CONTAINS, "compound")
                 treatment_id = contained[0] if contained else interventions[0]
+        treatment_basis = None
+        if treatment_id is not None:
+            for edge in kept_edges(node_id, edge_target):
+                if isinstance(edge.get("treatment_basis"), str):
+                    treatment_basis = edge["treatment_basis"]
+                    break
         active_cohorts: set[str] = set()
+        ambiguous = False
         if registry_mode:
-            fallback, active_cohorts = _registry_treatment(
-                node_id, attrs, related, by_id, adjacency, patterns, cohort_info
+            fallback, active_cohorts, ambiguous = _registry_treatment(
+                node_id, attrs, related, by_id, adjacency, patterns, cohort_info, label_of
             )
-            if treatment_id is None:
-                treatment_id = fallback
             arm = _arm_type_treatment(attrs, patterns)
-            if arm is not None:
-                if treatment_id is None:
-                    treatment_id = arm
-                    from_arm_type.add(node_id)
-                elif arm != treatment_id and etype(treatment_id) == "compound" and arm_stats is not None:
+            if treatment_id is not None:
+                # An edge answer stands; a differing arm answer is only counted.
+                if arm is not None and arm != treatment_id and etype(treatment_id) == "compound" and arm_stats is not None:
                     arm_stats["disagreements"] = arm_stats.get("disagreements", 0) + 1
+            elif arm is not None:
+                # CONTEST-03: arm types come before the Cohort / title rule. The
+                # basis is recorded only when the arm answer filled a None or
+                # overrode a different answer, never when the two agree.
+                treatment_id = arm
+                if fallback is None:
+                    treatment_basis = "registry_arm_type"
+                elif arm != fallback:
+                    treatment_basis = "registry_arm_type"
+                    if arm_stats is not None:
+                        arm_stats["disagreements"] = arm_stats.get("disagreements", 0) + 1
+            else:
+                treatment_id = fallback
+                if fallback is None and ambiguous and not attrs.get("ctgov_arm_groups"):
+                    treatment_basis = "ambiguous_active_comparator"
         treatment = name_of(treatment_id) if treatment_id else None
 
         # Trial: a direct edge first, then the NCT ids (registry mode), else
@@ -1311,8 +1739,22 @@ def _analysis_findings(
         }
         if registry_mode:
             backed = _is_registry_backed(attrs)
+            withdrawn = _has_registry_provenance(attrs) and _is_withdrawn(attrs)
+            withdrawn_ncts = _withdrawn_ncts(attrs)
+            # CR-02: a withdrawn NCT's ctgov: document is no support, also when
+            # the node's own source_documents carry it (enrich writes ctgov:<NCT>
+            # there for every registry-created and merged node).
+            withdrawn_docs = {f"ctgov:{nct}" for nct in withdrawn_ncts}
+            if withdrawn:
+                withdrawn_docs |= {f"ctgov:{nct}" for nct in _node_ncts(node, attrs)}
+            if withdrawn_docs:
+                support_documents[:] = [
+                    d for d in support_documents if _ctgov_doc_key(d) not in withdrawn_docs
+                ]
             if backed:
                 for nct in _node_ncts(node, attrs):
+                    if nct in withdrawn_ncts:
+                        continue
                     doc = f"ctgov:{nct}"
                     if doc not in support_documents:
                         support_documents.append(doc)
@@ -1323,8 +1765,50 @@ def _analysis_findings(
                 sources = [attrs["source"]]
             else:
                 sources = ["extracted"]
-            if node_id in from_arm_type:
-                finding["treatment_basis"] = "registry_arm_type"
+            if treatment_basis:
+                finding["treatment_basis"] = treatment_basis
+            if withdrawn:
+                finding["registry_withdrawn"] = True
+            conflicts = sorted(
+                (c for c in map(label_conflict, related(node_id, COMPARES, "cohort")) if c),
+                key=lambda c: str(c["cohort"]),
+            )
+            if conflicts:
+                finding["label_conflict"] = conflicts
+            # CONTEST-02: the outcome kind keys the contest; CONTEST-01: so does the dose.
+            outcome_node = by_id.get(outcomes[0]) if outcomes else None
+            outcome_attrs = (
+                outcome_node.get("attributes")
+                if outcome_node and isinstance(outcome_node.get("attributes"), dict) else {}
+            )
+            finding["outcome_kind"] = (
+                _outcome_kind(
+                    outcome_node.get("name") if outcome_node else None,
+                    attrs.get("unit") or outcome_attrs.get("unit"),
+                    attrs.get("effect_measure"),
+                    attrs.get("outcome_param_type") or outcome_attrs.get("outcome_param_type"),
+                ) if outcome_node else None
+            )
+            finding["dose_mg"] = None
+            if treatment_id is not None and etype(treatment_id) == "compound":
+                dose_texts: list = []
+                for cohort_id in sorted(active_cohorts):
+                    cohort = by_id[cohort_id]
+                    cohort_attrs = cohort.get("attributes") if isinstance(cohort.get("attributes"), dict) else {}
+                    if label_of(cohort_id):
+                        dose_texts.append(label_of(cohort_id))
+                    else:
+                        dose_texts += [cohort.get("name"), cohort_attrs.get("arm_label")]
+                compared = attrs.get("compared_groups")
+                for title in compared if isinstance(compared, list) else ():
+                    if not _is_comparator_text(title, patterns):
+                        dose_texts.append(title)
+                arm_groups = attrs.get("ctgov_arm_groups")
+                for group in arm_groups if isinstance(arm_groups, list) else ():
+                    if isinstance(group, dict) and group.get("arm_type") == ARM_EXPERIMENTAL:
+                        dose_texts.append(group.get("title"))
+                if not any(dose_conflict(c) for c in active_cohorts):
+                    finding["dose_mg"] = _finding_dose(dose_texts, treatment_id, patterns)
             finding["significance_source"] = significance_source
             finding["sources"] = sources
             # An outcome whose name normalizes to nothing ("Change from baseline
@@ -1338,7 +1822,7 @@ def _analysis_findings(
                 if ni_type:
                     finding["non_inferiority"] = ni_type
             side[node_id] = {
-                "registry": attrs.get("source") == REGISTRY_SOURCE,
+                "registry": attrs.get("source") == REGISTRY_SOURCE and not withdrawn,
                 "backed": backed,
                 "cohorts": set(related(node_id, COMPARES, "cohort")),
                 "active": active_cohorts,
@@ -1399,8 +1883,18 @@ def _analysis_contests(
     reported by the same two trials are one contest, not one per title.
     test_types maps a registry analysis id to its registry non_inferiority_type
     (registry mode only; see _registry_test_types).
+
+    CONTEST-02: in registry mode the group key is (measure key, outcome kind,
+    treatment), so responder, continuous and time-to-event analyses of one
+    measure and drug never contest each other. An unclassified finding joins
+    the one classified kind of its (measure key, treatment) group, and stays
+    apart only when two or more kinds are present (_split_by_kind). CONTEST-01: when every finding
+    of a group has a dose_mg the group is split by dose (the same dose across
+    trials contests, different doses do not) and its entries carry
+    dose_aware: true and dose_mg; otherwise the group keeps the dose-free key
+    and its entries carry dose_aware: false.
     """
-    groups: dict[tuple[str, str], list[dict]] = defaultdict(list)
+    groups: dict[tuple, list[dict]] = defaultdict(list)
     for finding in findings:
         if finding["significant"] is None:
             continue
@@ -1408,7 +1902,8 @@ def _analysis_contests(
             continue
         if registry_mode:
             if (
-                finding.get("superseded_by")
+                finding.get("significance_source") == "ctgov_withdrawn"
+                or finding.get("superseded_by")
                 or finding.get("non_inferiority")
                 or finding.get("standard_outcome_key") is None
             ):
@@ -1422,7 +1917,7 @@ def _analysis_contests(
     contested: list[dict] = []
     contradictions: list[dict] = []
     if registry_mode:
-        return _registry_contests(groups, test_types)
+        return _registry_contests(_split_by_dose(_split_by_kind(groups)), test_types)
     for key, group in sorted(groups.items()):
         positive = [f for f in group if f["significant"] is True]
         negative = [f for f in group if f["significant"] is False]
@@ -1462,10 +1957,47 @@ def _analysis_contests(
     return contested, contradictions
 
 
+def _split_by_kind(groups: dict) -> dict:
+    """Split each (measure key, treatment) group by outcome kind.
+
+    WR-01: an unknown kind is compatible, not a kind of its own. When the
+    classified findings of a group have exactly one kind, the unclassified ones
+    join it; with no classified finding the group keeps the kind "" (unknown);
+    with two or more classified kinds each kind is its own group and the
+    unclassified findings stay together under "". Keys become (measure key,
+    kind, treatment).
+    """
+    out: dict[tuple, list[dict]] = {}
+    for (fine, treatment), group in groups.items():
+        kinds = sorted({f.get("outcome_kind") for f in group if f.get("outcome_kind")})
+        for finding in group:
+            kind = finding.get("outcome_kind") or ""
+            if not kind and len(kinds) == 1:
+                kind = kinds[0]
+            out.setdefault((fine, kind, treatment), []).append(finding)
+    return out
+
+
+def _split_by_dose(groups: dict) -> dict:
+    """Extend each (measure key, kind, treatment) group key with the dose.
+
+    A group whose findings all have a dose_mg is split into one group per dose
+    (key + (dose,)); any other group stays whole (key + (None,)).
+    """
+    out: dict[tuple, list[dict]] = {}
+    for key, group in groups.items():
+        if group and all(f.get("dose_mg") is not None for f in group):
+            for finding in group:
+                out.setdefault(key + (finding["dose_mg"],), []).append(finding)
+        else:
+            out[key + (None,)] = group
+    return out
+
+
 def _registry_contests(groups: dict, test_types: dict | None) -> tuple[list[dict], list[dict]]:
-    """Decide registry contests per (per-title key, treatment) group, then merge
-    the entries that share (outcome key, treatment, positive trials, negative
-    trials) into one, rebuilt from the union of their analyses. The merged
+    """Decide registry contests per (per-title key, outcome kind, treatment, dose)
+    group, then merge the entries that share (outcome key, kind, treatment, dose,
+    positive trials, negative trials) into one, rebuilt from the union of their analyses. The merged
     entry is a contradiction when any of its parts is. Entries keep the order
     of their first part."""
     merged: dict[tuple, dict] = {}
@@ -1474,17 +2006,20 @@ def _registry_contests(groups: dict, test_types: dict | None) -> tuple[list[dict
         if entry is None:
             continue
         coarse = str(group[0]["standard_outcome_key"])
-        dedupe = (coarse, key[1], tuple(entry["positive_trials"]), tuple(entry["negative_trials"]))
+        dedupe = (
+            coarse, key[1], key[2], key[3],
+            tuple(entry["positive_trials"]), tuple(entry["negative_trials"]),
+        )
         slot = merged.setdefault(dedupe, {"entry": entry, "group": [], "parts": 0, "contradiction": False})
         slot["group"].extend(group)
         slot["parts"] += 1
         slot["contradiction"] = slot["contradiction"] or is_contradiction
     contested: list[dict] = []
     contradictions: list[dict] = []
-    for (coarse, treatment, _, _), slot in merged.items():
+    for (coarse, kind, treatment, dose, _, _), slot in merged.items():
         entry = slot["entry"]
         if slot["parts"] > 1:
-            entry, _ = _registry_contest_entry((coarse, treatment), slot["group"], test_types)
+            entry, _ = _registry_contest_entry((coarse, kind, treatment, dose), slot["group"], test_types)
         else:
             entry = {**entry, "standard_outcome_key": coarse}
         contested.append({**entry, "epistemic_status": "contested"})
@@ -1558,9 +2093,9 @@ def _design_note(positive: list[dict], negative: list[dict], test_types: dict | 
 
 
 def _registry_contest_entry(
-    key: tuple[str, str], group: list[dict], test_types: dict | None = None
+    key: tuple, group: list[dict], test_types: dict | None = None
 ) -> tuple[dict | None, bool]:
-    """Decide one registry-mode (outcome key, treatment) group at trial level.
+    """Decide one registry-mode (measure key, outcome kind, treatment, dose) group at trial level.
 
     A trial is positive when all its analyses in the group are significant,
     negative when none is, and mixed otherwise (for example a dose-response
@@ -1572,7 +2107,14 @@ def _registry_contest_entry(
     depend on node order. It carries design_note when a positive or negative
     analysis is registered with a non_inferiority_type other than SUPERIORITY
     (see _design_note). Returns (entry or None, is_contradiction).
+
+    The key is (measure key, outcome kind, treatment, dose); a legacy
+    (measure key, treatment) key reads as no kind and no dose. The entry
+    carries outcome_kind (None when the kind is unknown) and dose_aware, plus
+    dose_mg when dose_aware.
     """
+    kind = (key[1] or None) if len(key) >= 4 else None
+    dose = key[3] if len(key) >= 4 else None
     by_trial: dict[str, list[dict]] = defaultdict(list)
     for finding in group:
         if finding["trial"] is not None:
@@ -1618,6 +2160,8 @@ def _registry_contest_entry(
         "standard_outcome": display,
         "standard_outcome_key": key[0],
         "standard_outcome_ids": outcome_ids,
+        "outcome_kind": kind,
+        "dose_aware": dose is not None,
         "treatment": treated["treatment"],
         "positive": [f["analysis"] for f in positive],
         "negative": [f["analysis"] for f in negative],
@@ -1644,6 +2188,8 @@ def _registry_contest_entry(
         "mentions": [{"source_document": d} for d in docs],
         "support_documents": docs,
     }
+    if dose is not None:
+        entry["dose_mg"] = dose
     note = _design_note(positive, negative, test_types)
     if note:
         entry["design_note"] = note
@@ -1928,6 +2474,23 @@ def analyze_clinicaltrials_epistemic(output_dir: Path, graph_data: dict) -> dict
             1 for f in analysis_claims if f.get("treatment_basis") == "registry_arm_type"
         )
         summary["analysis_treatment_arm_type_disagreements"] = arm_stats.get("disagreements", 0)
+        summary["analysis_treatment_ambiguous_active_comparator"] = sum(
+            1 for f in analysis_claims if f.get("treatment_basis") == "ambiguous_active_comparator"
+        )
+        summary["analysis_label_conflicts"] = sum(1 for f in analysis_claims if f.get("label_conflict"))
+        summary["analysis_registry_withdrawn"] = sum(
+            1 for f in analysis_claims if f.get("registry_withdrawn")
+        )
+        kind_counts: dict[str, int] = defaultdict(int)
+        for finding in analysis_claims:
+            kind_counts[finding.get("outcome_kind") or "unknown"] += 1
+        summary["analysis_outcome_kind_counts"] = dict(sorted(kind_counts.items()))
+        summary["analysis_contests_dose_aware"] = sum(
+            1 for c in analysis_contested if c.get("dose_aware")
+        )
+        summary["analysis_contests_dose_fallback"] = sum(
+            1 for c in analysis_contested if c.get("dose_aware") is False
+        )
 
     return {
         "metadata": {
