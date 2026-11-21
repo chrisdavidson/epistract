@@ -54,7 +54,7 @@
 
 | Relation | Source Types | Target Types | Symmetric | Review Required | Example |
 |---|---|---|---|---|---|
-| DEVELOPED_BY | COMPOUND, CLINICAL_TRIAL | ORGANIZATION | No | No | pembrolizumab → Merck |
+| DEVELOPS | ORGANIZATION | COMPOUND, CLINICAL_TRIAL | No | No | Merck → pembrolizumab |
 | PUBLISHED_IN | CLINICAL_TRIAL, COMPOUND | PUBLICATION | No | No | KEYNOTE-024 → Reck et al., 2016 |
 | GRANTS_APPROVAL_FOR | REGULATORY_ACTION | COMPOUND | No | No | FDA accelerated approval → pembrolizumab |
 

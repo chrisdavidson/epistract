@@ -335,6 +335,12 @@ Return a single JSON object matching the `DocumentExtraction` schema. Do not wra
 - **Target types:** MECHANISM_OF_ACTION
 - **Extraction guidance:** Look for "mechanism of action", "works by", "acts as a", "MOA is". Links the drug to its pharmacological mechanism. Example: `olaparib HAS_MECHANISM PARP trapping`.
 
+#### METABOLIZES
+- **Description:** An enzyme (CYP450, UGT, etc.) metabolizes a compound.
+- **Source types:** PROTEIN
+- **Target types:** COMPOUND
+- **Extraction guidance:** Look for "metabolized by", "substrate of CYP3A4", "cleared by". Write the enzyme first. Example: `CYP3A4 METABOLIZES simvastatin`. Never write METABOLIZED_BY.
+
 ### Drug-Disease Relations
 
 #### INDICATED_FOR
@@ -419,11 +425,11 @@ Return a single JSON object matching the `DocumentExtraction` schema. Do not wra
 
 ### Organizational Relations
 
-#### DEVELOPED_BY
-- **Description:** Compound or clinical trial is developed or sponsored by an organization.
-- **Source types:** COMPOUND, CLINICAL_TRIAL
-- **Target types:** ORGANIZATION
-- **Extraction guidance:** Look for "developed by", "manufactured by", "sponsored by", "discovered at", "a product of", "in collaboration with". For co-development, create multiple relations. Example: `pembrolizumab DEVELOPED_BY Merck`.
+#### DEVELOPS
+- **Description:** An organization develops or sponsors a compound or clinical trial.
+- **Source types:** ORGANIZATION
+- **Target types:** COMPOUND, CLINICAL_TRIAL
+- **Extraction guidance:** Look for "developed by", "manufactured by", "sponsored by", "discovered at", "a product of", "in collaboration with". Write the organization first. For co-development, create multiple relations. Example: `Merck DEVELOPS pembrolizumab`. Never write the passive form DEVELOPED_BY — the graph builder rewrites "*_BY" relation names.
 
 #### PUBLISHED_IN
 - **Description:** Clinical trial results or compound data are published in a specific publication.

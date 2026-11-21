@@ -279,8 +279,8 @@ relation_types:
     description: "Obligation or deliverable has a deadline"
   COSTS:
     description: "Service or obligation has an associated cost"
-  SIGNED_BY:
-    description: "Contract is signed by a party"
+  SIGNS:
+    description: "A party signs a contract"
   PROVIDES_SERVICE:
     description: "Party provides a service"
   HELD_AT:
@@ -292,6 +292,13 @@ relation_types:
   PENALIZES:
     description: "Breach triggers a penalty"
 ```
+
+> **Use active relation names.** sift-kg rewrites passive `*_BY` relation names
+> at build time and flips the edge (`CAUSED_BY` → `CAUSES`, `SIGNED_BY` → the
+> misspelt `SIGNES`), so a `*_BY` name never appears in a built graph. Name the
+> relation for the actor (`SIGNS`, `DEVELOPS`, `MANUFACTURES`) and put the actor
+> in `source_types`. `tests/test_relation_names.py` enforces this for shipped
+> domains.
 
 Key patterns: no `extraction_hints` needed for straightforward types, descriptions are the primary guidance, cross-contract references are high-value relation types.
 
