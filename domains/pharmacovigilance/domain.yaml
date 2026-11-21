@@ -188,6 +188,66 @@ relation_types:
     source_types: [CausalitySignal, DechallengeRechallenge, ReportType]
     target_types: [CausalitySignal, DechallengeRechallenge, ReportType]
     symmetric: true
+  SUPPORTS:
+    description: Evidence that supports a CausalitySignal — a DechallengeRechallenge
+      result, a TemporalRelationship (plausible time-to-onset), or a ReportType (the
+      report or database the signal rests on). Use this, not TRIGGERED, for evidence
+      flowing into a signal.
+    category: association
+    source_types: [DechallengeRechallenge, TemporalRelationship, ReportType]
+    target_types: [CausalitySignal]
+  ASSESSES:
+    description: A CausalitySignal assesses a Drug (or Concomitant) and an AdverseEvent
+      — link the signal to both members of the Drug-AdverseEvent pair it is about.
+      Needed for CONTRADICTS between signals on the same pair.
+    category: association
+    source_types: [CausalitySignal]
+    target_types: [Drug, Concomitant, AdverseEvent]
+  INTERACTS_WITH:
+    description: A documented or suspected drug-drug interaction between two products
+      (e.g. a "Drug interaction" PT, or the report attributing the event to the combination).
+      Stronger than CO_ADMINISTERED_WITH, which records only co-exposure. Symmetric.
+    category: therapeutic
+    source_types: [Drug]
+    target_types: [Drug, Concomitant]
+    symmetric: true
+  PROGRESSED_TO:
+    description: An AdverseEvent progressed to or caused a secondary AdverseEvent (e.g.
+      rhabdomyolysis progressed to acute kidney injury).
+    category: causal
+    source_types: [AdverseEvent]
+    target_types: [AdverseEvent]
+  CHALLENGES:
+    description: A DechallengeRechallenge withdrew and/or reintroduced this Drug (or
+      Concomitant). Links the challenge record to the product it tested.
+    category: causal
+    source_types: [DechallengeRechallenge]
+    target_types: [Drug, Concomitant]
+  HAS_ONSET:
+    description: An AdverseEvent has a stated time-to-onset (TemporalRelationship) after
+      exposure. Carries the temporality criterion as a graph edge.
+    category: association
+    source_types: [AdverseEvent]
+    target_types: [TemporalRelationship]
+  APPLIES_TO:
+    description: A RegulatoryAction (label change, boxed warning, REMS, withdrawal,
+      recall) applies to a Drug.
+    category: regulatory
+    source_types: [RegulatoryAction]
+    target_types: [Drug]
+  HAS_CONDITION:
+    description: A Patient has a condition — medical history or the underlying disease
+      the suspect drug treats. Material to confounding-by-indication analysis.
+    category: therapeutic
+    source_types: [Patient]
+    target_types: [Indication]
+  WORSENING_OF:
+    description: A reported AdverseEvent is a worsening, progression, or recurrence of
+      an Indication (e.g. "Plasma cell myeloma" reported as an event in a patient treated
+      for plasma cell myeloma). Flags possible confounding by indication.
+    category: causal
+    source_types: [AdverseEvent]
+    target_types: [Indication]
 community_label_anchors:
 - Drug
 - AdverseEvent
