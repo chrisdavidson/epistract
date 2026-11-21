@@ -136,3 +136,19 @@ def test_drug_discovery_skill_matches_schema():
         src = re.search(r"\*\*Source types:\*\* (.*)", m.group(2)).group(1).split(", ")
         tgt = re.search(r"\*\*Target types:\*\* (.*)", m.group(2)).group(1).split(", ")
         assert (src, tgt) == (rels[m.group(1)]["source_types"], rels[m.group(1)]["target_types"]), m.group(1)
+
+
+@pytest.mark.parametrize("domain", ["pharmacovigilance", "fda-product-labels"])
+def test_skill_relation_table_matches_schema(domain):
+    """The SKILL.md Relation Types table states each relation's Source → Target."""
+    skill = (ROOT / "domains" / domain / "SKILL.md").read_text()
+    for rel, cfg in _schema(domain)["relation_types"].items():
+        row = f"| {rel} | {'/'.join(cfg['source_types'])} → {'/'.join(cfg['target_types'])}"
+        assert row in skill, rel
+
+
+def test_fda_skill_forbids_placeholder_endpoints():
+    # Corpus 08's committed extraction lost 830/979 relations to placeholder
+    # endpoints such as DRUG_PRODUCT_1; the prompt must rule them out.
+    skill = (ROOT / "domains" / "fda-product-labels" / "SKILL.md").read_text()
+    assert "Never use placeholder IDs" in skill

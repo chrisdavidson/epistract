@@ -30,7 +30,7 @@ COUNTS = {
     "contracts": (9, 9),
     "clinicaltrials": (17, 26),
     "pharmacovigilance": (12, 21),
-    "fda-product-labels": (17, 16),
+    "fda-product-labels": (17, 18),
     "crosswalk": (6, 4),
 }
 
@@ -155,10 +155,10 @@ RELATION_CATS: dict[str, dict[str, list[str]]] = {
         "organizational": ["MANUFACTURES"],
         "therapeutic": [
             "INDICATED_FOR", "CONTRAINDICATED_IN", "DOSED_VIA", "EVALUATED_IN",
-            "CONTRAINDICATED_WITH",
+            "CONTRAINDICATED_WITH", "HAS_LABTEST",
         ],
         "causal": ["CAUSES_ADVERSE_REACTION"],
-        "regulatory": ["HAS_WARNING", "IDENTIFIES"],
+        "regulatory": ["HAS_WARNING", "IDENTIFIES", "WARNS_OF"],
         "mechanism": ["INTERACTS_WITH", "HAS_MECHANISM", "HAS_PK_PROPERTY"],
         "association": ["STUDIED_IN_POPULATION"],
     },
