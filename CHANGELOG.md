@@ -17,7 +17,7 @@ All notable changes to epistract are documented here. This project follows [Sema
 - **clinicaltrials `_ae_key` round-2 review fixes (Domain Builder iteration 25, commit df08d43):** `oestr` is a denylist again: it folds everywhere except after the US o-prefixes hyp/phyt/xen/pr. British compounds that iteration 24 had split from their US forms (Diethylstilboestrol, Stilboestrol, Antioestrogen, Fosfoestrol, Hexoestrol, Dienoestrol, Polyoestradiol, Dioestrus, Anoestrus, Metoestrus) merge again, while Hypoestrogenism, Phytoestrogen, Xenoestrogen and Proestrus keep their keys. `aesthe` now needs a preceding letter, so the US word "aesthetic" is not rewritten, and the genus Leuconostoc is no longer folded. Pinned in `tests/test_ctgov_results.py`.
 
 ### Measured
-- **corpus-07 AE count, iteration 22 to 23 and 24:** 1,118 to 1,118 (delta 0 for both). The corpus holds only one spelling of each of the six pairs, so nothing merged (`docs/reports/v2.2-phase11/corpus07_ae_delta.json` in Domain Builder).
+- **corpus-07 AE count, iteration 22 to 23, 24 and 25:** 1,118 to 1,118 (delta 0 for each). The corpus holds only one spelling of each of the six pairs, so nothing merged (`docs/reports/v2.2-phase11/corpus07_ae_delta.json` in Domain Builder).
 - **`pharma.yaml` adverse_event axis (Domain Builder crosswalk iteration 2, commit 1b3b446):** the clinicaltrials x pharmacovigilance join is 30 before and after. Seven further British-to-US pairs (anaem, paraesth, faec, oesophag, leucop, gynaecom, oestr) each measured +0, so none were added; the change records that measurement in the axis comment.
 
 ## [3.5.0] — 2026-11-20
