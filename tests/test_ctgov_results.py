@@ -683,6 +683,30 @@ _BRITISH_US_AE_PAIRS = [
     ("Oesophagitis", "Esophagitis"), ("Oestradiol increased", "Estradiol increased"),
     ("Foetal distress syndrome", "Fetal distress syndrome"), ("Coeliac disease", "Celiac disease"),
     ("Anaemia", "Anemia"), ("Haemorrhage", "Hemorrhage"), ("Tumour pain", "Tumor pain"),
+    # 999.5 / clinicaltrials iteration 23
+    ("Paraesthesia", "Paresthesia"), ("Hypoaesthesia", "Hypoesthesia"), ("Anaesthesia", "Anesthesia"),
+    ("Faecal incontinence", "Fecal incontinence"), ("Gynaecomastia", "Gynecomastia"),
+    ("Leucopenia", "Leukopenia"), ("Leucocytosis", "Leukocytosis"),
+    ("Hypooestrogenism", "Hypoestrogenism"), ("Hyperoestrogenism", "Hyperestrogenism"),
+    ("Angio-oedema", "Angioedema"), ("Lymphoedema", "Lymphedema"),
+    # 999.5 review fix / clinicaltrials iteration 24
+    ("Anaesthetic complication", "Anesthetic complication"),
+    ("Local anaesthetic systemic toxicity", "Local anesthetic systemic toxicity"),
+    ("Ethinyloestradiol", "Ethinylestradiol"), ("Xenooestrogen", "Xenoestrogen"),
+    ("Prooestrus", "Proestrus"),
+    # 999.5 round-2 review fix / clinicaltrials iteration 25
+    ("Diethylstilboestrol", "Diethylstilbestrol"), ("Stilboestrol", "Stilbestrol"),
+    ("Antioestrogen", "Antiestrogen"), ("Fosfoestrol", "Fosfestrol"), ("Hexoestrol", "Hexestrol"),
+    ("Dienoestrol", "Dienestrol"), ("Polyoestradiol", "Polyestradiol"), ("Dioestrus", "Diestrus"),
+    ("Anoestrus", "Anestrus"), ("Metoestrus", "Metestrus"), ("Oestradiol", "Estradiol"),
+    ("Anaesthetic", "Anesthetic"), ("Anaesthetist", "Anesthetist"),
+    ("Hyperaesthesia", "Hyperesthesia"), ("Leucoencephalopathy", "Leukoencephalopathy"),
+    ("Leucoderma", "Leukoderma"),
+    # 999.5 round-3 review fix / clinicaltrials iteration 26
+    ("Mycooestrogen", "Mycoestrogen"), ("Metallooestrogen", "Metalloestrogen"),
+    ("Neurooestradiol", "Neuroestradiol"), ("Pseudooestrus", "Pseudoestrus"),
+    ("Zoooestrogen", "Zooestrogen"), ("Aesthesioneuroblastoma", "Esthesioneuroblastoma"),
+    ("Hypo-aesthesia", "Hypo-esthesia"),
 ]
 
 
@@ -696,6 +720,91 @@ def test_ae_key_merges_british_meddra_terms(enrich, british, us):
 def test_ae_key_pnoea_rule_keeps_toe(enrich):
     assert enrich._ae_key("Toe pain") == "toe pain"
     assert enrich._ae_key("Ingrown toenail") == "ingrown toenail"
+
+
+@pytest.mark.unit
+def test_ae_key_leaves_us_o_prefix_compounds(enrich):
+    assert enrich._ae_key("Angioedema") == "angioedema"
+    assert enrich._ae_key("Hypoestrogenism") == "hypoestrogenism"
+    assert enrich._ae_key("Phytoestrogen") == "phytoestrogen"
+    assert enrich._ae_key("Toe pain") == "toe pain"
+    assert "leuk" not in enrich._ae_key("Leucine aminopeptidase increased")
+
+
+@pytest.mark.unit
+def test_ae_key_iteration24_word_table(enrich):
+    """999.5 review fix (iteration 24): aesthe covers anaesthetic; oestr folds only
+    where British spelling puts it; Leucovorin is left alone; earlier negatives hold."""
+    expected = {
+        "Anaesthetic complication": "anesthetic complication",
+        "Xenoestrogen": "xenoestrogen",
+        "Proestrus": "proestru",
+        "Leucovorin toxicity": "leucovorin toxicity",
+        "Toe pain": "toe pain",
+        "Dyspnoea": "dyspnea",
+        "Amoeba": "ameba",
+        "Leucine": "leucine",
+        "Angioedema": "angioedema",
+        "Hypoestrogenism": "hypoestrogenism",
+        "Phytoestrogen": "phytoestrogen",
+    }
+    for word, key in expected.items():
+        assert enrich._ae_key(word) == key, word
+
+
+@pytest.mark.unit
+def test_ae_key_iteration25_word_table(enrich):
+    """999.5 round-2 review fix (iteration 25): oestr folds everywhere except after
+    the US o-prefixes hyp/phyt/xen/pr; aesthe needs a preceding letter, so the US
+    word "aesthetic" is left alone; Leuconostoc (a genus) is not folded."""
+    expected = {
+        "Diethylstilboestrol": "diethylstilbestrol",
+        "Antioestrogen therapy": "antiestrogen therapy",
+        "Dioestrus": "diestru",
+        "Hypooestrogenism": "hypoestrogenism",
+        "Hypoestrogenism": "hypoestrogenism",
+        "Phytoestrogen": "phytoestrogen",
+        "Xenoestrogen": "xenoestrogen",
+        "Proestrus": "proestru",
+        "Anaesthesia": "anesthesia",
+        "Hyperaesthesia": "hyperesthesia",
+        "Aesthetic procedure complication": "aesthetic procedure complication",
+        "Leucoencephalopathy": "leukoencephalopathy",
+        "Leuconostoc infection": "leuconostoc infection",
+        "Leucine": "leucine",
+        "Leucovorin toxicity": "leucovorin toxicity",
+    }
+    for word, key in expected.items():
+        assert enrich._ae_key(word) == key, word
+
+
+@pytest.mark.unit
+def test_ae_key_iteration26_word_table(enrich):
+    """999.5 round-3 review fix (iteration 26): the oestr denylist also covers the
+    US o-prefixes myc/metall/neur/pseud/zo (best-effort list); aesthes folds
+    everywhere (Aesthesioneuroblastoma, Hypo-aesthesia) while aesthet still needs
+    a preceding letter, so the US word "aesthetic" keeps its key."""
+    expected = {
+        "Mycoestrogen": "mycoestrogen",
+        "Mycooestrogen": "mycoestrogen",
+        "Metalloestrogen": "metalloestrogen",
+        "Neuroestradiol": "neuroestradiol",
+        "Neurooestradiol": "neuroestradiol",
+        "Pseudoestrus": "pseudoestru",
+        "Zooestrogen": "zooestrogen",
+        "Zoooestrogen": "zooestrogen",
+        "Hypooestrogenism": "hypoestrogenism",
+        "Diethylstilboestrol": "diethylstilbestrol",
+        "Fosfoestrol": "fosfestrol",
+        "Aesthesioneuroblastoma": "esthesioneuroblastoma",
+        "Hypo-aesthesia": "hypo esthesia",
+        "Paraesthesia": "paresthesia",
+        "Anaesthetic": "anesthetic",
+        "Aesthetic": "aesthetic",
+        "Aesthetic procedure complication": "aesthetic procedure complication",
+    }
+    for word, key in expected.items():
+        assert enrich._ae_key(word) == key, word
 
 
 # --- Phase 7: registry adverse events ---------------------------------------

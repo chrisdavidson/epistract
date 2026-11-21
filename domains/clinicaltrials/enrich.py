@@ -114,15 +114,42 @@ _PAREN_RE = re.compile(r"\([^)]*\)")
 _WEEK_RE = re.compile(r"\s+at\s+weeks?\s+\d+\s*$")
 _WS_RE = re.compile(r"\s+")
 
+# British -> US spelling stems folded into one AE key. Rules are stem-anchored:
+# an unanchored "oedem"/"oestr" would also rewrite US compounds whose prefix ends
+# in "o" (hyp-o-estrogenism, angi-o-edema, phyt-o-estrogen, xen-o-estrogen) and
+# split them from the British form. "oestr" folds everywhere except after the
+# known US o-prefixes hyp/phyt/xen/pr/myc/metall/neur/pseud/zo (Hypoestrogenism,
+# Phytoestrogen, Xenoestrogen, Proestrus, Mycoestrogen, Metalloestrogen,
+# Neuroestradiol, Pseudoestrus, Zooestrogen keep their keys), so British
+# compounds with any other prefix fold: Oestradiol, Hypooestrogenism,
+# Hyperoestrogenism, Ethinyloestradiol, Diethylstilboestrol, Antioestrogen,
+# Fosfoestrol, Dioestrus, Anoestrus. This prefix list is best-effort, not
+# complete: a US compound with a linking "o" before "estr" (myc-o-estrogen)
+# looks the same as a British spelling (fosf-oestrol), so a US prefix missing
+# from the list is folded and flagged as British.
+# "oedem" keeps its "angi" lookbehind (British -oedema compounds such as
+# Lymphoedema and Lipoedema need the fold) and "angio-oedem" folds its hyphen
+# first. "aesthes" folds everywhere (Paraesthesia, Hypo-aesthesia,
+# Aesthesioneuroblastoma); "aesthet" needs a preceding letter, so it covers
+# anaesthetic/anaesthetist but leaves the US word "aesthetic" alone. "leuc" only
+# before "o" and not in Leucovorin or Leuconostoc (Leucopenia), leaving Leucine
+# alone. Lookarounds are chained, not alternated, so no pattern contains "|".
 _US_SPELLING = [
-    (re.compile(r"oedem", re.IGNORECASE), "edem"),
+    (re.compile(r"angio-oedem", re.IGNORECASE), "angioedem"),
+    (re.compile(r"(?<!angi)oedem", re.IGNORECASE), "edem"),
     (re.compile(r"oesophag", re.IGNORECASE), "esophag"),
     (re.compile(r"rhoe", re.IGNORECASE), "rhe"),
     (re.compile(r"pnoe", re.IGNORECASE), "pne"),  # dys/a/tachy/ortho/hypo/brady/hyperpnoea
-    (re.compile(r"oestr", re.IGNORECASE), "estr"),
+    (re.compile(r"(?<!hyp)(?<!phyt)(?<!xen)(?<!pr)(?<!myc)(?<!metall)(?<!neur)(?<!pseud)(?<!zo)oestr",
+                re.IGNORECASE), "estr"),
     (re.compile(r"foet", re.IGNORECASE), "fet"),
     (re.compile(r"coeliac", re.IGNORECASE), "celiac"),
     (re.compile(r"amoeb", re.IGNORECASE), "ameb"),
+    (re.compile(r"aesthes", re.IGNORECASE), "esthes"),  # -aesthesia, aesthesio-, hypo-aesthesia
+    (re.compile(r"(?<=[a-z])aesthet", re.IGNORECASE), "esthet"),  # anaesthetic/anaesthetist; US "aesthetic" kept
+    (re.compile(r"faec", re.IGNORECASE), "fec"),
+    (re.compile(r"gynaec", re.IGNORECASE), "gynec"),
+    (re.compile(r"leuc(?=o(?!vorin)(?!nostoc))", re.IGNORECASE), "leuk"),
     (re.compile(r"ae(?=m)", re.IGNORECASE), "e"),
     (re.compile(r"haem", re.IGNORECASE), "hem"),
     (re.compile(r"tumour", re.IGNORECASE), "tumor"),
