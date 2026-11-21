@@ -50,18 +50,23 @@ longer produces (e.g. a dropped p-value, or count_basis when an event is no
 longer in both tables) is removed; on a registry node other NCTs also
 support such an attribute is kept, since their first import may have filled
 it. On extracted or shared targets only the registry_<attr> /
-registry_<attr>_by_nct bookkeeping for this NCT changes (for a dict such as
-by_group, the whole payload dict when a sub-key differs), and an extracted
-attribute value is never touched. New adverse events and analyses are added.
-A registry fact that only this NCT supports and that the new payload no
+registry_<attr>_by_nct bookkeeping for this NCT changes, and an extracted
+attribute value is never touched. A dict attribute such as by_group follows
+the first-import rule: sub-keys it lacks are added, a sub-key it already has
+keeps its value and is not recorded (a first import records none there
+either), so an unchanged payload changes nothing. New adverse events and
+analyses are added. A registry fact that only this NCT supports and that the new payload no
 longer has is marked ctgov_withdrawn: true (also when the payload has no
 results at all). On a fact other NCTs also support, the NCT is recorded in
 ctgov_withdrawn_by_nct = {NCT: true}, and a registry fact is flagged
 ctgov_withdrawn once every NCT recorded on it has withdrawn it, whatever the
-order of the NCTs. An extracted node or edge the registry merged into only
-gets the ctgov_withdrawn_by_nct entry: its registry corroboration is
-withdrawn, the fact is not (its sources still list ctgov_results). Nothing
-is deleted, and a fact that reappears loses this NCT's entry and the flag.
+order of the NCTs. When another NCT first reports a fact flagged
+ctgov_withdrawn (in a default run or a refresh), the flag is turned into
+ctgov_withdrawn_by_nct entries for the NCTs already recorded and dropped,
+since the new NCT supports the fact. An extracted node or edge the registry
+merged into only gets the ctgov_withdrawn_by_nct entry: its registry
+corroboration is withdrawn, the fact is not (its sources still list
+ctgov_results). Nothing is deleted, and a fact that reappears loses this NCT's entry and the flag.
 Without the flag a re-run changes nothing. A refresh does not refetch by
 itself: use --cache-ttl-days to age out cached payloads (--cache-ttl-days 0
 refetches every cached trial). The "results" block gains a "refresh" block
@@ -823,6 +828,24 @@ def _withdraw(target: dict, nct, registry: bool) -> str | None:
     return "updated"
 
 
+def _join_withdrawn(target: dict, ctx) -> None:
+    """A new NCT supports a fact flagged ctgov_withdrawn: the NCTs already
+    recorded keep their withdrawal as ctgov_withdrawn_by_nct entries and the
+    flag is dropped (counted as restored in a refresh), so the outcome does not
+    depend on whether the join or the earlier NCT's next sweep comes first.
+    """
+    if target.pop("ctgov_withdrawn", None) is None:
+        return
+    by_nct = target.get(WITHDRAWN_BY_NCT)
+    by_nct = by_nct if isinstance(by_nct, dict) else {}
+    for i in target.get("ctgov_nct_ids") or []:
+        by_nct.setdefault(i, True)
+    if by_nct:
+        target[WITHDRAWN_BY_NCT] = by_nct
+    if ctx is not None:
+        ctx["stats"]["restored"] += 1
+
+
 def _refresh_bookkeeping(target, key, value, rename, nct, differs=None) -> bool:
     """Record a refreshed value that differs from, or equals, the plain value
     of a target this NCT does not own. Never modifies target[key].
@@ -875,15 +898,16 @@ def _refresh_nested(target, key, current: dict, value: dict, rename, nct) -> boo
     """Refresh a dict attribute (by_group, by_seriousness, registry_counts) of a
     target this NCT does not own.
 
-    A sub-key the target lacks is added, as a first import adds it. A sub-key
-    named by an NCT (registry_counts = {NCT: counts}) is this NCT's own entry
-    and is replaced in place. When a sub-key the target already has differs
-    from the payload, the whole payload dict is recorded as this NCT's
-    registry_<attr> / registry_<attr>_by_nct bookkeeping (the plain dict is not
-    changed); when the payload matches again the entry is dropped.
+    The first-import rule (_merge_attrs) applies, so a refresh of an unchanged
+    payload changes nothing: a sub-key the target lacks is added, and a sub-key
+    the target already has keeps its value and is not recorded, because a first
+    import records no registry_<attr> for it either (the extracted value and an
+    earlier registry value cannot be told apart). A sub-key named by an NCT
+    (registry_counts = {NCT: counts}) is this NCT's own entry and is replaced
+    in place. A registry_<attr>_by_nct entry of this NCT written by an earlier
+    refresh is dropped.
     """
     changed = False
-    differs = False
     for sub, subvalue in value.items():
         if NCT_PATTERN.fullmatch(str(sub)):
             if current.get(sub) != subvalue:
@@ -892,9 +916,7 @@ def _refresh_nested(target, key, current: dict, value: dict, rename, nct) -> boo
         elif sub not in current:
             current[sub] = subvalue
             changed = True
-        elif current[sub] != subvalue:
-            differs = True
-    return _refresh_bookkeeping(target, key, value, rename, nct, differs=differs) or changed
+    return _refresh_bookkeeping(target, key, value, rename, nct, differs=False) or changed
 
 
 def _refresh_attrs(target, attrs, rename, groups, nct, drop_absent: bool = True) -> bool:
@@ -980,6 +1002,7 @@ def _merge_into_node(kg, node_id, attrs, nct, counters, rename=None, count=False
             by_type = counters.setdefault("merged_by_type", {})
             etype = str(node.get("entity_type") or "")
             by_type[etype] = by_type.get(etype, 0) + 1
+    _join_withdrawn(target, ctx)
     _append_unique(target, "ctgov_nct_ids", nct)
     return True
 
@@ -1090,6 +1113,7 @@ def _upsert_edge(kg, src, rel, tgt, nct, evidence, attrs, counters) -> bool:
     else:
         _merge_attrs(target, attrs, nct=nct)
         _append_unique(target, "sources", REGISTRY_SOURCE)
+    _join_withdrawn(target, _refresh_ctx(counters, nct))
     _append_unique(target, "ctgov_nct_ids", nct)
     return True
 
@@ -1892,12 +1916,14 @@ def _refresh_sweep(kg, nct, trial_ids, ctx, skip_ae: bool) -> None:
     only gets the per-NCT entry; its extracted values are untouched. A per-NCT
     entry alone counts as an updated node or edge, the flag as withdrawn.
 
-    Edges that start at a non-canonical Trial node are copies from before
-    registry edges were written once per NCT: left as they are and counted as
-    legacy_copies_skipped (an extracted edge there counts as a copy only when
-    another Trial node of the NCT has the same edge). skip_ae leaves
-    adverse-event facts alone (the trial's adverse events were not rewritten,
-    see the serious floor).
+    An edge that starts at a non-canonical Trial node is a copy from before
+    registry edges were written once per NCT only when another Trial node of
+    the NCT has the same edge recording the NCT: such copies are left as they
+    are and counted as legacy_copies_skipped. Otherwise it is the NCT's live
+    edge (REFRESH-02 writes through the Trial node that already has the edge,
+    e.g. after a lower-id Trial node was extracted later) and is swept like
+    any other. skip_ae leaves adverse-event facts alone (the trial's adverse
+    events were not rewritten, see the serious floor).
     """
     stats = ctx["stats"]
     legacy_sources = set(trial_ids[1:])
@@ -1911,7 +1937,7 @@ def _refresh_sweep(kg, nct, trial_ids, ctx, skip_ae: bool) -> None:
         if skip_ae and rel in _AE_RELATIONS:
             continue
         registry = attrs.get("source") == REGISTRY_SOURCE
-        if src in legacy_sources and (registry or _legacy_copy(kg, trial_ids, src, rel, tgt, nct)):
+        if src in legacy_sources and _legacy_copy(kg, trial_ids, src, rel, tgt, nct):
             stats["legacy_copies_skipped"] += 1
             continue
         result = _withdraw(attrs, nct, registry)
