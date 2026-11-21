@@ -21,8 +21,9 @@ registry_<attr>_by_nct = {NCT: value}), a repeated run changes nothing, and
 registry groups that match no extracted Cohort never create one. When several
 Trial nodes carry one NCT, the registry edges that start at a Trial
 (reports_adverse_event, has_outcome) are written once, from the canonical Trial
-node (the lowest id); the other Trial nodes of that NCT get the attribute
-same_trial_as = <canonical id> and no registry edges. Analyses merge only into an extracted analysis of the same trial
+node (the lowest id), or merged into the edge another Trial node of that NCT
+already has; the other Trial nodes of that NCT get the attribute
+same_trial_as = <canonical id> and no registry edges of their own. Analyses merge only into an extracted analysis of the same trial
 that compares the same arms (or has the same effect measure and estimate).
 Each registry analysis also records ctgov_arm_groups: the CT.gov armGroup type
 and interventions of every compared group that names an armGroup, added only
@@ -44,22 +45,35 @@ and listed under write_errors. Without --results, behaviour is unchanged.
 Opt-in refresh (--refresh-results, needs --results): a trial whose registry
 facts are already recorded is re-imported in place. Registry-owned node and
 edge attributes (source ctgov_results, first NCT = this trial) are replaced
-with the new payload values; on extracted or shared targets only the
-registry_<attr> / registry_<attr>_by_nct bookkeeping for this NCT changes, and
-an extracted attribute value is never touched. New adverse events and analyses
-are added. A registry fact of this NCT that the new payload no longer has is
-marked ctgov_withdrawn: true (also when the payload has no results at all); it
-is never deleted, and a withdrawn fact that reappears loses the flag. Without
-the flag a re-run changes nothing. A refresh does not refetch by itself: use
---cache-ttl-days to age out cached payloads (--cache-ttl-days 0 refetches
-every cached trial). The "results" block gains a "refresh" block (trials_refreshed,
-updated_nodes, updated_edges, withdrawn, restored, legacy_copies_skipped).
+with the new payload values, and a payload attribute the new payload no
+longer produces (e.g. a dropped p-value, or count_basis when an event is no
+longer in both tables) is removed; on a registry node other NCTs also
+support such an attribute is kept, since their first import may have filled
+it. On extracted or shared targets only the registry_<attr> /
+registry_<attr>_by_nct bookkeeping for this NCT changes (for a dict such as
+by_group, the whole payload dict when a sub-key differs), and an extracted
+attribute value is never touched. New adverse events and analyses are added.
+A registry fact that only this NCT supports and that the new payload no
+longer has is marked ctgov_withdrawn: true (also when the payload has no
+results at all). On a fact other NCTs also support, the NCT is recorded in
+ctgov_withdrawn_by_nct = {NCT: true}, and a registry fact is flagged
+ctgov_withdrawn once every NCT recorded on it has withdrawn it, whatever the
+order of the NCTs. An extracted node or edge the registry merged into only
+gets the ctgov_withdrawn_by_nct entry: its registry corroboration is
+withdrawn, the fact is not (its sources still list ctgov_results). Nothing
+is deleted, and a fact that reappears loses this NCT's entry and the flag.
+Without the flag a re-run changes nothing. A refresh does not refetch by
+itself: use --cache-ttl-days to age out cached payloads (--cache-ttl-days 0
+refetches every cached trial). The "results" block gains a "refresh" block
+(trials_refreshed: trials whose facts were already recorded, updated_nodes,
+updated_edges, withdrawn, restored, legacy_copies_skipped).
 
 Opt-in cache expiry (--cache-ttl-days N, needs --cache-dir): a cached payload
 whose file is older than N days is refetched and rewritten; when the refetch
 fails the stale payload is used. The report then gains a top-level "cache"
-block (ttl_days, expired, refetched, stale_used). Without it a cached payload
-never expires.
+block (ttl_days, expired, refetched, stale_used, stale_after_not_found: stale
+payloads used because the refetch got a 404, i.e. the trial may have left the
+registry). Without it a cached payload never expires.
 
 Non-blocking: API failures log counts but never abort the pipeline.
 ARCH-03: no core/ changes required; this module lives in the domain package.
@@ -125,6 +139,23 @@ ANALYSIS_STAT_GROUPS = (
     ("p_value", "p_value_num", "p_value_qualifier"),
     ("effect_estimate", "effect_measure", "ci_lower", "ci_upper", "ci_level", "ci_sides"),
 )
+# Attributes the registry import derives from a payload: AdverseEvent,
+# OrganSystem, Outcome and OutcomeAnalysis nodes, reports_adverse_event and
+# observed_in edges. A refresh removes one that the new payload no longer
+# produces from a registry-owned fact (see _refresh_attrs).
+REGISTRY_PAYLOAD_KEYS = frozenset({
+    "reported_term", "meddra_pt", "meddra_version",
+    "classification",
+    "seriousness", "assessment_type", "n_affected", "n_at_risk", "n_events", "percent",
+    "frequency_threshold", "frequency_threshold_source", "by_group", "serious_min_pct",
+    "count_basis", "by_seriousness", "registry_counts",
+    "endpoint_type", "timeframe", "unit",
+    "p_value", "p_value_num", "p_value_qualifier", "effect_estimate", "effect_measure",
+    "ci_lower", "ci_upper", "ci_level", "ci_sides", "non_inferiority_type", "timepoint",
+    "compared_groups", "unmatched_groups",
+})
+# Refresh: NCTs whose refreshed payload no longer has a fact ({NCT: True}).
+WITHDRAWN_BY_NCT = "ctgov_withdrawn_by_nct"
 
 _MEASURE_PREFIXES = (
     "percentage of participants achieving",
@@ -211,11 +242,16 @@ def _extract_nct_id(text: str) -> str | None:
     return m.group().upper() if m else None
 
 
-def _fetch_ct_gov_study(nct_id: str) -> dict | None:
-    """Fetch the full CT.gov v2 study payload, or None on 404 / any error."""
+def _fetch_ct_gov_study(nct_id: str, outcome: dict | None = None) -> dict | None:
+    """Fetch the full CT.gov v2 study payload, or None on 404 / any error.
+
+    When outcome is given, outcome["not_found"] is set to True on a 404.
+    """
     try:
         resp = requests.get(CTGOV_URL.format(nct_id=nct_id), timeout=CTGOV_TIMEOUT)
         if resp.status_code == 404:
+            if outcome is not None:
+                outcome["not_found"] = True
             return None
         resp.raise_for_status()
         body = resp.json()
@@ -266,7 +302,9 @@ def _get_ct_gov_study(
 
     With ttl_days, a cache file whose mtime is that many days old or older is
     expired and refetched; when the refetch fails the stale payload is used.
-    stats (expired / refetched / stale_used) is updated when given. Without
+    stats (expired / refetched / stale_used / stale_after_not_found) is updated
+    when given; stale_after_not_found counts the stale payloads used because
+    the refetch got a 404 (the trial may have left the registry). Without
     ttl_days a cached payload never expires.
     """
     if cache_dir is None:
@@ -288,7 +326,8 @@ def _get_ct_gov_study(
     except (OSError, ValueError):
         pass
     time.sleep(CTGOV_RATE_SLEEP)
-    study = _fetch_ct_gov_study(nct_id)
+    outcome: dict = {}
+    study = _fetch_ct_gov_study(nct_id, outcome)
     if study is not None:
         try:
             cache_file.parent.mkdir(parents=True, exist_ok=True)
@@ -300,6 +339,8 @@ def _get_ct_gov_study(
     elif stale is not None:
         if stats is not None:
             stats["stale_used"] += 1
+            if outcome.get("not_found"):
+                stats["stale_after_not_found"] += 1
         return stale, False
     return study, True
 
@@ -734,47 +775,137 @@ def _owned_by(target: dict, nct) -> bool:
     return target.get("source") == REGISTRY_SOURCE and bool(ids) and ids[0] == nct
 
 
-def _restore(target: dict, ctx) -> None:
-    """A fact present in the payload again loses its withdrawn flag."""
+def _restore(target: dict, ctx, nct) -> bool:
+    """A fact present in the payload again: this NCT's withdrawal entry is
+    dropped and the fact loses its withdrawn flag (counted as restored).
+
+    True when this NCT's ctgov_withdrawn_by_nct entry was dropped.
+    """
+    dropped = False
+    by_nct = target.get(WITHDRAWN_BY_NCT)
+    if isinstance(by_nct, dict) and nct in by_nct:
+        del by_nct[nct]
+        if not by_nct:
+            target.pop(WITHDRAWN_BY_NCT)
+        dropped = True
     if target.pop("ctgov_withdrawn", None) is not None:
         ctx["stats"]["restored"] += 1
+    return dropped
 
 
-def _refresh_bookkeeping(target, key, value, rename, nct) -> bool:
+def _withdraw(target: dict, nct, registry: bool) -> str | None:
+    """Record that this NCT's refreshed payload no longer has a fact.
+
+    A registry fact this NCT alone supports gets ctgov_withdrawn: true. Otherwise
+    this NCT is recorded in ctgov_withdrawn_by_nct, and a registry fact gets
+    ctgov_withdrawn: true once every NCT in ctgov_nct_ids has withdrawn it, so
+    the result does not depend on the order the NCTs are refreshed in. An
+    extracted fact only ever gets the per-NCT entry: its registry corroboration
+    is withdrawn, the fact itself is not.
+
+    Returns "withdrawn" when the flag was set, "updated" when only the per-NCT
+    entry was added, None when nothing changed.
+    """
+    ids = target.get("ctgov_nct_ids") or []
+    if registry and ids == [nct]:
+        target["ctgov_withdrawn"] = True
+        return "withdrawn"
+    by_nct = target.get(WITHDRAWN_BY_NCT)
+    if not isinstance(by_nct, dict):
+        by_nct = {}
+    if by_nct.get(nct) is True:
+        return None
+    by_nct[nct] = True
+    target[WITHDRAWN_BY_NCT] = by_nct
+    if registry and all(by_nct.get(i) is True for i in ids):
+        target["ctgov_withdrawn"] = True
+        return "withdrawn"
+    return "updated"
+
+
+def _refresh_bookkeeping(target, key, value, rename, nct, differs=None) -> bool:
     """Record a refreshed value that differs from, or equals, the plain value
-    of a target this NCT does not own. Never modifies target[key]."""
+    of a target this NCT does not own. Never modifies target[key].
+
+    differs overrides the plain comparison (used for nested dicts). registry_<attr>
+    holds the first conflicting value; it follows this NCT's value only when no
+    other NCT holds the value it had. On a graph enriched before _by_nct existed
+    (registry_<attr> without registry_<attr>_by_nct), registry_<attr> is taken as
+    this NCT's value when this NCT is the only one recorded on the target.
+    """
     name = rename.get(key, f"registry_{key}")
     by_key = f"{name}_by_nct"
     by_nct = target.get(by_key)
+    seeded = False
     if not isinstance(by_nct, dict):
         by_nct = None
-    if target.get(key) != value:
+        if name in target and (target.get("ctgov_nct_ids") or []) == [nct]:
+            by_nct = {nct: target[name]}
+            seeded = True
+    if differs is None:
+        differs = target.get(key) != value
+    if differs:
         if by_nct is None:
             by_nct = {}
         previous = by_nct.get(nct)
-        if previous == value and by_key in target:
+        if previous == value and (by_key in target or seeded):
             return False
+        others = [v for n, v in by_nct.items() if n != nct]
         by_nct[nct] = value
         target[by_key] = by_nct
-        if name not in target or (previous is not None and target.get(name) == previous):
+        if name not in target or (
+            previous is not None and target.get(name) == previous and previous not in others
+        ):
             target[name] = value
         return True
     if by_nct is not None and nct in by_nct:
         previous = by_nct.pop(nct)
-        if target.get(name) == previous:
-            target.pop(name, None)
+        if target.get(name) == previous and previous not in by_nct.values():
+            if by_nct:
+                target[name] = next(iter(by_nct.values()))
+            else:
+                target.pop(name, None)
         if not by_nct:
             target.pop(by_key, None)
         return True
     return False
 
 
-def _refresh_attrs(target, attrs, rename, groups, nct) -> bool:
+def _refresh_nested(target, key, current: dict, value: dict, rename, nct) -> bool:
+    """Refresh a dict attribute (by_group, by_seriousness, registry_counts) of a
+    target this NCT does not own.
+
+    A sub-key the target lacks is added, as a first import adds it. A sub-key
+    named by an NCT (registry_counts = {NCT: counts}) is this NCT's own entry
+    and is replaced in place. When a sub-key the target already has differs
+    from the payload, the whole payload dict is recorded as this NCT's
+    registry_<attr> / registry_<attr>_by_nct bookkeeping (the plain dict is not
+    changed); when the payload matches again the entry is dropped.
+    """
+    changed = False
+    differs = False
+    for sub, subvalue in value.items():
+        if NCT_PATTERN.fullmatch(str(sub)):
+            if current.get(sub) != subvalue:
+                current[sub] = subvalue
+                changed = True
+        elif sub not in current:
+            current[sub] = subvalue
+            changed = True
+        elif current[sub] != subvalue:
+            differs = True
+    return _refresh_bookkeeping(target, key, value, rename, nct, differs=differs) or changed
+
+
+def _refresh_attrs(target, attrs, rename, groups, nct, drop_absent: bool = True) -> bool:
     """Apply a refreshed payload to a node/edge attribute dict. True when changed.
 
-    Owned targets get the new values in place. Other targets only get this
-    NCT's registry_<attr> / registry_<attr>_by_nct bookkeeping (and values for
-    attributes they lack); a plain attribute that is already set is never changed.
+    Owned targets get the new values in place, and with drop_absent a payload
+    attribute (REGISTRY_PAYLOAD_KEYS) that the new payload no longer produces
+    is removed, so the fact matches what a fresh import of the payload writes.
+    Other targets only get this NCT's registry_<attr> / registry_<attr>_by_nct
+    bookkeeping (and values for attributes or dict sub-keys they lack); a plain
+    attribute that is already set is never changed.
     """
     rename = rename or {}
     changed = False
@@ -782,6 +913,10 @@ def _refresh_attrs(target, attrs, rename, groups, nct) -> bool:
         for key, value in attrs.items():
             if value is not None and target.get(key) != value:
                 target[key] = value
+                changed = True
+        if drop_absent:
+            for key in [k for k in target if k in REGISTRY_PAYLOAD_KEYS and attrs.get(k) is None]:
+                del target[key]
                 changed = True
         return changed
     held: set = set()
@@ -800,14 +935,7 @@ def _refresh_attrs(target, attrs, rename, groups, nct) -> bool:
                 target[key] = value
                 changed = True
         elif isinstance(current, dict) and isinstance(value, dict):
-            for sub, subvalue in value.items():
-                if NCT_PATTERN.fullmatch(str(sub)):
-                    if current.get(sub) != subvalue:
-                        current[sub] = subvalue
-                        changed = True
-                elif sub not in current:
-                    current[sub] = subvalue
-                    changed = True
+            changed |= _refresh_nested(target, key, current, value, rename, nct)
         else:
             changed |= _refresh_bookkeeping(target, key, value, rename, nct)
     return changed
@@ -831,11 +959,14 @@ def _merge_into_node(kg, node_id, attrs, nct, counters, rename=None, count=False
     if nct in (target.get("ctgov_nct_ids") or []):
         if ctx is not None and not seen:
             restored_before = ctx["stats"]["restored"]
-            _restore(target, ctx)
+            dropped = _restore(target, ctx, nct)
+            # A shared registry node keeps an attribute the owner's payload no
+            # longer has: another NCT's first import may have filled it.
             changed = _refresh_attrs(
                 target, attrs, rename, () if target.get("source") == REGISTRY_SOURCE else groups, nct,
+                drop_absent=(target.get("ctgov_nct_ids") or []) == [nct],
             )
-            if changed or ctx["stats"]["restored"] != restored_before:
+            if changed or dropped or ctx["stats"]["restored"] != restored_before:
                 ctx["stats"]["updated_nodes"] += 1
         return False
     if target.get("source") == REGISTRY_SOURCE:
@@ -919,9 +1050,13 @@ def _upsert_edge(kg, src, rel, tgt, nct, evidence, attrs, counters) -> bool:
     if nct in (target.get("ctgov_nct_ids") or []):
         if ctx is not None and not seen:
             restored_before = ctx["stats"]["restored"]
-            _restore(target, ctx)
+            dropped = _restore(target, ctx, nct)
             shared_registry = target.get("source") == REGISTRY_SOURCE and not _owned_by(target, nct)
-            changed = False if shared_registry else _refresh_attrs(target, attrs, None, (), nct)
+            # Every attribute of a registry edge comes from its owner (another
+            # NCT only adds a mention), so absent payload keys are removed.
+            changed = dropped
+            if not shared_registry:
+                changed = _refresh_attrs(target, attrs, None, (), nct) or changed
             if _owned_by(target, nct) and len(target.get("ctgov_nct_ids") or []) == 1:
                 # A reload derives the edge evidence from the mentions, so the
                 # mention of this NCT carries the new text as well.
@@ -1035,6 +1170,16 @@ def _ae_linked_to_trial(kg, trial_ids, nid, trial_docs) -> bool:
 
 def _has_edge_from(kg, src, rel, tgt) -> bool:
     return _find_edge(kg, src, rel, tgt)[1] is not None
+
+
+def _trial_edge_source(kg, trial_ids, rel, tgt) -> str:
+    """The Trial node a registry edge src -rel-> tgt is written from.
+
+    REFRESH-02: the first Trial node of the NCT (lowest id first) that already
+    has the edge, so registry data merges into an extracted edge on a
+    non-canonical Trial node instead of beside it; else the canonical node.
+    """
+    return next((tid for tid in trial_ids if _has_edge_from(kg, tid, rel, tgt)), trial_ids[0])
 
 
 def _registry_text(*parts) -> str:
@@ -1196,8 +1341,12 @@ def _write_adverse_events(kg, nct, parsed, trial_ids, match, counters) -> None:
             f"ClinicalTrials.gov results {nct}: {term} ({label}), "
             f"{edge_attrs['n_affected']} of {edge_attrs['n_at_risk']} participants"
         )
-        # REFRESH-02: one edge, from the canonical Trial node (lowest id).
-        _upsert_edge(kg, trial_ids[0], "reports_adverse_event", ae_id, nct, evidence, edge_attrs, counters)
+        # REFRESH-02: one edge, from the canonical Trial node (lowest id), or
+        # merged into the edge another Trial node of this NCT already has.
+        _upsert_edge(
+            kg, _trial_edge_source(kg, trial_ids, "reports_adverse_event", ae_id),
+            "reports_adverse_event", ae_id, nct, evidence, edge_attrs, counters,
+        )
 
         done = set()
         for stat in stats:
@@ -1494,7 +1643,8 @@ def _write_analyses(
                     nct, counters,
                 )
                 _upsert_edge(
-                    kg, trial_ids[0], "has_outcome", outcome_id, nct,
+                    kg, _trial_edge_source(kg, trial_ids, "has_outcome", outcome_id),
+                    "has_outcome", outcome_id, nct,
                     f"ClinicalTrials.gov results {nct}: outcome {title}", {}, counters,
                 )
         else:
@@ -1511,7 +1661,8 @@ def _write_analyses(
             )
             # REFRESH-02: one edge, from the canonical Trial node (lowest id).
             _upsert_edge(
-                kg, trial_ids[0], "has_outcome", outcome_id, nct,
+                kg, _trial_edge_source(kg, trial_ids, "has_outcome", outcome_id),
+                "has_outcome", outcome_id, nct,
                 f"ClinicalTrials.gov results {nct}: outcome {title}", {}, counters,
             )
             outcome_by_norm.setdefault(norm, []).append(outcome_id)
@@ -1708,46 +1859,82 @@ def _new_refresh_stats() -> dict:
     }
 
 
-def _refresh_sweep(kg, nct, trial_ids, ctx, skip_ae: bool) -> None:
-    """Flag the registry facts of this NCT that the refreshed payload did not
-    touch with ctgov_withdrawn: true. Nothing is deleted.
+def _has_recorded_facts(kg, nct) -> bool:
+    """True when a node or edge already records this NCT (ctgov_nct_ids)."""
+    for _, data in kg.graph.nodes(data=True):
+        if nct in (_plain_attrs(data).get("ctgov_nct_ids") or []):
+            return True
+    for _, _, data in kg.graph.edges(data=True):
+        if nct in (_plain_attrs(data).get("ctgov_nct_ids") or []):
+            return True
+    return False
 
-    A fact is this NCT's when the registry created it for this NCT (first NCT of
-    an edge, only NCT of a node). Edges that start at a non-canonical Trial node
-    are copies from before registry edges were written once per NCT: left as they
-    are and counted as legacy_copies_skipped. skip_ae leaves adverse-event facts
-    alone (the trial's adverse events were not rewritten, see the serious floor).
+
+def _legacy_copy(kg, trial_ids, src, rel, tgt, nct) -> bool:
+    """True when another Trial node of the NCT has the same edge recording nct."""
+    for tid in trial_ids:
+        if tid == src:
+            continue
+        _, data = _find_edge(kg, tid, rel, tgt)
+        if data is not None and nct in (_plain_attrs(data).get("ctgov_nct_ids") or []):
+            return True
+    return False
+
+
+def _refresh_sweep(kg, nct, trial_ids, ctx, skip_ae: bool) -> None:
+    """Record the facts of this NCT that the refreshed payload did not touch
+    (see _withdraw). Nothing is deleted.
+
+    A registry fact this NCT alone supports gets ctgov_withdrawn: true. On a
+    fact other NCTs also support, this NCT goes into ctgov_withdrawn_by_nct,
+    and a registry fact is flagged ctgov_withdrawn once every NCT recorded on
+    it has withdrawn it. An extracted node or edge the registry merged into
+    only gets the per-NCT entry; its extracted values are untouched. A per-NCT
+    entry alone counts as an updated node or edge, the flag as withdrawn.
+
+    Edges that start at a non-canonical Trial node are copies from before
+    registry edges were written once per NCT: left as they are and counted as
+    legacy_copies_skipped (an extracted edge there counts as a copy only when
+    another Trial node of the NCT has the same edge). skip_ae leaves
+    adverse-event facts alone (the trial's adverse events were not rewritten,
+    see the serious floor).
     """
     stats = ctx["stats"]
     legacy_sources = set(trial_ids[1:])
     for src, tgt, key, data in list(kg.graph.edges(keys=True, data=True)):
         attrs = data.get("attributes")
-        if not isinstance(attrs, dict) or not _owned_by(attrs, nct):
+        if not isinstance(attrs, dict) or nct not in (attrs.get("ctgov_nct_ids") or []):
             continue
         rel = data.get("relation_type")
         if (src, rel, tgt) in ctx["edges"] or "ctgov_withdrawn" in attrs:
             continue
         if skip_ae and rel in _AE_RELATIONS:
             continue
-        if src in legacy_sources:
+        registry = attrs.get("source") == REGISTRY_SOURCE
+        if src in legacy_sources and (registry or _legacy_copy(kg, trial_ids, src, rel, tgt, nct)):
             stats["legacy_copies_skipped"] += 1
             continue
-        attrs["ctgov_withdrawn"] = True
-        stats["withdrawn"] += 1
+        result = _withdraw(attrs, nct, registry)
+        if result == "withdrawn":
+            stats["withdrawn"] += 1
+        elif result == "updated":
+            stats["updated_edges"] += 1
     for node_id, data in kg.graph.nodes(data=True):
         attrs = data.get("attributes")
         if (
             not isinstance(attrs, dict)
-            or attrs.get("source") != REGISTRY_SOURCE
-            or attrs.get("ctgov_nct_ids") != [nct]
+            or nct not in (attrs.get("ctgov_nct_ids") or [])
             or node_id in ctx["nodes"]
             or "ctgov_withdrawn" in attrs
         ):
             continue
         if skip_ae and str(data.get("entity_type", "")).lower() in _AE_NODE_TYPES:
             continue
-        attrs["ctgov_withdrawn"] = True
-        stats["withdrawn"] += 1
+        result = _withdraw(attrs, nct, attrs.get("source") == REGISTRY_SOURCE)
+        if result == "withdrawn":
+            stats["withdrawn"] += 1
+        elif result == "updated":
+            stats["updated_nodes"] += 1
 
 
 # ---------------------------------------------------------------------------
@@ -1810,7 +1997,8 @@ def enrich_graph(
     if refresh and not results:
         raise ValueError("refresh needs results")
     cache_stats = (
-        {"ttl_days": cache_ttl_days, "expired": 0, "refetched": 0, "stale_used": 0}
+        {"ttl_days": cache_ttl_days, "expired": 0, "refetched": 0, "stale_used": 0,
+         "stale_after_not_found": 0}
         if cache_ttl_days is not None else None
     )
     refresh_stats = _new_refresh_stats()
@@ -1914,6 +2102,8 @@ def enrich_graph(
         if kg is None:
             results_block["skipped_reason"] = (
                 "sift_kg unavailable: registry results were parsed but not written"
+                if parsed_by_nct else
+                "sift_kg unavailable: the refresh of trials without results was not applied"
             )
             serious_omitted = sum(p.get("serious_events_omitted", 0) for p in parsed_by_nct.values())
         else:
@@ -1946,6 +2136,9 @@ def enrich_graph(
                 counters_before = copy.deepcopy(counters)
                 refresh_before = dict(refresh_stats)
                 try:
+                    # Only a trial with facts already recorded is refreshed; a
+                    # first import is not counted under trials_refreshed.
+                    refreshing = refresh and _has_recorded_facts(kg, nct)
                     if refresh:
                         counters["refresh"] = {
                             "nct": nct, "nodes": set(), "edges": set(), "stats": refresh_stats,
@@ -1961,7 +2154,8 @@ def enrich_graph(
                             kg, nct, sorted(trial_ids_by_nct[nct]), counters["refresh"],
                             skip_ae=nct in floor_conflicts,
                         )
-                        counters["refresh"]["stats"]["trials_refreshed"] += 1
+                        if refreshing:
+                            counters["refresh"]["stats"]["trials_refreshed"] += 1
                         counters["refresh"] = None
                 except Exception as exc:
                     kg.graph = graph_before
