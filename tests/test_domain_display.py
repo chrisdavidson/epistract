@@ -28,7 +28,7 @@ DOMAIN_NAMES = [
 COUNTS = {
     "drug-discovery": (17, 30),
     "contracts": (9, 9),
-    "clinicaltrials": (17, 23),
+    "clinicaltrials": (17, 26),
     "pharmacovigilance": (12, 21),
     "fda-product-labels": (17, 16),
     "crosswalk": (6, 4),
@@ -123,7 +123,9 @@ RELATION_CATS: dict[str, dict[str, list[str]]] = {
             "tests", "treats", "evaluated_for", "compared_with", "co_intervention",
             "receives", "uses_background_drug", "assesses_effect_of",
         ],
-        "organizational": ["sponsored_by", "investigates"],
+        "organizational": [
+            "sponsored_by", "investigates", "has_investigator", "conducted_at", "affiliated_with",
+        ],
         "association": [
             "has_outcome", "uses_biomarker", "observed_in", "measures", "analyzes",
         ],

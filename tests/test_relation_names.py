@@ -78,3 +78,30 @@ def test_legacy_passive_name_lands_on_schema(tmp_path, domain, rel, src, tgt, le
     # A legacy extraction written in the old passive direction (target BY source)
     # is rewritten by sift-kg onto the new active name and direction.
     assert _build(tmp_path, domain, src, tgt, legacy, reverse=True) == [(src[0], rel, tgt[0])]
+
+
+@pytest.mark.integration
+def test_ct_investigator_and_site_survive_build(tmp_path):
+    """Investigator and Site used to have no relation and were always pruned."""
+    sift = pytest.importorskip("sift_kg")
+    ents = [("NCT03548935", "Trial"), ("Melissa L. Johnson", "Investigator"),
+            ("Sarah Cannon Research Institute", "Site")]
+    rels = [("NCT03548935", "has_investigator", "Melissa L. Johnson"),
+            ("NCT03548935", "conducted_at", "Sarah Cannon Research Institute"),
+            ("Melissa L. Johnson", "affiliated_with", "Sarah Cannon Research Institute")]
+    doc = {"document_id": "ct_case", "document_path": "", "chunks_processed": 1,
+           "domain_name": "clinicaltrials",
+           "entities": [{"name": n, "entity_type": t, "attributes": {}, "confidence": 0.9, "context": n}
+                        for n, t in ents],
+           "relations": [{"relation_type": r, "source_entity": s, "target_entity": t,
+                          "confidence": 0.9, "evidence": "x"} for s, r, t in rels]}
+    out = tmp_path / "out"
+    (out / "extractions").mkdir(parents=True)
+    (out / "extractions" / "ct_case.json").write_text(json.dumps(doc))
+    sift.run_build(out, sift.load_domain(domain_path=ROOT / "domains" / "clinicaltrials" / "domain.yaml"))
+    g = json.loads((out / "graph_data.json").read_text())
+    nodes = {n["id"]: n for n in g["nodes"]}
+    assert {n["entity_type"] for n in g["nodes"]} >= {"Trial", "Investigator", "Site"}
+    got = {(nodes[l["source"]]["name"], l["relation_type"], nodes[l["target"]]["name"])
+           for l in g["links"] if l["relation_type"] != "MENTIONED_IN"}
+    assert got == set(rels)
