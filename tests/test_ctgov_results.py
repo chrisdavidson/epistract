@@ -4294,6 +4294,77 @@ def test_review1_live_arm_type_edge_is_kept_outside_a_refresh(enrich_arm, tmp_pa
     assert _live_arm_edges(links) == [("compound:semaglutide", False)]
 
 
+# --- 13-REVIEW round 2 (iteration 37) ------------------------------------------
+
+def _graded_treatments(directory):
+    ep = _load_live_epistemic()
+    graph = json.loads((directory / "graph_data.json").read_text())
+    result = ep.analyze_clinicaltrials_epistemic(directory, graph)
+    return [(f.get("treatment"), f.get("treatment_basis")) for f in result["base_domain"]["analysis_claims"]]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("drop", ["empty", "absent", "retitled"])
+def test_review2_refresh_without_arm_groups_removes_the_stored_groups(enrich_arm, tmp_path, drop):
+    """WR-04: a refresh whose payload gives no usable arm groups (none, or none
+    matching a compared group) withdraws the arm-type edge and removes the
+    stored ctgov_arm_groups, so grading cannot resolve the old compound."""
+    directory = _write_graph(tmp_path / "g", [WITH_RESULTS_A], _compound_nodes("Semaglutide", "Tirzepatide"))
+    _run(enrich_arm, directory, {WITH_RESULTS_A: _arm_ab_study(["Drug: Semaglutide"])}, results=True)
+    nodes, links = _read_graph(directory)
+    assert _live_arm_edges(links) == [("compound:semaglutide", False)]
+    assert _nattr(_registry_nodes(nodes, "OutcomeAnalysis")[0], "ctgov_arm_groups")
+    assert ("Semaglutide", ARM_BASIS) in _graded_treatments(directory)
+    changed = _arm_ab_study(["Drug: Semaglutide"])
+    arms = changed["protocolSection"]["armsInterventionsModule"]
+    if drop == "empty":
+        arms["armGroups"] = []
+    elif drop == "absent":
+        del arms["armGroups"]
+    else:
+        for k, arm in enumerate(arms["armGroups"]):
+            arm["label"] = f"Treatment sequence {k + 1}"
+    report, _ = _run(enrich_arm, directory, {WITH_RESULTS_A: changed}, results=True, refresh=True)
+    nodes, links = _read_graph(directory)
+    assert _live_arm_edges(links) == [("compound:semaglutide", True)]
+    analysis = _registry_nodes(nodes, "OutcomeAnalysis")[0]
+    assert "ctgov_arm_groups" not in (analysis.get("attributes") or {})
+    assert report["results"]["refresh"]["updated_nodes"] >= 1
+    for treatment, basis in _graded_treatments(directory):
+        assert treatment != "Semaglutide" and basis != ARM_BASIS
+    _assert_refresh_noop(enrich_arm, directory, {WITH_RESULTS_A: changed})
+
+
+@pytest.mark.unit
+def test_review2_arm_group_only_refresh_counts_an_updated_node(enrich_arm, tmp_path):
+    """IN-01: a refresh that changes only the stored arm groups (same compound,
+    same edge) reports the analysis as an updated node, once."""
+    directory = _write_graph(tmp_path / "g", [WITH_RESULTS_A], _compound_nodes("Semaglutide", "Tirzepatide"))
+    _run(enrich_arm, directory, {WITH_RESULTS_A: _arm_ab_study(["Drug: Semaglutide"])}, results=True)
+    changed = {WITH_RESULTS_A: _arm_ab_study(["Drug: Semaglutide", "Device: Pen injector"])}
+    report, _ = _run(enrich_arm, directory, changed, results=True, refresh=True)
+    refresh = report["results"]["refresh"]
+    assert (refresh["updated_nodes"], refresh["updated_edges"], refresh["withdrawn"]) == (1, 0, 0)
+    nodes, links = _read_graph(directory)
+    assert _live_arm_edges(links) == [("compound:semaglutide", False)]
+    analysis = _registry_nodes(nodes, "OutcomeAnalysis")[0]
+    assert _nattr(analysis, "ctgov_arm_groups")[0]["interventions"] == ["Drug: Semaglutide", "Device: Pen injector"]
+    _assert_refresh_noop(enrich_arm, directory, changed)
+
+
+@pytest.mark.unit
+def test_review2_refresh_that_changes_attributes_and_arm_groups_counts_one_update(enrich_arm, tmp_path):
+    """IN-01: the arm-group change of an analysis whose attributes also changed
+    is not counted twice."""
+    directory = _write_graph(tmp_path / "g", [WITH_RESULTS_A], _compound_nodes("Semaglutide", "Tirzepatide"))
+    _run(enrich_arm, directory, {WITH_RESULTS_A: _arm_ab_study(["Drug: Semaglutide"])}, results=True)
+    study = _arm_ab_study(["Drug: Semaglutide", "Device: Pen injector"])
+    analysis = study["resultsSection"]["outcomeMeasuresModule"]["outcomeMeasures"][0]["analyses"][0]
+    analysis["pValue"] = "0.987"
+    report, _ = _run(enrich_arm, directory, {WITH_RESULTS_A: study}, results=True, refresh=True)
+    assert report["results"]["refresh"]["updated_nodes"] == 1
+
+
 # WR-06: the enrich resolver and the epistemic resolver agree. Each row: compared
 # armGroups as (title, arm_type, interventions), and the expected compound name.
 PARITY_NAMES = ("Semaglutide", "Metformin", "Insulin Glargine", "Tirzepatide")

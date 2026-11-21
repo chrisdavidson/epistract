@@ -175,6 +175,16 @@ def test_contest02_outcome_kind_classification(ep, title, unit, effect, kind):
     # responder wording in the effect measure still decides before the title
     ("percentage change from baseline in body weight", None, "proportion of participants (arm-level)", None,
      "responder"),
+    # WR-03 (review round 2): the abbreviations OR, RR and HR are case-sensitive,
+    # so the words "or" and "hr" in a free-text effect measure name no model
+    ("Change From Baseline in HbA1c", None, "Mean difference or LS mean", None, "continuous"),
+    ("Change From Baseline in Body Weight", None, "ETD (or treatment ratio)", None, "continuous"),
+    ("Change in Heart Rate", None, "Change per hr", None, None),
+    ("Some measure", None, "OR (95% CI)", None, "responder"),
+    ("Some measure", None, "RR", None, "responder"),
+    ("Some measure", None, "HR 0.74", None, "time_to_event"),
+    ("Some measure", None, "Odds Ratio", None, "responder"),
+    ("Some measure", None, "cox proportional hazards", None, "time_to_event"),
 ])
 def test_review1_outcome_kind_classification(ep, title, unit, effect, param, kind):
     assert ep._outcome_kind(title, unit, effect, param) == kind
@@ -293,6 +303,28 @@ def test_contest02_summary_counts_kinds(ep):
     ("Semaglutide 0.25 to 1 mg", {0.25, 1.0}),
     ("Semaglutide 0.25 mg to 1 mg", {0.25, 1.0}),
     ("Metformin 1,000/2,000 mg", {1000.0, 2000.0}),
+    # WR-01 (review round 2): per-weight and concentration ranges are no dose
+    ("10-20 mg/kg", set()),
+    ("0.5-5.0 mg/ml", set()),
+    ("Semaglutide 1 mg (0.5-5.0 mg/ml)", {1.0}),
+    ("semaglutide 0.5-5.0 mg/ml SC liquid formulation", set()),
+    # WR-02 (review round 2): a label number is no range end, and a dose
+    # hyphen-attached to a name is read
+    ("Cohort 2 - 10 mg Tirzepatide", {10.0}),
+    ("Part 1 - 5 mg", {5.0}),
+    ("Arm 3 – 15 mg", {15.0}),
+    ("Group 1 to 4 mg", {4.0}),
+    ("Dose level 2 - 10 mg", {10.0}),
+    ("Period 2 to 10 mg", {10.0}),
+    ("Week 4 - 2.4 mg", {2.4}),
+    ("Semaglutide-1 mg", {1.0}),
+    ("LY3298176-5mg", {5.0}),
+    ("Semaglutide-2.4 mg", {2.4}),
+    ("Cohort 1: 5 mg to 10 mg", {5.0, 10.0}),
+    ("Arm A: 1-2 mg", {1.0, 2.0}),
+    ("Tirzepatide 2.5-15 mg", {2.5, 15.0}),
+    ("Orforglipron 12–45 mg", {12.0, 45.0}),
+    ("Semaglutide 500 mcg to 1 mg", {0.5, 1.0}),
 ])
 def test_contest01_parse_dose(ep, text, doses):
     assert ep._parse_dose(text) == doses
@@ -394,6 +426,39 @@ def test_review1_dose_range_is_no_single_dose(ep):
     assert _claims(result)["ra1"]["dose_mg"] is None
     entries = _entries(result)
     assert len(entries) == 1 and entries[0]["dose_aware"] is False
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("arm", [
+    "Cohort 2 - 10 mg Tirzepatide",
+    "Tirzepatide-10 mg",
+    "Tirzepatide 10 mg (0.5-5.0 mg/ml)",
+])
+def test_review2_label_number_and_concentration_keep_the_dose(ep, arm):
+    """A cohort number or a concentration range no longer erases the dose, so the
+    group stays dose-aware and contests the same dose in another trial."""
+    graph = _graph([
+        _spec("ra1", "NCT00000001", arm, "<0.001"),
+        _spec("ra2", "NCT00000002", "Tirzepatide 10 mg", "0.40"),
+    ])
+    result = _run(ep, graph)
+    assert _claims(result)["ra1"]["dose_mg"] == 10.0
+    entries = _entries(result)
+    assert len(entries) == 1 and entries[0]["dose_aware"] is True and entries[0]["dose_mg"] == 10.0
+
+
+@pytest.mark.unit
+def test_review2_lowercase_or_in_effect_measure_keeps_the_kind_group(ep):
+    """An effect measure with the word "or" stays continuous and still contests
+    the continuous finding of another trial."""
+    graph = _graph([
+        _spec("ra1", "NCT00000001", "Tirzepatide 15 mg", "<0.001", effect="Mean difference or LS mean"),
+        _spec("ra2", "NCT00000002", "Tirzepatide 15 mg", "0.40", unit="kg"),
+    ])
+    result = _run(ep, graph)
+    assert _claims(result)["ra1"]["outcome_kind"] == "continuous"
+    entries = _entries(result)
+    assert len(entries) == 1 and entries[0]["outcome_kind"] == "continuous"
 
 
 @pytest.mark.unit
