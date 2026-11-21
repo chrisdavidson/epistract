@@ -332,12 +332,16 @@ def build_spine(graphs: dict[str, dict], axis_spec: dict) -> dict:
 
 def compute_stats(axis_data: dict, declaring_graphs: list[str]) -> dict:
     """Per-axis stats: total keys, per-graph key counts, pairwise overlap
-    counts, count shared by 2+ graphs, count shared by every declaring
-    graph, and the list of declaring graphs.
+    counts, count shared by 2+ graphs, count shared by every contributing
+    graph, the contributing graphs, and the list of declaring graphs.
 
-    Intersections are computed over the graphs that DECLARE the axis, not
+    Pairwise counts are computed over the graphs that DECLARE the axis, not
     over every graph loaded -- a non-participating loaded graph must not
-    zero out the all-graph intersection.
+    zero out the intersection. ``shared_by_all_graphs`` is narrower still:
+    it counts keys present in every graph that contributes at least one key
+    to the axis (``contributing_graphs``), so a graph that declares the axis
+    but holds no matching nodes does not zero it. With fewer than two
+    contributing graphs nothing can be shared, so it is 0.
     """
     declared_sorted = sorted(declaring_graphs)
     keys_per_graph: dict[str, int] = {g: 0 for g in declared_sorted}
@@ -353,11 +357,16 @@ def compute_stats(axis_data: dict, declaring_graphs: list[str]) -> dict:
             keys_per_graph[g] = keys_per_graph.get(g, 0) + 1
         if len(present) >= 2:
             shared_by_2_or_more += 1
-        if declared_sorted and len(present) == len(declared_sorted):
-            shared_by_all_graphs += 1
         for g1, g2 in itertools.combinations(declared_sorted, 2):
             if g1 in present and g2 in present:
                 pairwise[f"{g1}{_PAIR_SEPARATOR}{g2}"] += 1
+
+    contributing = sorted(g for g in declared_sorted if keys_per_graph.get(g, 0) > 0)
+    if len(contributing) >= 2:
+        contributing_set = set(contributing)
+        shared_by_all_graphs = sum(
+            1 for entry in axis_data.values() if contributing_set <= set(entry["graphs"])
+        )
 
     return {
         "keys_total": len(axis_data),
@@ -365,6 +374,7 @@ def compute_stats(axis_data: dict, declaring_graphs: list[str]) -> dict:
         "pairwise": pairwise,
         "shared_by_2_or_more": shared_by_2_or_more,
         "shared_by_all_graphs": shared_by_all_graphs,
+        "contributing_graphs": contributing,
         "declared_by": declared_sorted,
     }
 

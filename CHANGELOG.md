@@ -2,6 +2,18 @@
 
 All notable changes to epistract are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- **Crosswalk `shared_by_all_graphs` semantics:** it now counts keys present in every graph that contributes at least one key to the axis, instead of every graph that declares the axis. Before, a declaring graph with no keys on the axis (for example a clinicaltrials graph with no adverse events) made the count 0. It is 0 when fewer than two graphs contribute.
+
+### Added
+- **`contributing_graphs`** in per-axis crosswalk stats: the sorted declaring graphs that hold at least one key on the axis. `declared_by` is unchanged.
+- **Domain Builder shared-crosswalk path:** `crosswalks/` is now tracked and validated by Domain Builder as `_crosswalks` (loaded by this repo's own crosswalk loaders), and an applied iteration can be committed to a named branch of this repo.
+
+### Measured
+- **`pharma.yaml` adverse_event axis (Domain Builder crosswalk iteration 2, commit 1b3b446):** the clinicaltrials x pharmacovigilance join is 30 before and after. Seven further British-to-US pairs (anaem, paraesth, faec, oesophag, leucop, gynaecom, oestr) each measured +0, so none were added; the change records that measurement in the axis comment.
+
 ## [3.5.0] — 2026-11-20
 
 **Clinical trials results enrichment from ClinicalTrials.gov.** The `clinicaltrials` domain can now fill adverse events and outcome analyses directly from a trial's posted results in the ClinicalTrials.gov API v2 (`resultsSection`). This is the same source the CTKG paper and AACT use, so these facts no longer depend on what the extractor happened to read. It is opt-in: without the new flag, `--enrich` output is byte-identical to 3.4.0, and graphs without registry data grade exactly as before. Domain Builder iterations 8–22 reviewed and applied the changes.

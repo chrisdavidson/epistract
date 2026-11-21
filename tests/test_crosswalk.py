@@ -194,6 +194,7 @@ def test_spine_stats_reports_required_fields(fixtures_dir):
         "pairwise",
         "shared_by_2_or_more",
         "shared_by_all_graphs",
+        "contributing_graphs",
         "declared_by",
     ):
         assert field in stats, f"missing stats field: {field}"
@@ -221,6 +222,45 @@ def test_shared_by_all_graphs_scoped_to_declaring_graphs(fixtures_dir):
     # it must not appear in declared_by.
     assert "extra_no_axis" not in stats["declared_by"]
     assert stats["shared_by_all_graphs"] >= 1
+
+
+@pytest.mark.unit
+def test_compute_stats_shared_by_all_counts_only_contributing_graphs():
+    from core.crosswalk import compute_stats
+
+    axis_data = {
+        "k1": {"identifiers": {}, "graphs": {"a": ["n1"], "b": ["n2"]}},
+        "k2": {"identifiers": {}, "graphs": {"a": ["n3"]}},
+    }
+    stats = compute_stats(axis_data, ["a", "b", "c"])
+    assert stats["contributing_graphs"] == ["a", "b"]
+    assert stats["shared_by_all_graphs"] == 1
+    assert stats["declared_by"] == ["a", "b", "c"]
+    assert stats["keys_per_graph"]["c"] == 0
+
+    # Every declaring graph contributes: same as counting all declaring graphs.
+    full = compute_stats(axis_data, ["a", "b"])
+    assert full["contributing_graphs"] == ["a", "b"]
+    assert full["shared_by_all_graphs"] == 1
+
+
+@pytest.mark.unit
+def test_compute_stats_single_contributing_graph_shares_nothing():
+    from core.crosswalk import compute_stats
+
+    axis_data = {"k1": {"identifiers": {}, "graphs": {"a": ["n1"]}}}
+    stats = compute_stats(axis_data, ["a", "b"])
+    assert stats["contributing_graphs"] == ["a"]
+    assert stats["shared_by_all_graphs"] == 0
+
+
+@pytest.mark.unit
+def test_compute_stats_no_keys():
+    from core.crosswalk import compute_stats
+
+    stats = compute_stats({}, ["a", "b"])
+    assert stats["contributing_graphs"] == []
+    assert stats["shared_by_all_graphs"] == 0
 
 
 # ---------------------------------------------------------------------------
@@ -531,13 +571,15 @@ def test_adverse_event_axis_stats_scoped_to_two_declaring_graphs(fixtures_dir):
     spine = _build_full_spine(fixtures_dir)
     stats = spine["stats"]["adverse_event"]
 
-    # All three loaded graphs now declare an adverse_event axis, but the
+    # All three loaded graphs declare an adverse_event axis, but the
     # clinicaltrials fixture (Trial/Compound/Outcome only) holds no
-    # AdverseEvent nodes, so no key can be shared by all three graphs and
-    # the labels<->pharmacovigilance pair carries the join.
+    # AdverseEvent nodes. shared_by_all_graphs counts only graphs that
+    # contribute at least one key, so the empty clinicaltrials graph does not
+    # zero it: it equals the labels<->pharmacovigilance pairwise count.
     assert sorted(stats["declared_by"]) == ["clinicaltrials", "fda-product-labels", "pharmacovigilance"]
     assert stats["pairwise"]["fda-product-labels|pharmacovigilance"] >= 1
-    assert stats["shared_by_all_graphs"] == 0
+    assert "clinicaltrials" not in stats["contributing_graphs"]
+    assert stats["shared_by_all_graphs"] == stats["pairwise"]["fda-product-labels|pharmacovigilance"]
     assert stats["keys_per_graph"]["clinicaltrials"] == 0
 
 

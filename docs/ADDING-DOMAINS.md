@@ -572,12 +572,16 @@ merge to fail.
 ### Declare an axis only where it genuinely applies
 
 A domain should declare an axis only where it truly carries that
-identifier. `domains/clinicaltrials/crosswalk.yaml` declares a `trial` axis
-and a `drug` axis, but no `adverse_event` axis -- that graph holds zero
-adverse-event-type entities, so the axis would never join anything and
-would only add stats noise. Per-axis stats (`declared_by`,
-`shared_by_all_graphs`, and the pairwise counts) are always scoped to the
-graphs that actually declare an axis, never to every graph loaded.
+identifier; an axis that never joins anything only adds stats noise.
+`domains/clinicaltrials/crosswalk.yaml` declares `trial`, `drug` and
+`adverse_event` axes, and a clinicaltrials graph that holds no
+adverse-event-type entities simply contributes no keys to the last one.
+Per-axis stats (`declared_by` and the pairwise counts) are always scoped to
+the graphs that actually declare an axis, never to every graph loaded.
+`shared_by_all_graphs` counts the keys present in every graph that
+contributes at least one key to the axis (listed in `contributing_graphs`),
+so a declaring graph with no keys does not zero it; `declared_by` still lists
+every declaring graph. With fewer than two contributing graphs it is 0.
 
 ---
 
