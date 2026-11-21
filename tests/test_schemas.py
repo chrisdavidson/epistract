@@ -194,11 +194,11 @@ def _assert_type_keys_are_strings(types_container: dict | list, kind: str, sourc
 
 @pytest.mark.unit
 def test_drug_discovery_domain_yaml_loads():
-    """Drug-discovery domain.yaml loads and has 17 entity types and 30 relation types."""
+    """Drug-discovery domain.yaml loads and has 17 entity types and 33 relation types."""
     data = yaml.safe_load(DRUG_DISCOVERY_YAML.read_text())
     assert data["name"] is not None
     assert len(data["entity_types"]) == 17, f"Expected 17, got {len(data['entity_types'])}"
-    assert len(data["relation_types"]) == 30, f"Expected 30, got {len(data['relation_types'])}"
+    assert len(data["relation_types"]) == 33, f"Expected 33, got {len(data['relation_types'])}"
 
 
 @pytest.mark.unit

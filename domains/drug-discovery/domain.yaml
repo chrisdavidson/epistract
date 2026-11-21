@@ -207,7 +207,7 @@ relation_types:
     description: "Entity inhibits, suppresses, or blocks the activity of another entity"
     category: mechanism
     source_types: [COMPOUND, PROTEIN]
-    target_types: [PROTEIN, GENE, PATHWAY]
+    target_types: [PROTEIN, GENE, PATHWAY, SEQUENCE_VARIANT]
     extraction_hints:
       - "Look for 'inhibits', 'blocks', 'suppresses', 'downregulates', 'antagonizes'"
       - "Includes both direct inhibition (enzyme) and pathway suppression"
@@ -225,7 +225,7 @@ relation_types:
     description: "Physical binding interaction between molecular entities"
     category: mechanism
     source_types: [COMPOUND, PROTEIN]
-    target_types: [PROTEIN]
+    target_types: [PROTEIN, PROTEIN_DOMAIN]
     symmetric: true
     extraction_hints:
       - "Look for 'binds to', 'interacts with', 'affinity for', 'Kd', 'IC50 binding'"
@@ -271,8 +271,8 @@ relation_types:
   CAUSES:
     description: "Compound causes or is associated with an adverse event"
     category: causal
-    source_types: [COMPOUND]
-    target_types: [ADVERSE_EVENT]
+    source_types: [COMPOUND, SEQUENCE_VARIANT]
+    target_types: [ADVERSE_EVENT, PHENOTYPE]
     extraction_hints:
       - "Look for 'causes', 'associated with', 'adverse event', 'side effect', 'toxicity'"
       - "Capture frequency and severity when available"
@@ -316,8 +316,8 @@ relation_types:
   IMPLICATED_IN:
     description: "Gene, protein, pathway, or phenotype is implicated in or contributes to a disease"
     category: causal
-    source_types: [GENE, PROTEIN, PATHWAY, PHENOTYPE]
-    target_types: [DISEASE]
+    source_types: [GENE, PROTEIN, PATHWAY, PHENOTYPE, SEQUENCE_VARIANT, MECHANISM_OF_ACTION, CELL_OR_TISSUE, METABOLITE, DISEASE]
+    target_types: [DISEASE, PHENOTYPE]
     extraction_hints:
       - "Look for 'implicated in', 'contributes to', 'driver of', 'risk factor for', 'pathogenic role in'"
       - "Includes causal, correlational, and GWAS associations"
@@ -325,7 +325,7 @@ relation_types:
   CONFERS_RESISTANCE_TO:
     description: "Gene, protein, or phenotype confers resistance to a compound"
     category: causal
-    source_types: [GENE, PROTEIN, PHENOTYPE]
+    source_types: [GENE, PROTEIN, PHENOTYPE, SEQUENCE_VARIANT, PATHWAY, MECHANISM_OF_ACTION]
     target_types: [COMPOUND]
     review_required: true
     extraction_hints:
@@ -346,7 +346,7 @@ relation_types:
     description: "Biomarker is used for diagnosis or prognosis of a disease"
     category: association
     source_types: [BIOMARKER]
-    target_types: [DISEASE]
+    target_types: [DISEASE, PHENOTYPE]
     review_required: true
     extraction_hints:
       - "Look for 'diagnostic for', 'prognostic for', 'used to diagnose', 'marker of'"
@@ -358,7 +358,7 @@ relation_types:
     source_types: [ORGANIZATION]
     target_types: [COMPOUND, CLINICAL_TRIAL]
     extraction_hints:
-      - "Look for 'developed by', 'manufactured by', 'sponsored by', 'discovered at'"
+      - "Look for 'developed by', 'manufactured by', 'sponsored by', 'funded by', 'discovered at'; write the ORGANIZATION first"
 
   PUBLISHED_IN:
     description: "Clinical trial results or compound data are published in a specific publication"
@@ -376,6 +376,20 @@ relation_types:
     extraction_hints:
       - "Look for 'approved', 'granted approval', 'authorized', 'received marketing authorization'"
       - "'FDA accelerated approval GRANTS_APPROVAL_FOR pembrolizumab'"
+  APPLIES_TO:
+    description: "A non-approval regulatory action (boxed warning, REMS, label change, withdrawal, clinical hold) applies to a compound. Use GRANTS_APPROVAL_FOR for approvals."
+    category: regulatory
+    source_types: [REGULATORY_ACTION]
+    target_types: [COMPOUND]
+    extraction_hints:
+      - "Look for 'boxed warning', 'REMS', 'label update', 'withdrawn', 'clinical hold' about a drug"
+  ISSUES:
+    description: "An organization (regulator such as FDA or EMA) issues a regulatory action."
+    category: regulatory
+    source_types: [ORGANIZATION]
+    target_types: [REGULATORY_ACTION]
+    extraction_hints:
+      - "Look for 'FDA approved', 'EMA granted', 'issued a warning'; write the regulator first"
 
   EXPRESSED_IN:
     description: "Gene or protein is expressed in a phenotypic context or tissue"
@@ -395,7 +409,7 @@ relation_types:
   HAS_VARIANT:
     description: "Gene harbors a specific sequence variant"
     category: structural
-    source_types: [GENE]
+    source_types: [GENE, PROTEIN]
     target_types: [SEQUENCE_VARIANT]
   HAS_DOMAIN:
     description: "Protein contains a functional domain"
@@ -407,6 +421,13 @@ relation_types:
     category: mechanism
     source_types: [PROTEIN]
     target_types: [COMPOUND]
+  PRODUCES_METABOLITE:
+    description: "A compound is metabolized to (produces) a metabolite, e.g. an active or toxic metabolite."
+    category: mechanism
+    source_types: [COMPOUND]
+    target_types: [METABOLITE]
+    extraction_hints:
+      - "Look for 'metabolized to', 'active metabolite', 'converted to', 'its metabolite'"
   PHOSPHORYLATES:
     description: "Kinase phosphorylates a substrate protein"
     category: mechanism
@@ -431,8 +452,8 @@ relation_types:
   ASSOCIATED_WITH:
     description: "General association between entities — use when a more specific relation does not apply"
     category: association
-    source_types: [COMPOUND, GENE, PROTEIN, DISEASE, MECHANISM_OF_ACTION, CLINICAL_TRIAL, PATHWAY, BIOMARKER, ADVERSE_EVENT, ORGANIZATION, PUBLICATION, REGULATORY_ACTION, PHENOTYPE]
-    target_types: [COMPOUND, GENE, PROTEIN, DISEASE, MECHANISM_OF_ACTION, CLINICAL_TRIAL, PATHWAY, BIOMARKER, ADVERSE_EVENT, ORGANIZATION, PUBLICATION, REGULATORY_ACTION, PHENOTYPE]
+    source_types: [COMPOUND, GENE, PROTEIN, DISEASE, MECHANISM_OF_ACTION, CLINICAL_TRIAL, PATHWAY, BIOMARKER, ADVERSE_EVENT, ORGANIZATION, PUBLICATION, REGULATORY_ACTION, PHENOTYPE, SEQUENCE_VARIANT, CELL_OR_TISSUE, METABOLITE, PROTEIN_DOMAIN]
+    target_types: [COMPOUND, GENE, PROTEIN, DISEASE, MECHANISM_OF_ACTION, CLINICAL_TRIAL, PATHWAY, BIOMARKER, ADVERSE_EVENT, ORGANIZATION, PUBLICATION, REGULATORY_ACTION, PHENOTYPE, SEQUENCE_VARIANT, CELL_OR_TISSUE, METABOLITE, PROTEIN_DOMAIN]
     symmetric: true
     extraction_hints:
       - "Use only when a more specific relation type does not apply"

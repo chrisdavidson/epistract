@@ -632,6 +632,62 @@ the protocol MUST produce a `sponsored_by` relation.
 }
 ```
 
+### has_investigator
+
+**Source:** Trial | **Target:** Investigator
+
+A Trial names an Investigator — principal investigator, study chair, or key study
+personnel. Every Investigator entity MUST be linked to its Trial with
+`has_investigator`; an Investigator with no relation is dropped from the graph.
+When a publication reports a trial without an NCT ID, link to the Trial entity
+named by the study acronym. Do not create Investigator entities for authors who
+are not named as trial investigators.
+
+```json
+{
+  "source_entity": "NCT04303780",
+  "target_entity": "Melissa L. Johnson",
+  "relation_type": "has_investigator",
+  "confidence": 0.95,
+  "evidence": "Principal investigator: Dr. Melissa L. Johnson"
+}
+```
+
+### conducted_at
+
+**Source:** Trial | **Target:** Site
+
+A Trial is conducted at a Site. Every Site entity MUST be linked to its Trial with
+`conducted_at`; a Site with no relation is dropped from the graph.
+
+```json
+{
+  "source_entity": "NCT04303780",
+  "target_entity": "Sarah Cannon Research Institute",
+  "relation_type": "conducted_at",
+  "confidence": 0.9,
+  "evidence": "Study sites include Sarah Cannon Research Institute, Nashville, TN"
+}
+```
+
+### affiliated_with
+
+**Source:** Investigator | **Target:** Site
+
+An Investigator is affiliated with a Site (their institution). Use only when the
+institution is also a trial Site entity in the same document; otherwise keep the
+institution as the Investigator's `institution` attribute.
+
+```json
+{
+  "source_entity": "Melissa L. Johnson",
+  "target_entity": "Sarah Cannon Research Institute",
+  "relation_type": "affiliated_with",
+  "confidence": 0.9,
+  "evidence": "Dr. Melissa L. Johnson, Sarah Cannon Research Institute"
+}
+```
+
 ### has_outcome
 
 **Source:** Trial | **Target:** Outcome
@@ -967,6 +1023,7 @@ Before returning your extraction, verify:
 - Every named Compound MUST be captured as a Compound entity with the INN as canonical name.
 - Every stated phase MUST produce an `is_phase` relation from the Trial to the matching TrialPhase.
 - Every Sponsor named in the protocol MUST produce a `sponsored_by` relation from the Trial.
+- Every Investigator MUST have a `has_investigator` relation from its Trial, and every Site a `conducted_at` relation; unlinked Investigator and Site entities are dropped at build.
 - Every primary endpoint MUST produce a `has_outcome` relation.
 - Biomarkers used for patient selection MUST appear as Biomarker entities and linked via `uses_biomarker`.
 - Drug interventions MUST appear as BOTH a Compound entity AND an Intervention entity (the arm label), connected via a `tests` relation from the Trial.

@@ -140,6 +140,21 @@ relation_types:
     category: organizational
     source_types: [Trial]
     target_types: [Sponsor]
+  has_investigator:
+    description: "A Trial names an Investigator (principal investigator, study chair, or key study personnel)."
+    category: organizational
+    source_types: [Trial]
+    target_types: [Investigator]
+  conducted_at:
+    description: "A Trial is conducted at a Site (hospital, clinic, or country listed as a trial location)."
+    category: organizational
+    source_types: [Trial]
+    target_types: [Site]
+  affiliated_with:
+    description: "An Investigator is affiliated with a Site (their institution)."
+    category: organizational
+    source_types: [Investigator]
+    target_types: [Site]
   has_outcome:
     description: "A Trial has a specified Outcome (endpoint)."
     category: association

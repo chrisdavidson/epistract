@@ -314,7 +314,7 @@ Return a single JSON object matching the `DocumentExtraction` schema. Do not wra
 #### INHIBITS
 - **Description:** Entity inhibits, suppresses, or blocks the activity of another entity.
 - **Source types:** COMPOUND, PROTEIN
-- **Target types:** PROTEIN, GENE, PATHWAY
+- **Target types:** PROTEIN, GENE, PATHWAY, SEQUENCE_VARIANT
 - **Extraction guidance:** Look for "inhibits", "blocks", "suppresses", "downregulates", "antagonizes". Covers both direct enzyme inhibition and downstream pathway suppression. Example: `vemurafenib INHIBITS BRAF V600E`.
 
 #### ACTIVATES
@@ -326,7 +326,7 @@ Return a single JSON object matching the `DocumentExtraction` schema. Do not wra
 #### BINDS_TO
 - **Description:** Physical binding interaction between molecular entities.
 - **Source types:** COMPOUND, PROTEIN
-- **Target types:** PROTEIN
+- **Target types:** PROTEIN, PROTEIN_DOMAIN
 - **Extraction guidance:** Look for "binds to", "interacts with", "affinity for", "Kd =", "IC50". Use for physical interactions. If the functional consequence is known (inhibition, activation), prefer INHIBITS or ACTIVATES. Example: `trastuzumab BINDS_TO HER2`.
 
 #### HAS_MECHANISM
@@ -340,6 +340,12 @@ Return a single JSON object matching the `DocumentExtraction` schema. Do not wra
 - **Source types:** PROTEIN
 - **Target types:** COMPOUND
 - **Extraction guidance:** Look for "metabolized by", "substrate of CYP3A4", "cleared by". Write the enzyme first. Example: `CYP3A4 METABOLIZES simvastatin`. Never write METABOLIZED_BY.
+
+#### PRODUCES_METABOLITE
+- **Description:** A compound is metabolized to (produces) a metabolite.
+- **Source types:** COMPOUND
+- **Target types:** METABOLITE
+- **Extraction guidance:** Look for "metabolized to", "active metabolite", "converted to", "its metabolite". Example: `clopidogrel PRODUCES_METABOLITE clopidogrel active thiol metabolite`.
 
 ### Drug-Disease Relations
 
@@ -365,8 +371,8 @@ Return a single JSON object matching the `DocumentExtraction` schema. Do not wra
 
 #### CAUSES
 - **Description:** Compound causes or is associated with an adverse event.
-- **Source types:** COMPOUND
-- **Target types:** ADVERSE_EVENT
+- **Source types:** COMPOUND, SEQUENCE_VARIANT
+- **Target types:** ADVERSE_EVENT, PHENOTYPE
 - **Extraction guidance:** Look for "causes", "resulted in", "adverse event", "side effect", "toxicity", "led to discontinuation due to". Capture frequency and severity in the ADVERSE_EVENT entity attributes. Example: `nivolumab CAUSES Immune-Mediated Colitis`.
 
 ### Drug-Drug Relations
@@ -399,13 +405,13 @@ Return a single JSON object matching the `DocumentExtraction` schema. Do not wra
 
 #### IMPLICATED_IN
 - **Description:** Gene, protein, pathway, or phenotype is implicated in or contributes to a disease.
-- **Source types:** GENE, PROTEIN, PATHWAY, PHENOTYPE
-- **Target types:** DISEASE
+- **Source types:** GENE, PROTEIN, PATHWAY, PHENOTYPE, SEQUENCE_VARIANT, MECHANISM_OF_ACTION, CELL_OR_TISSUE, METABOLITE, DISEASE
+- **Target types:** DISEASE, PHENOTYPE
 - **Extraction guidance:** Look for "implicated in", "contributes to", "driver of", "risk factor for", "pathogenic role in", "oncogenic driver in". Covers causal, correlational, and GWAS associations. Example: `BRCA1 IMPLICATED_IN Breast Cancer`.
 
 #### CONFERS_RESISTANCE_TO
 - **Description:** Gene, protein, or phenotype confers resistance to a compound.
-- **Source types:** GENE, PROTEIN, PHENOTYPE
+- **Source types:** GENE, PROTEIN, PHENOTYPE, SEQUENCE_VARIANT, PATHWAY, MECHANISM_OF_ACTION
 - **Target types:** COMPOUND
 - **Extraction guidance:** Look for "resistance to", "refractory to", "insensitive to", "resistance mutation", "acquired resistance through". Resistance mechanisms are critical for clinical decision-making — be precise. Example: `EGFR T790M CONFERS_RESISTANCE_TO gefitinib`.
 
@@ -420,7 +426,7 @@ Return a single JSON object matching the `DocumentExtraction` schema. Do not wra
 #### DIAGNOSTIC_FOR
 - **Description:** Biomarker is used for diagnosis or prognosis of a disease.
 - **Source types:** BIOMARKER
-- **Target types:** DISEASE
+- **Target types:** DISEASE, PHENOTYPE
 - **Extraction guidance:** Look for "diagnostic for", "prognostic for", "used to diagnose", "marker of disease activity", "correlates with disease progression". Example: `prostate-specific antigen (PSA) DIAGNOSTIC_FOR Prostate Cancer`.
 
 ### Organizational Relations
@@ -429,7 +435,7 @@ Return a single JSON object matching the `DocumentExtraction` schema. Do not wra
 - **Description:** An organization develops or sponsors a compound or clinical trial.
 - **Source types:** ORGANIZATION
 - **Target types:** COMPOUND, CLINICAL_TRIAL
-- **Extraction guidance:** Look for "developed by", "manufactured by", "sponsored by", "discovered at", "a product of", "in collaboration with". Write the organization first. For co-development, create multiple relations. Example: `Merck DEVELOPS pembrolizumab`. Never write the passive form DEVELOPED_BY — the graph builder rewrites "*_BY" relation names.
+- **Extraction guidance:** Look for "developed by", "manufactured by", "sponsored by", "funded by", "discovered at", "a product of", "in collaboration with". Write the organization first. For co-development, create multiple relations. Example: `Merck DEVELOPS pembrolizumab`. Never write the passive form DEVELOPED_BY — the graph builder rewrites "*_BY" relation names.
 
 #### PUBLISHED_IN
 - **Description:** Clinical trial results or compound data are published in a specific publication.
@@ -443,18 +449,30 @@ Return a single JSON object matching the `DocumentExtraction` schema. Do not wra
 - **Target types:** COMPOUND
 - **Extraction guidance:** Look for "approved", "granted approval", "authorized", "received marketing authorization", "accelerated approval granted to". The regulatory action is the source, the compound is the target. Example: `FDA accelerated approval (2017) GRANTS_APPROVAL_FOR pembrolizumab`.
 
+#### APPLIES_TO
+- **Description:** A non-approval regulatory action (boxed warning, REMS, label change, withdrawal, clinical hold) applies to a compound.
+- **Source types:** REGULATORY_ACTION
+- **Target types:** COMPOUND
+- **Extraction guidance:** Use GRANTS_APPROVAL_FOR for approvals and APPLIES_TO for everything else. Example: `mavacamten REMS program APPLIES_TO mavacamten`.
+
+#### ISSUES
+- **Description:** An organization (regulator such as FDA or EMA) issues a regulatory action.
+- **Source types:** ORGANIZATION
+- **Target types:** REGULATORY_ACTION
+- **Extraction guidance:** Write the regulator first. Example: `FDA ISSUES FDA approval of mavacamten for obstructive HCM`.
+
 ### Other Relations
 
 #### EXPRESSED_IN
 - **Description:** Gene or protein is expressed in a phenotypic context or tissue.
 - **Source types:** GENE, PROTEIN
-- **Target types:** PHENOTYPE
+- **Target types:** CELL_OR_TISSUE
 - **Extraction guidance:** Look for "expressed in", "overexpressed in", "detected in", "upregulated in", "high expression in". Includes tissue-specific expression and disease-associated expression patterns. Example: `PD-L1 EXPRESSED_IN tumor microenvironment`.
 
 #### ASSOCIATED_WITH
 - **Description:** General association between entities. This is the fallback relation.
-- **Source types:** Any entity type
-- **Target types:** Any entity type
+- **Source types:** COMPOUND, GENE, PROTEIN, DISEASE, MECHANISM_OF_ACTION, CLINICAL_TRIAL, PATHWAY, BIOMARKER, ADVERSE_EVENT, ORGANIZATION, PUBLICATION, REGULATORY_ACTION, PHENOTYPE, SEQUENCE_VARIANT, CELL_OR_TISSUE, METABOLITE, PROTEIN_DOMAIN
+- **Target types:** COMPOUND, GENE, PROTEIN, DISEASE, MECHANISM_OF_ACTION, CLINICAL_TRIAL, PATHWAY, BIOMARKER, ADVERSE_EVENT, ORGANIZATION, PUBLICATION, REGULATORY_ACTION, PHENOTYPE, SEQUENCE_VARIANT, CELL_OR_TISSUE, METABOLITE, PROTEIN_DOMAIN
 - **Extraction guidance:** Use ONLY when no more specific relation type applies. If you find yourself using ASSOCIATED_WITH frequently, re-evaluate whether a more specific relation type fits. Common legitimate uses: linking a disease to a pathway when IMPLICATED_IN does not fit, connecting entities with an unclear causal direction.
 
 ---
