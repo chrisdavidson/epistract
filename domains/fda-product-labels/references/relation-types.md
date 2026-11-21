@@ -13,7 +13,7 @@ Links a DRUG_PRODUCT to its INACTIVE_INGREDIENT(s)
 ## MANUFACTURES
 **MANUFACTURER → DRUG_PRODUCT**
 
-A MANUFACTURER manufactures a DRUG_PRODUCT. Active form on purpose -- sift-kg rewrites MANUFACTURED_BY to MANUFACTURES (flipping the edge) at build time.
+A MANUFACTURER manufactures a DRUG_PRODUCT.
 
 ## INDICATED_FOR
 **DRUG_PRODUCT → INDICATION**
@@ -71,9 +71,9 @@ Links a DRUG_PRODUCT to a CLINICAL_STUDY that supported label claims
 Links a DRUG_PRODUCT to its PHARMACOLOGIC_CLASS
 
 ## IDENTIFIES
-**REGULATORY_IDENTIFIER → DRUG_PRODUCT**
+**REGULATORY_IDENTIFIER → DRUG_PRODUCT/ACTIVE_INGREDIENT**
 
-A REGULATORY_IDENTIFIER (NDC, NDA/ANDA, RxCUI, etc.) identifies a DRUG_PRODUCT. Active form on purpose -- sift-kg rewrites IDENTIFIED_BY to IDENTIFIES (flipping the edge) at build time.
+A REGULATORY_IDENTIFIER identifies a DRUG_PRODUCT (NDC, NDA/ANDA, RxCUI, SPL set ID) or an ACTIVE_INGREDIENT (UNII).
 
 ## CONTRAINDICATED_WITH
 **DRUG_PRODUCT → DRUG_PRODUCT/ACTIVE_INGREDIENT** (symmetric)
@@ -89,3 +89,18 @@ The label calls for monitoring with a LABTEST — from the DRUG_PRODUCT, or from
 **WARNING → ADVERSE_REACTION**
 
 A WARNING concerns a specific ADVERSE_REACTION (e.g. the boxed warning "Risk of thyroid C-cell tumors" warns of medullary thyroid carcinoma).
+
+## INVOLVES
+**DRUG_INTERACTION → ACTIVE_INGREDIENT/DRUG_PRODUCT**
+
+A DRUG_INTERACTION involves an interacting drug or drug class — another DRUG_PRODUCT, or an ACTIVE_INGREDIENT such as "clarithromycin" or "strong CYP3A4 inhibitors".
+
+## INCREASES_RISK_OF
+**DRUG_INTERACTION → ADVERSE_REACTION**
+
+A DRUG_INTERACTION increases the risk of an ADVERSE_REACTION (e.g. "Strong CYP3A4 inhibitors" interaction increases the risk of rhabdomyolysis).
+
+## SPECIFIC_TO
+**WARNING/DOSAGE_REGIMEN/CONTRAINDICATION/ADVERSE_REACTION → PATIENT_POPULATION**
+
+A WARNING, DOSAGE_REGIMEN, CONTRAINDICATION, or ADVERSE_REACTION applies specifically to, or is elevated in, a PATIENT_POPULATION (e.g. the pediatric dosage regimen applies to pediatric patients; hepatosplenic T-cell lymphoma risk is elevated in young males with IBD).
