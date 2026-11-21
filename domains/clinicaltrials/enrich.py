@@ -167,7 +167,7 @@ REGISTRY_PAYLOAD_KEYS = frozenset({
     "endpoint_type", "timeframe", "unit",
     "p_value", "p_value_num", "p_value_qualifier", "effect_estimate", "effect_measure",
     "ci_lower", "ci_upper", "ci_level", "ci_sides", "non_inferiority_type", "timepoint",
-    "compared_groups", "unmatched_groups",
+    "compared_groups", "unmatched_groups", "outcome_param_type",
 })
 # Refresh: NCTs whose refreshed payload no longer has a fact ({NCT: True}).
 WITHDRAWN_BY_NCT = "ctgov_withdrawn_by_nct"
@@ -1468,10 +1468,19 @@ def _analysis_attrs(an: dict, titles: list, unmatched: list) -> dict:
         "non_inferiority_type": an.get("non_inferiority_type"),
         "timepoint": an.get("time_frame"),
         "unit": an.get("unit"),
+        "outcome_param_type": _outcome_param_type(an),
         "compared_groups": titles,
         "unmatched_groups": unmatched,
     }
     return {k: v for k, v in attrs.items() if v is not None}
+
+
+def _outcome_param_type(an) -> str | None:
+    """The registry outcome-measure paramType (MEAN, LEAST_SQUARES_MEAN,
+    COUNT_OF_PARTICIPANTS, ...) an analysis belongs to, read by the epistemic
+    layer to classify the outcome kind (CONTEST-02)."""
+    value = an.get("outcome_param_type")
+    return value.strip() if isinstance(value, str) and value.strip() else None
 
 
 def _plain_attrs(data) -> dict:
@@ -1647,18 +1656,43 @@ def _registry_outcome_id(kg, nct, title, unit) -> str:
         n += 1
 
 
-# CONTEST-04: treatment from CT.gov armGroup types. This mirrors
-# epistemic._arm_type_treatment (the grading layer's fallback), so an edge written
-# here and the grading layer agree on which compound an analysis assesses.
+# CONTEST-04: treatment from CT.gov armGroup types. This is the same resolver as
+# epistemic._arm_type_treatment (the grading layer's fallback): the comparator
+# wording below is epistemic's HARD_PLACEBO_KEYWORDS / SOFT_PLACEBO_KEYWORDS with
+# the same soft-keyword rules (an add-on to usual care is an active arm,
+# "glycaemic control" names no arm), copied because domain modules are loaded
+# by path and import nothing from each other. The one intended difference: a
+# Compound name two Compound nodes share resolves to nothing here, so an edge is
+# written only when grading would reach the same compound
+# (tests/test_ctgov_results.py::test_contest04_resolver_parity_with_epistemic).
 ARM_EXPERIMENTAL = "EXPERIMENTAL"
 ARM_COMPARATOR_TYPES = frozenset({
     "ACTIVE_COMPARATOR", "PLACEBO_COMPARATOR", "SHAM_COMPARATOR", "NO_INTERVENTION",
 })
 ARM_TYPE_BASIS = "registry_arm_type"
 MIN_COMPOUND_NAME = 3
-_HARD_COMPARATOR_RE = re.compile(r"(?<![A-Za-z0-9])(?:placebo|comparator)(?![A-Za-z0-9])", re.IGNORECASE)
-_COMPARATOR_WORDING_RE = re.compile(
-    r"(?<![A-Za-z0-9])(?:placebo|comparator|standard of care|usual care|control)(?![A-Za-z0-9])",
+ARM_HARD_COMPARATOR_KEYWORDS = ("placebo", "comparator")
+ARM_SOFT_COMPARATOR_KEYWORDS = ("standard of care", "usual care", "control")
+
+
+def _arm_keyword_re(words) -> re.Pattern:
+    return re.compile(
+        r"(?<![A-Za-z0-9])(?:" + "|".join(re.escape(k) for k in words) + r")(?![A-Za-z0-9])",
+        re.IGNORECASE,
+    )
+
+
+_HARD_COMPARATOR_RE = _arm_keyword_re(ARM_HARD_COMPARATOR_KEYWORDS)
+_SOFT_COMPARATOR_RE = _arm_keyword_re(ARM_SOFT_COMPARATOR_KEYWORDS)
+_COMPARATOR_WORDING_RE = _arm_keyword_re(ARM_HARD_COMPARATOR_KEYWORDS + ARM_SOFT_COMPARATOR_KEYWORDS)
+_ARM_ADD_ON_RE = re.compile(
+    r"\+|(?<![A-Za-z0-9])(?:plus|with|and|added to|add-on to|on top of|in addition to)(?![A-Za-z0-9])",
+    re.IGNORECASE,
+)
+# A word naming what "control" controls; "glycaemic control" names no arm.
+_ARM_CONTROL_QUALIFIER_RE = re.compile(
+    r"(?<![A-Za-z0-9])(?:glyc\w*|glucose|weight|pressure|metabolic|lipids?|sugar|appetite|"
+    r"diabet\w*|disease|symptoms?|pain|rate|rhythm|infection)[\s-]+$",
     re.IGNORECASE,
 )
 # "Drug: Tirzepatide" -> "Tirzepatide" (CT.gov intervention names carry the type).
@@ -1667,6 +1701,91 @@ _INTERVENTION_PREFIX_RE = re.compile(
     r"Procedure|Behavioral|Genetic|Radiation|Diagnostic Test)\s*:\s*",
     re.IGNORECASE,
 )
+
+
+def _arm_soft_spans(text: str) -> list:
+    """(start, end) of every soft comparator keyword; a qualified "control"
+    ("glycaemic control") is skipped."""
+    spans = []
+    for found in _SOFT_COMPARATOR_RE.finditer(text):
+        if found.group(0).lower() == "control" and _ARM_CONTROL_QUALIFIER_RE.search(text, 0, found.start()):
+            continue
+        spans.append(found.span())
+    return spans
+
+
+def _arm_split_parentheticals(text: str):
+    """(text with every parenthetical blanked to spaces, the contents of its
+    top-level parentheticals). Positions in the blanked text match text."""
+    outside, segments, inner, depth = [], [], [], 0
+    for ch in text:
+        if ch == "(":
+            depth += 1
+            if depth == 1:
+                inner = []
+                outside.append(" ")
+                continue
+        elif ch == ")" and depth:
+            depth -= 1
+            if depth == 0:
+                segments.append("".join(inner))
+                outside.append(" ")
+                continue
+        if depth:
+            inner.append(ch)
+            outside.append(" ")
+        else:
+            outside.append(ch)
+    if depth:
+        segments.append("".join(inner))
+    return "".join(outside), segments
+
+
+def _arm_joined(text: str, spans, index) -> set:
+    """Compounds joined to a soft keyword span by an add-on connector, in either order."""
+    joined = set()
+    for cid, pattern in index:
+        for found in pattern.finditer(text):
+            for start, end in spans:
+                gap = (found.end(), start) if found.end() <= start else (end, found.start())
+                if gap[0] <= gap[1] and _ARM_ADD_ON_RE.search(text, gap[0], gap[1]):
+                    joined.add(cid)
+    return joined
+
+
+def _arm_soft(text: str, index):
+    """(is comparator, arm compounds) of a text with a soft keyword, or None when
+    it has none (epistemic._soft_arm): a soft keyword outside parentheses is a
+    comparator unless a compound outside parentheses is joined to it by an add-on
+    connector ("Semaglutide + usual care"); a soft keyword only inside a
+    parenthetical is a comparator ("Insulin glargine (control)") unless the
+    parenthetical joins it to the arm ("Semaglutide (added to standard of care)").
+    """
+    outside, segments = _arm_split_parentheticals(text)
+    spans = _arm_soft_spans(outside)
+    if spans:
+        joined = _arm_joined(outside, spans, index)
+        return (False, joined) if joined else (True, set())
+    inside = [segment for segment in segments if _arm_soft_spans(segment)]
+    if not inside:
+        return None
+    named = {cid for cid, pattern in index if pattern.search(outside)}
+    for segment in inside:
+        first = _arm_soft_spans(segment)[0]
+        if named and _ARM_ADD_ON_RE.search(segment, 0, first[0]):
+            return False, named
+    return True, set()
+
+
+def _is_comparator_title(text, index) -> bool:
+    """True when text names a comparator arm (hard keyword, or soft keyword not
+    joined to an active add-on compound)."""
+    if not isinstance(text, str) or not text:
+        return False
+    if _HARD_COMPARATOR_RE.search(text):
+        return True
+    soft = _arm_soft(text, index)
+    return soft is not None and soft[0]
 
 
 def _compound_index(kg) -> list:
@@ -1696,8 +1815,14 @@ def _compound_index(kg) -> list:
 
 
 def _text_compounds(text, index) -> set:
+    """Compounds a text names (epistemic._compounds_in_text): comparator text names
+    none ("Usual care (metformin)"), an add-on arm names the compounds joined to
+    its soft keyword ("Semaglutide + usual care")."""
     if not isinstance(text, str) or not text or _HARD_COMPARATOR_RE.search(text):
         return set()
+    soft = _arm_soft(text, index)
+    if soft is not None:
+        return soft[1]
     return {cid for cid, pattern in index if pattern.search(text)}
 
 
@@ -1714,10 +1839,10 @@ def _group_compound_ids(group, index) -> set:
 def _arm_type_compound(arm_groups, index):
     """The one Compound a registry analysis assesses, resolved from armGroup types.
 
-    Mirrors epistemic._arm_type_treatment. Needs at least two compared groups,
+    The same rules as epistemic._arm_type_treatment. Needs at least two compared groups,
     every one typed, exactly one EXPERIMENTAL and every other group a comparator
-    type. An EXPERIMENTAL group titled as a comparator (a blinded placebo arm)
-    names no treatment. The compound is the one the EXPERIMENTAL title names or,
+    type. An EXPERIMENTAL group titled as a comparator (a blinded placebo arm, or
+    "Usual care" not joined to a compound) names no treatment. The compound is the one the EXPERIMENTAL title names or,
     when the title names none, one its interventions name; when that is several,
     the compounds every comparator group also names (add-on background) are
     dropped. None unless exactly one compound remains.
@@ -1733,7 +1858,7 @@ def _arm_type_compound(arm_groups, index):
     if not all(g["arm_type"] in ARM_COMPARATOR_TYPES for g in comparators):
         return None
     arm = experimental[0]
-    if _COMPARATOR_WORDING_RE.search(str(arm.get("title") or "")):
+    if _is_comparator_title(arm.get("title"), index):
         return None
     found = _group_compound_ids(arm, index)
     if None in found:
@@ -1757,13 +1882,15 @@ def _write_analyses(
     interventions). The attribute is added with setdefault on the created node
     or the merged holder, so a value already there is never overwritten and no
     registry_ conflict key is recorded; a re-run backfills a node that lacks it.
-    The backfill is counted as neither created nor merged.
+    The backfill is counted as neither created nor merged. A --refresh-results
+    run replaces it on a registry-owned analysis, so it follows the payload.
 
     A registry-created analysis without an assesses_effect_of edge after the
     Cohort-receives rule gets one from its armGroup types (_arm_type_compound),
     written through _upsert_edge with treatment_basis registry_arm_type; merged
     extracted analyses are never written to, and an ambiguous resolution writes
-    nothing.
+    nothing. Withdrawn edges block nothing; a live arm-type edge to another
+    compound is replaced only in a refresh (the sweep withdraws the old one).
     """
     analyses = parsed["analyses"]
     if not analyses:
@@ -1927,7 +2054,17 @@ def _write_analyses(
                 kg, oa_id, "OutcomeAnalysis", item["name"], item["attrs"], nct, counters, count=True,
             )
         if item["arm_groups"]:
-            _node_attrs(kg, oa_id).setdefault("ctgov_arm_groups", item["arm_groups"])
+            node_attrs = _node_attrs(kg, oa_id)
+            if (
+                _refresh_ctx(counters, nct) is not None
+                and oa_id == item["id"]
+                and _owned_by(node_attrs, nct)
+            ):
+                # A refresh re-reads the arm types of a registry-owned analysis,
+                # so the stored groups follow the payload the edge is written from.
+                node_attrs["ctgov_arm_groups"] = item["arm_groups"]
+            else:
+                node_attrs.setdefault("ctgov_arm_groups", item["arm_groups"])
         text = _registry_text(
             f"ClinicalTrials.gov results {nct}: {item['title']} — {' vs '.join(item['groups'])},",
             an.get("param_type"), an.get("param_value"),
@@ -1963,20 +2100,22 @@ def _write_analyses(
         if oa_id == item["id"] and item["arm_groups"] and (
             _node_attrs(kg, oa_id).get("source") == REGISTRY_SOURCE
         ):
-            existing = [
-                _find_edge(kg, oa_id, "assesses_effect_of", tgt)[1]
-                for tgt in _out_targets(kg, oa_id, "assesses_effect_of")
-            ]
-            if all(
-                ((e or {}).get("attributes") or {}).get("treatment_basis") == ARM_TYPE_BASIS
-                for e in existing
-            ):
+            # Only live edges count: a withdrawn edge (an earlier resolution the
+            # payload no longer gives) blocks nothing. A live arm-type edge to
+            # another compound blocks a new one outside a refresh; in a refresh
+            # the new edge is written and the sweep withdraws the old one.
+            live = {}
+            for tgt in _out_targets(kg, oa_id, "assesses_effect_of"):
+                edge_attrs = ((_find_edge(kg, oa_id, "assesses_effect_of", tgt)[1] or {}).get("attributes") or {})
+                if edge_attrs.get("ctgov_withdrawn") is not True:
+                    live[tgt] = edge_attrs
+            if all(a.get("treatment_basis") == ARM_TYPE_BASIS for a in live.values()):
                 if compound_index is None:
                     compound_index = _compound_index(kg)
                 compound_id = _arm_type_compound(item["arm_groups"], compound_index)
-                if compound_id is not None and not (existing and compound_id not in _out_targets(
-                    kg, oa_id, "assesses_effect_of"
-                )):
+                if compound_id is not None and (
+                    not live or compound_id in live or _refresh_ctx(counters, nct) is not None
+                ):
                     _upsert_edge(
                         kg, oa_id, "assesses_effect_of", compound_id, nct, text,
                         {"treatment_basis": ARM_TYPE_BASIS}, counters,
