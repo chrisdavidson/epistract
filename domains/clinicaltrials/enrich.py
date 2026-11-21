@@ -71,7 +71,10 @@ Without the flag a re-run changes nothing. A refresh does not refetch by
 itself: use --cache-ttl-days to age out cached payloads (--cache-ttl-days 0
 refetches every cached trial). The "results" block gains a "refresh" block
 (trials_refreshed: trials whose facts were already recorded, updated_nodes,
-updated_edges, withdrawn, restored, legacy_copies_skipped).
+updated_edges: changed facts this NCT had already recorded, withdrawn,
+restored: flags dropped, also by an NCT that first reports a withdrawn fact,
+which is not counted in updated_*, legacy_copies_skipped: a second edge copy
+of a fact on another Trial node of the NCT, left as it is).
 
 Opt-in cache expiry (--cache-ttl-days N, needs --cache-dir): a cached payload
 whose file is older than N days is refetched and rewritten; when the refetch
@@ -833,6 +836,9 @@ def _join_withdrawn(target: dict, ctx) -> None:
     recorded keep their withdrawal as ctgov_withdrawn_by_nct entries and the
     flag is dropped (counted as restored in a refresh), so the outcome does not
     depend on whether the join or the earlier NCT's next sweep comes first.
+    A join is not counted in updated_nodes / updated_edges: those count facts
+    the refreshed NCT had already recorded, and a joining NCT records the fact
+    for the first time (its merge is not counted there either).
     """
     if target.pop("ctgov_withdrawn", None) is None:
         return
@@ -1196,14 +1202,51 @@ def _has_edge_from(kg, src, rel, tgt) -> bool:
     return _find_edge(kg, src, rel, tgt)[1] is not None
 
 
-def _trial_edge_source(kg, trial_ids, rel, tgt) -> str:
+def _trial_edge_source(kg, trial_ids, rel, tgt, nct=None) -> str:
     """The Trial node a registry edge src -rel-> tgt is written from.
 
-    REFRESH-02: the first Trial node of the NCT (lowest id first) that already
-    has the edge, so registry data merges into an extracted edge on a
-    non-canonical Trial node instead of beside it; else the canonical node.
+    REFRESH-02: the edge that already records this NCT, so a Trial node added
+    after the first import never gets a second copy of the NCT's data (lowest
+    id first; an edge the registry created for this NCT before an extracted
+    edge it was merged into, which only graphs enriched by iterations 27-31
+    can hold both of). Otherwise the first Trial node of the NCT (lowest id
+    first) that has the edge, so registry data merges into an extracted edge
+    on a non-canonical Trial node instead of beside it; else the canonical node.
     """
-    return next((tid for tid in trial_ids if _has_edge_from(kg, tid, rel, tgt)), trial_ids[0])
+    edges = [(tid, _find_edge(kg, tid, rel, tgt)[1]) for tid in trial_ids]
+    if nct is not None:
+        recorded = [
+            (tid, _plain_attrs(d)) for tid, d in edges
+            if d is not None and nct in (_plain_attrs(d).get("ctgov_nct_ids") or [])
+        ]
+        owned = next((tid for tid, a in recorded if _owned_by(a, nct)), None)
+        if owned is not None:
+            return owned
+        if recorded:
+            return recorded[0][0]
+    return next((tid for tid, d in edges if d is not None), trial_ids[0])
+
+
+def _trial_edge_sources(kg, trial_ids, rel, tgt, nct, counters) -> list:
+    """The Trial nodes a registry edge src -rel-> tgt is written from: the one
+    _trial_edge_source picks and, in a refresh, every other Trial node of the
+    NCT whose edge is an extracted edge recording the NCT. A graph enriched by
+    iterations 27-31 can hold such a second copy (the registry merged into an
+    extracted edge of a lower-id Trial node added after the first import);
+    both copies then follow the payload. Registry copies from before iteration
+    27 are not written (see _legacy_copy).
+    """
+    first = _trial_edge_source(kg, trial_ids, rel, tgt, nct)
+    if _refresh_ctx(counters, nct) is None:
+        return [first]
+    sources = [first]
+    for tid in trial_ids:
+        if tid == first:
+            continue
+        attrs = _plain_attrs(_find_edge(kg, tid, rel, tgt)[1] or {})
+        if nct in (attrs.get("ctgov_nct_ids") or []) and attrs.get("source") != REGISTRY_SOURCE:
+            sources.append(tid)
+    return sources
 
 
 def _registry_text(*parts) -> str:
@@ -1367,10 +1410,10 @@ def _write_adverse_events(kg, nct, parsed, trial_ids, match, counters) -> None:
         )
         # REFRESH-02: one edge, from the canonical Trial node (lowest id), or
         # merged into the edge another Trial node of this NCT already has.
-        _upsert_edge(
-            kg, _trial_edge_source(kg, trial_ids, "reports_adverse_event", ae_id),
-            "reports_adverse_event", ae_id, nct, evidence, edge_attrs, counters,
-        )
+        for src in _trial_edge_sources(kg, trial_ids, "reports_adverse_event", ae_id, nct, counters):
+            _upsert_edge(
+                kg, src, "reports_adverse_event", ae_id, nct, evidence, edge_attrs, counters,
+            )
 
         done = set()
         for stat in stats:
@@ -1666,11 +1709,11 @@ def _write_analyses(
                     },
                     nct, counters,
                 )
-                _upsert_edge(
-                    kg, _trial_edge_source(kg, trial_ids, "has_outcome", outcome_id),
-                    "has_outcome", outcome_id, nct,
-                    f"ClinicalTrials.gov results {nct}: outcome {title}", {}, counters,
-                )
+                for src in _trial_edge_sources(kg, trial_ids, "has_outcome", outcome_id, nct, counters):
+                    _upsert_edge(
+                        kg, src, "has_outcome", outcome_id, nct,
+                        f"ClinicalTrials.gov results {nct}: outcome {title}", {}, counters,
+                    )
         else:
             reused_extracted = False
             outcome_id = _registry_outcome_id(kg, nct, title, unit)
@@ -1684,11 +1727,11 @@ def _write_analyses(
                 nct, counters,
             )
             # REFRESH-02: one edge, from the canonical Trial node (lowest id).
-            _upsert_edge(
-                kg, _trial_edge_source(kg, trial_ids, "has_outcome", outcome_id),
-                "has_outcome", outcome_id, nct,
-                f"ClinicalTrials.gov results {nct}: outcome {title}", {}, counters,
-            )
+            for src in _trial_edge_sources(kg, trial_ids, "has_outcome", outcome_id, nct, counters):
+                _upsert_edge(
+                    kg, src, "has_outcome", outcome_id, nct,
+                    f"ClinicalTrials.gov results {nct}: outcome {title}", {}, counters,
+                )
             outcome_by_norm.setdefault(norm, []).append(outcome_id)
         prepared.append({
             "an": an, "title": title, "name": name, "id": f"outcomeanalysis:{_slug(name)}",
@@ -1894,15 +1937,33 @@ def _has_recorded_facts(kg, nct) -> bool:
     return False
 
 
-def _legacy_copy(kg, trial_ids, src, rel, tgt, nct) -> bool:
-    """True when another Trial node of the NCT has the same edge recording nct."""
+def _legacy_copy(kg, trial_ids, src, rel, tgt, nct, attrs, touched) -> bool:
+    """True when the untouched edge src -rel-> tgt recording nct is a second
+    copy of a fact another Trial node of the NCT holds (also recording nct).
+
+    It is when the refresh wrote the fact through that other edge (touched
+    holds the (src, rel, tgt) the refresh wrote), wherever src sorts: the fact
+    is live. When no copy was written (the payload no longer has the fact),
+    only a registry edge from a non-canonical Trial node beside another
+    registry copy is one (registry edges written per Trial node before
+    iteration 27). Any other copy, e.g. the registry edge this NCT created
+    beside an extracted edge the registry later merged into on a lower-id
+    Trial node (iterations 27-31), is swept like the rest.
+    """
+    others = []
     for tid in trial_ids:
         if tid == src:
             continue
         _, data = _find_edge(kg, tid, rel, tgt)
         if data is not None and nct in (_plain_attrs(data).get("ctgov_nct_ids") or []):
-            return True
-    return False
+            if (tid, rel, tgt) in touched:
+                return True
+            others.append(_plain_attrs(data))
+    if not others or src not in trial_ids[1:]:
+        return False
+    return attrs.get("source") == REGISTRY_SOURCE and any(
+        o.get("source") == REGISTRY_SOURCE for o in others
+    )
 
 
 def _refresh_sweep(kg, nct, trial_ids, ctx, skip_ae: bool) -> None:
@@ -1916,17 +1977,17 @@ def _refresh_sweep(kg, nct, trial_ids, ctx, skip_ae: bool) -> None:
     only gets the per-NCT entry; its extracted values are untouched. A per-NCT
     entry alone counts as an updated node or edge, the flag as withdrawn.
 
-    An edge that starts at a non-canonical Trial node is a copy from before
-    registry edges were written once per NCT only when another Trial node of
-    the NCT has the same edge recording the NCT: such copies are left as they
-    are and counted as legacy_copies_skipped. Otherwise it is the NCT's live
-    edge (REFRESH-02 writes through the Trial node that already has the edge,
-    e.g. after a lower-id Trial node was extracted later) and is swept like
-    any other. skip_ae leaves adverse-event facts alone (the trial's adverse
-    events were not rewritten, see the serious floor).
+    When two Trial nodes of the NCT have the same edge recording the NCT (see
+    _legacy_copy), the copy the refresh did not write is left as it is and
+    counted as legacy_copies_skipped while the refresh wrote the other one;
+    when it wrote neither, only registry copies from before iteration 27 are
+    skipped, and every other copy is swept. An edge on a non-canonical Trial
+    node that is the NCT's only copy (REFRESH-02 writes through the edge that
+    records the NCT, e.g. after a lower-id Trial node was extracted later) is
+    swept like any other. skip_ae leaves adverse-event facts alone (the
+    trial's adverse events were not rewritten, see the serious floor).
     """
     stats = ctx["stats"]
-    legacy_sources = set(trial_ids[1:])
     for src, tgt, key, data in list(kg.graph.edges(keys=True, data=True)):
         attrs = data.get("attributes")
         if not isinstance(attrs, dict) or nct not in (attrs.get("ctgov_nct_ids") or []):
@@ -1937,7 +1998,7 @@ def _refresh_sweep(kg, nct, trial_ids, ctx, skip_ae: bool) -> None:
         if skip_ae and rel in _AE_RELATIONS:
             continue
         registry = attrs.get("source") == REGISTRY_SOURCE
-        if src in legacy_sources and _legacy_copy(kg, trial_ids, src, rel, tgt, nct):
+        if src in trial_ids and _legacy_copy(kg, trial_ids, src, rel, tgt, nct, attrs, ctx["edges"]):
             stats["legacy_copies_skipped"] += 1
             continue
         result = _withdraw(attrs, nct, registry)
