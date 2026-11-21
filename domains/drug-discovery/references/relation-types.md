@@ -17,7 +17,7 @@
 | Relation | Source Types | Target Types | Symmetric | Review Required | Example |
 |---|---|---|---|---|---|
 | INDICATED_FOR | COMPOUND | DISEASE | No | No | pembrolizumab → Non-Small Cell Lung Carcinoma |
-| CONTRAINDICATED_FOR | COMPOUND | DISEASE | No | Yes | methotrexate → pregnancy |
+| CONTRAINDICATED_FOR | COMPOUND | DISEASE, COMPOUND | No | Yes | methotrexate → pregnancy |
 
 ## Drug-Clinical Relations
 
@@ -40,7 +40,7 @@
 | ENCODES | GENE | PROTEIN | No | No | BRAF → BRAF kinase |
 | PARTICIPATES_IN | PROTEIN, GENE | PATHWAY | No | No | RAF1 → MAPK/ERK pathway |
 | IMPLICATED_IN | GENE, PROTEIN, PATHWAY, PHENOTYPE, SEQUENCE_VARIANT, MECHANISM_OF_ACTION, CELL_OR_TISSUE, METABOLITE, DISEASE | DISEASE, PHENOTYPE | No | No | BRCA1 → Breast Cancer |
-| CONFERS_RESISTANCE_TO | GENE, PROTEIN, PHENOTYPE, SEQUENCE_VARIANT, PATHWAY, MECHANISM_OF_ACTION | COMPOUND | No | Yes | EGFR T790M → gefitinib |
+| CONFERS_RESISTANCE_TO | GENE, PROTEIN, PHENOTYPE, SEQUENCE_VARIANT, PATHWAY, MECHANISM_OF_ACTION | COMPOUND, MECHANISM_OF_ACTION | No | Yes | EGFR T790M → gefitinib |
 | EXPRESSED_IN | GENE, PROTEIN | CELL_OR_TISSUE | No | No | HER2 → HER2-positive |
 
 ## Biomarker Relations

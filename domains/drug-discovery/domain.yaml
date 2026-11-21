@@ -253,7 +253,7 @@ relation_types:
     description: "Compound is contraindicated for a disease or patient population"
     category: therapeutic
     source_types: [COMPOUND]
-    target_types: [DISEASE]
+    target_types: [DISEASE, COMPOUND]
     review_required: true
     extraction_hints:
       - "Look for 'contraindicated in', 'should not be used in', 'avoid in patients with'"
@@ -326,7 +326,7 @@ relation_types:
     description: "Gene, protein, or phenotype confers resistance to a compound"
     category: causal
     source_types: [GENE, PROTEIN, PHENOTYPE, SEQUENCE_VARIANT, PATHWAY, MECHANISM_OF_ACTION]
-    target_types: [COMPOUND]
+    target_types: [COMPOUND, MECHANISM_OF_ACTION]
     review_required: true
     extraction_hints:
       - "Look for 'resistance to', 'refractory to', 'insensitive to', 'resistance mutation'"
