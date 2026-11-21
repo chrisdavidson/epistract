@@ -84,9 +84,13 @@ relation_types:
   HAS_ACTIVE_INGREDIENT:
     description: Links a DRUG_PRODUCT to its ACTIVE_INGREDIENT(s)
     category: structural
+    source_types: [DRUG_PRODUCT]
+    target_types: [ACTIVE_INGREDIENT]
   HAS_INACTIVE_INGREDIENT:
     description: Links a DRUG_PRODUCT to its INACTIVE_INGREDIENT(s)
     category: structural
+    source_types: [DRUG_PRODUCT]
+    target_types: [INACTIVE_INGREDIENT]
   MANUFACTURES:
     description: A MANUFACTURER manufactures a DRUG_PRODUCT. Active form on purpose -- sift-kg rewrites MANUFACTURED_BY to MANUFACTURES (flipping the edge) at build time.
     category: organizational
@@ -95,40 +99,62 @@ relation_types:
   INDICATED_FOR:
     description: Links a DRUG_PRODUCT to an INDICATION (FDA-approved use)
     category: therapeutic
+    source_types: [DRUG_PRODUCT]
+    target_types: [INDICATION]
   CONTRAINDICATED_IN:
     description: Links a DRUG_PRODUCT to a CONTRAINDICATION (prohibited patient condition)
     category: therapeutic
+    source_types: [DRUG_PRODUCT]
+    target_types: [CONTRAINDICATION]
   CAUSES_ADVERSE_REACTION:
     description: Links a DRUG_PRODUCT to an ADVERSE_REACTION observed in clinical
       or post-marketing data
     category: causal
+    source_types: [DRUG_PRODUCT]
+    target_types: [ADVERSE_REACTION]
   HAS_WARNING:
     description: Links a DRUG_PRODUCT to a WARNING (boxed or standard precaution)
     category: regulatory
+    source_types: [DRUG_PRODUCT]
+    target_types: [WARNING]
   INTERACTS_WITH:
     description: Links a DRUG_PRODUCT to another DRUG_PRODUCT or substance involved
       in a clinically significant DRUG_INTERACTION
     category: mechanism
+    source_types: [DRUG_PRODUCT]
+    target_types: [DRUG_INTERACTION, DRUG_PRODUCT, ACTIVE_INGREDIENT]
   DOSED_VIA:
     description: Links a DRUG_PRODUCT to a DOSAGE_REGIMEN specifying how and when
       to administer it
     category: therapeutic
+    source_types: [DRUG_PRODUCT]
+    target_types: [DOSAGE_REGIMEN]
   STUDIED_IN_POPULATION:
     description: Links a DRUG_PRODUCT to a PATIENT_POPULATION with special safety
       or dosing notes
     category: association
+    source_types: [DRUG_PRODUCT]
+    target_types: [PATIENT_POPULATION]
   HAS_MECHANISM:
     description: Links a DRUG_PRODUCT to its MECHANISM_OF_ACTION
     category: mechanism
+    source_types: [DRUG_PRODUCT, ACTIVE_INGREDIENT]
+    target_types: [MECHANISM_OF_ACTION]
   HAS_PK_PROPERTY:
     description: Links a DRUG_PRODUCT to a PHARMACOKINETIC_PROPERTY
     category: mechanism
+    source_types: [DRUG_PRODUCT, ACTIVE_INGREDIENT]
+    target_types: [PHARMACOKINETIC_PROPERTY]
   EVALUATED_IN:
     description: Links a DRUG_PRODUCT to a CLINICAL_STUDY that supported label claims
     category: therapeutic
+    source_types: [DRUG_PRODUCT]
+    target_types: [CLINICAL_STUDY]
   BELONGS_TO_CLASS:
     description: Links a DRUG_PRODUCT to its PHARMACOLOGIC_CLASS
     category: structural
+    source_types: [DRUG_PRODUCT, ACTIVE_INGREDIENT]
+    target_types: [PHARMACOLOGIC_CLASS]
   IDENTIFIES:
     description: A REGULATORY_IDENTIFIER (NDC, NDA/ANDA, RxCUI, etc.) identifies a DRUG_PRODUCT.
       Active form on purpose -- sift-kg rewrites IDENTIFIED_BY to IDENTIFIES (flipping
@@ -140,6 +166,19 @@ relation_types:
     description: Links a DRUG_PRODUCT to another DRUG_PRODUCT whose co-administration
       is explicitly prohibited
     category: therapeutic
+    source_types: [DRUG_PRODUCT]
+    target_types: [DRUG_PRODUCT, ACTIVE_INGREDIENT]
+    symmetric: true
+  HAS_LABTEST:
+    description: The label calls for monitoring with a LABTEST — from the DRUG_PRODUCT, or from the WARNING the monitoring guards against.
+    category: therapeutic
+    source_types: [DRUG_PRODUCT, WARNING]
+    target_types: [LABTEST]
+  WARNS_OF:
+    description: A WARNING concerns a specific ADVERSE_REACTION (e.g. the boxed warning "Risk of thyroid C-cell tumors" warns of medullary thyroid carcinoma).
+    category: regulatory
+    source_types: [WARNING]
+    target_types: [ADVERSE_REACTION]
 community_label_anchors:
   - DRUG_PRODUCT
   - ACTIVE_INGREDIENT

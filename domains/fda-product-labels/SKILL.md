@@ -26,24 +26,28 @@ You are analyzing FDA Structured Product Labeling (SPL) documents — the author
 
 ## Relation Types
 
-| Type | Description |
-|------|-------------|
-| HAS_ACTIVE_INGREDIENT | Links a DRUG_PRODUCT to its ACTIVE_INGREDIENT(s) |
-| HAS_INACTIVE_INGREDIENT | Links a DRUG_PRODUCT to its INACTIVE_INGREDIENT(s) |
-| MANUFACTURES | A MANUFACTURER manufactures a DRUG_PRODUCT (write the manufacturer first) |
-| INDICATED_FOR | Links a DRUG_PRODUCT to an INDICATION (FDA-approved use) |
-| CONTRAINDICATED_IN | Links a DRUG_PRODUCT to a CONTRAINDICATION (prohibited patient condition) |
-| CAUSES_ADVERSE_REACTION | Links a DRUG_PRODUCT to an ADVERSE_REACTION observed in clinical or post-marketing data |
-| HAS_WARNING | Links a DRUG_PRODUCT to a WARNING (boxed or standard precaution) |
-| INTERACTS_WITH | Links a DRUG_PRODUCT to another DRUG_PRODUCT or substance involved in a clinically significant DRUG_INTERACTION |
-| DOSED_VIA | Links a DRUG_PRODUCT to a DOSAGE_REGIMEN specifying how and when to administer it |
-| STUDIED_IN_POPULATION | Links a DRUG_PRODUCT to a PATIENT_POPULATION with special safety or dosing notes |
-| HAS_MECHANISM | Links a DRUG_PRODUCT to its MECHANISM_OF_ACTION |
-| HAS_PK_PROPERTY | Links a DRUG_PRODUCT to a PHARMACOKINETIC_PROPERTY |
-| EVALUATED_IN | Links a DRUG_PRODUCT to a CLINICAL_STUDY that supported label claims |
-| BELONGS_TO_CLASS | Links a DRUG_PRODUCT to its PHARMACOLOGIC_CLASS |
-| IDENTIFIES | A REGULATORY_IDENTIFIER (NDC, NDA/ANDA, RxCUI, etc.) identifies a DRUG_PRODUCT (write the identifier first) |
-| CONTRAINDICATED_WITH | Links a DRUG_PRODUCT to another DRUG_PRODUCT whose co-administration is explicitly prohibited |
+Direction matters: write each relation from the Source type to the Target type. Relations marked symmetric may be written either way.
+
+| Type | Source → Target | Description |
+|------|-----------------|-------------|
+| HAS_ACTIVE_INGREDIENT | DRUG_PRODUCT → ACTIVE_INGREDIENT | Links a DRUG_PRODUCT to its ACTIVE_INGREDIENT(s) |
+| HAS_INACTIVE_INGREDIENT | DRUG_PRODUCT → INACTIVE_INGREDIENT | Links a DRUG_PRODUCT to its INACTIVE_INGREDIENT(s) |
+| MANUFACTURES | MANUFACTURER → DRUG_PRODUCT | A MANUFACTURER manufactures a DRUG_PRODUCT. |
+| INDICATED_FOR | DRUG_PRODUCT → INDICATION | Links a DRUG_PRODUCT to an INDICATION (FDA-approved use) |
+| CONTRAINDICATED_IN | DRUG_PRODUCT → CONTRAINDICATION | Links a DRUG_PRODUCT to a CONTRAINDICATION (prohibited patient condition) |
+| CAUSES_ADVERSE_REACTION | DRUG_PRODUCT → ADVERSE_REACTION | Links a DRUG_PRODUCT to an ADVERSE_REACTION observed in clinical or post-marketing data |
+| HAS_WARNING | DRUG_PRODUCT → WARNING | Links a DRUG_PRODUCT to a WARNING (boxed or standard precaution) |
+| INTERACTS_WITH | DRUG_PRODUCT → DRUG_INTERACTION/DRUG_PRODUCT/ACTIVE_INGREDIENT | Links a DRUG_PRODUCT to another DRUG_PRODUCT or substance involved in a clinically significant DRUG_INTERACTION |
+| DOSED_VIA | DRUG_PRODUCT → DOSAGE_REGIMEN | Links a DRUG_PRODUCT to a DOSAGE_REGIMEN specifying how and when to administer it |
+| STUDIED_IN_POPULATION | DRUG_PRODUCT → PATIENT_POPULATION | Links a DRUG_PRODUCT to a PATIENT_POPULATION with special safety or dosing notes |
+| HAS_MECHANISM | DRUG_PRODUCT/ACTIVE_INGREDIENT → MECHANISM_OF_ACTION | Links a DRUG_PRODUCT to its MECHANISM_OF_ACTION |
+| HAS_PK_PROPERTY | DRUG_PRODUCT/ACTIVE_INGREDIENT → PHARMACOKINETIC_PROPERTY | Links a DRUG_PRODUCT to a PHARMACOKINETIC_PROPERTY |
+| EVALUATED_IN | DRUG_PRODUCT → CLINICAL_STUDY | Links a DRUG_PRODUCT to a CLINICAL_STUDY that supported label claims |
+| BELONGS_TO_CLASS | DRUG_PRODUCT/ACTIVE_INGREDIENT → PHARMACOLOGIC_CLASS | Links a DRUG_PRODUCT to its PHARMACOLOGIC_CLASS |
+| IDENTIFIES | REGULATORY_IDENTIFIER → DRUG_PRODUCT | A REGULATORY_IDENTIFIER (NDC, NDA/ANDA, RxCUI, etc.) identifies a DRUG_PRODUCT. |
+| CONTRAINDICATED_WITH | DRUG_PRODUCT → DRUG_PRODUCT/ACTIVE_INGREDIENT (symmetric) | Links a DRUG_PRODUCT to another DRUG_PRODUCT whose co-administration is explicitly prohibited |
+| HAS_LABTEST | DRUG_PRODUCT/WARNING → LABTEST | The label calls for monitoring with a LABTEST — from the DRUG_PRODUCT, or from the WARNING the monitoring guards against. |
+| WARNS_OF | WARNING → ADVERSE_REACTION | A WARNING concerns a specific ADVERSE_REACTION (e.g. the boxed warning "Risk of thyroid C-cell tumors" warns of medullary thyroid carcinoma). |
 
 ## Extraction Guidelines
 
@@ -64,3 +68,8 @@ You are analyzing FDA Structured Product Labeling (SPL) documents — the author
 15. Extract PHARMACOLOGIC_CLASS from openfda.pharm_class_epc, pharm_class_moa, pharm_class_cs, and pharm_class_pe; classify each by type (EPC, MoA, CS, or PE).
 16. Extract REGULATORY_IDENTIFIER from openfda.application_number (NDA/ANDA), openfda.product_ndc, openfda.rxcui, openfda.unii, and set_id/id (SPL IDs).
 17. Extract LABTEST from sections that reference laboratory monitoring (warnings_and_cautions, adverse_reactions, clinical_pharmacology); create one entity per distinct test (e.g. ALT, AST, total bilirubin, complete blood count, serum creatinine, INR, lipid panel); prefer named tests over generic phrases like "blood work". Include the monitoring purpose as context when stated (e.g. "monitor LFTs every 4 weeks during therapy").
+18. Relation endpoints (source_entity / target_entity) MUST be the exact `name` of an entity declared in the same extraction. Never use placeholder IDs such as "DRUG_PRODUCT_1" or "INDICATION_1", and declare every entity before referencing it — a relation whose endpoint is not a declared entity name is dropped at build.
+19. Name the DRUG_PRODUCT by its brand name (e.g. "Lipitor"), and reuse that exact name as the source of every DRUG_PRODUCT relation.
+20. HAS_WARNING targets a WARNING entity named for the hazard (e.g. "Risk of thyroid C-cell tumors"); never point HAS_WARNING at an ADVERSE_REACTION. When the warning concerns a specific reaction, also link WARNS_OF (WARNING → ADVERSE_REACTION).
+21. When the label calls for laboratory monitoring, link HAS_LABTEST from the DRUG_PRODUCT (or from the WARNING it guards against) to the LABTEST.
+22. Use the active relation names exactly as written (MANUFACTURES, IDENTIFIES) — write the manufacturer or identifier first. Never use passive "*_BY" forms; the graph builder rewrites them.
