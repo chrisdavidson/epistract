@@ -28,6 +28,13 @@ that compares the same arms (or has the same effect measure and estimate).
 Each registry analysis also records ctgov_arm_groups: the CT.gov armGroup type
 and interventions of every compared group that names an armGroup, added only
 when missing (a re-run backfills it; an existing value is never overwritten).
+A registry-created analysis that the Cohort-receives rule left without an
+assesses_effect_of edge gets one to a Compound when its armGroup types resolve the
+treatment unambiguously (exactly one EXPERIMENTAL group, every other compared group
+a comparator type, one graph Compound named by the EXPERIMENTAL group after dropping
+compounds every comparator group also names). The edge is a registry edge
+(source ctgov_results) with attributes.treatment_basis = registry_arm_type, which
+the epistemic layer reads first; an extracted analysis is never given one.
 An opt-in per-arm floor for serious events (--results-serious-min-pct X,
 default 0 = every serious event) keeps a serious event only when at least one
 arm reaches X percent affected; the report then records the floor and the
@@ -1640,6 +1647,104 @@ def _registry_outcome_id(kg, nct, title, unit) -> str:
         n += 1
 
 
+# CONTEST-04: treatment from CT.gov armGroup types. This mirrors
+# epistemic._arm_type_treatment (the grading layer's fallback), so an edge written
+# here and the grading layer agree on which compound an analysis assesses.
+ARM_EXPERIMENTAL = "EXPERIMENTAL"
+ARM_COMPARATOR_TYPES = frozenset({
+    "ACTIVE_COMPARATOR", "PLACEBO_COMPARATOR", "SHAM_COMPARATOR", "NO_INTERVENTION",
+})
+ARM_TYPE_BASIS = "registry_arm_type"
+MIN_COMPOUND_NAME = 3
+_HARD_COMPARATOR_RE = re.compile(r"(?<![A-Za-z0-9])(?:placebo|comparator)(?![A-Za-z0-9])", re.IGNORECASE)
+_COMPARATOR_WORDING_RE = re.compile(
+    r"(?<![A-Za-z0-9])(?:placebo|comparator|standard of care|usual care|control)(?![A-Za-z0-9])",
+    re.IGNORECASE,
+)
+# "Drug: Tirzepatide" -> "Tirzepatide" (CT.gov intervention names carry the type).
+_INTERVENTION_PREFIX_RE = re.compile(
+    r"^\s*(?:Drug|Biological|Combination Product|Other|Dietary Supplement|Device|"
+    r"Procedure|Behavioral|Genetic|Radiation|Diagnostic Test)\s*:\s*",
+    re.IGNORECASE,
+)
+
+
+def _compound_index(kg) -> list:
+    """(compound id, word-boundary pattern) for every Compound named by 3+ chars.
+
+    A comparator-worded name ("Standard of care") names no treatment and is not
+    indexed. A name two Compound nodes share is indexed with id None: a group that
+    names it resolves to no treatment (see _arm_type_compound).
+    """
+    names: dict = {}
+    for node_id, data in kg.graph.nodes(data=True):
+        if str(data.get("entity_type", "")).lower() != "compound":
+            continue
+        name = str(data.get("name") or "").strip()
+        if len(name) < MIN_COMPOUND_NAME or _COMPARATOR_WORDING_RE.search(name):
+            continue
+        names.setdefault(name.lower(), []).append((node_id, name))
+    index = []
+    for key in sorted(names):
+        node_id, name = names[key][0]
+        if len(names[key]) != 1:
+            node_id = None
+        index.append((node_id, re.compile(
+            r"(?<![A-Za-z0-9])" + re.escape(name) + r"(?![A-Za-z0-9])", re.IGNORECASE
+        )))
+    return index
+
+
+def _text_compounds(text, index) -> set:
+    if not isinstance(text, str) or not text or _HARD_COMPARATOR_RE.search(text):
+        return set()
+    return {cid for cid, pattern in index if pattern.search(text)}
+
+
+def _group_compound_ids(group, index) -> set:
+    """Compounds an armGroup names: its title, else its non-placebo interventions."""
+    found = _text_compounds(group.get("title"), index)
+    if not found:
+        for intervention in group.get("interventions") or ():
+            if isinstance(intervention, str) and not _HARD_COMPARATOR_RE.search(intervention):
+                found |= _text_compounds(_INTERVENTION_PREFIX_RE.sub("", intervention), index)
+    return found
+
+
+def _arm_type_compound(arm_groups, index):
+    """The one Compound a registry analysis assesses, resolved from armGroup types.
+
+    Mirrors epistemic._arm_type_treatment. Needs at least two compared groups,
+    every one typed, exactly one EXPERIMENTAL and every other group a comparator
+    type. An EXPERIMENTAL group titled as a comparator (a blinded placebo arm)
+    names no treatment. The compound is the one the EXPERIMENTAL title names or,
+    when the title names none, one its interventions name; when that is several,
+    the compounds every comparator group also names (add-on background) are
+    dropped. None unless exactly one compound remains.
+    """
+    if not isinstance(arm_groups, list) or len(arm_groups) < 2:
+        return None
+    if not all(isinstance(g, dict) and isinstance(g.get("arm_type"), str) for g in arm_groups):
+        return None
+    experimental = [g for g in arm_groups if g["arm_type"] == ARM_EXPERIMENTAL]
+    if len(experimental) != 1:
+        return None
+    comparators = [g for g in arm_groups if g is not experimental[0]]
+    if not all(g["arm_type"] in ARM_COMPARATOR_TYPES for g in comparators):
+        return None
+    arm = experimental[0]
+    if _COMPARATOR_WORDING_RE.search(str(arm.get("title") or "")):
+        return None
+    found = _group_compound_ids(arm, index)
+    if None in found:
+        return None
+    if len(found) > 1 and comparators:
+        background = set.intersection(*(_group_compound_ids(g, index) for g in comparators))
+        if found - background:
+            found = found - background
+    return next(iter(found)) if len(found) == 1 else None
+
+
 def _write_analyses(
     kg, nct, parsed, trial_ids, trial_cohort_ids, match, counters, arm_match=None,
 ) -> None:
@@ -1653,6 +1758,12 @@ def _write_analyses(
     or the merged holder, so a value already there is never overwritten and no
     registry_ conflict key is recorded; a re-run backfills a node that lacks it.
     The backfill is counted as neither created nor merged.
+
+    A registry-created analysis without an assesses_effect_of edge after the
+    Cohort-receives rule gets one from its armGroup types (_arm_type_compound),
+    written through _upsert_edge with treatment_basis registry_arm_type; merged
+    extracted analyses are never written to, and an ambiguous resolution writes
+    nothing.
     """
     analyses = parsed["analyses"]
     if not analyses:
@@ -1798,6 +1909,7 @@ def _write_analyses(
         taken_cand.add(cand_id)
         holder_by_reg[prepared[idx]["id"]] = cand_id
 
+    compound_index = None
     for item in prepared:
         an = item["an"]
         holder = holder_by_reg.get(item["id"])
@@ -1843,6 +1955,32 @@ def _write_analyses(
                     targets.add(tgt)
         if len(targets) == 1:
             _upsert_edge(kg, oa_id, "assesses_effect_of", next(iter(targets)), nct, text, {}, counters)
+        # CONTEST-04: a registry-created analysis the Cohort rule left without an
+        # assesses_effect_of edge gets one from its armGroup types, tagged
+        # treatment_basis registry_arm_type. An extracted analysis (a merged
+        # holder) is never written to. The write is repeated on a re-run or refresh
+        # for an edge already recorded, so a refresh sweep sees it as present.
+        if oa_id == item["id"] and item["arm_groups"] and (
+            _node_attrs(kg, oa_id).get("source") == REGISTRY_SOURCE
+        ):
+            existing = [
+                _find_edge(kg, oa_id, "assesses_effect_of", tgt)[1]
+                for tgt in _out_targets(kg, oa_id, "assesses_effect_of")
+            ]
+            if all(
+                ((e or {}).get("attributes") or {}).get("treatment_basis") == ARM_TYPE_BASIS
+                for e in existing
+            ):
+                if compound_index is None:
+                    compound_index = _compound_index(kg)
+                compound_id = _arm_type_compound(item["arm_groups"], compound_index)
+                if compound_id is not None and not (existing and compound_id not in _out_targets(
+                    kg, oa_id, "assesses_effect_of"
+                )):
+                    _upsert_edge(
+                        kg, oa_id, "assesses_effect_of", compound_id, nct, text,
+                        {"treatment_basis": ARM_TYPE_BASIS}, counters,
+                    )
         method = _WS_RE.sub(" ", str(an.get("statistical_method") or "")).strip()
         if _slug(method):
             method_id = f"statisticalmethod:{_slug(method)}"
