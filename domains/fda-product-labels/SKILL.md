@@ -30,7 +30,7 @@ You are analyzing FDA Structured Product Labeling (SPL) documents — the author
 |------|-------------|
 | HAS_ACTIVE_INGREDIENT | Links a DRUG_PRODUCT to its ACTIVE_INGREDIENT(s) |
 | HAS_INACTIVE_INGREDIENT | Links a DRUG_PRODUCT to its INACTIVE_INGREDIENT(s) |
-| MANUFACTURED_BY | Links a DRUG_PRODUCT to its MANUFACTURER |
+| MANUFACTURES | A MANUFACTURER manufactures a DRUG_PRODUCT (write the manufacturer first) |
 | INDICATED_FOR | Links a DRUG_PRODUCT to an INDICATION (FDA-approved use) |
 | CONTRAINDICATED_IN | Links a DRUG_PRODUCT to a CONTRAINDICATION (prohibited patient condition) |
 | CAUSES_ADVERSE_REACTION | Links a DRUG_PRODUCT to an ADVERSE_REACTION observed in clinical or post-marketing data |
@@ -42,7 +42,7 @@ You are analyzing FDA Structured Product Labeling (SPL) documents — the author
 | HAS_PK_PROPERTY | Links a DRUG_PRODUCT to a PHARMACOKINETIC_PROPERTY |
 | EVALUATED_IN | Links a DRUG_PRODUCT to a CLINICAL_STUDY that supported label claims |
 | BELONGS_TO_CLASS | Links a DRUG_PRODUCT to its PHARMACOLOGIC_CLASS |
-| IDENTIFIED_BY | Links a DRUG_PRODUCT to a REGULATORY_IDENTIFIER (NDC, NDA/ANDA, RxCUI, etc.) |
+| IDENTIFIES | A REGULATORY_IDENTIFIER (NDC, NDA/ANDA, RxCUI, etc.) identifies a DRUG_PRODUCT (write the identifier first) |
 | CONTRAINDICATED_WITH | Links a DRUG_PRODUCT to another DRUG_PRODUCT whose co-administration is explicitly prohibited |
 
 ## Extraction Guidelines

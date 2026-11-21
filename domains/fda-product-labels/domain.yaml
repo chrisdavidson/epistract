@@ -87,9 +87,11 @@ relation_types:
   HAS_INACTIVE_INGREDIENT:
     description: Links a DRUG_PRODUCT to its INACTIVE_INGREDIENT(s)
     category: structural
-  MANUFACTURED_BY:
-    description: Links a DRUG_PRODUCT to its MANUFACTURER
+  MANUFACTURES:
+    description: A MANUFACTURER manufactures a DRUG_PRODUCT. Active form on purpose -- sift-kg rewrites MANUFACTURED_BY to MANUFACTURES (flipping the edge) at build time.
     category: organizational
+    source_types: [MANUFACTURER]
+    target_types: [DRUG_PRODUCT]
   INDICATED_FOR:
     description: Links a DRUG_PRODUCT to an INDICATION (FDA-approved use)
     category: therapeutic
@@ -127,10 +129,13 @@ relation_types:
   BELONGS_TO_CLASS:
     description: Links a DRUG_PRODUCT to its PHARMACOLOGIC_CLASS
     category: structural
-  IDENTIFIED_BY:
-    description: Links a DRUG_PRODUCT to a REGULATORY_IDENTIFIER (NDC, NDA/ANDA, RxCUI,
-      etc.)
+  IDENTIFIES:
+    description: A REGULATORY_IDENTIFIER (NDC, NDA/ANDA, RxCUI, etc.) identifies a DRUG_PRODUCT.
+      Active form on purpose -- sift-kg rewrites IDENTIFIED_BY to IDENTIFIES (flipping
+      the edge) at build time.
     category: regulatory
+    source_types: [REGULATORY_IDENTIFIER]
+    target_types: [DRUG_PRODUCT]
   CONTRAINDICATED_WITH:
     description: Links a DRUG_PRODUCT to another DRUG_PRODUCT whose co-administration
       is explicitly prohibited
