@@ -109,53 +109,85 @@ relation_types:
   EXPERIENCED:
     description: A Patient experienced an AdverseEvent.
     category: causal
+    source_types: [Patient]
+    target_types: [AdverseEvent]
   TOOK:
     description: A Patient took a Drug or Concomitant prior to or during the AdverseEvent
       window.
     category: therapeutic
+    source_types: [Patient]
+    target_types: [Drug, Concomitant]
   INDICATED_FOR:
-    description: A Drug is indicated for an Indication (the prescribed reason for
-      use).
+    description: A Drug or Concomitant is indicated for an Indication (the prescribed
+      reason for use).
     category: therapeutic
+    source_types: [Drug, Concomitant]
+    target_types: [Indication]
   CO_ADMINISTERED_WITH:
-    description: A Drug was co-administered with a Concomitant during the same exposure
-      window. Symmetric — material to drug-drug interaction signal detection.
+    description: A Drug was co-administered with a Concomitant, or with another suspect
+      Drug, during the same exposure window. Symmetric — material to drug-drug interaction
+      signal detection.
     category: therapeutic
-  REPORTED_BY:
-    description: A ReportType / case was reported by a Reporter. Reporter identity
-      (HCP, consumer, lawyer, sponsor) conditions epistemic weight.
+    source_types: [Drug]
+    target_types: [Drug, Concomitant]
+    symmetric: true
+  REPORTS:
+    description: A Reporter submitted the report — link the Reporter to the ReportType
+      (database / report kind), to the case Patient, or to a reported AdverseEvent.
+      Reporter identity (HCP, consumer, lawyer, sponsor) conditions epistemic weight.
+      Active form on purpose — sift-kg rewrites any "*ED_BY" name at build time
+      (REPORTED_BY would become REPORTES).
     category: provenance
+    source_types: [Reporter]
+    target_types: [ReportType, Patient, AdverseEvent]
   RESULTED_IN:
     description: An AdverseEvent resulted in an Outcome (recovered, sequelae, fatal,
       unknown).
     category: causal
+    source_types: [AdverseEvent]
+    target_types: [Outcome]
   OCCURRED_AFTER:
     description: An AdverseEvent occurred after a Drug exposure with a stated TemporalRelationship.
       Foundation of the temporality criterion.
     category: association
+    source_types: [AdverseEvent]
+    target_types: [Drug]
   RESOLVED_ON_DECHALLENGE:
-    description: An AdverseEvent resolved when the suspect Drug was withdrawn — captured
-      via a DechallengeRechallenge entity.
+    description: An AdverseEvent resolved when the suspect Drug was withdrawn — link
+      to the withdrawn Drug, or to the DechallengeRechallenge entity that documents
+      it.
     category: causal
+    source_types: [AdverseEvent]
+    target_types: [Drug, DechallengeRechallenge]
   RECURRED_ON_RECHALLENGE:
     description: An AdverseEvent recurred when the suspect Drug was reintroduced —
-      captured via a DechallengeRechallenge entity. Strongest single-case causality
-      signal.
+      link to the reintroduced Drug, or to the DechallengeRechallenge entity that documents
+      it. Strongest single-case causality signal.
     category: causal
-  CAUSED_BY:
-    description: An AdverseEvent is asserted to be caused by a Drug. Asserted only
-      when Bradford-Hill criteria are met or when the source explicitly attributes
-      causation.
+    source_types: [AdverseEvent]
+    target_types: [Drug, DechallengeRechallenge]
+  CAUSES:
+    description: A Drug (or Concomitant) is asserted to cause an AdverseEvent. Asserted
+      only when Bradford-Hill criteria are met or when the source explicitly attributes
+      causation. Active form on purpose — sift-kg rewrites CAUSED_BY to CAUSES at build
+      time, and crosswalk.yaml projects CAUSES.
     category: causal
+    source_types: [Drug, Concomitant]
+    target_types: [AdverseEvent]
   TRIGGERED:
     description: A CausalitySignal or AdverseEvent cluster triggered a RegulatoryAction
       (label change, withdrawal, REMS).
     category: regulatory
+    source_types: [CausalitySignal, AdverseEvent]
+    target_types: [RegulatoryAction]
   CONTRADICTS:
     description: A claim from one report or database contradicts a claim from another
       (e.g., FAERS-asserted causation contradicted by EudraVigilance dechallenge-negative
       case). Symmetric across the contradicting pair.
     category: association
+    source_types: [CausalitySignal, DechallengeRechallenge, ReportType]
+    target_types: [CausalitySignal, DechallengeRechallenge, ReportType]
+    symmetric: true
 community_label_anchors:
 - Drug
 - AdverseEvent
