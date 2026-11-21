@@ -1359,21 +1359,31 @@ _DOSE_NUM = r"(?:\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)"
 _DOSE_START = r"(?<![\w.,])(?<!\d[-–—])"
 _DOSE_END = r"(?![A-Za-z0-9µμ])"
 # Per-weight and concentration values ("10 mg/kg", "0.5-5.0 mg/ml") are no dose.
-_DOSE_PER_UNIT = r"(?!\s*/\s*(?:kg|m2|m²|dl|ml|l)\b)"
-_DOSE_RANGE_RE = re.compile(
+_PER_UNIT_TAIL = r"\s*/\s*(?:kg|m2|m²|dl|ml|l)\b"
+_DOSE_PER_UNIT = r"(?!" + _PER_UNIT_TAIL + r")"
+_DOSE_RANGE_BODY = (
     _DOSE_START + r"(" + _DOSE_NUM + r")\s*(" + _DOSE_UNITS + r")?\s*(?:-|–|—|\s+to\s+)\s*("
-    + _DOSE_NUM + r")\s*(" + _DOSE_UNITS + r")" + _DOSE_END + _DOSE_PER_UNIT,
-    re.IGNORECASE,
+    + _DOSE_NUM + r")\s*(" + _DOSE_UNITS + r")" + _DOSE_END
 )
+_DOSE_RANGE_RE = re.compile(_DOSE_RANGE_BODY + _DOSE_PER_UNIT, re.IGNORECASE)
+# A range whose upper end is per-weight or a concentration ("10 mg - 20 mg/kg")
+# is per-weight as a whole: neither end is read as a dose.
+_DOSE_PER_UNIT_RANGE_RE = re.compile(_DOSE_RANGE_BODY + r"(?=" + _PER_UNIT_TAIL + r")", re.IGNORECASE)
 # A hyphen joining a name or code that contains a letter to a number
 # ("Semaglutide-1 mg", "LY3298176-5mg") separates the name from the dose; a
-# hyphen between two plain numbers ("12-45 mg") is a range.
-_DOSE_NAME_HYPHEN_RE = re.compile(r"(?<![\w.])((?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]+)[-–—](?=\d)")
-# A unit-less number right after a label word is the label's number, not the
-# low end of a range: "Cohort 2 - 10 mg" and "Group 1 to 4 mg" name one dose.
+# hyphen between two plain numbers ("12-45 mg") is a range, and so is one after
+# a unit ("1 mg-2 mg").
+_DOSE_NAME_HYPHEN_RE = re.compile(
+    r"(?<![\w.])(?!(?i:" + _DOSE_UNITS + r")[-–—])((?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]+)[-–—](?=\d)"
+)
+# A unit-less whole number right after a label word is the label's number, not
+# the low end of a range: "Cohort 2 - 10 mg" and "Group 1 to 4 mg" name one
+# dose. A decimal ("treatment 0.25 to 2.4 mg") is never a label number, and
+# descriptor words ("treatment", "regimen") are no labels: "Titration regimen
+# 5 to 10 mg" is a range.
 _DOSE_LABEL_BEFORE_RE = re.compile(
     r"\b(?:cohorts?|parts?|groups?|arms?|periods?|weeks?|wks?|days?|stages?|steps?|phases?|"
-    r"levels?|visits?|panels?|sequences?|segments?|blocks?|regimens?|treatments?|"
+    r"levels?|visits?|panels?|sequences?|segments?|blocks?|"
     r"months?|years?|no|nos|numbers?)\.?\s*(?:#|no\.?|number)?\s*[:#]?\s*$",
     re.IGNORECASE,
 )
@@ -1406,11 +1416,13 @@ def _parse_dose(text) -> set[float]:
     Thousands separators are read ("1,000 mg" is 1000). A range ("12-45 mg",
     "0.25 to 1 mg") gives both ends, so it never reads as one dose.
     Per-weight and concentration values ("10 mg/kg", "10-20 mg/kg",
-    "0.5-5.0 mg/ml") are not doses. A label number before a dash or "to"
-    ("Cohort 2 - 10 mg", "Part 1 - 5 mg", "Group 1 to 4 mg") is no range end,
-    unless it carries a unit itself.
+    "0.5-5.0 mg/ml") are not doses, and neither end of a range whose upper
+    end is one ("10 mg - 20 mg/kg") is. A whole label number before a dash or
+    "to" ("Cohort 2 - 10 mg", "Part 1 - 5 mg", "Group 1 to 4 mg") is no range
+    end, unless it carries a unit itself; a decimal always is.
     """
     text = _DOSE_NAME_HYPHEN_RE.sub(r"\1 ", str(text or ""))
+    text = _DOSE_PER_UNIT_RANGE_RE.sub(" ", text)
     found: set[float] = set()
     kept: list[str] = []
     pos = 0
@@ -1419,7 +1431,11 @@ def _parse_dose(text) -> set[float]:
         match = _DOSE_RANGE_RE.search(text, search_from)
         if match is None:
             break
-        if match.group(2) is None and _DOSE_LABEL_BEFORE_RE.search(text, 0, match.start()):
+        if (
+            match.group(2) is None
+            and "." not in match.group(1)
+            and _DOSE_LABEL_BEFORE_RE.search(text, 0, match.start())
+        ):
             # Not a range: retry after the label number, so the dose after
             # the separator is still read (by the single-dose pattern).
             search_from = match.end(1)

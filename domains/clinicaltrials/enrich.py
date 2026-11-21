@@ -2042,6 +2042,7 @@ def _write_analyses(
         holder = holder_by_reg.get(item["id"])
         ctx = _refresh_ctx(counters, nct)
         updated_before = ctx["stats"]["updated_nodes"] if ctx is not None else None
+        existed = kg.graph.has_node(item["id"])
         if holder is not None and kg.graph.has_node(holder) and holder != item["id"]:
             oa_id = holder
             attrs = _node_attrs(kg, oa_id)
@@ -2061,15 +2062,17 @@ def _write_analyses(
             # the stored groups follow the payload the edge is written from: they
             # are replaced, or removed when the payload gives none any more (no
             # armGroups, or no compared group matches an arm), so grading cannot
-            # resolve the old compound from them. A change counts as an updated
-            # node, once per node.
+            # resolve the old compound from them. A change to a node that existed
+            # before this refresh counts as an updated node, once per node; an
+            # analysis the refresh creates counts as created only.
             previous = node_attrs.get("ctgov_arm_groups")
             if item["arm_groups"]:
                 node_attrs["ctgov_arm_groups"] = item["arm_groups"]
             else:
                 node_attrs.pop("ctgov_arm_groups", None)
             if (
-                previous != node_attrs.get("ctgov_arm_groups")
+                existed
+                and previous != node_attrs.get("ctgov_arm_groups")
                 and ctx["stats"]["updated_nodes"] == updated_before
             ):
                 ctx["stats"]["updated_nodes"] += 1
