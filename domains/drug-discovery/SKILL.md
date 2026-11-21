@@ -358,8 +358,8 @@ Return a single JSON object matching the `DocumentExtraction` schema. Do not wra
 #### CONTRAINDICATED_FOR
 - **Description:** Compound is contraindicated for a disease or patient population.
 - **Source types:** COMPOUND
-- **Target types:** DISEASE
-- **Extraction guidance:** Look for "contraindicated in", "should not be used in", "avoid in patients with", "not recommended for". This relation carries patient safety implications — assign with care and prefer higher evidence thresholds. Example: `methotrexate CONTRAINDICATED_FOR Hepatic Impairment`.
+- **Target types:** DISEASE, COMPOUND
+- **Extraction guidance:** Look for "contraindicated in", "should not be used in", "avoid in patients with", "not recommended for". This relation carries patient safety implications — assign with care and prefer higher evidence thresholds. Example: `methotrexate CONTRAINDICATED_FOR Hepatic Impairment`. A contraindicated co-medication (e.g. "strong CYP2C19 inhibitors" named as a compound) targets the COMPOUND.
 
 ### Drug-Clinical Relations
 
@@ -412,8 +412,8 @@ Return a single JSON object matching the `DocumentExtraction` schema. Do not wra
 #### CONFERS_RESISTANCE_TO
 - **Description:** Gene, protein, or phenotype confers resistance to a compound.
 - **Source types:** GENE, PROTEIN, PHENOTYPE, SEQUENCE_VARIANT, PATHWAY, MECHANISM_OF_ACTION
-- **Target types:** COMPOUND
-- **Extraction guidance:** Look for "resistance to", "refractory to", "insensitive to", "resistance mutation", "acquired resistance through". Resistance mechanisms are critical for clinical decision-making — be precise. Example: `EGFR T790M CONFERS_RESISTANCE_TO gefitinib`.
+- **Target types:** COMPOUND, MECHANISM_OF_ACTION
+- **Extraction guidance:** Look for "resistance to", "refractory to", "insensitive to", "resistance mutation", "acquired resistance through". Resistance mechanisms are critical for clinical decision-making — be precise. Example: `EGFR T790M CONFERS_RESISTANCE_TO gefitinib`. When resistance is stated for a drug class (e.g. "KRAS G12C inhibitors"), target the MECHANISM_OF_ACTION.
 
 ### Biomarker Relations
 
