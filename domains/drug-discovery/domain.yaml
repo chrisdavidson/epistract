@@ -352,11 +352,11 @@ relation_types:
       - "Look for 'diagnostic for', 'prognostic for', 'used to diagnose', 'marker of'"
       - "Flag for review due to clinical decision implications"
 
-  DEVELOPED_BY:
-    description: "Compound or clinical trial is developed or sponsored by an organization"
+  DEVELOPS:
+    description: "An organization develops or sponsors a compound or clinical trial. Active form on purpose: sift-kg rewrites DEVELOPED_BY to the misspelt DEVELOPES at build time."
     category: organizational
-    source_types: [COMPOUND, CLINICAL_TRIAL]
-    target_types: [ORGANIZATION]
+    source_types: [ORGANIZATION]
+    target_types: [COMPOUND, CLINICAL_TRIAL]
     extraction_hints:
       - "Look for 'developed by', 'manufactured by', 'sponsored by', 'discovered at'"
 
@@ -402,11 +402,11 @@ relation_types:
     category: structural
     source_types: [PROTEIN]
     target_types: [PROTEIN_DOMAIN]
-  METABOLIZED_BY:
-    description: "Compound metabolized by an enzyme (CYP450, UGT, etc.)"
+  METABOLIZES:
+    description: "An enzyme (CYP450, UGT, etc.) metabolizes a compound. Active form on purpose: sift-kg rewrites METABOLIZED_BY to METABOLIZES (flipping the edge) at build time."
     category: mechanism
-    source_types: [COMPOUND]
-    target_types: [PROTEIN]
+    source_types: [PROTEIN]
+    target_types: [COMPOUND]
   PHOSPHORYLATES:
     description: "Kinase phosphorylates a substrate protein"
     category: mechanism
