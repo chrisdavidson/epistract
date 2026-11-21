@@ -27,12 +27,14 @@ Options:
                             (Trial nodes → ClinicalTrials.gov v2; Compound nodes → PubChem PUG REST)
   --enrich-results          Also import ClinicalTrials.gov posted results (adverse events, PRIMARY/SECONDARY analyses) into the graph with provenance (implies --enrich) — clinicaltrials domain only
   --results-serious-min-pct <X>  Opt-in volume control for --enrich-results: keep a serious adverse event only when at least one arm has X% or more affected (default 0: every serious event)
+  --refresh-results         With --enrich-results, re-import trials already enriched: update registry-owned values in place and flag vanished registry facts ctgov_withdrawn (never deletes) — clinicaltrials domain only
 
 Examples:
   /epistract:ingest ./my-papers
   /epistract:ingest ./papers --domain clinicaltrials --enrich
   /epistract:ingest ./papers --domain clinicaltrials --enrich-results
   /epistract:ingest ./papers --domain clinicaltrials --enrich-results --results-serious-min-pct 1
+  /epistract:ingest ./papers --domain clinicaltrials --enrich-results --refresh-results
   /epistract:ingest ./papers --domain contracts --output ./out --fail-threshold 0.9
 ```
 
@@ -46,6 +48,11 @@ Examples:
 - `--enrich` (optional flag): When present AND `--domain` is `clinicaltrials` (or aliases `clinicaltrial` / `clinical_trials`), triggers post-build enrichment against ClinicalTrials.gov v2 and PubChem PUG REST APIs. Trial nodes with NCT IDs get trial metadata; Compound nodes get molecular data. Non-blocking: API failures log counts but do not abort the pipeline.
 - `--enrich-results` (optional flag): Implies `--enrich`. enrich.py then also reads each trial's `resultsSection` from the same single ClinicalTrials.gov payload; trials without posted results are counted and skipped; network/HTTP/parse failures are counted, never fatal. Registry AEs and analyses are written as AdverseEvent/OrganSystem/OutcomeAnalysis/Outcome/StatisticalMethod nodes tagged source `ctgov_results` with the NCT, merged with extracted nodes, idempotent on re-runs, and never creating Cohort nodes for unmatched registry groups.
 - `--results-serious-min-pct <X>` (optional, with `--enrich-results`): a per-arm floor for serious adverse events, a number from 0 to 100. By default (0) every serious event is imported, as in 3.5.0. With X > 0 a serious event is kept only when at least one arm has X% or more of participants affected, which is the same per-arm rule the "other" events use with their registry threshold. "Other" events are not affected. The floor applies when a trial's results are first imported: a graph that was already enriched under another floor keeps its adverse events, and the report lists those trials under `serious_min_pct_conflicts`. To change the floor, re-run on the un-enriched graph. On corpus `07_glp1_phase3_trials`, X = 1 keeps 27 of 1782 serious records and X = 2 keeps 7, which cuts AdverseEvent nodes from 1118 to 61 or 46. See the volume table in the v2.1 report before you choose a value.
+- `--refresh-results` (optional flag, requires `--enrich-results`): passed to enrich.py as `--refresh-results`. By default a trial whose registry results are already in the graph is skipped. With this flag those NCTs are re-imported: registry-owned attributes (nodes and edges tagged source `ctgov_results` and first written by this NCT) are updated in place, and AEs and analyses new in the payload are added. On extracted or shared nodes only `registry_<attr>` / `registry_<attr>_by_nct` bookkeeping for this NCT changes, and no extracted value is touched. A registry fact missing from the new payload (also when the trial no longer has results) gets `ctgov_withdrawn: true` and is never deleted; a fact that reappears loses the flag. On an unchanged payload a refresh is a no-op. To pick up revised registry data, combine it with a fresh payload (an empty or new cache directory).
+
+### Running enrich.py directly
+
+`ingest` does not pass `--cache-dir`. For direct runs, `python3 ${CLAUDE_PLUGIN_ROOT}/domains/clinicaltrials/enrich.py <output_dir> --results --cache-dir DIR --cache-ttl-days N` refetches cached payloads whose file mtime is older than N days, and uses the stale payload when the refetch fails. `--cache-ttl-days` needs `--cache-dir`; by default a cache never expires.
 
 ## Pipeline Steps
 
@@ -160,7 +167,7 @@ When both conditions hold, invoke the domain's enrichment module:
 python3 ${CLAUDE_PLUGIN_ROOT}/domains/clinicaltrials/enrich.py <output_dir>
 ```
 
-If the user passed `--enrich-results`, append ` --results` to that command. If they also passed `--results-serious-min-pct <X>`, append ` --results-serious-min-pct <X>` as well. enrich.py refuses a floor above 0 without `--results`.
+If the user passed `--enrich-results`, append ` --results` to that command. If they also passed `--refresh-results`, append ` --refresh-results`. If they also passed `--results-serious-min-pct <X>`, append ` --results-serious-min-pct <X>` as well. enrich.py refuses a floor above 0 without `--results`.
 
 What this step does:
 - Loads `<output_dir>/graph_data.json` via `sift_kg.KnowledgeGraph.load()`.
@@ -168,7 +175,7 @@ What this step does:
 - For every Compound node, calls PubChem PUG REST (`/rest/pug/compound/name/{name}/property/.../JSON`) and attaches `pubchem_cid`, `molecular_formula`, `molecular_weight`, `canonical_smiles`, `inchi` as node attributes.
 - Saves the mutated graph back to `graph_data.json`.
 - Writes a summary to `<output_dir>/extractions/_enrichment_report.json` with per-entity-type counts (total / enriched / not_found / failed) and hit rates.
-- With `--results`, the report also has a `results` block: trials with/without results, results_failed, adverse events parsed (serious/other), analyses parsed, created, merged. `created` counts registry nodes and edges written (`created_nodes` + `created_edges`), `merged` counts (node, trial) merges: one per extracted AE/analysis node per trial whose registry data it received (AE nodes are shared across trials, so one node merged by three trials counts 3), `write_failed` counts trials whose write failed (a failed trial is rolled back, so no partial write is kept; `write_errors` maps each failed NCT to its error and appears only when a write failed), and `skipped_reason` appears when sift-kg is unavailable. With `--results-serious-min-pct X` (X > 0) the block also has `serious_min_pct` and `serious_events_omitted` (serious event records below the floor), `adverse_events_parsed.serious` counts only the kept ones, and each `reports_adverse_event` edge carries `serious_min_pct`. `serious_min_pct_conflicts` maps each trial imported earlier under a different floor to that floor. It appears only when there is at least one such trial, and those trials add nothing to `serious_events_omitted`.
+- With `--results`, the report also has a `results` block: trials with/without results, results_failed, adverse events parsed (serious/other), analyses parsed, created, merged. `created` counts registry nodes and edges written (`created_nodes` + `created_edges`), `merged` counts (node, trial) merges: one per extracted AE/analysis node per trial whose registry data it received (AE nodes are shared across trials, so one node merged by three trials counts 3), `merged_by_type` splits `merged` into AdverseEvent, OutcomeAnalysis and Outcome (`merged` is their sum; an Outcome merge is an extracted Outcome reused by a registry analysis, counted once per outcome and trial). With `--refresh-results` the block also has `refresh` (trials_refreshed, updated_nodes, updated_edges, withdrawn, restored), and with a cache TTL the report has a top-level `cache` block. Graph markers: a non-canonical Trial node that shares an NCT gets `same_trial_as` (registry edges are written once, from the lowest id), conflicting registry values are kept per NCT under `registry_<attr>_by_nct`, and withdrawn registry facts carry `ctgov_withdrawn`. `write_failed` counts trials whose write failed (a failed trial is rolled back, so no partial write is kept; `write_errors` maps each failed NCT to its error and appears only when a write failed), and `skipped_reason` appears when sift-kg is unavailable. With `--results-serious-min-pct X` (X > 0) the block also has `serious_min_pct` and `serious_events_omitted` (serious event records below the floor), `adverse_events_parsed.serious` counts only the kept ones, and each `reports_adverse_event` edge carries `serious_min_pct`. `serious_min_pct_conflicts` maps each trial imported earlier under a different floor to that floor. It appears only when there is at least one such trial, and those trials add nothing to `serious_events_omitted`.
 
 Enrichment is **non-blocking**. If the Python process exits non-zero, report the failure to the user and continue to Step 6. Do NOT abort the pipeline — the unenriched graph is still valid output.
 
