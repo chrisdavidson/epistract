@@ -147,6 +147,93 @@ def test_contest02_outcome_kind_classification(ep, title, unit, effect, kind):
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize("title, unit, effect, param, kind", [
+    # WR-02: "HR" in a title is heart rate, not a hazard ratio
+    ("Change From Baseline in Heart Rate (HR)", None, None, None, "continuous"),
+    ("Change From Baseline in Heart Rate (HR)", "beats per minute", None, None, "continuous"),
+    ("Change from baseline in heart rate", None, None, None, "continuous"),
+    # WR-02: a threshold qualifying a subgroup of a continuous measure
+    ("Change From Baseline in Body Weight in Participants With Baseline HbA1c >=8%", None, None, None, "continuous"),
+    ("Change From Baseline in Body Weight in Participants With Baseline HbA1c >=8%", "kg", None, None, "continuous"),
+    ("Body Weight Loss ≥5%", None, None, None, "responder"),
+    # WR-02: a measured duration is not a time-to-event outcome
+    ("Change From Baseline in Time to Exhaustion", None, None, None, "continuous"),
+    ("Time to Exhaustion", "seconds", None, None, None),
+    ("Time to Exhaustion", "seconds", None, "MEAN", "continuous"),
+    ("Time to Exhaustion", "seconds", "Hazard Ratio (HR)", None, "time_to_event"),
+    ("Time to First Occurrence of MACE", "months", None, None, "time_to_event"),
+    ("Time to Onset of Rescue Therapy", None, None, None, "time_to_event"),
+    # WR-03: the registry paramType decides before the title
+    ("Body weight", None, None, "LEAST_SQUARES_MEAN", "continuous"),
+    ("Body weight", None, None, "GEOMETRIC_MEAN", "continuous"),
+    ("Body weight", None, None, "COUNT_OF_PARTICIPANTS", "responder"),
+    ("Change From Baseline in HbA1c", "percentage of participants", None, "NUMBER", "responder"),
+    ("Number of Participants With MACE", "participants", "Hazard Ratio (HR)", "COUNT_OF_PARTICIPANTS",
+     "time_to_event"),
+    ("Percentage of Participants Achieving HbA1c <7%", "%", None, None, "responder"),
+    ("Body weight", None, None, "NUMBER", None),
+    # responder wording in the effect measure still decides before the title
+    ("percentage change from baseline in body weight", None, "proportion of participants (arm-level)", None,
+     "responder"),
+])
+def test_review1_outcome_kind_classification(ep, title, unit, effect, param, kind):
+    assert ep._outcome_kind(title, unit, effect, param) == kind
+
+
+@pytest.mark.unit
+def test_review1_registry_param_type_classifies_the_finding(ep):
+    graph = _graph([_spec("ra1", "NCT00000001", "Tirzepatide 15 mg", "<0.001", title="Body weight")])
+    assert _claims(_run(ep, graph))["ra1"]["outcome_kind"] is None
+    for node in graph["nodes"]:
+        if node["id"] == "ra1":
+            node["attributes"]["outcome_param_type"] = "LEAST_SQUARES_MEAN"
+    assert _claims(_run(ep, graph))["ra1"]["outcome_kind"] == "continuous"
+
+
+@pytest.mark.unit
+def test_review1_unknown_kind_joins_the_single_classified_kind(ep):
+    graph = _graph([
+        _spec("ra1", "NCT00000001", "Tirzepatide 15 mg", "<0.001",
+              title="Change From Baseline in Body Weight", unit="kg"),
+        _spec("ra2", "NCT00000002", "Tirzepatide 15 mg", "0.40", title="Change in Body Weight"),
+    ])
+    result = _run(ep, graph)
+    claims = _claims(result)
+    assert claims["ra1"]["outcome_kind"] == "continuous"
+    assert claims["ra2"]["outcome_kind"] is None
+    entries = _entries(result)
+    assert len(entries) == 1
+    assert entries[0]["outcome_kind"] == "continuous"
+    assert entries[0]["positive"] == ["ra1"] and entries[0]["negative"] == ["ra2"]
+
+
+@pytest.mark.unit
+def test_review1_unknown_kind_stays_apart_when_two_kinds_are_classified(ep):
+    graph = _graph([
+        _spec("ra1", "NCT00000001", "Tirzepatide 15 mg", "<0.001",
+              title="Change From Baseline in Body Weight", unit="kg"),
+        # same measure key "body weight", counted in participants: responder
+        _spec("ra2", "NCT00000002", "Tirzepatide 15 mg", "<0.001", title="Body Weight",
+              unit="percentage of participants"),
+        _spec("ra3", "NCT00000003", "Tirzepatide 15 mg", "0.40", title="Change in Body Weight"),
+    ])
+    result = _run(ep, graph)
+    claims = _claims(result)
+    assert [claims[a]["outcome_kind"] for a in ("ra1", "ra2", "ra3")] == ["continuous", "responder", None]
+    assert _entries(result) == []
+
+
+@pytest.mark.unit
+def test_review1_unknown_kind_only_group_still_contests(ep):
+    graph = _graph([
+        _spec("ra1", "NCT00000001", "Tirzepatide 15 mg", "<0.001", title="Change in Body Weight"),
+        _spec("ra2", "NCT00000002", "Tirzepatide 15 mg", "0.40", title="Change in Body Weight"),
+    ])
+    entries = _entries(_run(ep, graph))
+    assert len(entries) == 1 and entries[0]["outcome_kind"] is None
+
+
+@pytest.mark.unit
 def test_contest02_responder_and_continuous_never_contest(ep):
     graph = _graph([
         _spec("ra1", "NCT00000001", "Tirzepatide 15 mg", "<0.001", title=RESPONDER_TITLE,
@@ -197,6 +284,15 @@ def test_contest02_summary_counts_kinds(ep):
     ("Placebo", set()),
     ("Tirzepatide 5 mg, 10 mg or 15 mg", {5.0, 10.0, 15.0}),
     ("Tirzepatide 5/10/15 mg", {5.0, 10.0, 15.0}),
+    # CR-01 (review round 1): thousands separators and ranges
+    ("Metformin 1,000 mg", {1000.0}),
+    ("Metformin 1,500 mg", {1500.0}),
+    ("Metformin 2,000 mg", {2000.0}),
+    ("Orforglipron 12-45 mg", {12.0, 45.0}),
+    ("Orforglipron 12 to 45 mg", {12.0, 45.0}),
+    ("Semaglutide 0.25 to 1 mg", {0.25, 1.0}),
+    ("Semaglutide 0.25 mg to 1 mg", {0.25, 1.0}),
+    ("Metformin 1,000/2,000 mg", {1000.0, 2000.0}),
 ])
 def test_contest01_parse_dose(ep, text, doses):
     assert ep._parse_dose(text) == doses
@@ -218,6 +314,9 @@ def _patterns(ep):
     (["15 mg"], "c3", 15.0),
     (["Tirzepatide 15 mg", "15 mg"], "c3", 15.0),
     (["Placebo"], "c3", None),
+    (["Tirzepatide 12-45 mg"], "c3", None),
+    (["Semaglutide 1 mg + Metformin 1,000 mg"], "c1", 1.0),
+    (["Semaglutide 1 mg + Metformin 1,000 mg"], "c2", 1000.0),
 ])
 def test_contest01_finding_dose(ep, texts, treatment, dose):
     assert ep._finding_dose(texts, treatment, _patterns(ep)) == dose
@@ -260,6 +359,41 @@ def test_contest01_missing_dose_falls_back_to_pooled_key(ep):
     assert len(entries) == 1
     assert entries[0]["dose_aware"] is False and "dose_mg" not in entries[0]
     assert result["summary"]["analysis_contests_dose_fallback"] == 1
+
+
+@pytest.mark.unit
+def test_review1_thousands_separated_doses_do_not_pool(ep):
+    graph = _graph([
+        _spec("ra1", "NCT00000001", "Tirzepatide 1,000 mg", "<0.001"),
+        _spec("ra2", "NCT00000002", "Tirzepatide 2,000 mg", "0.40"),
+    ])
+    result = _run(ep, graph)
+    claims = _claims(result)
+    assert claims["ra1"]["dose_mg"] == 1000.0 and claims["ra2"]["dose_mg"] == 2000.0
+    assert _entries(result) == []
+    graph = _graph([
+        _spec("ra1", "NCT00000001", "Tirzepatide 1,500 mg", "<0.001"),
+        _spec("ra2", "NCT00000002", "Tirzepatide 500 mg", "0.40"),
+    ])
+    assert _entries(_run(ep, graph)) == []
+    graph = _graph([
+        _spec("ra1", "NCT00000001", "Tirzepatide 1,000 mg", "<0.001"),
+        _spec("ra2", "NCT00000002", "Tirzepatide 1000 mg", "0.40"),
+    ])
+    entries = _entries(_run(ep, graph))
+    assert len(entries) == 1 and entries[0]["dose_aware"] is True and entries[0]["dose_mg"] == 1000.0
+
+
+@pytest.mark.unit
+def test_review1_dose_range_is_no_single_dose(ep):
+    graph = _graph([
+        _spec("ra1", "NCT00000001", "Tirzepatide 12-45 mg", "<0.001"),
+        _spec("ra2", "NCT00000002", "Tirzepatide 45 mg", "0.40"),
+    ])
+    result = _run(ep, graph)
+    assert _claims(result)["ra1"]["dose_mg"] is None
+    entries = _entries(result)
+    assert len(entries) == 1 and entries[0]["dose_aware"] is False
 
 
 @pytest.mark.unit
@@ -400,6 +534,18 @@ def test_contest03_keywordless_active_comparator_is_marked_ambiguous(ep):
 
 
 @pytest.mark.unit
+def test_review1_unusable_arm_types_are_not_marked_ambiguous(ep):
+    titles = ["Tirzepatide", "Insulin Glargine"]
+    arms = [_arm("Tirzepatide", "EXPERIMENTAL"), _arm("Insulin Glargine", "EXPERIMENTAL")]
+    result = _run(ep, _c03_graph({"compared_groups": titles, "unmatched_groups": titles, "ctgov_arm_groups": arms}))
+    finding = _claims(result)["ra"]
+    assert finding["treatment"] is None
+    assert "treatment_basis" not in finding
+    assert result["summary"]["analysis_treatment_ambiguous_active_comparator"] == 0
+    assert result["summary"]["analysis_treatment_unresolved"] == 1
+
+
+@pytest.mark.unit
 def test_contest03_typed_arms_or_placebo_are_never_ambiguous(ep):
     titles = ["Tirzepatide", "Insulin Glargine"]
     arms = [_arm("Tirzepatide", "EXPERIMENTAL"), _arm("Insulin Glargine", "ACTIVE_COMPARATOR")]
@@ -432,11 +578,22 @@ def test_contest03_label_conflict_prefers_the_registry_label(ep):
     result = _run(ep, _cohort_graph("Tirzepatide 5 mg", "Tirzepatide 15 mg"))
     finding = _claims(result)["ra"]
     assert finding["treatment"] == "Tirzepatide"
-    assert finding["dose_mg"] == 15.0
+    # SA-01 ruling (review round 1): name and label disagree on the dose, so the
+    # dose is unknown; the label still decides matching.
+    assert finding["dose_mg"] is None
     assert finding["label_conflict"] == [
         {"cohort": "co1", "cohort_name": "Tirzepatide 5 mg", "arm_label": "Tirzepatide 15 mg"}
     ]
     assert result["summary"]["analysis_label_conflicts"] == 1
+
+
+@pytest.mark.unit
+def test_review1_label_conflict_on_compound_only_keeps_the_dose(ep):
+    result = _run(ep, _cohort_graph("Semaglutide 15 mg", "Tirzepatide 15 mg"))
+    finding = _claims(result)["ra"]
+    assert finding["treatment"] == "Tirzepatide"
+    assert finding["label_conflict"][0]["cohort"] == "co1"
+    assert finding["dose_mg"] == 15.0
 
 
 @pytest.mark.unit
@@ -545,10 +702,43 @@ def test_withdrawn_merged_analysis_is_graded_from_extracted_values(ep):
 
 
 @pytest.mark.unit
+def test_review1_withdrawn_merged_analysis_drops_inherited_ctgov_document(ep):
+    docs = ("doc:x", "ctgov:NCT00000001")
+    control = _claims(_run(ep, _merged_graph(MERGED, docs=docs)))["ra"]
+    assert "ctgov:NCT00000001" in control["support_documents"]
+    finding = _claims(_run(ep, _merged_graph(
+        {**MERGED, "ctgov_withdrawn_by_nct": {"NCT00000001": True}}, docs=docs)))["ra"]
+    assert finding["support_documents"] == ["doc:x"]
+    flagged = _claims(_run(ep, _merged_graph({**MERGED, "ctgov_withdrawn": True}, docs=("doc:x", "CTGOV:nct00000001"))))["ra"]
+    assert flagged["support_documents"] == ["doc:x"]
+
+
+@pytest.mark.unit
+def test_review1_withdrawn_ctgov_document_is_absent_from_contest_entries(ep):
+    graph = _contest_graph({
+        "sources": ["extracted", "ctgov_results"], "source": None,
+        "ctgov_withdrawn_by_nct": {"NCT00000001": True},
+    })
+    for node in graph["nodes"]:
+        if node["id"] == "ra1":
+            node["attributes"].pop("source")
+            node["source_documents"] = ["doc:x", "ctgov:NCT00000001"]
+    result = _run(ep, graph)
+    finding = _claims(result)["ra1"]
+    assert finding["registry_withdrawn"] is True and finding["significance_source"] == "extracted"
+    assert "ctgov:NCT00000001" not in finding["support_documents"]
+    entries = _entries(result)
+    assert len(entries) == 1
+    assert "ctgov:NCT00000001" not in entries[0]["support_documents"]
+    assert {"source_document": "ctgov:NCT00000001"} not in entries[0]["mentions"]
+    assert "ctgov:NCT00000002" in entries[0]["support_documents"]
+
+
+@pytest.mark.unit
 def test_withdrawn_partially_keeps_corroboration_for_the_other_nct(ep):
     attrs = {**MERGED, "ctgov_nct_ids": ["NCT00000001", "NCT00000002"],
              "ctgov_withdrawn_by_nct": {"NCT00000001": True}}
-    finding = _claims(_run(ep, _merged_graph(attrs)))["ra"]
+    finding = _claims(_run(ep, _merged_graph(attrs, docs=("doc:x", "ctgov:NCT00000001", "ctgov:NCT00000002"))))["ra"]
     assert finding["significance_source"] == "ctgov_results"
     assert "ctgov:NCT00000002" in finding["support_documents"]
     assert "ctgov:NCT00000001" not in finding["support_documents"]

@@ -15,6 +15,7 @@ import re
 import subprocess
 import sys
 import time
+from types import SimpleNamespace
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -96,15 +97,30 @@ def enrich_arm(monkeypatch):
 
 @pytest.fixture
 def enrich(enrich_arm, monkeypatch):
-    """The module under test with the CONTEST-04 arm-type edges switched off.
+    """The module under test with the CONTEST-04 arm-type edges and the
+    outcome_param_type attribute switched off.
 
     The pinned-identity tests for iterations 20-31 compare a --results run with
-    the older module; the arm-type edges are the one intended difference since
-    iteration 35, and the iteration-32 tests below pin that difference exactly.
-    Switching the resolver off keeps every older comparison a strict identity.
+    the older module; the arm-type edges (iteration 35) and the registry
+    outcome-measure paramType on analyses (iteration 36) are the intended
+    differences since then, and the iteration-32 and iteration-35 tests below
+    pin them exactly. Switching both off keeps every older comparison a strict
+    identity.
     """
     if hasattr(enrich_arm, "_arm_type_compound"):
         monkeypatch.setattr(enrich_arm, "_arm_type_compound", lambda *args, **kwargs: None)
+    if hasattr(enrich_arm, "_outcome_param_type"):
+        monkeypatch.setattr(enrich_arm, "_outcome_param_type", lambda *args, **kwargs: None)
+    return enrich_arm
+
+
+@pytest.fixture
+def enrich_it35(enrich_arm, monkeypatch):
+    """The module under test with the arm-type edges live and the iteration-36
+    outcome_param_type attribute switched off: the behaviour the iteration-32
+    delta tests pin (arm-type edges are the one difference from iteration 32)."""
+    if hasattr(enrich_arm, "_outcome_param_type"):
+        monkeypatch.setattr(enrich_arm, "_outcome_param_type", lambda *args, **kwargs: None)
     return enrich_arm
 
 
@@ -4038,13 +4054,13 @@ def _arm_variant_graph(variant, directory, enrich):
 
 
 @pytest.mark.unit
-def test_default_runs_iteration32_protocol_only_identical(enrich_arm, tmp_path, monkeypatch):
+def test_default_runs_iteration32_protocol_only_identical(enrich_it35, tmp_path, monkeypatch):
     old = _old32(tmp_path, monkeypatch, "_ct_enrich_iter32_plain")
     d_old = _seeded_graph(tmp_path / "old")
     d_new = _seeded_graph(tmp_path / "new")
     bodies = _all_fixture_bodies()
     rep_old = _enrich_with(old, d_old, bodies)
-    rep_new = _enrich_with(enrich_arm, d_new, bodies)
+    rep_new = _enrich_with(enrich_it35, d_new, bodies)
     assert _normalize_stamps((d_old / "graph_data.json").read_bytes()) == _normalize_stamps(
         (d_new / "graph_data.json").read_bytes()
     )
@@ -4056,13 +4072,13 @@ def test_default_runs_iteration32_protocol_only_identical(enrich_arm, tmp_path, 
 @pytest.mark.unit
 @pytest.mark.parametrize("variant", ["seeded", "add_on"])
 def test_default_runs_iteration32_fresh_results_delta_is_the_arm_type_edges(
-    enrich_arm, tmp_path, monkeypatch, variant,
+    enrich_it35, tmp_path, monkeypatch, variant,
 ):
     old = _old32(tmp_path, monkeypatch)
-    d_old, bodies = _arm_variant_graph(variant, tmp_path / "old", enrich_arm)
-    d_new, _ = _arm_variant_graph(variant, tmp_path / "new", enrich_arm)
+    d_old, bodies = _arm_variant_graph(variant, tmp_path / "old", enrich_it35)
+    d_new, _ = _arm_variant_graph(variant, tmp_path / "new", enrich_it35)
     rep_old = _enrich_with(old, d_old, bodies, results=True)
-    rep_new = _enrich_with(enrich_arm, d_new, bodies, results=True)
+    rep_new = _enrich_with(enrich_it35, d_new, bodies, results=True)
     g_old, g_new = _graph_json(d_old), _graph_json(d_new)
     added = _arm_edges(g_new["links"])
     assert added
@@ -4079,24 +4095,24 @@ def test_default_runs_iteration32_fresh_results_delta_is_the_arm_type_edges(
 @pytest.mark.unit
 @pytest.mark.parametrize("variant", ["seeded", "add_on"])
 def test_default_runs_iteration32_rerun_adds_only_the_arm_type_edges(
-    enrich_arm, tmp_path, monkeypatch, variant,
+    enrich_it35, tmp_path, monkeypatch, variant,
 ):
     old = _old32(tmp_path, monkeypatch)
-    directory, bodies = _arm_variant_graph(variant, tmp_path / "g", enrich_arm)
+    directory, bodies = _arm_variant_graph(variant, tmp_path / "g", enrich_it35)
     _enrich_with(old, directory, bodies, results=True)
     before = _graph_json(directory)
     assert not _arm_edges(before["links"])
-    report = _enrich_with(enrich_arm, directory, bodies, results=True)
+    report = _enrich_with(enrich_it35, directory, bodies, results=True)
     after = _graph_json(directory)
     added = _arm_edges(after["links"])
     assert added and _without_arm_edges(after) == before
     assert report["results"]["merged"] == 0 and report["results"]["created_nodes"] == 0
     assert report["results"]["created_edges"] == report["results"]["created"] == len(added)
     again = _normalize_stamps((directory / "graph_data.json").read_bytes())
-    report = _enrich_with(enrich_arm, directory, bodies, results=True)
+    report = _enrich_with(enrich_it35, directory, bodies, results=True)
     assert _normalize_stamps((directory / "graph_data.json").read_bytes()) == again
     assert report["results"]["created_edges"] == 0
-    refresh = _assert_refresh_noop(enrich_arm, directory, bodies)
+    refresh = _assert_refresh_noop(enrich_it35, directory, bodies)
     assert refresh["results"]["refresh"]["withdrawn"] == 0
 
 
@@ -4148,3 +4164,243 @@ def test_contest04_epistemic_reads_the_arm_type_edge_first(enrich_arm, tmp_path)
     assert result["base_domain"]["analysis_claims"]
     for finding in result["base_domain"]["analysis_claims"]:
         assert finding.get("treatment_basis") != ARM_BASIS
+
+
+# --- 13-REVIEW round 1 (iteration 36) ------------------------------------------
+
+ITERATION35_COMMIT = "84742eb2cdd871e3ab3be80dd137cbc05bb5b578"
+
+
+def _old35(tmp_path, monkeypatch, name="_ct_enrich_iter35"):
+    return _load_old_enrich(tmp_path, ITERATION35_COMMIT, name, monkeypatch)
+
+
+def _without_param_type(value):
+    if isinstance(value, dict):
+        return {k: _without_param_type(v) for k, v in value.items() if k != "outcome_param_type"}
+    if isinstance(value, list):
+        return [_without_param_type(v) for v in value]
+    return value
+
+
+@pytest.mark.unit
+def test_default_runs_iteration35_protocol_only_identical(enrich_arm, tmp_path, monkeypatch):
+    old = _old35(tmp_path, monkeypatch, "_ct_enrich_iter35_plain")
+    d_old = _seeded_graph(tmp_path / "old")
+    d_new = _seeded_graph(tmp_path / "new")
+    bodies = _all_fixture_bodies()
+    rep_old = _enrich_with(old, d_old, bodies)
+    rep_new = _enrich_with(enrich_arm, d_new, bodies)
+    assert _normalize_stamps((d_old / "graph_data.json").read_bytes()) == _normalize_stamps(
+        (d_new / "graph_data.json").read_bytes()
+    )
+    rep_old.pop("generated_at")
+    rep_new.pop("generated_at")
+    assert rep_old == rep_new and _same_key_order(rep_old, rep_new) and "results" not in rep_new
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("variant", ["seeded", "add_on"])
+def test_default_runs_iteration35_fresh_results_delta_is_the_param_type(
+    enrich_arm, tmp_path, monkeypatch, variant,
+):
+    """WR-03: a fresh --results run differs from iteration 35 only by
+    outcome_param_type on analyses; on these fixtures the arm-type edges are the
+    same (the WR-06 comparator rules change no resolution here)."""
+    old = _old35(tmp_path, monkeypatch)
+    d_old, bodies = _arm_variant_graph(variant, tmp_path / "old", enrich_arm)
+    d_new, _ = _arm_variant_graph(variant, tmp_path / "new", enrich_arm)
+    rep_old = _enrich_with(old, d_old, bodies, results=True)
+    rep_new = _enrich_with(enrich_arm, d_new, bodies, results=True)
+    g_old, g_new = _graph_json(d_old), _graph_json(d_new)
+    typed = [n for n in g_new["nodes"] if "outcome_param_type" in (n.get("attributes") or {})]
+    assert typed
+    assert all(str(n.get("entity_type")) == "OutcomeAnalysis" for n in typed)
+    assert _without_param_type(g_new) == g_old
+    rep_old.pop("generated_at")
+    rep_new.pop("generated_at")
+    assert rep_old == rep_new and _same_key_order(rep_old, rep_new)
+
+
+@pytest.mark.unit
+def test_review1_outcome_param_type_written_from_the_measure(enrich_arm, tmp_path):
+    study = _addon_study()
+    measure = study["resultsSection"]["outcomeMeasuresModule"]["outcomeMeasures"][0]
+    measure["paramType"] = "LEAST_SQUARES_MEAN"
+    directory = _addon_graph(tmp_path / "g")
+    _run(enrich_arm, directory, {WITH_RESULTS_A: study}, results=True)
+    nodes, _ = _read_graph(directory)
+    analyses = _registry_nodes(nodes, "OutcomeAnalysis")
+    assert [_nattr(n, "outcome_param_type") for n in analyses] == ["LEAST_SQUARES_MEAN"]
+    # a refresh with a changed paramType replaces it on the registry-owned analysis
+    measure["paramType"] = "MEAN"
+    _run(enrich_arm, directory, {WITH_RESULTS_A: study}, results=True, refresh=True)
+    nodes, _ = _read_graph(directory)
+    assert [_nattr(n, "outcome_param_type") for n in _registry_nodes(nodes, "OutcomeAnalysis")] == ["MEAN"]
+
+
+def _arm_ab_study(interventions, arm_type="EXPERIMENTAL"):
+    """Group titles that name no compound, so only the armGroup interventions resolve."""
+    return _addon_study(groups=["Arm A", "Arm B"], arm_groups=[
+        {"label": "Arm A", "type": arm_type, "interventionNames": list(interventions)},
+        {"label": "Arm B", "type": "PLACEBO_COMPARATOR", "interventionNames": ["Drug: Placebo"]},
+    ])
+
+
+def _live_arm_edges(links):
+    return sorted(
+        (l["target"], bool(_eattr(l, "ctgov_withdrawn"))) for l in _arm_edges(links)
+    )
+
+
+@pytest.mark.unit
+def test_review1_refresh_moves_the_arm_type_edge_to_the_new_compound(enrich_arm, tmp_path):
+    directory = _write_graph(tmp_path / "g", [WITH_RESULTS_A], _compound_nodes("Semaglutide", "Tirzepatide"))
+    _run(enrich_arm, directory, {WITH_RESULTS_A: _arm_ab_study(["Drug: Semaglutide"])}, results=True)
+    _, links = _read_graph(directory)
+    assert _live_arm_edges(links) == [("compound:semaglutide", False)]
+    changed = {WITH_RESULTS_A: _arm_ab_study(["Drug: Tirzepatide"])}
+    _run(enrich_arm, directory, changed, results=True, refresh=True)
+    nodes, links = _read_graph(directory)
+    assert _live_arm_edges(links) == [("compound:semaglutide", True), ("compound:tirzepatide", False)]
+    analysis = _registry_nodes(nodes, "OutcomeAnalysis")[0]
+    assert _nattr(analysis, "ctgov_arm_groups")[0]["interventions"] == ["Drug: Tirzepatide"]
+    # the refreshed state is stable
+    _assert_refresh_noop(enrich_arm, directory, changed)
+
+
+@pytest.mark.unit
+def test_review1_withdrawn_arm_type_edge_does_not_block_a_new_one(enrich_arm, tmp_path):
+    directory = _write_graph(tmp_path / "g", [WITH_RESULTS_A], _compound_nodes("Semaglutide", "Tirzepatide"))
+    _run(enrich_arm, directory, {WITH_RESULTS_A: _arm_ab_study(["Drug: Semaglutide"])}, results=True)
+    # the arm types stop resolving: the edge is withdrawn
+    unresolved = {WITH_RESULTS_A: _arm_ab_study(["Drug: Semaglutide"], arm_type="OTHER")}
+    _run(enrich_arm, directory, unresolved, results=True, refresh=True)
+    _, links = _read_graph(directory)
+    assert _live_arm_edges(links) == [("compound:semaglutide", True)]
+    # a later payload resolves another compound: the withdrawn edge blocks nothing
+    _run(enrich_arm, directory, {WITH_RESULTS_A: _arm_ab_study(["Drug: Tirzepatide"])}, results=True, refresh=True)
+    _, links = _read_graph(directory)
+    assert _live_arm_edges(links) == [("compound:semaglutide", True), ("compound:tirzepatide", False)]
+
+
+@pytest.mark.unit
+def test_review1_live_arm_type_edge_is_kept_outside_a_refresh(enrich_arm, tmp_path):
+    directory = _write_graph(tmp_path / "g", [WITH_RESULTS_A], _compound_nodes("Semaglutide", "Tirzepatide"))
+    _run(enrich_arm, directory, {WITH_RESULTS_A: _arm_ab_study(["Drug: Semaglutide"])}, results=True)
+    # a plain re-run never rewrites recorded facts, so no second live edge appears
+    _run(enrich_arm, directory, {WITH_RESULTS_A: _arm_ab_study(["Drug: Tirzepatide"])}, results=True)
+    _, links = _read_graph(directory)
+    assert _live_arm_edges(links) == [("compound:semaglutide", False)]
+
+
+# WR-06: the enrich resolver and the epistemic resolver agree. Each row: compared
+# armGroups as (title, arm_type, interventions), and the expected compound name.
+PARITY_NAMES = ("Semaglutide", "Metformin", "Insulin Glargine", "Tirzepatide")
+PARITY_ROWS = [
+    ([("Semaglutide + Metformin", "EXPERIMENTAL", ["Drug: Semaglutide", "Drug: Metformin"]),
+      ("Insulin Glargine + Metformin", "ACTIVE_COMPARATOR", ["Drug: Insulin Glargine", "Drug: Metformin"])],
+     "Semaglutide"),
+    ([("Semaglutide + usual care", "EXPERIMENTAL", ["Drug: Semaglutide"]),
+      ("Usual care", "ACTIVE_COMPARATOR", [])], "Semaglutide"),
+    ([("Semaglutide 1 mg (added to standard of care)", "EXPERIMENTAL", []),
+      ("Standard of care", "ACTIVE_COMPARATOR", [])], "Semaglutide"),
+    ([("Semaglutide + Metformin", "EXPERIMENTAL", []),
+      ("Usual care (metformin)", "ACTIVE_COMPARATOR", [])], None),
+    ([("Semaglutide + Metformin", "EXPERIMENTAL", []),
+      ("Usual care (metformin)", "ACTIVE_COMPARATOR", ["Drug: Metformin"])], "Semaglutide"),
+    ([("Tirzepatide for glycaemic control", "EXPERIMENTAL", []),
+      ("Placebo", "PLACEBO_COMPARATOR", ["Drug: Placebo"])], "Tirzepatide"),
+    ([("Usual care", "EXPERIMENTAL", ["Drug: Semaglutide"]),
+      ("Placebo", "PLACEBO_COMPARATOR", [])], None),
+    ([("Insulin Glargine (control)", "EXPERIMENTAL", []),
+      ("Placebo", "PLACEBO_COMPARATOR", [])], None),
+    ([("Placebo", "EXPERIMENTAL", ["Drug: Semaglutide"]),
+      ("Insulin Glargine", "ACTIVE_COMPARATOR", [])], None),
+    ([("Arm A", "EXPERIMENTAL", ["Drug: Tirzepatide", "Drug: Placebo"]),
+      ("Arm B", "PLACEBO_COMPARATOR", ["Drug: Placebo"])], "Tirzepatide"),
+    ([("Tirzepatide", "EXPERIMENTAL", []), ("Insulin Glargine", "EXPERIMENTAL", [])], None),
+    ([("Tirzepatide", "EXPERIMENTAL", []), ("Insulin Glargine", None, [])], None),
+    ([("Semaglutide + Insulin Glargine", "EXPERIMENTAL", []),
+      ("Placebo", "PLACEBO_COMPARATOR", [])], None),
+]
+
+
+def _parity_resolvers(enrich_mod, names=PARITY_NAMES):
+    import networkx as nx
+
+    ep = _load_live_epistemic()
+    nodes = [{"id": f"c{i}", "entity_type": "Compound", "name": n} for i, n in enumerate(names)]
+    graph = nx.MultiDiGraph()
+    for node in nodes:
+        graph.add_node(node["id"], **{k: v for k, v in node.items() if k != "id"})
+    index = enrich_mod._compound_index(SimpleNamespace(graph=graph))
+    patterns = ep._compound_patterns({n["id"]: n for n in nodes})
+    name_of = {n["id"]: n["name"] for n in nodes}
+
+    def both(rows):
+        groups = [{"title": t, "arm_type": a, "interventions": list(i)} for t, a, i in rows]
+        e = enrich_mod._arm_type_compound(groups, index)
+        g = ep._arm_type_treatment({"ctgov_arm_groups": groups}, patterns)
+        return (name_of.get(e) if e else None), (name_of.get(g) if g else None)
+
+    return both
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("rows, expected", PARITY_ROWS)
+def test_contest04_resolver_parity_with_epistemic(enrich_arm, rows, expected):
+    both = _parity_resolvers(enrich_arm)
+    assert both(rows) == (expected, expected)
+
+
+@pytest.mark.unit
+def test_contest04_resolver_parity_shared_name_is_conservative(enrich_arm):
+    both = _parity_resolvers(enrich_arm, PARITY_NAMES + ("metformin",))
+    rows = PARITY_ROWS[0][0]
+    from_enrich, from_epistemic = both(rows)
+    assert from_enrich is None
+    assert from_epistemic == "Semaglutide"
+
+
+@pytest.mark.unit
+def test_contest04_comparator_keywords_match_epistemic(enrich_arm):
+    ep = _load_live_epistemic()
+    assert enrich_arm.ARM_HARD_COMPARATOR_KEYWORDS == ep.HARD_PLACEBO_KEYWORDS
+    assert enrich_arm.ARM_SOFT_COMPARATOR_KEYWORDS == ep.SOFT_PLACEBO_KEYWORDS
+    assert enrich_arm._ARM_ADD_ON_RE.pattern == ep._ADD_ON_RE.pattern
+    assert enrich_arm._ARM_CONTROL_QUALIFIER_RE.pattern == ep._CONTROL_QUALIFIER_RE.pattern
+    assert enrich_arm.ARM_COMPARATOR_TYPES == ep.ARM_COMPARATOR_TYPES
+
+
+@pytest.mark.unit
+def test_review1_add_on_to_usual_care_gets_an_arm_type_edge(enrich_arm, tmp_path):
+    groups = ["Semaglutide + usual care", "Usual care"]
+    study = _addon_study(groups=groups, arm_groups=[
+        {"label": groups[0], "type": "EXPERIMENTAL", "interventionNames": ["Drug: Semaglutide"]},
+        {"label": groups[1], "type": "ACTIVE_COMPARATOR", "interventionNames": []},
+    ])
+    directory = _addon_graph(tmp_path / "g")
+    _run(enrich_arm, directory, {WITH_RESULTS_A: study}, results=True)
+    _, links = _read_graph(directory)
+    assert [l["target"] for l in _arm_edges(links)] == ["compound:semaglutide"]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("variant", ["seeded", "add_on"])
+def test_default_runs_iteration35_rerun_is_identical_and_refresh_adds_param_type(
+    enrich_arm, tmp_path, monkeypatch, variant,
+):
+    old = _old35(tmp_path, monkeypatch)
+    directory, bodies = _arm_variant_graph(variant, tmp_path / "g", enrich_arm)
+    _enrich_with(old, directory, bodies, results=True)
+    before = _normalize_stamps((directory / "graph_data.json").read_bytes())
+    report = _enrich_with(enrich_arm, directory, bodies, results=True)
+    assert _normalize_stamps((directory / "graph_data.json").read_bytes()) == before
+    assert report["results"]["created"] == 0 and report["results"]["merged"] == 0
+    report = _enrich_with(enrich_arm, directory, bodies, results=True, refresh=True)
+    graph = _graph_json(directory)
+    assert _without_param_type(graph) == json.loads(before)
+    assert [n for n in graph["nodes"] if "outcome_param_type" in (n.get("attributes") or {})]
+    assert report["results"]["refresh"]["withdrawn"] == 0
+    _assert_refresh_noop(enrich_arm, directory, bodies)
