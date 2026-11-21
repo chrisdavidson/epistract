@@ -137,10 +137,10 @@ RELATION_CATS: dict[str, dict[str, list[str]]] = {
     "pharmacovigilance": {
         "causal": [
             "EXPERIENCED", "RESULTED_IN", "RESOLVED_ON_DECHALLENGE",
-            "RECURRED_ON_RECHALLENGE", "CAUSED_BY",
+            "RECURRED_ON_RECHALLENGE", "CAUSES",
         ],
         "therapeutic": ["TOOK", "INDICATED_FOR", "CO_ADMINISTERED_WITH"],
-        "provenance": ["REPORTED_BY"],
+        "provenance": ["REPORTS"],
         "association": ["OCCURRED_AFTER", "CONTRADICTS"],
         "regulatory": ["TRIGGERED"],
     },
