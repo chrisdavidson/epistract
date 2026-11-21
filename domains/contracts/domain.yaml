@@ -50,9 +50,11 @@ relation_types:
   COSTS:
     description: "Service or obligation has an associated cost"
     category: structural
-  SIGNED_BY:
-    description: "Contract is signed by a party"
+  SIGNS:
+    description: "A party signs a contract. Active form on purpose: sift-kg rewrites SIGNED_BY to the misspelt SIGNES at build time."
     category: organizational
+    source_types: [PARTY]
+    target_types: [CONTRACT]
   PROVIDES_SERVICE:
     description: "Party provides a service"
     category: organizational

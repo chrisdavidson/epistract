@@ -23,7 +23,7 @@ Extract structured knowledge from event contracts, vendor agreements, and servic
 | OBLIGATED_TO | Party must fulfill obligation |
 | HAS_DEADLINE | Obligation has a deadline |
 | COSTS | Service has associated cost |
-| SIGNED_BY | Contract signed by party |
+| SIGNS | Party signs contract (PARTY → CONTRACT; write the party first) |
 | PROVIDES_SERVICE | Party provides service |
 | HELD_AT | Event at venue |
 | REQUIRES_INSURANCE | Contract requires insurance |

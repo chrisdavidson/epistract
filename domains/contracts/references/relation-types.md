@@ -9,8 +9,8 @@ Obligation or deliverable has a deadline.
 ## COSTS
 Service or obligation has an associated cost.
 
-## SIGNED_BY
-Contract is signed by a party.
+## SIGNS
+A party signs a contract (PARTY → CONTRACT).
 
 ## PROVIDES_SERVICE
 Party provides a service under contract.
