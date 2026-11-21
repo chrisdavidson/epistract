@@ -42,15 +42,15 @@ if HAS_BIOPYTHON:
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_SIFTKG, reason="sift-kg not installed")
 def test_ut001_domain_loads():
-    """Load domain.yaml via sift-kg DomainLoader, assert 17 entity types and 30 relation types."""
+    """Load domain.yaml via sift-kg DomainLoader, assert 17 entity types and 33 relation types."""
     from sift_kg import load_domain
 
     domain = load_domain(domain_path=DOMAIN_YAML)
     assert len(domain.entity_types) == 17, (
         f"Expected 17 entity types, got {len(domain.entity_types)}"
     )
-    assert len(domain.relation_types) == 30, (
-        f"Expected 30 relation types, got {len(domain.relation_types)}"
+    assert len(domain.relation_types) == 33, (
+        f"Expected 33 relation types, got {len(domain.relation_types)}"
     )
 
 
