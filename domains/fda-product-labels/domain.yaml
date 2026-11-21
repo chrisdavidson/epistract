@@ -156,12 +156,12 @@ relation_types:
     source_types: [DRUG_PRODUCT, ACTIVE_INGREDIENT]
     target_types: [PHARMACOLOGIC_CLASS]
   IDENTIFIES:
-    description: A REGULATORY_IDENTIFIER (NDC, NDA/ANDA, RxCUI, etc.) identifies a DRUG_PRODUCT.
+    description: A REGULATORY_IDENTIFIER identifies a DRUG_PRODUCT (NDC, NDA/ANDA, RxCUI, SPL set ID) or an ACTIVE_INGREDIENT (UNII).
       Active form on purpose -- sift-kg rewrites IDENTIFIED_BY to IDENTIFIES (flipping
       the edge) at build time.
     category: regulatory
     source_types: [REGULATORY_IDENTIFIER]
-    target_types: [DRUG_PRODUCT]
+    target_types: [DRUG_PRODUCT, ACTIVE_INGREDIENT]
   CONTRAINDICATED_WITH:
     description: Links a DRUG_PRODUCT to another DRUG_PRODUCT whose co-administration
       is explicitly prohibited
@@ -179,6 +179,21 @@ relation_types:
     category: regulatory
     source_types: [WARNING]
     target_types: [ADVERSE_REACTION]
+  INVOLVES:
+    description: A DRUG_INTERACTION involves an interacting drug or drug class — another DRUG_PRODUCT, or an ACTIVE_INGREDIENT such as "clarithromycin" or "strong CYP3A4 inhibitors".
+    category: mechanism
+    source_types: [DRUG_INTERACTION]
+    target_types: [ACTIVE_INGREDIENT, DRUG_PRODUCT]
+  INCREASES_RISK_OF:
+    description: A DRUG_INTERACTION increases the risk of an ADVERSE_REACTION (e.g. "Strong CYP3A4 inhibitors" interaction increases the risk of rhabdomyolysis).
+    category: causal
+    source_types: [DRUG_INTERACTION]
+    target_types: [ADVERSE_REACTION]
+  SPECIFIC_TO:
+    description: A WARNING, DOSAGE_REGIMEN, CONTRAINDICATION, or ADVERSE_REACTION applies specifically to, or is elevated in, a PATIENT_POPULATION (e.g. the pediatric dosage regimen applies to pediatric patients; hepatosplenic T-cell lymphoma risk is elevated in young males with IBD).
+    category: association
+    source_types: [WARNING, DOSAGE_REGIMEN, CONTRAINDICATION, ADVERSE_REACTION]
+    target_types: [PATIENT_POPULATION]
 community_label_anchors:
   - DRUG_PRODUCT
   - ACTIVE_INGREDIENT

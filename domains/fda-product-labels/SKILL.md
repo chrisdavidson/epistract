@@ -44,10 +44,13 @@ Direction matters: write each relation from the Source type to the Target type. 
 | HAS_PK_PROPERTY | DRUG_PRODUCT/ACTIVE_INGREDIENT → PHARMACOKINETIC_PROPERTY | Links a DRUG_PRODUCT to a PHARMACOKINETIC_PROPERTY |
 | EVALUATED_IN | DRUG_PRODUCT → CLINICAL_STUDY | Links a DRUG_PRODUCT to a CLINICAL_STUDY that supported label claims |
 | BELONGS_TO_CLASS | DRUG_PRODUCT/ACTIVE_INGREDIENT → PHARMACOLOGIC_CLASS | Links a DRUG_PRODUCT to its PHARMACOLOGIC_CLASS |
-| IDENTIFIES | REGULATORY_IDENTIFIER → DRUG_PRODUCT | A REGULATORY_IDENTIFIER (NDC, NDA/ANDA, RxCUI, etc.) identifies a DRUG_PRODUCT. |
+| IDENTIFIES | REGULATORY_IDENTIFIER → DRUG_PRODUCT/ACTIVE_INGREDIENT | A REGULATORY_IDENTIFIER identifies a DRUG_PRODUCT (NDC, NDA/ANDA, RxCUI, SPL set ID) or an ACTIVE_INGREDIENT (UNII). |
 | CONTRAINDICATED_WITH | DRUG_PRODUCT → DRUG_PRODUCT/ACTIVE_INGREDIENT (symmetric) | Links a DRUG_PRODUCT to another DRUG_PRODUCT whose co-administration is explicitly prohibited |
 | HAS_LABTEST | DRUG_PRODUCT/WARNING → LABTEST | The label calls for monitoring with a LABTEST — from the DRUG_PRODUCT, or from the WARNING the monitoring guards against. |
 | WARNS_OF | WARNING → ADVERSE_REACTION | A WARNING concerns a specific ADVERSE_REACTION (e.g. the boxed warning "Risk of thyroid C-cell tumors" warns of medullary thyroid carcinoma). |
+| INVOLVES | DRUG_INTERACTION → ACTIVE_INGREDIENT/DRUG_PRODUCT | A DRUG_INTERACTION involves an interacting drug or drug class — another DRUG_PRODUCT, or an ACTIVE_INGREDIENT such as "clarithromycin" or "strong CYP3A4 inhibitors". |
+| INCREASES_RISK_OF | DRUG_INTERACTION → ADVERSE_REACTION | A DRUG_INTERACTION increases the risk of an ADVERSE_REACTION (e.g. "Strong CYP3A4 inhibitors" interaction increases the risk of rhabdomyolysis). |
+| SPECIFIC_TO | WARNING/DOSAGE_REGIMEN/CONTRAINDICATION/ADVERSE_REACTION → PATIENT_POPULATION | A WARNING, DOSAGE_REGIMEN, CONTRAINDICATION, or ADVERSE_REACTION applies specifically to, or is elevated in, a PATIENT_POPULATION (e.g. the pediatric dosage regimen applies to pediatric patients; hepatosplenic T-cell lymphoma risk is elevated in young males with IBD). |
 
 ## Extraction Guidelines
 
@@ -73,3 +76,6 @@ Direction matters: write each relation from the Source type to the Target type. 
 20. HAS_WARNING targets a WARNING entity named for the hazard (e.g. "Risk of thyroid C-cell tumors"); never point HAS_WARNING at an ADVERSE_REACTION. When the warning concerns a specific reaction, also link WARNS_OF (WARNING → ADVERSE_REACTION). A WARNING must never share a name with any other entity in the same extraction, compared case-insensitively — the graph builder resolves relation endpoints by name, so "malignancy" as both a WARNING and an ADVERSE_REACTION sends the edges to the wrong node. Prefix warnings with "Risk of" (e.g. WARNING "Risk of malignancy" WARNS_OF ADVERSE_REACTION "lymphoma"). The same applies to every type pair: one name, one entity.
 21. When the label calls for laboratory monitoring, link HAS_LABTEST from the DRUG_PRODUCT (or from the WARNING it guards against) to the LABTEST.
 22. Use the active relation names exactly as written (MANUFACTURES, IDENTIFIES) — write the manufacturer or identifier first. Never use passive "*_BY" forms; the graph builder rewrites them.
+23. Drug interactions: create one DRUG_INTERACTION entity per interaction (named for the interacting drug or class and the effect, e.g. "Strong CYP3A4 inhibitors — increased atorvastatin exposure"). Link INTERACTS_WITH from the DRUG_PRODUCT, INVOLVES to each named interacting drug or class (ACTIVE_INGREDIENT), and INCREASES_RISK_OF to each ADVERSE_REACTION the label says the interaction raises. Do not link interacting drugs directly from the DRUG_PRODUCT when a DRUG_INTERACTION entity exists.
+24. Population-specific content: when a WARNING, DOSAGE_REGIMEN, CONTRAINDICATION, or ADVERSE_REACTION is stated for a particular group (pediatric, geriatric, pregnancy, renal or hepatic impairment, a genotype, a disease subgroup), link SPECIFIC_TO from it to that PATIENT_POPULATION. Keep STUDIED_IN_POPULATION from the DRUG_PRODUCT to the population as well.
+25. Link a UNII to the ACTIVE_INGREDIENT it identifies (IDENTIFIES → ACTIVE_INGREDIENT), not to the DRUG_PRODUCT. NDC, NDA/ANDA/BLA, RxCUI and SPL set ID identify the DRUG_PRODUCT.
