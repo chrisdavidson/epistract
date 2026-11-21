@@ -702,6 +702,11 @@ _BRITISH_US_AE_PAIRS = [
     ("Anaesthetic", "Anesthetic"), ("Anaesthetist", "Anesthetist"),
     ("Hyperaesthesia", "Hyperesthesia"), ("Leucoencephalopathy", "Leukoencephalopathy"),
     ("Leucoderma", "Leukoderma"),
+    # 999.5 round-3 review fix / clinicaltrials iteration 26
+    ("Mycooestrogen", "Mycoestrogen"), ("Metallooestrogen", "Metalloestrogen"),
+    ("Neurooestradiol", "Neuroestradiol"), ("Pseudooestrus", "Pseudoestrus"),
+    ("Zoooestrogen", "Zooestrogen"), ("Aesthesioneuroblastoma", "Esthesioneuroblastoma"),
+    ("Hypo-aesthesia", "Hypo-esthesia"),
 ]
 
 
@@ -768,6 +773,35 @@ def test_ae_key_iteration25_word_table(enrich):
         "Leuconostoc infection": "leuconostoc infection",
         "Leucine": "leucine",
         "Leucovorin toxicity": "leucovorin toxicity",
+    }
+    for word, key in expected.items():
+        assert enrich._ae_key(word) == key, word
+
+
+@pytest.mark.unit
+def test_ae_key_iteration26_word_table(enrich):
+    """999.5 round-3 review fix (iteration 26): the oestr denylist also covers the
+    US o-prefixes myc/metall/neur/pseud/zo (best-effort list); aesthes folds
+    everywhere (Aesthesioneuroblastoma, Hypo-aesthesia) while aesthet still needs
+    a preceding letter, so the US word "aesthetic" keeps its key."""
+    expected = {
+        "Mycoestrogen": "mycoestrogen",
+        "Mycooestrogen": "mycoestrogen",
+        "Metalloestrogen": "metalloestrogen",
+        "Neuroestradiol": "neuroestradiol",
+        "Neurooestradiol": "neuroestradiol",
+        "Pseudoestrus": "pseudoestru",
+        "Zooestrogen": "zooestrogen",
+        "Zoooestrogen": "zooestrogen",
+        "Hypooestrogenism": "hypoestrogenism",
+        "Diethylstilboestrol": "diethylstilbestrol",
+        "Fosfoestrol": "fosfestrol",
+        "Aesthesioneuroblastoma": "esthesioneuroblastoma",
+        "Hypo-aesthesia": "hypo esthesia",
+        "Paraesthesia": "paresthesia",
+        "Anaesthetic": "anesthetic",
+        "Aesthetic": "aesthetic",
+        "Aesthetic procedure complication": "aesthetic procedure complication",
     }
     for word, key in expected.items():
         assert enrich._ae_key(word) == key, word
