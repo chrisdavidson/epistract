@@ -41,12 +41,32 @@ AdverseEvent, OutcomeAnalysis and Outcome, where an Outcome merge is a registry
 analysis reusing an extracted Outcome); a trial whose write fails is rolled back
 and listed under write_errors. Without --results, behaviour is unchanged.
 
+Opt-in refresh (--refresh-results, needs --results): a trial whose registry
+facts are already recorded is re-imported in place. Registry-owned node and
+edge attributes (source ctgov_results, first NCT = this trial) are replaced
+with the new payload values; on extracted or shared targets only the
+registry_<attr> / registry_<attr>_by_nct bookkeeping for this NCT changes, and
+an extracted attribute value is never touched. New adverse events and analyses
+are added. A registry fact of this NCT that the new payload no longer has is
+marked ctgov_withdrawn: true (also when the payload has no results at all); it
+is never deleted, and a withdrawn fact that reappears loses the flag. Without
+the flag a re-run changes nothing. A refresh does not refetch by itself: use
+--cache-ttl-days to age out cached payloads (--cache-ttl-days 0 refetches
+every cached trial). The "results" block gains a "refresh" block (trials_refreshed,
+updated_nodes, updated_edges, withdrawn, restored, legacy_copies_skipped).
+
+Opt-in cache expiry (--cache-ttl-days N, needs --cache-dir): a cached payload
+whose file is older than N days is refetched and rewritten; when the refetch
+fails the stale payload is used. The report then gains a top-level "cache"
+block (ttl_days, expired, refetched, stale_used). Without it a cached payload
+never expires.
+
 Non-blocking: API failures log counts but never abort the pipeline.
 ARCH-03: no core/ changes required; this module lives in the domain package.
 
 Usage:
     python3 domains/clinicaltrials/enrich.py <output_dir> [--results] [--cache-dir DIR]
-        [--results-serious-min-pct X]
+        [--results-serious-min-pct X] [--refresh-results] [--cache-ttl-days N]
 
     --results         also import posted results into the graph and add a "results" report block
     --cache-dir DIR   read/write one raw CT.gov payload per trial as DIR/<NCT>.json
@@ -54,6 +74,11 @@ Usage:
                       opt-in volume control for --results: keep a serious adverse event only
                       when at least one arm has X percent or more affected (default 0: keep
                       every serious event, the 3.5.0 behaviour); needs --results
+    --refresh-results re-import registry facts already recorded: update in place, add new
+                      facts, mark vanished ones ctgov_withdrawn; needs --results
+    --cache-ttl-days N
+                      refetch cached payloads older than N days (default: never expire);
+                      needs --cache-dir
 """
 from __future__ import annotations
 
@@ -234,16 +259,32 @@ def _fetch_ct_gov(nct_id: str) -> dict | None:
     return _parse_ct_protocol(study) if study is not None else None
 
 
-def _get_ct_gov_study(nct_id: str, cache_dir) -> tuple[dict | None, bool]:
-    """Return (study, fetched_from_network), reading/writing cache_dir if given."""
+def _get_ct_gov_study(
+    nct_id: str, cache_dir, ttl_days: float | None = None, stats: dict | None = None,
+) -> tuple[dict | None, bool]:
+    """Return (study, fetched_from_network), reading/writing cache_dir if given.
+
+    With ttl_days, a cache file whose mtime is that many days old or older is
+    expired and refetched; when the refetch fails the stale payload is used.
+    stats (expired / refetched / stale_used) is updated when given. Without
+    ttl_days a cached payload never expires.
+    """
     if cache_dir is None:
         time.sleep(CTGOV_RATE_SLEEP)
         return _fetch_ct_gov_study(nct_id), True
     cache_file = Path(cache_dir) / f"{nct_id}.json"
+    stale = None
     try:
         cached = json.loads(cache_file.read_text())
         if isinstance(cached, dict):
-            return cached, False
+            if ttl_days is None:
+                return cached, False
+            age = time.time() - cache_file.stat().st_mtime
+            if age < ttl_days * 86400:
+                return cached, False
+            stale = cached
+            if stats is not None:
+                stats["expired"] += 1
     except (OSError, ValueError):
         pass
     time.sleep(CTGOV_RATE_SLEEP)
@@ -254,6 +295,12 @@ def _get_ct_gov_study(nct_id: str, cache_dir) -> tuple[dict | None, bool]:
             cache_file.write_text(json.dumps(study))
         except OSError:
             pass
+        if stale is not None and stats is not None:
+            stats["refetched"] += 1
+    elif stale is not None:
+        if stats is not None:
+            stats["stale_used"] += 1
+        return stale, False
     return study, True
 
 
@@ -675,6 +722,95 @@ def _merge_attrs(
             conflict(key, value)
 
 
+def _refresh_ctx(counters, nct):
+    """The refresh context of the NCT being refreshed, or None."""
+    ctx = counters.get("refresh")
+    return ctx if ctx and ctx["nct"] == nct else None
+
+
+def _owned_by(target: dict, nct) -> bool:
+    """True when the registry created this node/edge for this NCT (first NCT)."""
+    ids = target.get("ctgov_nct_ids") or []
+    return target.get("source") == REGISTRY_SOURCE and bool(ids) and ids[0] == nct
+
+
+def _restore(target: dict, ctx) -> None:
+    """A fact present in the payload again loses its withdrawn flag."""
+    if target.pop("ctgov_withdrawn", None) is not None:
+        ctx["stats"]["restored"] += 1
+
+
+def _refresh_bookkeeping(target, key, value, rename, nct) -> bool:
+    """Record a refreshed value that differs from, or equals, the plain value
+    of a target this NCT does not own. Never modifies target[key]."""
+    name = rename.get(key, f"registry_{key}")
+    by_key = f"{name}_by_nct"
+    by_nct = target.get(by_key)
+    if not isinstance(by_nct, dict):
+        by_nct = None
+    if target.get(key) != value:
+        if by_nct is None:
+            by_nct = {}
+        previous = by_nct.get(nct)
+        if previous == value and by_key in target:
+            return False
+        by_nct[nct] = value
+        target[by_key] = by_nct
+        if name not in target or (previous is not None and target.get(name) == previous):
+            target[name] = value
+        return True
+    if by_nct is not None and nct in by_nct:
+        previous = by_nct.pop(nct)
+        if target.get(name) == previous:
+            target.pop(name, None)
+        if not by_nct:
+            target.pop(by_key, None)
+        return True
+    return False
+
+
+def _refresh_attrs(target, attrs, rename, groups, nct) -> bool:
+    """Apply a refreshed payload to a node/edge attribute dict. True when changed.
+
+    Owned targets get the new values in place. Other targets only get this
+    NCT's registry_<attr> / registry_<attr>_by_nct bookkeeping (and values for
+    attributes they lack); a plain attribute that is already set is never changed.
+    """
+    rename = rename or {}
+    changed = False
+    if _owned_by(target, nct):
+        for key, value in attrs.items():
+            if value is not None and target.get(key) != value:
+                target[key] = value
+                changed = True
+        return changed
+    held: set = set()
+    for group in groups:
+        if any(target.get(k) not in (None, "", []) for k in group):
+            held.update(group)
+    for key, value in attrs.items():
+        if value is None:
+            continue
+        current = target.get(key)
+        if key in held:
+            changed |= _refresh_bookkeeping(target, key, value, rename, nct)
+        elif current in (None, "", []):
+            target[key] = value
+            changed = True
+        elif isinstance(current, dict) and isinstance(value, dict):
+            for sub, subvalue in value.items():
+                if NCT_PATTERN.fullmatch(str(sub)):
+                    if current.get(sub) != subvalue:
+                        current[sub] = subvalue
+                        changed = True
+                elif sub not in current:
+                    current[sub] = subvalue
+                    changed = True
+        else:
+            changed |= _refresh_bookkeeping(target, key, value, rename, nct)
+    return changed
+
+
 def _merge_into_node(kg, node_id, attrs, nct, counters, rename=None, count=False, groups=()) -> bool:
     """Merge registry attributes into an existing node under the merge rules.
 
@@ -683,6 +819,16 @@ def _merge_into_node(kg, node_id, attrs, nct, counters, rename=None, count=False
     node = kg.graph.nodes[node_id]
     target = _node_attrs(kg, node_id)
     if nct in (target.get("ctgov_nct_ids") or []):
+        ctx = _refresh_ctx(counters, nct)
+        if ctx is not None:
+            ctx["nodes"].add(node_id)
+            restored_before = ctx["stats"]["restored"]
+            _restore(target, ctx)
+            changed = _refresh_attrs(
+                target, attrs, rename, () if target.get("source") == REGISTRY_SOURCE else groups, nct,
+            )
+            if changed or ctx["stats"]["restored"] != restored_before:
+                ctx["stats"]["updated_nodes"] += 1
         return False
     if target.get("source") == REGISTRY_SOURCE:
         _append_unique(node, "source_documents", f"ctgov:{nct}")
@@ -715,6 +861,9 @@ def _upsert_node(kg, node_id, etype, name, attrs, nct, counters, rename=None, co
         },
     )
     counters["created_nodes"] += 1
+    ctx = _refresh_ctx(counters, nct)
+    if ctx is not None:
+        ctx["nodes"].add(node_id)
     return True
 
 
@@ -731,6 +880,9 @@ def _upsert_edge(kg, src, rel, tgt, nct, evidence, attrs, counters) -> bool:
     if not (kg.graph.has_node(src) and kg.graph.has_node(tgt)):
         return False
     attrs = {k: v for k, v in (attrs or {}).items() if v is not None}
+    ctx = _refresh_ctx(counters, nct)
+    if ctx is not None:
+        ctx["edges"].add((src, rel, tgt))
     _, data = _find_edge(kg, src, rel, tgt)
     if data is None:
         key = f"{src}|{rel}|{tgt}"
@@ -742,12 +894,37 @@ def _upsert_edge(kg, src, rel, tgt, nct, evidence, attrs, counters) -> bool:
         _, data = _find_edge(kg, src, rel, tgt)
         data["attributes"] = {**attrs, "source": REGISTRY_SOURCE, "ctgov_nct_ids": [nct]}
         counters["created_edges"] += 1
+        ctx = _refresh_ctx(counters, nct)
+        if ctx is not None:
+            ctx["edges"].add((src, rel, tgt))
         return True
     target = data.get("attributes")
     if not isinstance(target, dict):
         target = {}
         data["attributes"] = target
     if nct in (target.get("ctgov_nct_ids") or []):
+        ctx = _refresh_ctx(counters, nct)
+        if ctx is not None:
+            ctx["edges"].add((src, rel, tgt))
+            restored_before = ctx["stats"]["restored"]
+            _restore(target, ctx)
+            changed = _refresh_attrs(target, attrs, None, (), nct)
+            if _owned_by(target, nct) and len(target.get("ctgov_nct_ids") or []) == 1:
+                # A reload derives the edge evidence from the mentions, so the
+                # mention of this NCT carries the new text as well.
+                for mention in data.get("mentions") or []:
+                    if (
+                        isinstance(mention, dict)
+                        and mention.get("source_document") == f"ctgov:{nct}"
+                        and mention.get("evidence") != evidence
+                    ):
+                        mention["evidence"] = evidence
+                        changed = True
+                if data.get("evidence") != evidence:
+                    data["evidence"] = evidence
+                    changed = True
+            if changed or ctx["stats"]["restored"] != restored_before:
+                ctx["stats"]["updated_edges"] += 1
         return False
     if target.get("source") == REGISTRY_SOURCE:
         # Another trial supports the same registry edge: add its mention but keep
@@ -1291,6 +1468,22 @@ def _write_analyses(
             reused_extracted = (
                 _plain_attrs(kg.graph.nodes[outcome_id]).get("source") != REGISTRY_SOURCE
             )
+            if not reused_extracted and _refresh_ctx(counters, nct) is not None:
+                # A refresh re-reads the registry Outcome (and its trial edge) this
+                # NCT wrote, so it counts as present and takes the new attributes.
+                _upsert_node(
+                    kg, outcome_id, "Outcome", title,
+                    {
+                        "endpoint_type": str(an.get("outcome_type") or "").capitalize() or None,
+                        "timeframe": time_frame,
+                        "unit": unit,
+                    },
+                    nct, counters,
+                )
+                _upsert_edge(
+                    kg, trial_ids[0], "has_outcome", outcome_id, nct,
+                    f"ClinicalTrials.gov results {nct}: outcome {title}", {}, counters,
+                )
         else:
             reused_extracted = False
             outcome_id = _registry_outcome_id(kg, nct, title, unit)
@@ -1380,7 +1573,7 @@ def _write_analyses(
         if holder is not None and kg.graph.has_node(holder) and holder != item["id"]:
             oa_id = holder
             attrs = _node_attrs(kg, oa_id)
-            if nct not in (attrs.get("ctgov_nct_ids") or []):
+            if _refresh_ctx(counters, nct) is not None or nct not in (attrs.get("ctgov_nct_ids") or []):
                 _merge_into_node(
                     kg, oa_id, item["attrs"], nct, counters, count=True, groups=ANALYSIS_STAT_GROUPS,
                 )
@@ -1491,6 +1684,59 @@ def _write_results(kg, nct, parsed, trial_ids, counters) -> None:
             _node_attrs(kg, tid).setdefault("same_trial_as", trial_ids[0])
 
 
+_AE_NODE_TYPES = ("adverseevent", "organsystem")
+_AE_RELATIONS = ("reports_adverse_event", "observed_in", "affects_organ_system")
+
+
+def _new_refresh_stats() -> dict:
+    return {
+        "trials_refreshed": 0, "updated_nodes": 0, "updated_edges": 0,
+        "withdrawn": 0, "restored": 0, "legacy_copies_skipped": 0,
+    }
+
+
+def _refresh_sweep(kg, nct, trial_ids, ctx, skip_ae: bool) -> None:
+    """Flag the registry facts of this NCT that the refreshed payload did not
+    touch with ctgov_withdrawn: true. Nothing is deleted.
+
+    A fact is this NCT's when the registry created it for this NCT (first NCT of
+    an edge, only NCT of a node). Edges that start at a non-canonical Trial node
+    are copies from before registry edges were written once per NCT: left as they
+    are and counted as legacy_copies_skipped. skip_ae leaves adverse-event facts
+    alone (the trial's adverse events were not rewritten, see the serious floor).
+    """
+    stats = ctx["stats"]
+    legacy_sources = set(trial_ids[1:])
+    for src, tgt, key, data in list(kg.graph.edges(keys=True, data=True)):
+        attrs = data.get("attributes")
+        if not isinstance(attrs, dict) or not _owned_by(attrs, nct):
+            continue
+        rel = data.get("relation_type")
+        if (src, rel, tgt) in ctx["edges"] or "ctgov_withdrawn" in attrs:
+            continue
+        if skip_ae and rel in _AE_RELATIONS:
+            continue
+        if src in legacy_sources:
+            stats["legacy_copies_skipped"] += 1
+            continue
+        attrs["ctgov_withdrawn"] = True
+        stats["withdrawn"] += 1
+    for node_id, data in kg.graph.nodes(data=True):
+        attrs = data.get("attributes")
+        if (
+            not isinstance(attrs, dict)
+            or attrs.get("source") != REGISTRY_SOURCE
+            or attrs.get("ctgov_nct_ids") != [nct]
+            or node_id in ctx["nodes"]
+            or "ctgov_withdrawn" in attrs
+        ):
+            continue
+        if skip_ae and str(data.get("entity_type", "")).lower() in _AE_NODE_TYPES:
+            continue
+        attrs["ctgov_withdrawn"] = True
+        stats["withdrawn"] += 1
+
+
 # ---------------------------------------------------------------------------
 # Main enrichment function
 # ---------------------------------------------------------------------------
@@ -1518,6 +1764,8 @@ def enrich_graph(
     results: bool = False,
     cache_dir: Path | None = None,
     serious_min_pct: float = SERIOUS_MIN_PCT_DEFAULT,
+    refresh: bool = False,
+    cache_ttl_days: float | None = None,
 ) -> dict:
     """Load graph, enrich Trial + Compound nodes, save, write report.
 
@@ -1532,17 +1780,37 @@ def enrich_graph(
             adverse events in results mode. 0 (the default) keeps every
             serious event. When > 0 the "results" block gains serious_min_pct
             and serious_events_omitted. Must be a finite number from 0 to 100.
+        refresh: Re-import registry facts that are already recorded (needs
+            results): update in place, add new facts, mark vanished ones
+            ctgov_withdrawn. Adds results.refresh to the report.
+        cache_ttl_days: Refetch cached payloads older than this many days (needs
+            cache_dir; None never expires). Adds a top-level "cache" report block.
 
     Returns:
         Report dict with domain, trials counts, compounds counts, hit_rate.
     """
     serious_min_pct = _check_serious_min_pct(serious_min_pct)
+    if cache_ttl_days is not None:
+        cache_ttl_days = _check_cache_ttl(cache_ttl_days)
+        if cache_dir is None:
+            raise ValueError("cache_ttl_days needs cache_dir")
+    if refresh and not results:
+        raise ValueError("refresh needs results")
+    cache_stats = (
+        {"ttl_days": cache_ttl_days, "expired": 0, "refetched": 0, "stale_used": 0}
+        if cache_ttl_days is not None else None
+    )
+    refresh_stats = _new_refresh_stats()
     output_dir = Path(output_dir)
     graph_path = output_dir / "graph_data.json"
     if not graph_path.exists():
         report = _build_report(domain, 0, 0, 0, 0, 0, 0, 0, 0)
         if results:
             report["results"] = _empty_results_block()
+            if refresh:
+                report["results"]["refresh"] = refresh_stats
+        if cache_stats is not None:
+            report["cache"] = cache_stats
         _write_report(output_dir, report)
         return report
 
@@ -1564,6 +1832,7 @@ def enrich_graph(
     studies_by_nct: dict = {}
     trial_ids_by_nct: dict = {}
     parsed_by_nct: dict = {}
+    no_results_ncts: set = set()
 
     for node_id, data in node_iter:
         etype = str(data.get("entity_type", "")).lower()
@@ -1582,7 +1851,9 @@ def enrich_graph(
                 continue
             first_sight = candidate not in studies_by_nct
             if first_sight:
-                studies_by_nct[candidate], _ = _get_ct_gov_study(candidate, cache_dir)
+                studies_by_nct[candidate], _ = _get_ct_gov_study(
+                    candidate, cache_dir, cache_ttl_days, cache_stats,
+                )
             study = studies_by_nct[candidate]
             trial_ids_by_nct.setdefault(candidate, []).append(node_id)
             try:
@@ -1600,6 +1871,7 @@ def enrich_graph(
                     else:
                         if parsed is None:
                             results_block["trials_without_results"] += 1
+                            no_results_ncts.add(candidate)
                         else:
                             results_block["trials_with_results"] += 1
                             parsed_by_nct[candidate] = parsed
@@ -1625,7 +1897,7 @@ def enrich_graph(
             else:
                 compounds_failed += 1
 
-    if results and parsed_by_nct:
+    if results and (parsed_by_nct or (refresh and no_results_ncts)):
         if kg is None:
             results_block["skipped_reason"] = (
                 "sift_kg unavailable: registry results were parsed but not written"
@@ -1634,9 +1906,13 @@ def enrich_graph(
         else:
             counters = _new_counters()
             write_errors: dict = {}
-            for nct in sorted(parsed_by_nct):
-                to_write = parsed_by_nct[nct]
-                prior = _prior_serious_floors(kg, trial_ids_by_nct[nct], nct)
+            sweep_only = no_results_ncts if refresh else set()
+            for nct in sorted(set(parsed_by_nct) | sweep_only):
+                to_write = parsed_by_nct.get(nct)
+                prior = (
+                    _prior_serious_floors(kg, trial_ids_by_nct[nct], nct)
+                    if to_write is not None else set()
+                )
                 if prior and prior != {serious_min_pct}:
                     # Already imported under another floor: registry writes are
                     # idempotent per NCT, so applying this floor would only add
@@ -1655,15 +1931,29 @@ def enrich_graph(
                 # rerun skip it).
                 graph_before = copy.deepcopy(kg.graph)
                 counters_before = copy.deepcopy(counters)
+                refresh_before = dict(refresh_stats)
                 try:
-                    _write_results(
-                        kg, nct, to_write, sorted(trial_ids_by_nct[nct]), counters
-                    )
-                    if nct not in floor_conflicts:
-                        serious_omitted += to_write.get("serious_events_omitted", 0)
+                    if refresh:
+                        counters["refresh"] = {
+                            "nct": nct, "nodes": set(), "edges": set(), "stats": refresh_stats,
+                        }
+                    if to_write is not None:
+                        _write_results(
+                            kg, nct, to_write, sorted(trial_ids_by_nct[nct]), counters
+                        )
+                        if nct not in floor_conflicts:
+                            serious_omitted += to_write.get("serious_events_omitted", 0)
+                    if refresh:
+                        _refresh_sweep(
+                            kg, nct, sorted(trial_ids_by_nct[nct]), counters["refresh"],
+                            skip_ae=nct in floor_conflicts,
+                        )
+                        counters["refresh"]["stats"]["trials_refreshed"] += 1
+                        counters["refresh"] = None
                 except Exception as exc:
                     kg.graph = graph_before
                     counters = counters_before
+                    refresh_stats.update(refresh_before)
                     message = f"{type(exc).__name__}: {exc}"
                     write_errors[nct] = message
                     results_block["write_failed"] += 1
@@ -1699,7 +1989,11 @@ def enrich_graph(
             results_block["serious_events_omitted"] = serious_omitted
         if floor_conflicts:
             results_block["serious_min_pct_conflicts"] = floor_conflicts
+        if refresh:
+            results_block["refresh"] = refresh_stats
         report["results"] = results_block
+    if cache_stats is not None:
+        report["cache"] = cache_stats
     _write_report(output_dir, report)
     return report
 
@@ -1735,6 +2029,16 @@ def _check_serious_min_pct(value) -> float:
     value = float(value)
     if not (0.0 <= value <= 100.0):  # also rejects NaN
         raise ValueError(f"serious_min_pct must be from 0 to 100, got {value!r}")
+    return value
+
+
+def _check_cache_ttl(value) -> float:
+    """Validate the cache TTL in days: a finite number >= 0."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"cache_ttl_days must be a number, got {value!r}")
+    value = float(value)
+    if not (0.0 <= value < float("inf")):  # also rejects NaN
+        raise ValueError(f"cache_ttl_days must be a finite number >= 0, got {value!r}")
     return value
 
 
@@ -1797,7 +2101,19 @@ if __name__ == "__main__":
     parser.add_argument("--results", action="store_true")
     parser.add_argument("--cache-dir", type=Path, default=None)
     parser.add_argument("--results-serious-min-pct", type=float, default=SERIOUS_MIN_PCT_DEFAULT)
+    parser.add_argument("--refresh-results", action="store_true")
+    parser.add_argument("--cache-ttl-days", type=float, default=None)
     args = parser.parse_args()
+    cache_ttl_days = None
+    if args.cache_ttl_days is not None:
+        try:
+            cache_ttl_days = _check_cache_ttl(args.cache_ttl_days)
+        except ValueError as exc:
+            parser.error(str(exc))
+        if args.cache_dir is None:
+            parser.error("--cache-ttl-days needs --cache-dir")
+    if args.refresh_results and not args.results:
+        parser.error("--refresh-results needs --results")
     try:
         serious_min_pct = _check_serious_min_pct(args.results_serious_min_pct)
     except ValueError as exc:
@@ -1806,6 +2122,7 @@ if __name__ == "__main__":
         parser.error("--results-serious-min-pct needs --results")
     report = enrich_graph(
         Path(args.output_dir), results=args.results, cache_dir=args.cache_dir,
-        serious_min_pct=serious_min_pct,
+        serious_min_pct=serious_min_pct, refresh=args.refresh_results,
+        cache_ttl_days=cache_ttl_days,
     )
     print(json.dumps(report, indent=2))
