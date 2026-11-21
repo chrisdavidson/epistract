@@ -14,6 +14,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -23,7 +24,34 @@ import requests
 EPI_ROOT = Path(__file__).resolve().parents[1]
 FIX = Path(__file__).parent / "fixtures" / "ctgov"
 CTGOV_PREFIX = "https://clinicaltrials.gov/api/v2/studies/"
-OLD_COMMIT = "c80444b"
+OLD_COMMIT = "c80444b0f5e12db68661539004eb8d264fde821d"
+# Set to 1 to let the byte-identity tests skip when a pinned commit is not in
+# the local git history (shallow clone, source tarball). By default they fail.
+ALLOW_MISSING_BASELINES_ENV = "CT_ALLOW_MISSING_BASELINES"
+
+
+def _baseline_enrich_source(commit: str) -> bytes:
+    """enrich.py as of a pinned commit, read from git.
+
+    The byte-identity tests guard the "default runs are unchanged" invariant,
+    so a missing commit is a failure, not a silent skip, unless
+    CT_ALLOW_MISSING_BASELINES=1 is set.
+    """
+    try:
+        shown = subprocess.run(
+            ["git", "-C", str(EPI_ROOT), "show", f"{commit}:domains/clinicaltrials/enrich.py"],
+            capture_output=True, check=True, timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        message = (
+            f"cannot read pinned baseline {commit} from git ({exc}); the byte-identity "
+            f"tests need the full epistract history. Fetch it (git fetch --unshallow) or set "
+            f"{ALLOW_MISSING_BASELINES_ENV}=1 to skip them."
+        )
+        if os.environ.get(ALLOW_MISSING_BASELINES_ENV) == "1":
+            pytest.skip(message)
+        pytest.fail(message)
+    return shown.stdout
 
 WITH_RESULTS_A = "NCT05971940"
 WITH_RESULTS_B = "NCT03548935"
@@ -450,7 +478,7 @@ def test_malformed_results_section_counted(enrich, tmp_path):
 
 REPORT_KEYS = [
     "trials_with_results", "trials_without_results", "results_failed",
-    "adverse_events_parsed", "analyses_parsed", "created", "merged",
+    "adverse_events_parsed", "analyses_parsed", "created", "merged", "merged_by_type",
     "created_nodes", "created_edges", "write_failed",
 ]
 
@@ -554,14 +582,7 @@ def _same_key_order(a, b) -> bool:
 @pytest.mark.unit
 def test_byte_identical_to_v340_without_flag(enrich, tmp_path, monkeypatch):
     old_path = tmp_path / "enrich_v340.py"
-    try:
-        shown = subprocess.run(
-            ["git", "-C", str(EPI_ROOT), "show", f"{OLD_COMMIT}:domains/clinicaltrials/enrich.py"],
-            capture_output=True, check=True, timeout=30,
-        )
-    except (OSError, subprocess.SubprocessError) as exc:
-        pytest.skip(f"cannot read {OLD_COMMIT} from git: {exc}")
-    old_path.write_bytes(shown.stdout)
+    old_path.write_bytes(_baseline_enrich_source(OLD_COMMIT))
     old = _load_enrich("_ct_enrich_v340", old_path)
     monkeypatch.setattr(old.time, "sleep", lambda s: None)
 
@@ -604,6 +625,8 @@ def test_cli_help_mentions_flags():
     assert "--results" in proc.stdout
     assert "not yet written" not in proc.stdout
     assert "--cache-dir" in proc.stdout
+    assert "--refresh-results" in proc.stdout
+    assert "--cache-ttl-days" in proc.stdout
 
 
 # --- Phase 7: pure helpers --------------------------------------------------
@@ -1205,7 +1228,12 @@ def test_report_created_merged_counts(enrich, tmp_path):
         and "ctgov_results" in (_nattr(n, "sources") or [])
     ]
     assert len(gained) == 2
-    assert block["merged"] == sum(len(_nattr(n, "ctgov_nct_ids", [])) for n in gained)
+    by_type = block["merged_by_type"]
+    assert list(by_type) == ["AdverseEvent", "OutcomeAnalysis", "Outcome"]
+    assert by_type["AdverseEvent"] + by_type["OutcomeAnalysis"] == sum(
+        len(_nattr(n, "ctgov_nct_ids", [])) for n in gained
+    )
+    assert block["merged"] == sum(by_type.values())
     assert block["write_failed"] == 0
 
 
@@ -1226,7 +1254,9 @@ def test_duplicate_nct_trial_nodes(enrich, tmp_path):
     nodes, links = _read_graph(dup)
     for tid in (TRIAL_A, "trial:achieve_1"):
         assert nodes[tid]["ct_overall_status"]
-        assert _edges(links, "reports_adverse_event", tid)
+    # Registry edges are written once, from the canonical (lowest-id) Trial node.
+    assert _edges(links, "reports_adverse_event", "trial:achieve_1")
+    assert not _edges(links, "reports_adverse_event", TRIAL_A)
 
 
 @pytest.mark.unit
@@ -1922,7 +1952,7 @@ def test_stale_registry_link_to_another_trials_ae_is_ignored(enrich, tmp_path):
 
 # --- Opt-in serious-event floor (--results-serious-min-pct, iteration 21) ----
 
-ITERATION20_COMMIT = "1589524"
+ITERATION20_COMMIT = "1589524b63f479f9ec5cd1a579fcb3b471948549"
 
 
 def _serious_reaches(event, pct) -> bool:
@@ -2020,14 +2050,7 @@ def test_cli_serious_min_pct_flag(tmp_path):
 def test_results_default_byte_identical_to_iteration20(enrich, tmp_path, monkeypatch):
     """--results without the new flag writes exactly what iteration 20 wrote."""
     old_path = tmp_path / "enrich_iter20.py"
-    try:
-        shown = subprocess.run(
-            ["git", "-C", str(EPI_ROOT), "show", f"{ITERATION20_COMMIT}:domains/clinicaltrials/enrich.py"],
-            capture_output=True, check=True, timeout=30,
-        )
-    except (OSError, subprocess.SubprocessError) as exc:
-        pytest.skip(f"cannot read {ITERATION20_COMMIT} from git: {exc}")
-    old_path.write_bytes(shown.stdout)
+    old_path.write_bytes(_baseline_enrich_source(ITERATION20_COMMIT))
     old = _load_enrich("_ct_enrich_iter20", old_path)
     monkeypatch.setattr(old.time, "sleep", lambda s: None)
     bodies = _all_fixture_bodies()
@@ -2037,12 +2060,14 @@ def test_results_default_byte_identical_to_iteration20(enrich, tmp_path, monkeyp
         rep_old = old.enrich_graph(d_old, results=True)
     with patch.object(enrich.requests, "get", side_effect=_router(bodies)):
         rep_new = enrich.enrich_graph(d_new, results=True)
-    g_old = _normalize_stamps((d_old / "graph_data.json").read_bytes())
-    g_new = _normalize_stamps((d_new / "graph_data.json").read_bytes())
-    assert g_old == g_new
+    g_old = json.loads(_normalize_stamps((d_old / "graph_data.json").read_bytes()))
+    g_new = json.loads(_normalize_stamps((d_new / "graph_data.json").read_bytes()))
+    # Iteration 27 adds registry_<attr>_by_nct beside every stored conflict and
+    # nothing else: without those keys the graphs are equal.
+    assert g_old == _strip_by_nct(g_new) and _same_key_order(g_old, _strip_by_nct(g_new))
     rep_old.pop("generated_at")
     rep_new.pop("generated_at")
-    assert rep_old == rep_new and _same_key_order(rep_old, rep_new)
+    _assert_report_delta(rep_old, rep_new)
 
 
 # Iteration 22: a re-run under another floor never rewrites or misreports AEs
@@ -2103,3 +2128,1733 @@ def test_cli_serious_min_pct_needs_results(tmp_path):
         capture_output=True, text=True, timeout=60,
     )
     assert proc.returncode == 2 and "needs --results" in proc.stderr
+
+
+# --- Iteration 27 (999.3): canonical-trial edges, per-NCT conflicts, merged_by_type ---
+
+ITERATION26_COMMIT = "cf9e8b7eb9d48e3f9bf92ff10786ea4e4e08a62e"
+DUP_NODE = {"id": "trial:achieve_1", "name": f"ACHIEVE-1 ({WITH_RESULTS_A})", "entity_type": "Trial"}
+
+
+def _strip_by_nct(value):
+    """A copy of a parsed graph without any key ending in _by_nct."""
+    if isinstance(value, dict):
+        return {k: _strip_by_nct(v) for k, v in value.items() if not str(k).endswith("_by_nct")}
+    if isinstance(value, list):
+        return [_strip_by_nct(v) for v in value]
+    return value
+
+
+def _collect_by_nct(value, path=()):
+    out = []
+    if isinstance(value, dict):
+        for k, v in value.items():
+            if str(k).endswith("_by_nct"):
+                out.append((path, k, v))
+            else:
+                out.extend(_collect_by_nct(v, (*path, k)))
+    elif isinstance(value, list):
+        for i, v in enumerate(value):
+            out.extend(_collect_by_nct(v, (*path, i)))
+    return out
+
+
+def _assert_report_delta(rep_old, rep_new):
+    """Iteration 27 report vs an older one: only merged_by_type and its Outcome share of merged differ."""
+    assert list(rep_new) == list(rep_old)
+    if "results" not in rep_old:
+        assert rep_old == rep_new
+        return
+    old_block, new_block = dict(rep_old["results"]), dict(rep_new["results"])
+    by_type = new_block.pop("merged_by_type")
+    assert list(by_type) == ["AdverseEvent", "OutcomeAnalysis", "Outcome"]
+    assert new_block["merged"] == old_block["merged"] + by_type["Outcome"]
+    assert new_block["merged"] == sum(by_type.values())
+    new_block["merged"] = old_block["merged"]
+    assert new_block == old_block
+    assert list(rep_new["results"]) == [
+        k for key in old_block for k in ((key, "merged_by_type") if key == "merged" else (key,))
+    ]
+    assert {k: v for k, v in rep_new.items() if k != "results"} == {
+        k: v for k, v in rep_old.items() if k != "results"
+    }
+
+
+def _load_old_enrich(tmp_path, commit, name, monkeypatch):
+    path = tmp_path / f"{name}.py"
+    path.write_bytes(_baseline_enrich_source(commit))
+    old = _load_enrich(name, path)
+    monkeypatch.setattr(old.time, "sleep", lambda s: None)
+    return old
+
+
+def _enrich_with(module, directory, bodies, **kwargs):
+    with patch.object(module.requests, "get", side_effect=_router(bodies)):
+        return module.enrich_graph(directory, **kwargs)
+
+
+def _registry_edge_keys(links):
+    return sorted(
+        (l["source"], l["relation_type"], l["target"])
+        for l in links if _eattr(l, "source") == "ctgov_results"
+    )
+
+
+@pytest.mark.unit
+def test_refresh02_registry_edges_written_once_from_canonical_trial(enrich, tmp_path):
+    single = _write_graph(tmp_path / "single", [WITH_RESULTS_A])
+    single_report, _ = _run(enrich, single, _all_fixture_bodies(), results=True)
+    dup = _write_graph(tmp_path / "dup", [WITH_RESULTS_A], [DUP_NODE])
+    dup_report, _ = _run(enrich, dup, _all_fixture_bodies(), results=True)
+    s_nodes, s_links = _read_graph(single)
+    d_nodes, d_links = _read_graph(dup)
+
+    canonical = "trial:achieve_1"
+    assert canonical < TRIAL_A
+    assert dup_report["results"] == single_report["results"]
+    assert len(_registry_edge_keys(d_links)) == len(_registry_edge_keys(s_links))
+    assert sorted(x["id"] for x in _registry_nodes(d_nodes)) == sorted(
+        x["id"] for x in _registry_nodes(s_nodes)
+    )
+    registry_trial_edges = [
+        l for l in d_links
+        if _eattr(l, "source") == "ctgov_results"
+        and l["relation_type"] in ("reports_adverse_event", "has_outcome")
+    ]
+    assert registry_trial_edges
+    assert {l["source"] for l in registry_trial_edges} == {canonical}
+    assert not _edges(d_links, "reports_adverse_event", TRIAL_A)
+    assert not _edges(d_links, "has_outcome", TRIAL_A)
+    assert _nattr(d_nodes[TRIAL_A], "same_trial_as") == canonical
+    assert _nattr(d_nodes[canonical], "same_trial_as") is None
+    for tid in (TRIAL_A, canonical):
+        assert d_nodes[tid]["ct_overall_status"]
+    # the same edges as the single-node run, with the canonical source swapped in
+    renamed = sorted(
+        (canonical if src == TRIAL_A else src, rel, tgt)
+        for src, rel, tgt in _registry_edge_keys(s_links)
+    )
+    assert _registry_edge_keys(d_links) == renamed
+
+
+@pytest.mark.unit
+def test_refresh02_single_nct_graph_has_no_same_trial_as(enrich, tmp_path):
+    _write_graph(tmp_path, [WITH_RESULTS_A, WITH_RESULTS_B])
+    _run(enrich, tmp_path, _all_fixture_bodies(), results=True)
+    nodes, _ = _read_graph(tmp_path)
+    assert not [n for n in nodes.values() if _nattr(n, "same_trial_as") is not None]
+
+
+@pytest.mark.unit
+def test_refresh02_duplicate_graph_rerun_is_idempotent(enrich, tmp_path):
+    dup = _write_graph(tmp_path / "dup", [WITH_RESULTS_A], [DUP_NODE])
+    _run(enrich, dup, _all_fixture_bodies(), results=True)
+    first = _normalize_stamps((dup / "graph_data.json").read_bytes())
+    report, _ = _run(enrich, dup, _all_fixture_bodies(), results=True)
+    assert _normalize_stamps((dup / "graph_data.json").read_bytes()) == first
+    assert report["results"]["created"] == 0 and report["results"]["merged"] == 0
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("variant", ["seeded", "duplicate"])
+def test_default_runs_rerun_on_iteration26_graph_is_byte_identical(enrich, tmp_path, monkeypatch, variant):
+    old = _load_old_enrich(tmp_path, ITERATION26_COMMIT, "_ct_enrich_iter26_rerun", monkeypatch)
+    if variant == "seeded":
+        directory = _seeded_graph(tmp_path / "g")
+    else:
+        directory = _write_graph(tmp_path / "g", [WITH_RESULTS_A], [DUP_NODE])
+    bodies = _all_fixture_bodies()
+    _enrich_with(old, directory, bodies, results=True)
+    before = _normalize_stamps((directory / "graph_data.json").read_bytes())
+    report = _enrich_with(enrich, directory, bodies, results=True)
+    assert _normalize_stamps((directory / "graph_data.json").read_bytes()) == before
+    block = report["results"]
+    assert block["created"] == 0 and block["merged"] == 0
+    assert block["merged_by_type"] == {"AdverseEvent": 0, "OutcomeAnalysis": 0, "Outcome": 0}
+    nodes, _ = _read_graph(directory)
+    assert not [n for n in nodes.values() if _nattr(n, "same_trial_as") is not None]
+
+
+@pytest.mark.unit
+def test_default_runs_protocol_only_identical_to_iteration26(enrich, tmp_path, monkeypatch):
+    old = _load_old_enrich(tmp_path, ITERATION26_COMMIT, "_ct_enrich_iter26_plain", monkeypatch)
+    d_old = _seeded_graph(tmp_path / "old")
+    d_new = _seeded_graph(tmp_path / "new")
+    bodies = _all_fixture_bodies()
+    rep_old = _enrich_with(old, d_old, bodies)
+    rep_new = _enrich_with(enrich, d_new, bodies)
+    assert _normalize_stamps((d_old / "graph_data.json").read_bytes()) == _normalize_stamps(
+        (d_new / "graph_data.json").read_bytes()
+    )
+    rep_old.pop("generated_at")
+    rep_new.pop("generated_at")
+    assert rep_old == rep_new and _same_key_order(rep_old, rep_new) and "results" not in rep_new
+
+
+@pytest.mark.unit
+def test_default_runs_fresh_results_delta_is_by_nct_and_merged_by_type(enrich, tmp_path, monkeypatch):
+    old = _load_old_enrich(tmp_path, ITERATION26_COMMIT, "_ct_enrich_iter26_delta", monkeypatch)
+    d_old = _fully_seeded(enrich, tmp_path / "old")
+    d_new = _fully_seeded(enrich, tmp_path / "new")
+    bodies = _all_fixture_bodies()
+    rep_old = _enrich_with(old, d_old, bodies, results=True)
+    rep_new = _enrich_with(enrich, d_new, bodies, results=True)
+    g_old = json.loads(_normalize_stamps((d_old / "graph_data.json").read_bytes()))
+    g_new = json.loads(_normalize_stamps((d_new / "graph_data.json").read_bytes()))
+    stripped = _strip_by_nct(g_new)
+    assert g_old == stripped and _same_key_order(g_old, stripped)
+    added = _collect_by_nct(g_new)
+    assert added
+    for path, key, mapping in added:
+        holder = g_new
+        for step in path:
+            holder = holder[step]
+        plain = holder[key[: -len("_by_nct")]]
+        assert isinstance(mapping, dict) and mapping
+        assert plain in mapping.values()
+    rep_old.pop("generated_at")
+    rep_new.pop("generated_at")
+    _assert_report_delta(rep_old, rep_new)
+    assert rep_new["results"]["merged_by_type"]["Outcome"] >= 1
+
+
+def _stub_kg():
+    import networkx as nx
+    from types import SimpleNamespace
+
+    return SimpleNamespace(graph=nx.MultiDiGraph())
+
+
+@pytest.mark.unit
+def test_refresh03_three_trials_keep_every_conflicting_value(enrich):
+    kg = _stub_kg()
+    kg.graph.add_node("adverseevent:nausea", name="Nausea", entity_type="AdverseEvent",
+                      attributes={"reported_term": "Nausea"})
+    counters = enrich._new_counters()
+    for nct, term in (("NCT00000001", "nausea"), ("NCT00000002", "NAUSEA "), ("NCT00000003", "Nausea")):
+        enrich._merge_into_node(
+            kg, "adverseevent:nausea", {"reported_term": term}, nct, counters,
+            rename={"reported_term": "registry_term"}, count=True,
+        )
+    attrs = kg.graph.nodes["adverseevent:nausea"]["attributes"]
+    assert attrs["reported_term"] == "Nausea"
+    assert attrs["registry_term"] == "nausea"
+    assert attrs["registry_term_by_nct"] == {"NCT00000001": "nausea", "NCT00000002": "NAUSEA "}
+    assert attrs["ctgov_nct_ids"] == ["NCT00000001", "NCT00000002", "NCT00000003"]
+    assert counters["merged"] == 3 and counters["merged_by_type"]["AdverseEvent"] == 3
+
+
+@pytest.mark.unit
+def test_refresh03_plain_attribute_conflicts_across_three_ncts(enrich):
+    target = {"enrollment": 10}
+    for nct, value in (("NCT00000001", 11), ("NCT00000002", 12), ("NCT00000003", 13)):
+        enrich._merge_attrs(target, {"enrollment": value}, nct=nct)
+    assert target["registry_enrollment"] == 11
+    assert target["registry_enrollment_by_nct"] == {
+        "NCT00000001": 11, "NCT00000002": 12, "NCT00000003": 13,
+    }
+    # without an NCT the legacy behaviour is unchanged
+    legacy = {"enrollment": 10}
+    enrich._merge_attrs(legacy, {"enrollment": 11})
+    assert legacy == {"enrollment": 10, "registry_enrollment": 11}
+
+
+@pytest.mark.unit
+def test_refresh03_held_stat_group_conflicts_keep_by_nct(enrich):
+    target = {"p_value": "0.04", "effect_estimate": 1.2}
+    attrs = {"p_value": "0.01", "p_value_num": 0.01, "effect_estimate": 1.5, "effect_measure": "Mean Difference"}
+    enrich._merge_attrs(target, attrs, groups=enrich.ANALYSIS_STAT_GROUPS, nct="NCT00000001")
+    assert target["p_value"] == "0.04" and "effect_measure" not in target
+    assert target["registry_p_value"] == "0.01"
+    assert target["registry_p_value_by_nct"] == {"NCT00000001": "0.01"}
+    assert target["registry_effect_estimate_by_nct"] == {"NCT00000001": 1.5}
+    assert target["registry_effect_measure_by_nct"] == {"NCT00000001": "Mean Difference"}
+    assert target["registry_p_value_num_by_nct"] == {"NCT00000001": 0.01}
+
+
+@pytest.mark.unit
+def test_refresh03_merged_extracted_edge_keeps_by_nct(enrich):
+    kg = _stub_kg()
+    kg.graph.add_node("trial:a", entity_type="Trial")
+    kg.graph.add_node("ae:x", entity_type="AdverseEvent")
+    kg.graph.add_edge(
+        "trial:a", "ae:x", key="trial:a|reports_adverse_event|ae:x",
+        relation_type="reports_adverse_event", attributes={"n_affected": 999},
+    )
+    counters = enrich._new_counters()
+    for nct, n in (("NCT00000001", 5), ("NCT00000002", 6)):
+        assert enrich._upsert_edge(
+            kg, "trial:a", "reports_adverse_event", "ae:x", nct, "ev", {"n_affected": n}, counters,
+        )
+    attrs = kg.graph.edges["trial:a", "ae:x", "trial:a|reports_adverse_event|ae:x"]["attributes"]
+    assert attrs["n_affected"] == 999
+    assert attrs["registry_n_affected"] == 5
+    assert attrs["registry_n_affected_by_nct"] == {"NCT00000001": 5, "NCT00000002": 6}
+
+
+@pytest.mark.unit
+def test_refresh03_registry_node_merge_across_trials_keeps_by_nct(enrich, tmp_path):
+    _seeded_graph(tmp_path)
+    _run(enrich, tmp_path, _all_fixture_bodies(), results=True)
+    nodes, _ = _read_graph(tmp_path)
+    with_by_nct = [n for n in nodes.values() if _collect_by_nct(n.get("attributes") or {})]
+    assert with_by_nct
+    for node in with_by_nct:
+        attrs = node["attributes"]
+        for _, key, mapping in _collect_by_nct(attrs):
+            base = key[: -len("_by_nct")]
+            assert attrs[base] in mapping.values()
+            assert set(mapping) <= set(attrs["ctgov_nct_ids"])
+
+
+@pytest.mark.unit
+def test_refresh03_report_counts_outcome_merges_by_type(enrich, tmp_path):
+    _fully_seeded(enrich, tmp_path)
+    outcome_id = "outcome:glycated_hemoglobin_hba1c"
+    before = _read_graph(tmp_path)[0][outcome_id]
+    report, _ = _run(enrich, tmp_path, _all_fixture_bodies(), results=True)
+    block = report["results"]
+    keys = list(block)
+    assert keys[keys.index("merged") + 1] == "merged_by_type"
+    by_type = block["merged_by_type"]
+    assert list(by_type) == ["AdverseEvent", "OutcomeAnalysis", "Outcome"]
+    assert block["merged"] == sum(by_type.values())
+    assert by_type["Outcome"] >= 1
+    assert _read_graph(tmp_path)[0][outcome_id] == before  # the extracted Outcome is untouched
+    again, _ = _run(enrich, tmp_path, _all_fixture_bodies(), results=True)
+    assert again["results"]["merged"] == 0
+    assert again["results"]["merged_by_type"] == {"AdverseEvent": 0, "OutcomeAnalysis": 0, "Outcome": 0}
+
+
+@pytest.mark.unit
+def test_refresh03_empty_results_block_has_merged_by_type(enrich):
+    block = enrich._empty_results_block()
+    keys = list(block)
+    assert keys[keys.index("merged") + 1] == "merged_by_type"
+    assert block["merged_by_type"] == {"AdverseEvent": 0, "OutcomeAnalysis": 0, "Outcome": 0}
+
+
+# --- Iteration 28 (999.3): --refresh-results and --cache-ttl-days ---------------
+
+ITERATION27_COMMIT = "9ff9e3d913124dfd97947bcc453edf750708c831"
+REFRESH_TERM_CHANGED = "Nausea"
+REFRESH_TERM_REMOVED = "Headache"
+REFRESH_TERM_ADDED = "Tinnitus"
+SEED_P_VALUE = "<.001"
+
+
+def _mutated_study(nct=WITH_RESULTS_A, new_p_value="0.042"):
+    """A copy of a fixture payload with a changed count, an added AE, a removed AE
+    and a changed analysis p-value."""
+    study = _study(nct)
+    results = study["resultsSection"]
+    others = results["adverseEventsModule"]["otherEvents"]
+    for ev in others:
+        if ev["term"] == REFRESH_TERM_CHANGED:
+            stat = next(s for s in ev["stats"] if s.get("numAffected"))
+            stat["numAffected"] += 5
+    removed = next(e for e in others if e["term"] == REFRESH_TERM_REMOVED)
+    others.remove(removed)
+    added = copy.deepcopy(removed)
+    added["term"] = REFRESH_TERM_ADDED
+    others.append(added)
+    measure = results["outcomeMeasuresModule"]["outcomeMeasures"][0]
+    measure["analyses"][0]["pValue"] = new_p_value
+    return study
+
+
+def _bodies(study):
+    return {**_all_fixture_bodies(), WITH_RESULTS_A: study}
+
+
+def _registry_facts(nodes, links):
+    node_facts = {
+        nid: n.get("attributes") for nid, n in nodes.items()
+        if _nattr(n, "source") == "ctgov_results"
+    }
+    edge_facts = {
+        (l["source"], l["relation_type"], l["target"]): (l.get("attributes"), l.get("evidence"))
+        for l in links if _eattr(l, "source") == "ctgov_results"
+    }
+    return node_facts, edge_facts
+
+
+def _without_withdrawn(facts):
+    out = {}
+    for key, value in facts.items():
+        attrs, rest = (value if isinstance(value, tuple) else (value, None))
+        if (attrs or {}).get("ctgov_withdrawn"):
+            continue
+        out[key] = value
+    return out
+
+
+def _owned_keep(key) -> bool:
+    return key in (
+        "ctgov_nct_ids", "sources", "ctgov_analysis_ids", "ctgov_arm_groups", "ctgov_withdrawn_by_nct",
+    ) or str(key).startswith("registry_")
+
+
+def _extracted_snapshot(nodes, links):
+    """Every attribute of every non-registry node/edge except registry bookkeeping."""
+    snap = {}
+    for nid, n in nodes.items():
+        attrs = n.get("attributes") or {}
+        if attrs.get("source") == "ctgov_results":
+            continue
+        snap[("node", nid)] = {k: copy.deepcopy(v) for k, v in attrs.items() if not _owned_keep(k)}
+    for l in links:
+        attrs = l.get("attributes") or {}
+        if attrs.get("source") == "ctgov_results":
+            continue
+        key = ("edge", l["source"], l["relation_type"], l["target"])
+        snap[key] = {k: copy.deepcopy(v) for k, v in attrs.items() if not _owned_keep(k)}
+    return snap
+
+
+def _seed_with_p_value(enrich, directory):
+    _, ae_node, ae_link, _ = _extracted_ae_seed(enrich)
+    _, an_nodes, an_links = _extracted_analysis_seed(enrich)
+    for node in an_nodes:
+        if node["entity_type"] == "OutcomeAnalysis":
+            node["attributes"]["p_value"] = SEED_P_VALUE
+    return _seeded_graph(directory, [ae_node, *an_nodes], [ae_link, *an_links])
+
+
+@pytest.mark.unit
+def test_refresh01_updates_changed_record_in_place(enrich, tmp_path):
+    directory = _seeded_graph(tmp_path / "g")
+    _run(enrich, directory, _all_fixture_bodies(), results=True)
+    nodes0, links0 = _read_graph(directory)
+
+    mutated = _mutated_study()
+    report, _ = _run(enrich, directory, _bodies(mutated), results=True, refresh=True)
+    nodes1, links1 = _read_graph(directory)
+
+    # nothing is deleted
+    assert set(nodes0) <= set(nodes1) and len(nodes1) > len(nodes0)
+    assert {(l["source"], l["relation_type"], l["target"]) for l in links0} <= {
+        (l["source"], l["relation_type"], l["target"]) for l in links1
+    }
+    # the changed term carries the new counts, the added term exists
+    nausea = _edges(links1, "reports_adverse_event", TRIAL_A, "adverseevent:nausea")[0]
+    before = _edges(links0, "reports_adverse_event", TRIAL_A, "adverseevent:nausea")[0]
+    assert _eattr(nausea, "n_affected") == _eattr(before, "n_affected") + 5
+    assert _eattr(nausea, "by_group") != _eattr(before, "by_group")
+    assert _eattr(nausea, "ctgov_withdrawn") is None
+    assert [l for l in links1 if l["relation_type"] == "observed_in"
+            and l["source"] == "adverseevent:nausea"] != [
+        l for l in links0 if l["relation_type"] == "observed_in" and l["source"] == "adverseevent:nausea"
+    ]
+    added = _edges(links1, "reports_adverse_event", TRIAL_A, "adverseevent:tinnitus")
+    assert added and "adverseevent:tinnitus" in nodes1
+    # the removed term is flagged, not deleted
+    gone = _edges(links1, "reports_adverse_event", TRIAL_A, "adverseevent:headache")
+    assert gone and _eattr(gone[0], "ctgov_withdrawn") is True
+    # the AE node is shared with the other trial, so only A's edge is flagged
+    assert _nattr(nodes1["adverseevent:headache"], "ctgov_nct_ids") == [WITH_RESULTS_B, WITH_RESULTS_A]
+    assert _nattr(nodes1["adverseevent:headache"], "ctgov_withdrawn") is None
+    # the analysis p-value was replaced in place on the registry-created analysis
+    changed = [n for n in _registry_nodes(nodes1, "OutcomeAnalysis") if _nattr(n, "p_value") == "0.042"]
+    assert len(changed) == 1
+
+    refresh = report["results"]["refresh"]
+    assert list(refresh) == [
+        "trials_refreshed", "updated_nodes", "updated_edges", "withdrawn", "restored",
+        "legacy_copies_skipped",
+    ]
+    assert refresh["trials_refreshed"] == 2
+    assert refresh["updated_nodes"] >= 1 and refresh["updated_edges"] >= 2
+    assert refresh["withdrawn"] >= 1 and refresh["restored"] == 0
+    flagged_edges = [l for l in links1 if _eattr(l, "ctgov_withdrawn")]
+    assert refresh["withdrawn"] == len(flagged_edges)
+    assert all("adverseevent:headache" in (l["source"], l["target"]) for l in flagged_edges)
+    assert not [n for n in nodes1.values() if _nattr(n, "ctgov_withdrawn")]
+    assert refresh["legacy_copies_skipped"] == 0
+    assert report["results"]["created"] > 0 and report["results"]["merged"] == 0
+
+    # every registry fact equals what a fresh import of the mutated payload gives
+    fresh = _seeded_graph(tmp_path / "fresh")
+    _run(enrich, fresh, _bodies(mutated), results=True)
+    f_nodes, f_links = _read_graph(fresh)
+    r_nf, r_ef = _registry_facts(nodes1, links1)
+    f_nf, f_ef = _registry_facts(f_nodes, f_links)
+    live_nodes, live_edges = _without_withdrawn(r_nf), _without_withdrawn(r_ef)
+    # a refresh never removes this NCT from a node it was recorded on
+    live_nodes.pop("adverseevent:headache")
+    f_nf.pop("adverseevent:headache")
+    live_edges = {k: v for k, v in live_edges.items() if "adverseevent:headache" not in (k[0], k[2])}
+    f_ef = {k: v for k, v in f_ef.items() if "adverseevent:headache" not in (k[0], k[2])}
+    assert live_nodes == f_nf
+    assert live_edges == f_ef
+
+
+@pytest.mark.unit
+def test_refresh01_second_refresh_is_byte_identical_and_third_restores(enrich, tmp_path):
+    directory = _write_graph(tmp_path / "g", [WITH_RESULTS_A])
+    _run(enrich, directory, _all_fixture_bodies(), results=True)
+    original = _normalize_stamps((directory / "graph_data.json").read_bytes())
+    mutated = _bodies(_mutated_study())
+
+    _run(enrich, directory, mutated, results=True, refresh=True)
+    nodes_once, _ = _read_graph(directory)
+    assert _nattr(nodes_once["adverseevent:headache"], "ctgov_nct_ids") == [WITH_RESULTS_A]
+    assert _nattr(nodes_once["adverseevent:headache"], "ctgov_withdrawn") is True
+    once = _normalize_stamps((directory / "graph_data.json").read_bytes())
+    assert once != original
+    report, _ = _run(enrich, directory, mutated, results=True, refresh=True)
+    assert _normalize_stamps((directory / "graph_data.json").read_bytes()) == once
+    refresh = report["results"]["refresh"]
+    assert refresh["updated_nodes"] == refresh["updated_edges"] == refresh["withdrawn"] == 0
+    assert report["results"]["created"] == 0 and report["results"]["merged"] == 0
+
+    report, _ = _run(enrich, directory, _all_fixture_bodies(), results=True, refresh=True)
+    nodes, links = _read_graph(directory)
+    headache = _edges(links, "reports_adverse_event", TRIAL_A, "adverseevent:headache")[0]
+    assert _eattr(headache, "ctgov_withdrawn") is None
+    assert _nattr(nodes["adverseevent:headache"], "ctgov_withdrawn") is None
+    nausea = _edges(links, "reports_adverse_event", TRIAL_A, "adverseevent:nausea")[0]
+    ref_dir = _write_graph(tmp_path / "ref", [WITH_RESULTS_A])
+    _run(enrich, ref_dir, _all_fixture_bodies(), results=True)
+    _, ref_links = _read_graph(ref_dir)
+    ref_nausea = _edges(ref_links, "reports_adverse_event", TRIAL_A, "adverseevent:nausea")[0]
+    assert _eattr(nausea, "n_affected") == _eattr(ref_nausea, "n_affected")
+    assert _eattr(nausea, "by_group") == _eattr(ref_nausea, "by_group")
+    # the added term is withdrawn now, not deleted
+    tinnitus = _edges(links, "reports_adverse_event", TRIAL_A, "adverseevent:tinnitus")[0]
+    assert _eattr(tinnitus, "ctgov_withdrawn") is True
+    assert report["results"]["refresh"]["restored"] >= 2
+
+
+@pytest.mark.unit
+def test_refresh01_without_flag_rerun_matches_iteration27(enrich, tmp_path, monkeypatch):
+    """Without --refresh-results a re-run keeps every recorded fact as it is (counts
+    are not updated, nothing is flagged); only facts that were never written are added."""
+    old = _load_old_enrich(tmp_path, ITERATION27_COMMIT, "_ct_enrich_iter27_norefresh", monkeypatch)
+    d_old = _write_graph(tmp_path / "old", [WITH_RESULTS_A])
+    d_new = _write_graph(tmp_path / "new", [WITH_RESULTS_A])
+    for module, directory in ((old, d_old), (enrich, d_new)):
+        _enrich_with(module, directory, _all_fixture_bodies(), results=True)
+    first_nodes, first_links = _read_graph(d_new)
+    mutated = _bodies(_mutated_study())
+    _enrich_with(old, d_old, mutated, results=True)
+    report = _enrich_with(enrich, d_new, mutated, results=True)
+    assert _normalize_stamps((d_old / "graph_data.json").read_bytes()) == _normalize_stamps(
+        (d_new / "graph_data.json").read_bytes()
+    )
+    assert "refresh" not in report["results"] and list(report["results"]) == REPORT_KEYS
+    nodes, links = _read_graph(d_new)
+    nausea = _edges(links, "reports_adverse_event", TRIAL_A, "adverseevent:nausea")[0]
+    kept = _edges(first_links, "reports_adverse_event", TRIAL_A, "adverseevent:nausea")[0]
+    assert _eattr(nausea, "n_affected") == _eattr(kept, "n_affected")
+    assert not [n for n in nodes.values() if _nattr(n, "ctgov_withdrawn")]
+    assert not [l for l in links if _eattr(l, "ctgov_withdrawn")]
+
+
+@pytest.mark.unit
+def test_refresh01_extracted_data_untouched_and_bookkeeping_only(enrich, tmp_path):
+    directory = _seed_with_p_value(enrich, tmp_path / "g")
+    _run(enrich, directory, _all_fixture_bodies(), results=True)
+    nodes0, links0 = _read_graph(directory)
+    snap0 = _extracted_snapshot(nodes0, links0)
+    holder = next(
+        n for n in nodes0.values()
+        if n["entity_type"] == "OutcomeAnalysis" and _nattr(n, "ctgov_analysis_ids")
+        and n["id"] == "outcomeanalysis:seed_hba1c_36"
+    )
+    assert _nattr(holder, "p_value") == SEED_P_VALUE
+    assert _nattr(holder, "registry_p_value_by_nct") is None
+
+    mutated = _mutated_study()
+    # change the p-value of the analysis the seed merged with
+    ref = _hba1c_analysis(enrich, "36 mg Orforglipron")
+    for an in mutated["resultsSection"]["outcomeMeasuresModule"]["outcomeMeasures"][0]["analyses"]:
+        if an.get("paramValue") == ref["param_value"]:
+            an["pValue"] = "0.042"
+    report, _ = _run(enrich, directory, _bodies(mutated), results=True, refresh=True)
+    nodes1, links1 = _read_graph(directory)
+    assert _extracted_snapshot(nodes1, links1) == snap0
+    holder1 = nodes1["outcomeanalysis:seed_hba1c_36"]
+    assert _nattr(holder1, "p_value") == SEED_P_VALUE
+    assert _nattr(holder1, "registry_p_value_by_nct") == {WITH_RESULTS_A: "0.042"}
+    assert _nattr(holder1, "registry_p_value") == "0.042"
+    assert report["results"]["merged"] == 0
+
+    # equal to the plain value again: the bookkeeping entry for this NCT is dropped
+    _run(enrich, directory, _all_fixture_bodies(), results=True, refresh=True)
+    nodes2, links2 = _read_graph(directory)
+    holder2 = nodes2["outcomeanalysis:seed_hba1c_36"]
+    assert _nattr(holder2, "registry_p_value_by_nct") is None
+    assert _nattr(holder2, "registry_p_value") is None
+    assert _extracted_snapshot(nodes2, links2) == snap0
+
+
+@pytest.mark.unit
+def test_refresh01_extracted_ae_gets_bookkeeping_only(enrich, tmp_path):
+    ref, ae_node, ae_link, _ = _extracted_ae_seed(enrich)
+    ae_node["attributes"] = {**(ae_node.get("attributes") or {}), "note": "extracted"}
+    directory = _seeded_graph(tmp_path / "g", [ae_node], [ae_link])
+    _run(enrich, directory, _all_fixture_bodies(), results=True)
+    nodes0, links0 = _read_graph(directory)
+    snap0 = _extracted_snapshot(nodes0, links0)
+    mutated = _mutated_study()
+    for ev in mutated["resultsSection"]["adverseEventsModule"]["otherEvents"]:
+        if ev["term"] == ref["term"]:
+            ev["stats"][0]["numAffected"] = (ev["stats"][0].get("numAffected") or 0) + 3
+    _run(enrich, directory, _bodies(mutated), results=True, refresh=True)
+    nodes1, links1 = _read_graph(directory)
+    assert _extracted_snapshot(nodes1, links1) == snap0
+    assert nodes1[ae_node["id"]]["attributes"]["note"] == "extracted"
+
+
+@pytest.mark.unit
+def test_refresh01_payload_without_results_flags_every_registry_fact(enrich, tmp_path):
+    directory = _fully_seeded(enrich, tmp_path / "g")
+    _run(enrich, directory, _all_fixture_bodies(), results=True)
+    nodes0, links0 = _read_graph(directory)
+    snap0 = _extracted_snapshot(nodes0, links0)
+    gone = _study(WITH_RESULTS_A)
+    gone.pop("resultsSection")
+    gone["hasResults"] = False
+
+    report, _ = _run(enrich, directory, _bodies(gone), results=True, refresh=True)
+    nodes1, links1 = _read_graph(directory)
+    assert set(nodes0) <= set(nodes1) and len(links1) >= len(links0)
+    assert _extracted_snapshot(nodes1, links1) == snap0
+    assert report["results"]["trials_without_results"] >= 1
+    assert report["results"]["refresh"]["trials_refreshed"] >= 1
+    owned_edges = [
+        l for l in links1
+        if _eattr(l, "source") == "ctgov_results" and (_eattr(l, "ctgov_nct_ids") or [None])[0] == WITH_RESULTS_A
+    ]
+    assert owned_edges and all(_eattr(l, "ctgov_withdrawn") is True for l in owned_edges)
+    owned_nodes = [
+        n for n in _registry_nodes(nodes1) if _nattr(n, "ctgov_nct_ids") == [WITH_RESULTS_A]
+    ]
+    assert owned_nodes and all(_nattr(n, "ctgov_withdrawn") is True for n in owned_nodes)
+    assert report["results"]["refresh"]["withdrawn"] == len(owned_edges) + len(owned_nodes)
+    # another NCT's facts and shared extracted data are not flagged
+    assert not [l for l in links1 if (_eattr(l, "ctgov_nct_ids") or [None])[0] == WITH_RESULTS_B
+                and _eattr(l, "ctgov_withdrawn")]
+    # WR-02: extracted facts the registry merged into record this NCT's withdrawal
+    # (bookkeeping only) and are never flagged ctgov_withdrawn
+    merged_nodes = [
+        n for n in nodes1.values()
+        if _nattr(n, "source") != "ctgov_results" and WITH_RESULTS_A in (_nattr(n, "ctgov_nct_ids") or [])
+    ]
+    merged_edges = [
+        l for l in links1
+        if _eattr(l, "source") != "ctgov_results" and WITH_RESULTS_A in (_eattr(l, "ctgov_nct_ids") or [])
+    ]
+    assert {"outcomeanalysis:seed_hba1c_36"} <= {n["id"] for n in merged_nodes}
+    assert merged_edges
+    for item in (*merged_nodes, *merged_edges):
+        assert (item.get("attributes") or {}).get("ctgov_withdrawn_by_nct") == {WITH_RESULTS_A: True}
+        assert (item.get("attributes") or {}).get("ctgov_withdrawn") is None
+    # the registry payload coming back drops the entries again
+    _run(enrich, directory, _all_fixture_bodies(), results=True, refresh=True)
+    nodes2, links2 = _read_graph(directory)
+    assert not [n for n in nodes2.values() if _nattr(n, "ctgov_withdrawn_by_nct")]
+    assert not [l for l in links2 if _eattr(l, "ctgov_withdrawn_by_nct")]
+    assert not [n for n in nodes2.values() if _nattr(n, "ctgov_withdrawn")]
+
+
+@pytest.mark.unit
+def test_refresh01_floor_conflict_leaves_adverse_events_alone(enrich, tmp_path):
+    directory = _write_graph(tmp_path / "g", [WITH_RESULTS_A])
+    _run(enrich, directory, _all_fixture_bodies(), results=True)
+    _, links0 = _read_graph(directory)
+    ae0 = [l for l in links0 if l["relation_type"] in ("reports_adverse_event", "observed_in")]
+    report, _ = _run(
+        enrich, directory, _bodies(_mutated_study()), results=True, refresh=True, serious_min_pct=10,
+    )
+    nodes1, links1 = _read_graph(directory)
+    ae1 = [l for l in links1 if l["relation_type"] in ("reports_adverse_event", "observed_in")]
+    assert ae1 == ae0
+    assert report["results"]["serious_min_pct_conflicts"] == {WITH_RESULTS_A: [0.0]}
+    assert not [n for n in nodes1.values() if n["entity_type"] == "AdverseEvent" and _nattr(n, "ctgov_withdrawn")]
+
+
+@pytest.mark.unit
+def test_refresh01_legacy_duplicate_trial_copies_are_skipped(enrich, tmp_path, monkeypatch):
+    old = _load_old_enrich(tmp_path, ITERATION26_COMMIT, "_ct_enrich_iter26_legacy", monkeypatch)
+    directory = _write_graph(tmp_path / "g", [WITH_RESULTS_A], [DUP_NODE])
+    _enrich_with(old, directory, _all_fixture_bodies(), results=True)
+    _, links0 = _read_graph(directory)
+    legacy = [l for l in links0 if l["source"] == TRIAL_A and l["relation_type"] == "reports_adverse_event"]
+    assert legacy
+    report, _ = _run(enrich, directory, _bodies(_mutated_study()), results=True, refresh=True)
+    _, links1 = _read_graph(directory)
+    assert report["results"]["refresh"]["legacy_copies_skipped"] >= len(legacy)
+    for l in links1:
+        if l["source"] == TRIAL_A and l["relation_type"] == "reports_adverse_event":
+            assert _eattr(l, "ctgov_withdrawn") is None
+
+
+@pytest.mark.unit
+def test_refresh01_requires_results(enrich, tmp_path):
+    _write_graph(tmp_path, [WITH_RESULTS_A])
+    with pytest.raises(ValueError):
+        _run(enrich, tmp_path, _all_fixture_bodies(), refresh=True)
+
+
+def _age_cache(path, days):
+    stamp = time.time() - days * 86400
+    os.utime(path, (stamp, stamp))
+
+
+@pytest.mark.unit
+def test_cache_ttl_expired_file_is_refetched_fresh_one_is_not(enrich, tmp_path):
+    cache = tmp_path / "cache"
+    seed = _write_graph(tmp_path / "g0", [WITH_RESULTS_A, WITH_RESULTS_B])
+    _run(enrich, seed, _all_fixture_bodies(), results=True, cache_dir=cache)
+    _age_cache(cache / f"{WITH_RESULTS_A}.json", 2)
+    _age_cache(cache / f"{WITH_RESULTS_B}.json", 1 / 24)
+
+    directory = _write_graph(tmp_path / "g1", [WITH_RESULTS_A, WITH_RESULTS_B])
+    report, m = _run(
+        enrich, directory, _bodies(_mutated_study()), results=True, cache_dir=cache, cache_ttl_days=1,
+    )
+    assert _ctgov_calls(m) == 1
+    assert report["cache"] == {
+        "ttl_days": 1.0, "expired": 1, "refetched": 1, "stale_used": 0, "stale_after_not_found": 0,
+    }
+    assert list(report)[-1] == "cache"
+    cached = json.loads((cache / f"{WITH_RESULTS_A}.json").read_text())
+    assert cached == _mutated_study()
+    assert time.time() - (cache / f"{WITH_RESULTS_A}.json").stat().st_mtime < 3600
+
+    # no TTL: nothing expires, no cache block
+    _age_cache(cache / f"{WITH_RESULTS_A}.json", 400)
+    again = _write_graph(tmp_path / "g2", [WITH_RESULTS_A, WITH_RESULTS_B])
+    report, m = _run(enrich, again, _all_fixture_bodies(), results=True, cache_dir=cache)
+    assert _ctgov_calls(m) == 0 and "cache" not in report
+
+
+@pytest.mark.unit
+def test_cache_ttl_zero_refetches_every_cached_trial(enrich, tmp_path):
+    cache = tmp_path / "cache"
+    _run(enrich, _write_graph(tmp_path / "g0", [WITH_RESULTS_A, WITH_RESULTS_B]),
+         _all_fixture_bodies(), results=True, cache_dir=cache)
+    report, m = _run(
+        enrich, _write_graph(tmp_path / "g1", [WITH_RESULTS_A, WITH_RESULTS_B]),
+        _all_fixture_bodies(), results=True, cache_dir=cache, cache_ttl_days=0,
+    )
+    assert _ctgov_calls(m) == 2
+    assert report["cache"]["expired"] == 2 and report["cache"]["refetched"] == 2
+
+
+@pytest.mark.unit
+def test_cache_ttl_failed_refetch_falls_back_to_stale_payload(enrich, tmp_path):
+    cache = tmp_path / "cache"
+    _run(enrich, _write_graph(tmp_path / "g0", [WITH_RESULTS_A]),
+         _all_fixture_bodies(), results=True, cache_dir=cache)
+    _age_cache(cache / f"{WITH_RESULTS_A}.json", 5)
+    directory = _write_graph(tmp_path / "g1", [WITH_RESULTS_A])
+    report, m = _run(
+        enrich, directory, {WITH_RESULTS_A: "500"}, results=True, cache_dir=cache, cache_ttl_days=1,
+    )
+    assert _ctgov_calls(m) == 1
+    assert report["cache"] == {
+        "ttl_days": 1.0, "expired": 1, "refetched": 0, "stale_used": 1, "stale_after_not_found": 0,
+    }
+    assert report["trials"]["enriched"] == 1 and report["results"]["trials_with_results"] == 1
+    assert json.loads((cache / f"{WITH_RESULTS_A}.json").read_text()) == _study(WITH_RESULTS_A)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("bad", [-1, float("nan"), float("inf"), True, "7"])
+def test_cache_ttl_rejects_invalid_values(enrich, tmp_path, bad):
+    _write_graph(tmp_path / "g", [WITH_RESULTS_A])
+    with pytest.raises(ValueError):
+        _run(enrich, tmp_path / "g", _all_fixture_bodies(), cache_dir=tmp_path / "c", cache_ttl_days=bad)
+
+
+@pytest.mark.unit
+def test_cache_ttl_needs_cache_dir(enrich, tmp_path):
+    _write_graph(tmp_path / "g", [WITH_RESULTS_A])
+    with pytest.raises(ValueError):
+        _run(enrich, tmp_path / "g", _all_fixture_bodies(), cache_ttl_days=1)
+
+
+@pytest.mark.unit
+def test_refresh01_cli_guards(tmp_path):
+    def cli(*args):
+        return subprocess.run(
+            [sys.executable, str(_module_path()), str(tmp_path), *args],
+            capture_output=True, text=True, timeout=60,
+        )
+
+    bad = cli("--refresh-results")
+    assert bad.returncode == 2 and "--results" in bad.stderr
+    bad = cli("--cache-ttl-days", "1")
+    assert bad.returncode == 2 and "--cache-dir" in bad.stderr
+    bad = cli("--cache-dir", str(tmp_path / "c"), "--cache-ttl-days", "-1")
+    assert bad.returncode == 2 and "cache_ttl_days" in bad.stderr
+    bad = cli("--cache-dir", str(tmp_path / "c"), "--cache-ttl-days", "nan")
+    assert bad.returncode == 2 and "cache_ttl_days" in bad.stderr
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("variant", ["protocol_only", "fresh_results", "rerun"])
+def test_default_runs_identical_to_iteration27(enrich, tmp_path, monkeypatch, variant):
+    old = _load_old_enrich(tmp_path, ITERATION27_COMMIT, "_ct_enrich_iter27", monkeypatch)
+    bodies = _all_fixture_bodies()
+    d_old = _fully_seeded(enrich, tmp_path / "old")
+    d_new = _fully_seeded(enrich, tmp_path / "new")
+    kwargs = {} if variant == "protocol_only" else {"results": True}
+    if variant == "rerun":
+        _enrich_with(old, d_old, bodies, results=True)
+        _enrich_with(old, d_new, bodies, results=True)
+    rep_old = _enrich_with(old, d_old, bodies, **kwargs)
+    rep_new = _enrich_with(enrich, d_new, bodies, **kwargs)
+    assert _normalize_stamps((d_old / "graph_data.json").read_bytes()) == _normalize_stamps(
+        (d_new / "graph_data.json").read_bytes()
+    )
+    rep_old.pop("generated_at")
+    rep_new.pop("generated_at")
+    assert rep_old == rep_new
+    assert _same_key_order(rep_old, rep_new) and list(rep_old) == list(rep_new)
+    assert "cache" not in rep_new and "refresh" not in rep_new.get("results", {})
+
+
+# --- Iteration 29 (999.3): --refresh-results on an unchanged payload is a no-op ---
+
+ITERATION28_COMMIT = "c7aa6f9167b675063b22ed164c53ebd7920c6465"
+COLLIDING_MEASURE = 0
+COLLIDING_TIME_FRAME = "Week 99"
+
+
+def _colliding_study():
+    """Study A with a second outcome measure that has the title and unit of
+    measure 0 but another time frame and type (a title collision in one trial)."""
+    study = _study(WITH_RESULTS_A)
+    measures = study["resultsSection"]["outcomeMeasuresModule"]["outcomeMeasures"]
+    extra = copy.deepcopy(measures[COLLIDING_MEASURE])
+    extra["timeFrame"] = COLLIDING_TIME_FRAME
+    extra["type"] = "SECONDARY" if str(extra.get("type")).upper() == "PRIMARY" else "PRIMARY"
+    measures.append(extra)
+    return study
+
+
+def _shared_placebo_graph(directory: Path):
+    """Seeded graph whose placebo cohort is enrolled by both trials, so the
+    registry observed_in edges on it are shared by two NCTs."""
+    return _seeded_graph(directory, extra_links=[_link(TRIAL_B, "enrolls", COHORT_PLACEBO)])
+
+
+def _shared_observed_in(links):
+    return [
+        l for l in _edges(links, "observed_in", tgt=COHORT_PLACEBO)
+        if _eattr(l, "source") == "ctgov_results" and len(_eattr(l, "ctgov_nct_ids") or []) > 1
+    ]
+
+
+def _assert_refresh_noop(enrich, directory, bodies):
+    before = _normalize_stamps((directory / "graph_data.json").read_bytes())
+    report, _ = _run(enrich, directory, bodies, results=True, refresh=True)
+    assert _normalize_stamps((directory / "graph_data.json").read_bytes()) == before
+    refresh = report["results"]["refresh"]
+    assert refresh["trials_refreshed"] >= 1
+    assert (refresh["updated_nodes"], refresh["updated_edges"], refresh["withdrawn"], refresh["restored"]) == (0, 0, 0, 0)
+    assert report["results"]["created"] == 0 and report["results"]["merged"] == 0
+    return report
+
+
+@pytest.mark.unit
+def test_refresh01_title_colliding_measures_keep_first_measure(enrich, tmp_path):
+    study = _colliding_study()
+    first = study["resultsSection"]["outcomeMeasuresModule"]["outcomeMeasures"][COLLIDING_MEASURE]
+    bodies = {**_all_fixture_bodies(), WITH_RESULTS_A: study}
+    directory = _write_graph(tmp_path / "g", [WITH_RESULTS_A, WITH_RESULTS_B])
+    _run(enrich, directory, bodies, results=True)
+    nodes, _ = _read_graph(directory)
+    outcome = [
+        n for n in _registry_nodes(nodes, "Outcome")
+        if _same_title(n["name"], first["title"]) and WITH_RESULTS_A in (_nattr(n, "ctgov_nct_ids") or [])
+    ]
+    assert len(outcome) == 1
+    assert _nattr(outcome[0], "timeframe") == first["timeFrame"]
+
+    _assert_refresh_noop(enrich, directory, bodies)
+    nodes, _ = _read_graph(directory)
+    assert _nattr(nodes[outcome[0]["id"]], "timeframe") == first["timeFrame"]
+    assert _nattr(nodes[outcome[0]["id"]], "endpoint_type") == _nattr(outcome[0], "endpoint_type")
+
+
+def _same_title(a, b) -> bool:
+    return " ".join(str(a).lower().split()) == " ".join(str(b).lower().split())
+
+
+@pytest.mark.unit
+def test_refresh01_shared_cohort_edges_get_no_new_bookkeeping(enrich, tmp_path):
+    directory = _shared_placebo_graph(tmp_path / "g")
+    _run(enrich, directory, _all_fixture_bodies(), results=True)
+    _, links = _read_graph(directory)
+    shared = _shared_observed_in(links)
+    assert shared  # the fixture really has registry edges shared by both NCTs
+    _assert_refresh_noop(enrich, directory, _all_fixture_bodies())
+    _, links1 = _read_graph(directory)
+    assert _shared_observed_in(links1) == shared
+
+
+@pytest.mark.unit
+def test_refresh01_unchanged_payload_is_noop_on_fully_seeded_graph(enrich, tmp_path):
+    """Title collision, shared cohort, extracted AE and analysis seeds together."""
+    _, ae_node, ae_link, _ = _extracted_ae_seed(enrich)
+    _, an_nodes, an_links = _extracted_analysis_seed(enrich)
+    directory = _seeded_graph(
+        tmp_path / "g", [ae_node, *an_nodes],
+        [ae_link, *an_links, _link(TRIAL_B, "enrolls", COHORT_PLACEBO)],
+    )
+    bodies = {**_all_fixture_bodies(), WITH_RESULTS_A: _colliding_study()}
+    _run(enrich, directory, bodies, results=True)
+    _assert_refresh_noop(enrich, directory, bodies)
+    _assert_refresh_noop(enrich, directory, bodies)
+
+
+@pytest.mark.unit
+def test_refresh01_first_import_and_refresh_agree_on_shared_edges(enrich, tmp_path):
+    """A refresh with a changed payload of the NCT that does not own a shared
+    registry edge leaves that edge as a first import of the changed payload has it."""
+    mutated = _bodies(_mutated_study())
+    refreshed = _shared_placebo_graph(tmp_path / "r")
+    _run(enrich, refreshed, _all_fixture_bodies(), results=True)
+    _run(enrich, refreshed, mutated, results=True, refresh=True)
+    fresh = _shared_placebo_graph(tmp_path / "f")
+    _run(enrich, fresh, mutated, results=True)
+    _, r_links = _read_graph(refreshed)
+    _, f_links = _read_graph(fresh)
+    key = lambda l: (l["source"], l["target"])
+    r_shared = {key(l): l.get("attributes") for l in _shared_observed_in(r_links) if _eattr(l, "ctgov_nct_ids")[0] != WITH_RESULTS_A}
+    f_shared = {key(l): l.get("attributes") for l in _shared_observed_in(f_links) if _eattr(l, "ctgov_nct_ids")[0] != WITH_RESULTS_A}
+    # a refresh never removes this NCT from an edge it was recorded on
+    gone = f"adverseevent:{REFRESH_TERM_REMOVED.lower()}"
+    r_shared = {k: v for k, v in r_shared.items() if k[0] != gone}
+    f_shared = {k: v for k, v in f_shared.items() if k[0] != gone}
+    assert r_shared and r_shared == f_shared
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("variant", ["protocol_only", "fresh_results", "rerun", "colliding_shared"])
+def test_default_runs_identical_to_iteration28(enrich, tmp_path, monkeypatch, variant):
+    old = _load_old_enrich(tmp_path, ITERATION28_COMMIT, "_ct_enrich_iter28", monkeypatch)
+    bodies = _all_fixture_bodies()
+    if variant == "colliding_shared":
+        bodies = {**bodies, WITH_RESULTS_A: _colliding_study()}
+        d_old = _shared_placebo_graph(tmp_path / "old")
+        d_new = _shared_placebo_graph(tmp_path / "new")
+    else:
+        d_old = _fully_seeded(enrich, tmp_path / "old")
+        d_new = _fully_seeded(enrich, tmp_path / "new")
+    kwargs = {} if variant == "protocol_only" else {"results": True}
+    if variant == "rerun":
+        _enrich_with(old, d_old, bodies, results=True)
+        _enrich_with(old, d_new, bodies, results=True)
+    rep_old = _enrich_with(old, d_old, bodies, **kwargs)
+    rep_new = _enrich_with(enrich, d_new, bodies, **kwargs)
+    assert _normalize_stamps((d_old / "graph_data.json").read_bytes()) == _normalize_stamps(
+        (d_new / "graph_data.json").read_bytes()
+    )
+    rep_old.pop("generated_at")
+    rep_new.pop("generated_at")
+    assert rep_old == rep_new and _same_key_order(rep_old, rep_new)
+
+
+# --- Iteration 30: 12-REVIEW fixes (CR-01..03, WR-01..05, IN-01, IN-03, SA-02) ---
+
+ITERATION29_COMMIT = "466cf7238bff126ebc3bdf0678ad74682fcf54a7"
+SHARED_TERM = "Ectopic pregnancy"  # reported by both fixture trials
+BOTH_TABLES_TERM = "Abdominal pain"  # serious and other in WITH_RESULTS_B
+
+
+def _without_term(nct, term, study=None):
+    study = study or _study(nct)
+    module = study["resultsSection"]["adverseEventsModule"]
+    for table in ("seriousEvents", "otherEvents"):
+        module[table] = [e for e in module.get(table) or [] if e["term"] != term]
+    return study
+
+
+def _shared_graph(enrich, directory: Path, owner_first: bool):
+    """Both fixture trials report SHARED_TERM. owner_first: A was imported on its
+    own first, so A owns the shared registry facts; else both were imported in
+    one run and B (the lower NCT) owns them."""
+    if owner_first:
+        _write_graph(directory, [WITH_RESULTS_A])
+        _run(enrich, directory, _all_fixture_bodies(), results=True)
+        graph = json.loads((directory / "graph_data.json").read_text())
+        graph["nodes"].append({"id": TRIAL_B, "name": WITH_RESULTS_B, "entity_type": "Trial"})
+        (directory / "graph_data.json").write_text(json.dumps(graph))
+    else:
+        _write_graph(directory, [WITH_RESULTS_A, WITH_RESULTS_B])
+    _run(enrich, directory, _all_fixture_bodies(), results=True)
+    return directory
+
+
+def _shared_term_facts(nodes, links):
+    """(AE id, registry edges on it that two NCTs support) for SHARED_TERM."""
+    ae = f"adverseevent:{SHARED_TERM.lower().replace(' ', '_')}"
+    shared_edges = [
+        l for l in links
+        if (l["source"] == ae or l["target"] == ae) and len(_eattr(l, "ctgov_nct_ids") or []) > 1
+    ]
+    return ae, shared_edges
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("owner_first", [True, False], ids=["a_owns", "b_owns"])
+def test_refresh01_shared_fact_withdrawn_only_when_every_nct_withdrew(enrich, tmp_path, owner_first):
+    """CR-01: a registry fact two NCTs support is withdrawn only when both payloads
+    drop it, whichever NCT owns it and in whatever order they are refreshed."""
+    directory = _shared_graph(enrich, tmp_path / "g", owner_first)
+    nodes0, links0 = _read_graph(directory)
+    ae, shared0 = _shared_term_facts(nodes0, links0)
+    owner = WITH_RESULTS_A if owner_first else WITH_RESULTS_B
+    assert shared0 and {(_eattr(l, "ctgov_nct_ids") or [None])[0] for l in shared0} == {owner}
+    assert _nattr(nodes0[ae], "ctgov_nct_ids")[0] == owner
+
+    # A drops the term, B still reports it: nothing shared is flagged
+    report, _ = _run(
+        enrich, directory, _bodies(_without_term(WITH_RESULTS_A, SHARED_TERM)), results=True, refresh=True,
+    )
+    nodes1, links1 = _read_graph(directory)
+    _, shared1 = _shared_term_facts(nodes1, links1)
+    assert not [l for l in links1 if _eattr(l, "ctgov_withdrawn") and len(_eattr(l, "ctgov_nct_ids")) > 1]
+    assert not [n for n in nodes1.values() if _nattr(n, "ctgov_withdrawn")]
+    assert shared1 and all(_eattr(l, "ctgov_withdrawn_by_nct") == {WITH_RESULTS_A: True} for l in shared1)
+    assert _nattr(nodes1[ae], "ctgov_withdrawn_by_nct") == {WITH_RESULTS_A: True}
+    # A's own edge to the term is withdrawn
+    own = _edges(links1, "reports_adverse_event", TRIAL_A, ae)
+    assert own and _eattr(own[0], "ctgov_withdrawn") is True
+    refresh = report["results"]["refresh"]
+    assert refresh["withdrawn"] == len([l for l in links1 if _eattr(l, "ctgov_withdrawn")])
+    assert refresh["updated_edges"] >= len(shared1) and refresh["updated_nodes"] >= 1
+
+    # B fails to fetch while A still lacks the term: still not flagged
+    failing = {k: v for k, v in _bodies(_without_term(WITH_RESULTS_A, SHARED_TERM)).items() if k != WITH_RESULTS_B}
+    report, _ = _run(enrich, directory, failing, results=True, refresh=True)
+    assert report["results"]["results_failed"] == 1
+    _, links_f = _read_graph(directory)
+    assert not [l for l in links_f if _eattr(l, "ctgov_withdrawn") and len(_eattr(l, "ctgov_nct_ids")) > 1]
+
+    # both drop it: the shared facts are flagged, with both NCTs recorded
+    both = {
+        **_all_fixture_bodies(),
+        WITH_RESULTS_A: _without_term(WITH_RESULTS_A, SHARED_TERM),
+        WITH_RESULTS_B: _without_term(WITH_RESULTS_B, SHARED_TERM),
+    }
+    _run(enrich, directory, both, results=True, refresh=True)
+    nodes2, links2 = _read_graph(directory)
+    _, shared2 = _shared_term_facts(nodes2, links2)
+    for item in (*shared2, nodes2[ae]):
+        attrs = item.get("attributes") or {}
+        assert attrs.get("ctgov_withdrawn") is True
+        assert attrs.get("ctgov_withdrawn_by_nct") == {WITH_RESULTS_A: True, WITH_RESULTS_B: True}
+
+    # A reports it again: the flag goes, only B's entry is left
+    only_b = {**_all_fixture_bodies(), WITH_RESULTS_B: _without_term(WITH_RESULTS_B, SHARED_TERM)}
+    report, _ = _run(enrich, directory, only_b, results=True, refresh=True)
+    nodes3, links3 = _read_graph(directory)
+    _, shared3 = _shared_term_facts(nodes3, links3)
+    for item in (*shared3, nodes3[ae]):
+        attrs = item.get("attributes") or {}
+        assert attrs.get("ctgov_withdrawn") is None
+        assert attrs.get("ctgov_withdrawn_by_nct") == {WITH_RESULTS_B: True}
+    assert report["results"]["refresh"]["restored"] >= len(shared3) + 1
+
+    # both report it: no withdrawal bookkeeping is left on the shared facts
+    _run(enrich, directory, _all_fixture_bodies(), results=True, refresh=True)
+    nodes4, links4 = _read_graph(directory)
+    _, shared4 = _shared_term_facts(nodes4, links4)
+    for item in (*shared4, nodes4[ae]):
+        attrs = item.get("attributes") or {}
+        assert "ctgov_withdrawn" not in attrs and "ctgov_withdrawn_by_nct" not in attrs
+    assert {k: v for k, v in _registry_facts(nodes4, links4)[1].items() if k[0] == ae or k[2] == ae} == {
+        k: v for k, v in _registry_facts(nodes0, links0)[1].items() if k[0] == ae or k[2] == ae
+    }
+
+
+def _b_without_serious_and_p_value():
+    """WITH_RESULTS_B with BOTH_TABLES_TERM only in the other table, and the
+    p-value of its first analysis removed."""
+    study = _study(WITH_RESULTS_B)
+    module = study["resultsSection"]["adverseEventsModule"]
+    module["seriousEvents"] = [e for e in module["seriousEvents"] if e["term"] != BOTH_TABLES_TERM]
+    analysis = next(
+        an for m in study["resultsSection"]["outcomeMeasuresModule"]["outcomeMeasures"]
+        for an in m.get("analyses") or [] if an.get("pValue")
+    )
+    analysis.pop("pValue")
+    return study
+
+
+@pytest.mark.unit
+def test_refresh01_owned_fact_drops_attributes_missing_from_payload(enrich, tmp_path):
+    """CR-02: a registry-owned fact matches the new payload exactly, including the
+    attributes it no longer produces."""
+    directory = _write_graph(tmp_path / "g", [WITH_RESULTS_A, WITH_RESULTS_B])
+    _run(enrich, directory, _all_fixture_bodies(), results=True)
+    ae = f"adverseevent:{BOTH_TABLES_TERM.lower().replace(' ', '_')}"
+    _, links0 = _read_graph(directory)
+    edge0 = _edges(links0, "reports_adverse_event", TRIAL_B, ae)[0]
+    assert _eattr(edge0, "count_basis") == "serious+other" and _eattr(edge0, "by_seriousness")
+    nodes0, _ = _read_graph(directory)
+    with_p = [n for n in _registry_nodes(nodes0, "OutcomeAnalysis")
+              if _nattr(n, "ctgov_nct_ids") == [WITH_RESULTS_B] and _nattr(n, "p_value")]
+    assert with_p
+
+    mutated = {**_all_fixture_bodies(), WITH_RESULTS_B: _b_without_serious_and_p_value()}
+    report, _ = _run(enrich, directory, mutated, results=True, refresh=True)
+    nodes1, links1 = _read_graph(directory)
+    edge1 = _edges(links1, "reports_adverse_event", TRIAL_B, ae)[0]
+    assert _eattr(edge1, "seriousness") == "other"
+    assert _eattr(edge1, "count_basis") is None and _eattr(edge1, "by_seriousness") is None
+
+    fresh = _write_graph(tmp_path / "fresh", [WITH_RESULTS_A, WITH_RESULTS_B])
+    _run(enrich, fresh, mutated, results=True)
+    f_nodes, f_links = _read_graph(fresh)
+    assert edge1.get("attributes") == _edges(f_links, "reports_adverse_event", TRIAL_B, ae)[0].get("attributes")
+    # the analysis without a p-value lost every p-value attribute
+    dropped = [n for n in _registry_nodes(nodes1, "OutcomeAnalysis")
+               if _nattr(n, "ctgov_nct_ids") == [WITH_RESULTS_B] and n["id"] in {x["id"] for x in with_p}
+               and _nattr(n, "p_value") is None]
+    assert len(dropped) == 1
+    assert not {"p_value", "p_value_num", "p_value_qualifier"} & set(dropped[0]["attributes"])
+    assert dropped[0]["attributes"] == f_nodes[dropped[0]["id"]]["attributes"]
+    refresh = report["results"]["refresh"]
+    assert refresh["updated_nodes"] >= 1 and refresh["updated_edges"] >= 1
+    # every live registry fact of B equals a fresh import of the changed payload
+    r_nf, r_ef = _registry_facts(nodes1, links1)
+    f_nf, f_ef = _registry_facts(f_nodes, f_links)
+    assert {k: v for k, v in r_nf.items() if (v or {}).get("ctgov_nct_ids") == [WITH_RESULTS_B]} == {
+        k: v for k, v in f_nf.items() if (v or {}).get("ctgov_nct_ids") == [WITH_RESULTS_B]
+    }
+    _assert_refresh_noop(enrich, directory, mutated)
+
+
+@pytest.mark.unit
+def test_refresh01_shared_registry_node_keeps_attribute_another_nct_filled(enrich):
+    """CR-02 limit: on a registry node other NCTs also support, an attribute the
+    owner's payload no longer has stays (another NCT's import may have filled it)."""
+    target = {
+        "source": "ctgov_results", "ctgov_nct_ids": [WITH_RESULTS_A, WITH_RESULTS_B],
+        "reported_term": "x", "meddra_version": "27.0",
+    }
+    assert enrich._refresh_attrs(dict(target), {"reported_term": "x"}, None, (), WITH_RESULTS_A, drop_absent=False) is False
+    single = {**target, "ctgov_nct_ids": [WITH_RESULTS_A]}
+    assert enrich._refresh_attrs(single, {"reported_term": "x"}, None, (), WITH_RESULTS_A) is True
+    assert "meddra_version" not in single and single["reported_term"] == "x"
+
+
+@pytest.mark.unit
+def test_refresh02_extracted_ae_edge_on_non_canonical_trial_is_merged_into(enrich, tmp_path):
+    """CR-03: registry counts merge into an extracted reports_adverse_event edge on a
+    non-canonical Trial node of the NCT; no parallel canonical edge is written."""
+    nausea = "adverseevent:nausea"
+    ae = {"id": nausea, "name": "nausea", "entity_type": "AdverseEvent", "attributes": {}}
+    directory = _write_graph(
+        tmp_path / "g", [WITH_RESULTS_A], [DUP_NODE, ae], [_link(TRIAL_A, "reports_adverse_event", nausea)],
+    )
+    report, _ = _run(enrich, directory, _all_fixture_bodies(), results=True)
+    _, links = _read_graph(directory)
+    to_nausea = [l for l in links if l["relation_type"] == "reports_adverse_event" and l["target"] == nausea]
+    assert len(to_nausea) == 1 and to_nausea[0]["source"] == TRIAL_A
+    merged = to_nausea[0]
+    assert _eattr(merged, "source") is None
+    assert "ctgov_results" in _eattr(merged, "sources") and _eattr(merged, "ctgov_nct_ids") == [WITH_RESULTS_A]
+    assert isinstance(_eattr(merged, "n_affected"), int)
+    assert report["results"]["merged_by_type"]["AdverseEvent"] >= 1
+    # every other registry AE edge is still written once, from the canonical node
+    other = [l for l in links if l["relation_type"] == "reports_adverse_event" and l["target"] != nausea]
+    assert other and {l["source"] for l in other} == {"trial:achieve_1"}
+
+    # a refresh records the changed count on the same edge and writes no copy
+    _run(enrich, directory, _bodies(_mutated_study()), results=True, refresh=True)
+    _, links1 = _read_graph(directory)
+    to_nausea1 = [l for l in links1 if l["relation_type"] == "reports_adverse_event" and l["target"] == nausea]
+    assert len(to_nausea1) == 1 and to_nausea1[0]["source"] == TRIAL_A
+    assert _eattr(to_nausea1[0], "registry_n_affected_by_nct") == {
+        WITH_RESULTS_A: _eattr(merged, "n_affected") + 5
+    }
+    assert _eattr(to_nausea1[0], "ctgov_withdrawn_by_nct") is None
+    _assert_refresh_noop(enrich, directory, _bodies(_mutated_study()))
+
+
+def _by_group_bumped(term):
+    """WITH_RESULTS_A with one per-arm count of term raised by one."""
+    mutated = _study(WITH_RESULTS_A)
+    for ev in mutated["resultsSection"]["adverseEventsModule"]["otherEvents"]:
+        if ev["term"] == term:
+            stat = next(s for s in ev["stats"] if s.get("numAffected"))
+            stat["numAffected"] += 1
+    return mutated
+
+
+@pytest.mark.unit
+def test_refresh01_merged_extracted_edge_by_group_follows_first_import_rule(enrich, tmp_path):
+    """12-REVIEW.iter2 WR-02 (replaces the iteration-30 WR-01 bookkeeping): a dict
+    attribute of a merged extracted edge is refreshed like a first import fills it.
+    A changed per-arm count is not recorded as registry_by_group (a first import
+    records none either), the scalar n_affected bookkeeping still shows the change,
+    and an iteration-30 registry_by_group entry of this NCT is dropped."""
+    ref, ae_node, ae_link, _ = _extracted_ae_seed(enrich)
+    directory = _seeded_graph(tmp_path / "g", [ae_node], [ae_link])
+    _run(enrich, directory, _all_fixture_bodies(), results=True)
+    _, links0 = _read_graph(directory)
+    edge0 = _edges(links0, "reports_adverse_event", TRIAL_A, ae_node["id"])[0]
+    by_group0 = _eattr(edge0, "by_group")
+    assert by_group0 and _eattr(edge0, "source") is None
+    n0 = _eattr(edge0, "registry_n_affected_by_nct")[WITH_RESULTS_A]
+
+    mutated = _by_group_bumped(ref["term"])
+    _run(enrich, directory, _bodies(mutated), results=True, refresh=True)
+    _, links1 = _read_graph(directory)
+    edge1 = _edges(links1, "reports_adverse_event", TRIAL_A, ae_node["id"])[0]
+    assert _eattr(edge1, "by_group") == by_group0
+    assert _eattr(edge1, "registry_by_group") is None and _eattr(edge1, "registry_by_group_by_nct") is None
+    assert _eattr(edge1, "registry_n_affected_by_nct") == {WITH_RESULTS_A: n0 + 1}
+    _assert_refresh_noop(enrich, directory, _bodies(mutated))
+
+    # an entry an iteration-30 refresh wrote is dropped by the next refresh
+    graph = json.loads((directory / "graph_data.json").read_text())
+    for link in graph["links"]:
+        if link["source"] == TRIAL_A and link["target"] == ae_node["id"]:
+            link["attributes"]["registry_by_group"] = {"x": {"n_affected": 1}}
+            link["attributes"]["registry_by_group_by_nct"] = {WITH_RESULTS_A: {"x": {"n_affected": 1}}}
+    (directory / "graph_data.json").write_text(json.dumps(graph))
+    report, _ = _run(enrich, directory, _all_fixture_bodies(), results=True, refresh=True)
+    _, links2 = _read_graph(directory)
+    edge2 = _edges(links2, "reports_adverse_event", TRIAL_A, ae_node["id"])[0]
+    assert report["results"]["refresh"]["updated_edges"] >= 1
+    assert edge2.get("attributes") == edge0.get("attributes")
+
+
+@pytest.mark.unit
+def test_refresh01_conflicting_extracted_dict_refresh_matches_first_import(enrich, tmp_path):
+    """12-REVIEW.iter2 WR-02: an extracted edge whose by_group conflicts with the
+    registry keeps it on --results, and the first --refresh-results of the same
+    payload is a no-op (iteration 30 recorded registry_by_group there)."""
+    ref, ae_node, ae_link, _ = _extracted_ae_seed(enrich)
+    res = _parsed(enrich, WITH_RESULTS_A)
+    stat = next(a for a in res["adverse_events"] if a["term"] == ref["term"])["stats"][0]
+    label = enrich._group_label(stat)
+    ae_link = {**ae_link, "attributes": {**ae_link["attributes"], "by_group": {label: {"n_affected": 12345}}}}
+    directory = _seeded_graph(tmp_path / "g", [ae_node], [ae_link])
+    _run(enrich, directory, _all_fixture_bodies(), results=True)
+    _, links0 = _read_graph(directory)
+    edge0 = _edges(links0, "reports_adverse_event", TRIAL_A, ae_node["id"])[0]
+    assert _eattr(edge0, "by_group")[label] == {"n_affected": 12345}
+    assert len(_eattr(edge0, "by_group")) > 1 and _eattr(edge0, "registry_by_group") is None
+    _assert_refresh_noop(enrich, directory, _all_fixture_bodies())
+    _assert_refresh_noop(enrich, directory, _all_fixture_bodies())
+
+
+@pytest.mark.unit
+def test_refresh_bookkeeping_legacy_and_shared_values(enrich):
+    """IN-02: registry_<attr> without _by_nct (an older graph) is this NCT's value
+    when it is the only NCT; registry_<attr> is kept while another NCT holds it."""
+    legacy = {"ctgov_nct_ids": [WITH_RESULTS_A], "n": 1, "registry_n": 2}
+    assert enrich._refresh_bookkeeping(legacy, "n", 3, {}, WITH_RESULTS_A) is True
+    assert legacy["registry_n"] == 3 and legacy["registry_n_by_nct"] == {WITH_RESULTS_A: 3}
+    unchanged = {"ctgov_nct_ids": [WITH_RESULTS_A], "n": 1, "registry_n": 2}
+    assert enrich._refresh_bookkeeping(unchanged, "n", 2, {}, WITH_RESULTS_A) is False
+    assert unchanged == {"ctgov_nct_ids": [WITH_RESULTS_A], "n": 1, "registry_n": 2}
+    shared = {"n": 1, "registry_n": 2, "registry_n_by_nct": {WITH_RESULTS_A: 2, WITH_RESULTS_B: 2}}
+    assert enrich._refresh_bookkeeping(shared, "n", 1, {}, WITH_RESULTS_A) is True
+    assert shared["registry_n"] == 2 and shared["registry_n_by_nct"] == {WITH_RESULTS_B: 2}
+    other = {"n": 1, "registry_n": 2, "registry_n_by_nct": {WITH_RESULTS_A: 2, WITH_RESULTS_B: 5}}
+    assert enrich._refresh_bookkeeping(other, "n", 1, {}, WITH_RESULTS_A) is True
+    assert other["registry_n"] == 5 and other["registry_n_by_nct"] == {WITH_RESULTS_B: 5}
+
+
+@pytest.mark.unit
+def test_refresh01_trials_refreshed_counts_only_recorded_trials(enrich, tmp_path):
+    """IN-01: a first import run with --refresh-results refreshes nothing."""
+    directory = _write_graph(tmp_path / "g", [WITH_RESULTS_A, WITH_RESULTS_B, NO_RESULTS])
+    report, _ = _run(enrich, directory, _all_fixture_bodies(), results=True, refresh=True)
+    assert report["results"]["refresh"]["trials_refreshed"] == 0
+    assert report["results"]["created"] > 0
+    report, _ = _run(enrich, directory, _all_fixture_bodies(), results=True, refresh=True)
+    assert report["results"]["refresh"]["trials_refreshed"] == 2
+
+
+@pytest.mark.unit
+def test_sift_kg_missing_refresh_of_no_results_trials_reason(enrich, tmp_path, monkeypatch):
+    """IN-03: nothing was parsed, so the reason does not claim results were parsed."""
+    monkeypatch.setitem(sys.modules, "sift_kg", None)
+    _write_graph(tmp_path, [NO_RESULTS])
+    report, _ = _run(enrich, tmp_path, _all_fixture_bodies(), results=True, refresh=True)
+    reason = report["results"]["skipped_reason"]
+    assert "parsed" not in reason and "refresh" in reason
+
+
+@pytest.mark.unit
+def test_cache_ttl_stale_payload_after_404_is_counted(enrich, tmp_path):
+    """SA-02: a stale payload used because the refetch got a 404 is counted apart."""
+    cache = tmp_path / "cache"
+    _run(enrich, _write_graph(tmp_path / "g0", [WITH_RESULTS_A, WITH_RESULTS_B]),
+         _all_fixture_bodies(), results=True, cache_dir=cache)
+    for nct in (WITH_RESULTS_A, WITH_RESULTS_B):
+        _age_cache(cache / f"{nct}.json", 5)
+    report, m = _run(
+        enrich, _write_graph(tmp_path / "g1", [WITH_RESULTS_A, WITH_RESULTS_B]),
+        {WITH_RESULTS_B: "500"}, results=True, cache_dir=cache, cache_ttl_days=1,
+    )
+    assert _ctgov_calls(m) == 2
+    assert report["cache"] == {
+        "ttl_days": 1.0, "expired": 2, "refetched": 0, "stale_used": 2, "stale_after_not_found": 1,
+    }
+    assert report["results"]["trials_with_results"] == 2
+
+
+@pytest.mark.unit
+def test_baseline_missing_commit_fails_unless_allowed(monkeypatch):
+    """WR-04: a pinned baseline that git cannot show fails the test by default."""
+    missing = "0" * 40
+    monkeypatch.delenv(ALLOW_MISSING_BASELINES_ENV, raising=False)
+    with pytest.raises(pytest.fail.Exception, match=ALLOW_MISSING_BASELINES_ENV):
+        _baseline_enrich_source(missing)
+    monkeypatch.setenv(ALLOW_MISSING_BASELINES_ENV, "1")
+    with pytest.raises(pytest.skip.Exception):
+        _baseline_enrich_source(missing)
+    for commit in (OLD_COMMIT, ITERATION20_COMMIT, ITERATION26_COMMIT, ITERATION27_COMMIT,
+                   ITERATION28_COMMIT, ITERATION29_COMMIT, ITERATION30_COMMIT):
+        assert re.fullmatch(r"[0-9a-f]{40}", commit)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("variant", ["protocol_only", "fresh_results", "rerun", "colliding_shared", "duplicate"])
+def test_default_runs_identical_to_iteration29(enrich, tmp_path, monkeypatch, variant):
+    old = _load_old_enrich(tmp_path, ITERATION29_COMMIT, "_ct_enrich_iter29", monkeypatch)
+    bodies = _all_fixture_bodies()
+    if variant == "colliding_shared":
+        bodies = {**bodies, WITH_RESULTS_A: _colliding_study()}
+        d_old = _shared_placebo_graph(tmp_path / "old")
+        d_new = _shared_placebo_graph(tmp_path / "new")
+    elif variant == "duplicate":
+        d_old = _write_graph(tmp_path / "old", [WITH_RESULTS_A], [DUP_NODE])
+        d_new = _write_graph(tmp_path / "new", [WITH_RESULTS_A], [DUP_NODE])
+    else:
+        d_old = _fully_seeded(enrich, tmp_path / "old")
+        d_new = _fully_seeded(enrich, tmp_path / "new")
+    kwargs = {} if variant == "protocol_only" else {"results": True}
+    if variant == "rerun":
+        _enrich_with(old, d_old, bodies, results=True)
+        _enrich_with(old, d_new, bodies, results=True)
+    rep_old = _enrich_with(old, d_old, bodies, **kwargs)
+    rep_new = _enrich_with(enrich, d_new, bodies, **kwargs)
+    assert _normalize_stamps((d_old / "graph_data.json").read_bytes()) == _normalize_stamps(
+        (d_new / "graph_data.json").read_bytes()
+    )
+    rep_old.pop("generated_at")
+    rep_new.pop("generated_at")
+    assert rep_old == rep_new and _same_key_order(rep_old, rep_new)
+
+
+@pytest.mark.unit
+def test_default_runs_iteration29_delta_is_the_non_canonical_merge(enrich, tmp_path, monkeypatch):
+    """The one default-run change from iteration 29 (CR-03): with an extracted AE edge
+    on a non-canonical Trial node, iteration 29 wrote a parallel canonical registry
+    edge; iteration 30 merges into the extracted edge. Everything else is equal."""
+    old = _load_old_enrich(tmp_path, ITERATION29_COMMIT, "_ct_enrich_iter29_delta", monkeypatch)
+    nausea = "adverseevent:nausea"
+
+    def graph(d):
+        ae = {"id": nausea, "name": "nausea", "entity_type": "AdverseEvent", "attributes": {}}
+        return _write_graph(d, [WITH_RESULTS_A], [DUP_NODE, ae], [_link(TRIAL_A, "reports_adverse_event", nausea)])
+
+    d_old, d_new = graph(tmp_path / "old"), graph(tmp_path / "new")
+    _enrich_with(old, d_old, _all_fixture_bodies(), results=True)
+    _enrich_with(enrich, d_new, _all_fixture_bodies(), results=True)
+    o_nodes, o_links = _read_graph(d_old)
+    n_nodes, n_links = _read_graph(d_new)
+    key = lambda l: (l["source"], l["relation_type"], l["target"])
+    copy_key = ("trial:achieve_1", "reports_adverse_event", nausea)
+    merged_key = (TRIAL_A, "reports_adverse_event", nausea)
+    assert copy_key in {key(l) for l in o_links} and copy_key not in {key(l) for l in n_links}
+    rest_old = {key(l): l for l in o_links if key(l) not in (copy_key, merged_key)}
+    rest_new = {key(l): l for l in n_links if key(l) not in (copy_key, merged_key)}
+    assert rest_old == rest_new
+    assert o_nodes == n_nodes
+
+
+# ---------------------------------------------------------------------------
+# Iteration 31: 12-REVIEW.iter2 (CR-01 withdrawn join, WR-01 live edge on a
+# non-canonical Trial node, WR-02 dict refresh = first import)
+# ---------------------------------------------------------------------------
+
+ITERATION30_COMMIT = "caa8af0a07747f418d6acf72b8d03955b8a18ac7"
+
+
+def _withdrawn_then_joined(enrich, directory: Path, owner: str, join_refresh: bool):
+    """owner is imported alone and its refresh drops SHARED_TERM (the AE facts
+    only it supports get ctgov_withdrawn); then the other fixture trial is added
+    to the graph and first imports the term (in a default run or a refresh).
+    Returns the bodies both later runs use."""
+    joiner = WITH_RESULTS_B if owner == WITH_RESULTS_A else WITH_RESULTS_A
+    _write_graph(directory, [owner])
+    _run(enrich, directory, _all_fixture_bodies(), results=True)
+    bodies = {**_all_fixture_bodies(), owner: _without_term(owner, SHARED_TERM)}
+    _run(enrich, directory, bodies, results=True, refresh=True)
+    nodes, _ = _read_graph(directory)
+    ae = f"adverseevent:{SHARED_TERM.lower().replace(' ', '_')}"
+    assert _nattr(nodes[ae], "ctgov_withdrawn") is True and _nattr(nodes[ae], "ctgov_nct_ids") == [owner]
+    graph = json.loads((directory / "graph_data.json").read_text())
+    graph["nodes"].append({"id": f"trial:{joiner.lower()}", "name": joiner, "entity_type": "Trial"})
+    (directory / "graph_data.json").write_text(json.dumps(graph))
+    report, _ = _run(enrich, directory, bodies, results=True, refresh=join_refresh)
+    return ae, joiner, bodies, report
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("join_refresh", [False, True], ids=["join_default", "join_refresh"])
+@pytest.mark.parametrize("owner", [WITH_RESULTS_B, WITH_RESULTS_A], ids=["owner_sorts_first", "owner_sorts_last"])
+def test_refresh01_withdrawn_fact_joined_by_another_nct_keeps_the_withdrawal(
+    enrich, tmp_path, owner, join_refresh,
+):
+    """12-REVIEW.iter2 CR-01: a fact withdrawn by its only NCT and later first
+    reported by another NCT is not flagged, records the earlier withdrawal per
+    NCT, and the next two refreshes on unchanged payloads are both no-ops,
+    whichever NCT sorts first."""
+    directory = tmp_path / "g"
+    ae, joiner, bodies, report = _withdrawn_then_joined(enrich, directory, owner, join_refresh)
+    nodes, links = _read_graph(directory)
+    _, shared = _shared_term_facts(nodes, links)
+    assert shared
+    for item in (nodes[ae], *shared):
+        attrs = item.get("attributes") or {}
+        assert attrs.get("ctgov_nct_ids") == [owner, joiner]
+        assert "ctgov_withdrawn" not in attrs
+        assert attrs.get("ctgov_withdrawn_by_nct") == {owner: True}
+    # the owner's own trial edge is still withdrawn; the joiner's is live
+    own = _edges(links, "reports_adverse_event", f"trial:{owner.lower()}", ae)
+    assert own and _eattr(own[0], "ctgov_withdrawn") is True
+    joined = _edges(links, "reports_adverse_event", f"trial:{joiner.lower()}", ae)
+    assert joined and _eattr(joined[0], "ctgov_withdrawn") is None
+    if join_refresh:
+        assert report["results"]["refresh"]["restored"] >= len(shared) + 1
+    _assert_refresh_noop(enrich, directory, bodies)
+    _assert_refresh_noop(enrich, directory, bodies)
+
+    # the owner reports the term again: no withdrawal bookkeeping is left on it
+    _run(enrich, directory, _all_fixture_bodies(), results=True, refresh=True)
+    nodes2, links2 = _read_graph(directory)
+    _, shared2 = _shared_term_facts(nodes2, links2)
+    for item in (nodes2[ae], *shared2):
+        attrs = item.get("attributes") or {}
+        assert "ctgov_withdrawn" not in attrs and "ctgov_withdrawn_by_nct" not in attrs
+
+
+@pytest.mark.unit
+def test_join_withdrawn_converts_the_flag_per_nct(enrich):
+    """_join_withdrawn keeps existing per-NCT entries and leaves unflagged facts alone."""
+    plain = {"ctgov_nct_ids": [WITH_RESULTS_B], "x": 1}
+    enrich._join_withdrawn(plain, None)
+    assert plain == {"ctgov_nct_ids": [WITH_RESULTS_B], "x": 1}
+    both = {
+        "ctgov_nct_ids": [WITH_RESULTS_B, WITH_RESULTS_A], "ctgov_withdrawn": True,
+        "ctgov_withdrawn_by_nct": {WITH_RESULTS_B: True, WITH_RESULTS_A: True},
+    }
+    stats = {"stats": {"restored": 0}}
+    enrich._join_withdrawn(both, stats)
+    assert both == {
+        "ctgov_nct_ids": [WITH_RESULTS_B, WITH_RESULTS_A],
+        "ctgov_withdrawn_by_nct": {WITH_RESULTS_B: True, WITH_RESULTS_A: True},
+    }
+    assert stats["stats"]["restored"] == 1
+
+
+@pytest.mark.unit
+def test_refresh02_live_registry_edge_on_later_non_canonical_trial_is_withdrawn(enrich, tmp_path):
+    """12-REVIEW.iter2 WR-01: a lower-id Trial node of the NCT is added after the
+    first import, so the NCT's live registry edges sit on a non-canonical node.
+    A dropped term withdraws that edge (it is not a legacy copy), and a repeat
+    refresh is a no-op."""
+    ae = f"adverseevent:{REFRESH_TERM_REMOVED.lower()}"
+    directory = _write_graph(tmp_path / "g", [WITH_RESULTS_A])
+    _run(enrich, directory, _all_fixture_bodies(), results=True)
+    graph = json.loads((directory / "graph_data.json").read_text())
+    graph["nodes"].append(dict(DUP_NODE))  # trial:achieve_1 sorts before trial:nct05971940
+    (directory / "graph_data.json").write_text(json.dumps(graph))
+    bodies = _bodies(_without_term(WITH_RESULTS_A, REFRESH_TERM_REMOVED))
+    report, _ = _run(enrich, directory, bodies, results=True, refresh=True)
+    refresh = report["results"]["refresh"]
+    assert refresh["legacy_copies_skipped"] == 0
+    nodes, links = _read_graph(directory)
+    edge = _edges(links, "reports_adverse_event", TRIAL_A, ae)
+    assert len(edge) == 1 and _eattr(edge[0], "ctgov_withdrawn") is True
+    assert not _edges(links, "reports_adverse_event", DUP_NODE["id"], ae)
+    assert _nattr(nodes[ae], "ctgov_withdrawn") is True
+    assert refresh["withdrawn"] == len(
+        [l for l in links if _eattr(l, "ctgov_withdrawn")]
+    ) + len([n for n in nodes.values() if _nattr(n, "ctgov_withdrawn")])
+    _assert_refresh_noop(enrich, directory, bodies)
+    # the term returns: the edge is live again
+    _run(enrich, directory, _all_fixture_bodies(), results=True, refresh=True)
+    _, links2 = _read_graph(directory)
+    assert _eattr(_edges(links2, "reports_adverse_event", TRIAL_A, ae)[0], "ctgov_withdrawn") is None
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "variant", ["protocol_only", "fresh_results", "rerun", "colliding_shared", "duplicate", "non_canonical"],
+)
+def test_default_runs_identical_to_iteration30(enrich, tmp_path, monkeypatch, variant):
+    old = _load_old_enrich(tmp_path, ITERATION30_COMMIT, "_ct_enrich_iter30", monkeypatch)
+    _assert_default_run_identical(enrich, old, tmp_path, variant)
+
+
+def _assert_default_run_identical(enrich, old, tmp_path, variant):
+    """A default run of old and of enrich on the same seed graph gives
+    byte-identical graphs and equal reports (see the variants above)."""
+    bodies = _all_fixture_bodies()
+    if variant == "colliding_shared":
+        bodies = {**bodies, WITH_RESULTS_A: _colliding_study()}
+        d_old = _shared_placebo_graph(tmp_path / "old")
+        d_new = _shared_placebo_graph(tmp_path / "new")
+    elif variant == "duplicate":
+        d_old = _write_graph(tmp_path / "old", [WITH_RESULTS_A], [DUP_NODE])
+        d_new = _write_graph(tmp_path / "new", [WITH_RESULTS_A], [DUP_NODE])
+    elif variant == "non_canonical":
+        nausea = "adverseevent:nausea"
+        ae = {"id": nausea, "name": "nausea", "entity_type": "AdverseEvent", "attributes": {}}
+        seed = ([DUP_NODE, ae], [_link(TRIAL_A, "reports_adverse_event", nausea)])
+        d_old = _write_graph(tmp_path / "old", [WITH_RESULTS_A], *seed)
+        d_new = _write_graph(tmp_path / "new", [WITH_RESULTS_A], *seed)
+    else:
+        d_old = _fully_seeded(enrich, tmp_path / "old")
+        d_new = _fully_seeded(enrich, tmp_path / "new")
+    kwargs = {} if variant == "protocol_only" else {"results": True}
+    if variant == "rerun":
+        _enrich_with(old, d_old, bodies, results=True)
+        _enrich_with(old, d_new, bodies, results=True)
+    rep_old = _enrich_with(old, d_old, bodies, **kwargs)
+    rep_new = _enrich_with(enrich, d_new, bodies, **kwargs)
+    assert _normalize_stamps((d_old / "graph_data.json").read_bytes()) == _normalize_stamps(
+        (d_new / "graph_data.json").read_bytes()
+    )
+    rep_old.pop("generated_at")
+    rep_new.pop("generated_at")
+    assert rep_old == rep_new and _same_key_order(rep_old, rep_new)
+
+
+@pytest.mark.unit
+def test_default_runs_iteration30_delta_is_the_withdrawn_join(enrich, tmp_path, monkeypatch):
+    """The one default-run change from iteration 30 (12-REVIEW.iter2 CR-01): on a
+    graph a refresh left with ctgov_withdrawn facts, a default run in which another
+    NCT first reports such a fact turns the flag into per-NCT entries. Iteration 30
+    left the flag. Everything else is equal."""
+    old = _load_old_enrich(tmp_path, ITERATION30_COMMIT, "_ct_enrich_iter30_delta", monkeypatch)
+    d_old, d_new = tmp_path / "old", tmp_path / "new"
+    for module, d in ((old, d_old), (enrich, d_new)):
+        _write_graph(d, [WITH_RESULTS_B])
+        _enrich_with(module, d, _all_fixture_bodies(), results=True)
+        bodies = {**_all_fixture_bodies(), WITH_RESULTS_B: _without_term(WITH_RESULTS_B, SHARED_TERM)}
+        _enrich_with(module, d, bodies, results=True, refresh=True)
+        graph = json.loads((d / "graph_data.json").read_text())
+        graph["nodes"].append({"id": TRIAL_A, "name": WITH_RESULTS_A, "entity_type": "Trial"})
+        (d / "graph_data.json").write_text(json.dumps(graph))
+        _enrich_with(module, d, bodies, results=True)
+
+    def strip(item):
+        attrs = dict(item.get("attributes") or {})
+        attrs.pop("ctgov_withdrawn", None)
+        attrs.pop("ctgov_withdrawn_by_nct", None)
+        return {**item, "attributes": attrs}
+
+    key = lambda l: (l["source"], l["relation_type"], l["target"])
+    o_nodes, o_links = _read_graph(d_old)
+    n_nodes, n_links = _read_graph(d_new)
+    changed = [
+        k for k in o_nodes
+        if (o_nodes[k].get("attributes") or {}) != (n_nodes[k].get("attributes") or {})
+    ]
+    assert changed and all(
+        _nattr(o_nodes[k], "ctgov_withdrawn") is True and _nattr(n_nodes[k], "ctgov_withdrawn") is None
+        and _nattr(n_nodes[k], "ctgov_withdrawn_by_nct") == {WITH_RESULTS_B: True}
+        for k in changed
+    )
+    assert {k: strip(v) for k, v in o_nodes.items()} == {k: strip(v) for k, v in n_nodes.items()}
+    assert {key(l): strip(l) for l in o_links} == {key(l): strip(l) for l in n_links}
+
+
+# ---------------------------------------------------------------------------
+# Iteration 32: 12-REVIEW.iter3 (WR-01 a late lower-id Trial node with an
+# extracted edge gets no second copy; graphs already holding two copies follow
+# the payload on both; IN-01 restored vs updated_* documented)
+# ---------------------------------------------------------------------------
+
+ITERATION31_COMMIT = "d77cc0e5c2817dca25bfae761e09bb44dda5eff2"
+_LATE_AE = f"adverseevent:{REFRESH_TERM_REMOVED.lower()}"
+
+
+def _late_trial_with_extracted_edge(module, directory: Path):
+    """First import of A on its own Trial node, then extraction adds the lower-id
+    trial:achieve_1 with an extracted edge to an AE A reports, then a default
+    --results run of module."""
+    _write_graph(directory, [WITH_RESULTS_A])
+    _enrich_with(module, directory, _all_fixture_bodies(), results=True)
+    graph = json.loads((directory / "graph_data.json").read_text())
+    graph["nodes"].append(dict(DUP_NODE))  # trial:achieve_1 sorts before trial:nct05971940
+    graph["links"].append(_link(DUP_NODE["id"], "reports_adverse_event", _LATE_AE))
+    (directory / "graph_data.json").write_text(json.dumps(graph))
+    return _enrich_with(module, directory, _all_fixture_bodies(), results=True)
+
+
+def _with_more_affected(term, extra):
+    study = _study(WITH_RESULTS_A)
+    module = study["resultsSection"]["adverseEventsModule"]
+    for table in ("seriousEvents", "otherEvents"):
+        for event in module.get(table) or []:
+            if event["term"] == term:
+                for stat in event.get("stats") or []:
+                    stat["numAffected"] = (stat.get("numAffected") or 0) + extra
+    return study
+
+
+def _recording(links, rel, tgt, nct=WITH_RESULTS_A):
+    return [l for l in _edges(links, rel, tgt=tgt) if nct in (_eattr(l, "ctgov_nct_ids") or [])]
+
+
+@pytest.mark.unit
+def test_trial_edge_source_prefers_the_edge_recording_the_nct(enrich):
+    """_trial_edge_source: the registry edge this NCT owns, then any edge that
+    records the NCT, then the first Trial node with the edge, then the first."""
+    kg = MagicMock()
+    edges = {
+        "trial:a": {"relation_type": "r", "attributes": {"sources": ["ctgov_results"], "ctgov_nct_ids": ["N1"]}},
+        "trial:b": {"relation_type": "r", "attributes": {"source": "ctgov_results", "ctgov_nct_ids": ["N1"]}},
+        "trial:c": {"relation_type": "r", "attributes": {}},
+    }
+    kg.graph.get_edge_data.side_effect = lambda s, t: {0: edges[s]} if s in edges else None
+    assert enrich._trial_edge_source(kg, ["trial:0", "trial:a", "trial:b"], "r", "x", "N1") == "trial:b"
+    assert enrich._trial_edge_source(kg, ["trial:0", "trial:c", "trial:a"], "r", "x", "N1") == "trial:a"
+    assert enrich._trial_edge_source(kg, ["trial:0", "trial:c", "trial:a"], "r", "x", "N2") == "trial:c"
+    assert enrich._trial_edge_source(kg, ["trial:0", "trial:c", "trial:a"], "r", "x") == "trial:c"
+    assert enrich._trial_edge_source(kg, ["trial:0", "trial:z"], "r", "x", "N1") == "trial:0"
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("payload", ["dropped", "changed"])
+def test_refresh02_late_lower_id_trial_with_extracted_edge_gets_no_second_copy(enrich, tmp_path, payload):
+    """12-REVIEW.iter3 WR-01: a lower-id Trial node with an extracted edge to an
+    AE the NCT reports, added after the first import, does not receive the NCT's
+    registry data. Exactly one edge records the NCT for the term; a refresh that
+    drops the term withdraws it (no legacy copy skipped), one that changes the
+    counts updates it, and a repeat refresh is a no-op."""
+    directory = tmp_path / "g"
+    _late_trial_with_extracted_edge(enrich, directory)
+    _, links = _read_graph(directory)
+    extracted = _edges(links, "reports_adverse_event", DUP_NODE["id"], _LATE_AE)
+    assert len(extracted) == 1 and extracted[0].get("attributes") in (None, {})
+    assert [l["source"] for l in _recording(links, "reports_adverse_event", _LATE_AE)] == [TRIAL_A]
+    if payload == "dropped":
+        bodies = _bodies(_without_term(WITH_RESULTS_A, REFRESH_TERM_REMOVED))
+    else:
+        bodies = _bodies(_with_more_affected(REFRESH_TERM_REMOVED, 5))
+    before = _eattr(_edges(links, "reports_adverse_event", TRIAL_A, _LATE_AE)[0], "n_affected")
+    report, _ = _run(enrich, directory, bodies, results=True, refresh=True)
+    refresh = report["results"]["refresh"]
+    assert refresh["legacy_copies_skipped"] == 0
+    nodes, links = _read_graph(directory)
+    recording = _recording(links, "reports_adverse_event", _LATE_AE)
+    assert [l["source"] for l in recording] == [TRIAL_A]
+    edge = recording[0]
+    assert _edges(links, "reports_adverse_event", DUP_NODE["id"], _LATE_AE)[0].get("attributes") in (None, {})
+    if payload == "dropped":
+        assert _eattr(edge, "ctgov_withdrawn") is True
+        assert _nattr(nodes[_LATE_AE], "ctgov_withdrawn") is True
+    else:
+        assert _eattr(edge, "ctgov_withdrawn") is None
+        assert _eattr(edge, "n_affected") > before
+        assert refresh["updated_edges"] >= 1 and refresh["withdrawn"] == 0
+    _assert_refresh_noop(enrich, directory, bodies)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("payload", ["same", "changed", "dropped"])
+def test_refresh02_iteration31_two_copy_graph_follows_the_payload_on_both(
+    enrich, tmp_path, monkeypatch, payload,
+):
+    """A graph iterations 27-31 left with two edges recording the NCT for one
+    fact (the registry edge on trial:nct05971940 and the extracted edge on the
+    later trial:achieve_1 the registry merged into) is refreshed through both:
+    neither is skipped as a legacy copy, a changed count reaches both (the
+    registry edge's value, the extracted edge's bookkeeping), a dropped term
+    withdraws the registry edge and records the per-NCT entry on the extracted
+    one, and the repeat refresh is a no-op. Nothing is deleted."""
+    old = _load_old_enrich(tmp_path, ITERATION31_COMMIT, "_ct_enrich_iter31_copies", monkeypatch)
+    directory = tmp_path / "g"
+    _late_trial_with_extracted_edge(old, directory)
+    _, links0 = _read_graph(directory)
+    assert sorted(l["source"] for l in _recording(links0, "reports_adverse_event", _LATE_AE)) == [
+        DUP_NODE["id"], TRIAL_A,
+    ]
+    bodies = {
+        "same": _all_fixture_bodies(),
+        "changed": _bodies(_with_more_affected(REFRESH_TERM_REMOVED, 5)),
+        "dropped": _bodies(_without_term(WITH_RESULTS_A, REFRESH_TERM_REMOVED)),
+    }[payload]
+    report, _ = _run(enrich, directory, bodies, results=True, refresh=True)
+    refresh = report["results"]["refresh"]
+    assert refresh["legacy_copies_skipped"] == 0
+    nodes, links = _read_graph(directory)
+    assert len(links) == len(links0)
+    registry = _edges(links, "reports_adverse_event", TRIAL_A, _LATE_AE)[0]
+    merged = _edges(links, "reports_adverse_event", DUP_NODE["id"], _LATE_AE)[0]
+    old_count = _eattr(registry, "n_affected") if payload != "changed" else None
+    if payload == "same":
+        assert (refresh["updated_nodes"], refresh["updated_edges"], refresh["withdrawn"]) == (0, 0, 0)
+    elif payload == "changed":
+        registry0 = _edges(links0, "reports_adverse_event", TRIAL_A, _LATE_AE)[0]
+        new_count = _eattr(registry, "n_affected")
+        assert new_count > _eattr(registry0, "n_affected")
+        assert _eattr(merged, "n_affected") == _eattr(registry0, "n_affected")
+        assert _eattr(merged, "registry_n_affected_by_nct") == {WITH_RESULTS_A: new_count}
+        assert refresh["updated_edges"] >= 2
+    else:
+        assert _eattr(registry, "ctgov_withdrawn") is True
+        assert _eattr(merged, "ctgov_withdrawn") is None
+        assert _eattr(merged, "ctgov_withdrawn_by_nct") == {WITH_RESULTS_A: True}
+        assert _eattr(merged, "sources") == ["ctgov_results"]
+        assert _nattr(nodes[_LATE_AE], "ctgov_withdrawn") is True
+        assert _eattr(registry, "n_affected") == old_count
+    again = _assert_refresh_noop(enrich, directory, bodies)
+    assert again["results"]["refresh"]["legacy_copies_skipped"] == 0
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "variant", ["protocol_only", "fresh_results", "rerun", "colliding_shared", "duplicate", "non_canonical"],
+)
+def test_default_runs_identical_to_iteration31(enrich, tmp_path, monkeypatch, variant):
+    old = _load_old_enrich(tmp_path, ITERATION31_COMMIT, "_ct_enrich_iter31", monkeypatch)
+    _assert_default_run_identical(enrich, old, tmp_path, variant)
+
+
+@pytest.mark.unit
+def test_default_runs_iteration31_delta_is_the_late_trial_copy(enrich, tmp_path, monkeypatch):
+    """The one default-run change from iteration 31 (12-REVIEW.iter3 WR-01): when
+    a lower-id Trial node with an extracted edge to an AE the NCT reports is
+    added after the first import, iteration 31 merged the NCT's registry data
+    into that extracted edge as a second copy; iteration 32 leaves it as
+    extracted (the registry edge already records the NCT). Everything else,
+    including the report, is equal."""
+    old = _load_old_enrich(tmp_path, ITERATION31_COMMIT, "_ct_enrich_iter31_delta", monkeypatch)
+    d_old, d_new = tmp_path / "old", tmp_path / "new"
+    rep_old = _late_trial_with_extracted_edge(old, d_old)
+    rep_new = _late_trial_with_extracted_edge(enrich, d_new)
+    o_nodes, o_links = _read_graph(d_old)
+    n_nodes, n_links = _read_graph(d_new)
+    assert o_nodes == n_nodes
+    key = lambda l: (l["source"], l["relation_type"], l["target"])
+    o_by, n_by = {key(l): l for l in o_links}, {key(l): l for l in n_links}
+    assert set(o_by) == set(n_by)
+    changed = [k for k in o_by if o_by[k] != n_by[k]]
+    assert changed == [(DUP_NODE["id"], "reports_adverse_event", _LATE_AE)]
+    assert WITH_RESULTS_A in (_eattr(o_by[changed[0]], "ctgov_nct_ids") or [])
+    assert not (n_by[changed[0]].get("attributes") or {})
+    for rep in (rep_old, rep_new):
+        rep.pop("generated_at")
+    assert rep_old == rep_new and _same_key_order(rep_old, rep_new)
