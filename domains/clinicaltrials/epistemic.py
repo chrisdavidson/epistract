@@ -29,7 +29,12 @@ Evidence grading rules:
    non-significant analyses from DIFFERENT trials is contested; a split
    inside one trial (primary vs subgroup) is not. Ratio measures are
    recognised by pattern (aHR, "Hazard Ratio (HR)"); an unknown measure
-   decides only when the ratio and difference nulls agree.
+   decides only when the ratio and difference nulls agree. With registry data
+   the contest key also carries the outcome kind (responder, continuous,
+   time-to-event) so a responder analysis never contests a continuous one, and
+   the dose (mg) when every analysis of the group names one, so different doses
+   of one drug in different trials do not contest each other; a group missing a
+   dose keeps the dose-free key and its entry says dose_aware: false.
 
 Precedence, for both phase and blinding: registry ct_* fields > extracted
 attributes > graph-derived (linked TrialPhase, design text) > per-claim
@@ -1147,6 +1152,114 @@ def _arm_type_treatment(attrs: dict, patterns) -> str | None:
     return next(iter(found)) if len(found) == 1 else None
 
 
+# CONTEST-02: outcome kind from the measure title, unit and registry effect measure.
+OUTCOME_KINDS = ("responder", "continuous", "time_to_event")
+_TIME_TO_EVENT_RE = re.compile(r"hazard\s+ratio|\bHR\b|\btime\s+to\b", re.IGNORECASE)
+_RESPONDER_RE = re.compile(
+    r"percentage\s+of\s+(?:participants|patients|subjects)|\bproportion\b|\bachiev|\bresponders?\b|"
+    r"number\s+of\s+(?:participants|patients|subjects)|(?:≥|>=|≤|<=|<|>)\s*\d+(?:\.\d+)?\s*%|"
+    r"odds\s+ratio|risk\s+ratio|relative\s+risk|risk\s+difference|"
+    r"^\s*(?:count\s+of\s+)?participants\s*$",
+    re.IGNORECASE,
+)
+_CONTINUOUS_TITLE_RE = re.compile(
+    r"change\s+from\s+baseline|\bmean\b|\bls\s+mean\b|least\s+squares?\s+mean", re.IGNORECASE
+)
+_CONTINUOUS_UNIT_RE = re.compile(
+    r"\bkg\b|kilogram|%|percent|mmol|mg/dl|\bcm\b|mmhg|\bpounds?\b|\blbs?\b|\bkg/m", re.IGNORECASE
+)
+
+
+def _outcome_kind(title, unit=None, effect_measure=None) -> str | None:
+    """Classify an outcome as responder, continuous or time_to_event, else None.
+
+    Time-to-event is checked first, then responder (so "percentage of
+    participants" never reads as a continuous percent), then continuous.
+    """
+    title = str(title or "")
+    unit = str(unit or "")
+    effect = str(effect_measure or "")
+    if _TIME_TO_EVENT_RE.search(title) or _TIME_TO_EVENT_RE.search(effect):
+        return "time_to_event"
+    if any(_RESPONDER_RE.search(t) for t in (title, unit, effect)):
+        return "responder"
+    if (
+        _CONTINUOUS_TITLE_RE.search(title)
+        or re.search(r"mean\s+difference", effect, re.IGNORECASE)
+        or _CONTINUOUS_UNIT_RE.search(unit)
+    ):
+        return "continuous"
+    return None
+
+
+# CONTEST-01: dose in mg from arm and group titles.
+_DOSE_UNITS = r"(?:milligrams?|mg|mcg|µg|μg|ug|g)"
+_DOSE_POOL_RE = re.compile(
+    r"(?<![\w.])((?:\d+(?:\.\d+)?\s*/\s*)+\d+(?:\.\d+)?)\s*(" + _DOSE_UNITS + r")(?![A-Za-z0-9µμ/])",
+    re.IGNORECASE,
+)
+_DOSE_RE = re.compile(
+    r"(?<![\w.])(\d+(?:\.\d+)?)\s*(" + _DOSE_UNITS + r")(?![A-Za-z0-9µμ])"
+    r"(?!\s*/\s*(?:kg|m2|m²|dl|ml|l)\b)",
+    re.IGNORECASE,
+)
+_DOSE_SEGMENT_RE = re.compile(
+    r"\s*(?:\+|;|,(?!\d)|\s+plus\s+|\s+and\s+|\s+with\s+|\s+vs\.?\s+)\s*", re.IGNORECASE
+)
+
+
+def _to_mg(value: str, unit: str) -> float:
+    unit = unit.lower()
+    number = float(value)
+    if unit in ("mcg", "µg", "μg", "ug"):
+        number /= 1000.0
+    elif unit == "g":
+        number *= 1000.0
+    return round(number, 4)
+
+
+def _parse_dose(text) -> set[float]:
+    """Doses in mg named by a text (a slash-pooled "5/10/15 mg" gives several).
+
+    Per-weight and concentration values ("10 mg/kg") are not doses.
+    """
+    text = str(text or "")
+    found: set[float] = set()
+    for match in _DOSE_POOL_RE.finditer(text):
+        for number in re.split(r"\s*/\s*", match.group(1)):
+            found.add(_to_mg(number, match.group(2)))
+    remainder = _DOSE_POOL_RE.sub(" ", text)
+    for match in _DOSE_RE.finditer(remainder):
+        found.add(_to_mg(match.group(1), match.group(2)))
+    return found
+
+
+def _finding_dose(texts, treatment_id, patterns) -> float | None:
+    """The single dose (mg) of the treatment compound across its arm texts, else None.
+
+    A text that names compounds counts only the segments (split on "+", "plus",
+    "and", "with", ",", ";", "vs") that name the treatment; a segment naming no
+    compound follows the segment before it. A text that names no compound
+    contributes its doses as they are. Several distinct doses give None.
+    """
+    doses: set[float] = set()
+    for text in texts:
+        text = str(text or "")
+        if not text.strip():
+            continue
+        if not _compounds_in_text(text, patterns):
+            doses |= _parse_dose(text)
+            continue
+        current = False
+        for segment in _DOSE_SEGMENT_RE.split(text):
+            named = _compounds_in_text(segment, patterns)
+            if named:
+                current = treatment_id in named
+            if current:
+                doses |= _parse_dose(segment)
+    return next(iter(doses)) if len(doses) == 1 else None
+
+
 def _analysis_findings(
     nodes: list[dict], links: list[dict], trial_lookup: dict, doc_trials: dict,
     registry_mode: bool = False, arm_stats: dict | None = None,
@@ -1325,6 +1438,35 @@ def _analysis_findings(
                 sources = ["extracted"]
             if node_id in from_arm_type:
                 finding["treatment_basis"] = "registry_arm_type"
+            # CONTEST-02: the outcome kind keys the contest; CONTEST-01: so does the dose.
+            outcome_node = by_id.get(outcomes[0]) if outcomes else None
+            outcome_attrs = (
+                outcome_node.get("attributes")
+                if outcome_node and isinstance(outcome_node.get("attributes"), dict) else {}
+            )
+            finding["outcome_kind"] = (
+                _outcome_kind(
+                    outcome_node.get("name") if outcome_node else None,
+                    attrs.get("unit") or outcome_attrs.get("unit"),
+                    attrs.get("effect_measure"),
+                ) if outcome_node else None
+            )
+            finding["dose_mg"] = None
+            if treatment_id is not None and etype(treatment_id) == "compound":
+                dose_texts: list = []
+                for cohort_id in sorted(active_cohorts):
+                    cohort = by_id[cohort_id]
+                    cohort_attrs = cohort.get("attributes") if isinstance(cohort.get("attributes"), dict) else {}
+                    dose_texts += [cohort.get("name"), cohort_attrs.get("arm_label")]
+                compared = attrs.get("compared_groups")
+                for title in compared if isinstance(compared, list) else ():
+                    if not _is_comparator_text(title, patterns):
+                        dose_texts.append(title)
+                arm_groups = attrs.get("ctgov_arm_groups")
+                for group in arm_groups if isinstance(arm_groups, list) else ():
+                    if isinstance(group, dict) and group.get("arm_type") == ARM_EXPERIMENTAL:
+                        dose_texts.append(group.get("title"))
+                finding["dose_mg"] = _finding_dose(dose_texts, treatment_id, patterns)
             finding["significance_source"] = significance_source
             finding["sources"] = sources
             # An outcome whose name normalizes to nothing ("Change from baseline
@@ -1399,8 +1541,16 @@ def _analysis_contests(
     reported by the same two trials are one contest, not one per title.
     test_types maps a registry analysis id to its registry non_inferiority_type
     (registry mode only; see _registry_test_types).
+
+    CONTEST-02: in registry mode the group key is (measure key, outcome kind,
+    treatment), so responder, continuous and time-to-event analyses of one
+    measure and drug never contest each other. CONTEST-01: when every finding
+    of a group has a dose_mg the group is split by dose (the same dose across
+    trials contests, different doses do not) and its entries carry
+    dose_aware: true and dose_mg; otherwise the group keeps the dose-free key
+    and its entries carry dose_aware: false.
     """
-    groups: dict[tuple[str, str], list[dict]] = defaultdict(list)
+    groups: dict[tuple, list[dict]] = defaultdict(list)
     for finding in findings:
         if finding["significant"] is None:
             continue
@@ -1414,7 +1564,7 @@ def _analysis_contests(
             ):
                 continue
             fine = _base_measure_key(finding["standard_outcome"]) or str(finding["standard_outcome_id"])
-            key = (fine, str(finding["treatment"]).lower())
+            key = (fine, finding.get("outcome_kind") or "", str(finding["treatment"]).lower())
         else:
             key = (str(finding["standard_outcome"]).lower(), str(finding["treatment"]).lower())
         groups[key].append(finding)
@@ -1422,7 +1572,7 @@ def _analysis_contests(
     contested: list[dict] = []
     contradictions: list[dict] = []
     if registry_mode:
-        return _registry_contests(groups, test_types)
+        return _registry_contests(_split_by_dose(groups), test_types)
     for key, group in sorted(groups.items()):
         positive = [f for f in group if f["significant"] is True]
         negative = [f for f in group if f["significant"] is False]
@@ -1462,10 +1612,26 @@ def _analysis_contests(
     return contested, contradictions
 
 
+def _split_by_dose(groups: dict) -> dict:
+    """Extend each (measure key, kind, treatment) group key with the dose.
+
+    A group whose findings all have a dose_mg is split into one group per dose
+    (key + (dose,)); any other group stays whole (key + (None,)).
+    """
+    out: dict[tuple, list[dict]] = {}
+    for key, group in groups.items():
+        if group and all(f.get("dose_mg") is not None for f in group):
+            for finding in group:
+                out.setdefault(key + (finding["dose_mg"],), []).append(finding)
+        else:
+            out[key + (None,)] = group
+    return out
+
+
 def _registry_contests(groups: dict, test_types: dict | None) -> tuple[list[dict], list[dict]]:
-    """Decide registry contests per (per-title key, treatment) group, then merge
-    the entries that share (outcome key, treatment, positive trials, negative
-    trials) into one, rebuilt from the union of their analyses. The merged
+    """Decide registry contests per (per-title key, outcome kind, treatment, dose)
+    group, then merge the entries that share (outcome key, kind, treatment, dose,
+    positive trials, negative trials) into one, rebuilt from the union of their analyses. The merged
     entry is a contradiction when any of its parts is. Entries keep the order
     of their first part."""
     merged: dict[tuple, dict] = {}
@@ -1474,17 +1640,20 @@ def _registry_contests(groups: dict, test_types: dict | None) -> tuple[list[dict
         if entry is None:
             continue
         coarse = str(group[0]["standard_outcome_key"])
-        dedupe = (coarse, key[1], tuple(entry["positive_trials"]), tuple(entry["negative_trials"]))
+        dedupe = (
+            coarse, key[1], key[2], key[3],
+            tuple(entry["positive_trials"]), tuple(entry["negative_trials"]),
+        )
         slot = merged.setdefault(dedupe, {"entry": entry, "group": [], "parts": 0, "contradiction": False})
         slot["group"].extend(group)
         slot["parts"] += 1
         slot["contradiction"] = slot["contradiction"] or is_contradiction
     contested: list[dict] = []
     contradictions: list[dict] = []
-    for (coarse, treatment, _, _), slot in merged.items():
+    for (coarse, kind, treatment, dose, _, _), slot in merged.items():
         entry = slot["entry"]
         if slot["parts"] > 1:
-            entry, _ = _registry_contest_entry((coarse, treatment), slot["group"], test_types)
+            entry, _ = _registry_contest_entry((coarse, kind, treatment, dose), slot["group"], test_types)
         else:
             entry = {**entry, "standard_outcome_key": coarse}
         contested.append({**entry, "epistemic_status": "contested"})
@@ -1558,7 +1727,7 @@ def _design_note(positive: list[dict], negative: list[dict], test_types: dict | 
 
 
 def _registry_contest_entry(
-    key: tuple[str, str], group: list[dict], test_types: dict | None = None
+    key: tuple, group: list[dict], test_types: dict | None = None
 ) -> tuple[dict | None, bool]:
     """Decide one registry-mode (outcome key, treatment) group at trial level.
 
@@ -1572,7 +1741,14 @@ def _registry_contest_entry(
     depend on node order. It carries design_note when a positive or negative
     analysis is registered with a non_inferiority_type other than SUPERIORITY
     (see _design_note). Returns (entry or None, is_contradiction).
+
+    The key is (measure key, outcome kind, treatment, dose); a legacy
+    (measure key, treatment) key reads as no kind and no dose. The entry
+    carries outcome_kind (None when the kind is unknown) and dose_aware, plus
+    dose_mg when dose_aware.
     """
+    kind = (key[1] or None) if len(key) >= 4 else None
+    dose = key[3] if len(key) >= 4 else None
     by_trial: dict[str, list[dict]] = defaultdict(list)
     for finding in group:
         if finding["trial"] is not None:
@@ -1618,6 +1794,8 @@ def _registry_contest_entry(
         "standard_outcome": display,
         "standard_outcome_key": key[0],
         "standard_outcome_ids": outcome_ids,
+        "outcome_kind": kind,
+        "dose_aware": dose is not None,
         "treatment": treated["treatment"],
         "positive": [f["analysis"] for f in positive],
         "negative": [f["analysis"] for f in negative],
@@ -1644,6 +1822,8 @@ def _registry_contest_entry(
         "mentions": [{"source_document": d} for d in docs],
         "support_documents": docs,
     }
+    if dose is not None:
+        entry["dose_mg"] = dose
     note = _design_note(positive, negative, test_types)
     if note:
         entry["design_note"] = note
@@ -1928,6 +2108,16 @@ def analyze_clinicaltrials_epistemic(output_dir: Path, graph_data: dict) -> dict
             1 for f in analysis_claims if f.get("treatment_basis") == "registry_arm_type"
         )
         summary["analysis_treatment_arm_type_disagreements"] = arm_stats.get("disagreements", 0)
+        kind_counts: dict[str, int] = defaultdict(int)
+        for finding in analysis_claims:
+            kind_counts[finding.get("outcome_kind") or "unknown"] += 1
+        summary["analysis_outcome_kind_counts"] = dict(sorted(kind_counts.items()))
+        summary["analysis_contests_dose_aware"] = sum(
+            1 for c in analysis_contested if c.get("dose_aware")
+        )
+        summary["analysis_contests_dose_fallback"] = sum(
+            1 for c in analysis_contested if c.get("dose_aware") is False
+        )
 
     return {
         "metadata": {
