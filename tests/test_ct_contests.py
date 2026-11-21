@@ -325,6 +325,17 @@ def test_contest02_summary_counts_kinds(ep):
     ("Tirzepatide 2.5-15 mg", {2.5, 15.0}),
     ("Orforglipron 12–45 mg", {12.0, 45.0}),
     ("Semaglutide 500 mcg to 1 mg", {0.5, 1.0}),
+    # WR-01 (review round 3): a decimal or a descriptor word ("treatment",
+    # "regimen") before a range is no label, so titration ranges stay ranges
+    ("Semaglutide treatment 0.25 to 2.4 mg", {0.25, 2.4}),
+    ("Tirzepatide treatment 2.5 - 15 mg", {2.5, 15.0}),
+    ("Titration regimen 5 to 10 mg", {5.0, 10.0}),
+    ("Semaglutide dose escalation regimen 0.25 to 1 mg", {0.25, 1.0}),
+    # IN-01 (review round 3): a range whose upper end is per-weight is no dose
+    # at either end, also when its lower end carries a unit
+    ("10 mg - 20 mg/kg", set()),
+    ("Semaglutide 1 mg-2 mg/kg", set()),
+    ("Semaglutide 1 mg-2 mg", {1.0, 2.0}),
 ])
 def test_contest01_parse_dose(ep, text, doses):
     assert ep._parse_dose(text) == doses
@@ -445,6 +456,24 @@ def test_review2_label_number_and_concentration_keep_the_dose(ep, arm):
     assert _claims(result)["ra1"]["dose_mg"] == 10.0
     entries = _entries(result)
     assert len(entries) == 1 and entries[0]["dose_aware"] is True and entries[0]["dose_mg"] == 10.0
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("arm", [
+    "Tirzepatide treatment 2.5 - 15 mg",
+    "Titration regimen 5 to 15 mg Tirzepatide",
+])
+def test_review3_titration_range_is_no_same_dose_contest(ep, arm):
+    """WR-01 (round 3): a titration arm names a range, so it has no single dose
+    and does not form a same-dose contest with a fixed 15 mg arm."""
+    graph = _graph([
+        _spec("ra1", "NCT00000001", arm, "<0.001"),
+        _spec("ra2", "NCT00000002", "Tirzepatide 15 mg", "0.40"),
+    ])
+    result = _run(ep, graph)
+    assert _claims(result)["ra1"]["dose_mg"] is None
+    entries = _entries(result)
+    assert len(entries) == 1 and entries[0]["dose_aware"] is False
 
 
 @pytest.mark.unit

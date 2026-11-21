@@ -4365,6 +4365,30 @@ def test_review2_refresh_that_changes_attributes_and_arm_groups_counts_one_updat
     assert report["results"]["refresh"]["updated_nodes"] == 1
 
 
+# --- 13-REVIEW round 3 (iteration 38) ------------------------------------------
+
+@pytest.mark.unit
+def test_review3_analysis_created_by_a_refresh_is_not_counted_as_updated(enrich_arm, tmp_path):
+    """WR-02 (round 3): an analysis the refresh creates counts as created only;
+    its arm groups are no update of an existing node."""
+    directory = _write_graph(tmp_path / "g", [WITH_RESULTS_A], _compound_nodes("Semaglutide", "Tirzepatide"))
+    empty = _arm_ab_study(["Drug: Semaglutide"])
+    for measure in empty["resultsSection"]["outcomeMeasuresModule"]["outcomeMeasures"]:
+        measure["analyses"] = []
+    _run(enrich_arm, directory, {WITH_RESULTS_A: empty}, results=True)
+    nodes, _ = _read_graph(directory)
+    assert _registry_nodes(nodes, "OutcomeAnalysis") == []
+    full = {WITH_RESULTS_A: _arm_ab_study(["Drug: Semaglutide"])}
+    report, _ = _run(enrich_arm, directory, full, results=True, refresh=True)
+    nodes, links = _read_graph(directory)
+    analyses = _registry_nodes(nodes, "OutcomeAnalysis")
+    assert len(analyses) == 1 and _nattr(analyses[0], "ctgov_arm_groups")
+    assert _live_arm_edges(links) == [("compound:semaglutide", False)]
+    assert report["results"]["refresh"]["updated_nodes"] == 0
+    assert report["results"]["created_nodes"] >= 1
+    _assert_refresh_noop(enrich_arm, directory, full)
+
+
 # WR-06: the enrich resolver and the epistemic resolver agree. Each row: compared
 # armGroups as (title, arm_type, interventions), and the expected compound name.
 PARITY_NAMES = ("Semaglutide", "Metformin", "Insulin Glargine", "Tirzepatide")
