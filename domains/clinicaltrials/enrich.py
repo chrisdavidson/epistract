@@ -795,8 +795,10 @@ def _refresh_attrs(target, attrs, rename, groups, nct) -> bool:
         if key in held:
             changed |= _refresh_bookkeeping(target, key, value, rename, nct)
         elif current in (None, "", []):
-            target[key] = value
-            changed = True
+            # An empty value equal to the payload's (e.g. []) is not a change.
+            if current != value:
+                target[key] = value
+                changed = True
         elif isinstance(current, dict) and isinstance(value, dict):
             for sub, subvalue in value.items():
                 if NCT_PATTERN.fullmatch(str(sub)):
@@ -815,13 +817,19 @@ def _merge_into_node(kg, node_id, attrs, nct, counters, rename=None, count=False
     """Merge registry attributes into an existing node under the merge rules.
 
     Returns True when this NCT was newly recorded on the node.
+
+    In a refresh only the first write of the NCT to a node is applied, as in a
+    first import (where a repeated write for a recorded NCT is a no-op): two
+    measures of one trial that share a title keep the first measure's values.
     """
     node = kg.graph.nodes[node_id]
     target = _node_attrs(kg, node_id)
+    ctx = _refresh_ctx(counters, nct)
+    seen = ctx is not None and node_id in ctx["nodes"]
+    if ctx is not None:
+        ctx["nodes"].add(node_id)
     if nct in (target.get("ctgov_nct_ids") or []):
-        ctx = _refresh_ctx(counters, nct)
-        if ctx is not None:
-            ctx["nodes"].add(node_id)
+        if ctx is not None and not seen:
             restored_before = ctx["stats"]["restored"]
             _restore(target, ctx)
             changed = _refresh_attrs(
@@ -876,11 +884,17 @@ def _find_edge(kg, src, rel, tgt):
 
 
 def _upsert_edge(kg, src, rel, tgt, nct, evidence, attrs, counters) -> bool:
-    """Create or merge a registry edge; a repeated call for the same NCT is a no-op."""
+    """Create or merge a registry edge; a repeated call for the same NCT is a no-op.
+
+    In a refresh only the first write of the NCT to an edge is applied (as in a
+    first import), and a registry edge first written by another NCT gets no
+    attributes for this NCT, because a first import records none there either.
+    """
     if not (kg.graph.has_node(src) and kg.graph.has_node(tgt)):
         return False
     attrs = {k: v for k, v in (attrs or {}).items() if v is not None}
     ctx = _refresh_ctx(counters, nct)
+    seen = ctx is not None and (src, rel, tgt) in ctx["edges"]
     if ctx is not None:
         ctx["edges"].add((src, rel, tgt))
     _, data = _find_edge(kg, src, rel, tgt)
@@ -903,12 +917,11 @@ def _upsert_edge(kg, src, rel, tgt, nct, evidence, attrs, counters) -> bool:
         target = {}
         data["attributes"] = target
     if nct in (target.get("ctgov_nct_ids") or []):
-        ctx = _refresh_ctx(counters, nct)
-        if ctx is not None:
-            ctx["edges"].add((src, rel, tgt))
+        if ctx is not None and not seen:
             restored_before = ctx["stats"]["restored"]
             _restore(target, ctx)
-            changed = _refresh_attrs(target, attrs, None, (), nct)
+            shared_registry = target.get("source") == REGISTRY_SOURCE and not _owned_by(target, nct)
+            changed = False if shared_registry else _refresh_attrs(target, attrs, None, (), nct)
             if _owned_by(target, nct) and len(target.get("ctgov_nct_ids") or []) == 1:
                 # A reload derives the edge evidence from the mentions, so the
                 # mention of this NCT carries the new text as well.
