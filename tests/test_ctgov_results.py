@@ -450,7 +450,7 @@ def test_malformed_results_section_counted(enrich, tmp_path):
 
 REPORT_KEYS = [
     "trials_with_results", "trials_without_results", "results_failed",
-    "adverse_events_parsed", "analyses_parsed", "created", "merged",
+    "adverse_events_parsed", "analyses_parsed", "created", "merged", "merged_by_type",
     "created_nodes", "created_edges", "write_failed",
 ]
 
@@ -1205,7 +1205,12 @@ def test_report_created_merged_counts(enrich, tmp_path):
         and "ctgov_results" in (_nattr(n, "sources") or [])
     ]
     assert len(gained) == 2
-    assert block["merged"] == sum(len(_nattr(n, "ctgov_nct_ids", [])) for n in gained)
+    by_type = block["merged_by_type"]
+    assert list(by_type) == ["AdverseEvent", "OutcomeAnalysis", "Outcome"]
+    assert by_type["AdverseEvent"] + by_type["OutcomeAnalysis"] == sum(
+        len(_nattr(n, "ctgov_nct_ids", [])) for n in gained
+    )
+    assert block["merged"] == sum(by_type.values())
     assert block["write_failed"] == 0
 
 
@@ -1226,7 +1231,9 @@ def test_duplicate_nct_trial_nodes(enrich, tmp_path):
     nodes, links = _read_graph(dup)
     for tid in (TRIAL_A, "trial:achieve_1"):
         assert nodes[tid]["ct_overall_status"]
-        assert _edges(links, "reports_adverse_event", tid)
+    # Registry edges are written once, from the canonical (lowest-id) Trial node.
+    assert _edges(links, "reports_adverse_event", "trial:achieve_1")
+    assert not _edges(links, "reports_adverse_event", TRIAL_A)
 
 
 @pytest.mark.unit
@@ -2037,12 +2044,14 @@ def test_results_default_byte_identical_to_iteration20(enrich, tmp_path, monkeyp
         rep_old = old.enrich_graph(d_old, results=True)
     with patch.object(enrich.requests, "get", side_effect=_router(bodies)):
         rep_new = enrich.enrich_graph(d_new, results=True)
-    g_old = _normalize_stamps((d_old / "graph_data.json").read_bytes())
-    g_new = _normalize_stamps((d_new / "graph_data.json").read_bytes())
-    assert g_old == g_new
+    g_old = json.loads(_normalize_stamps((d_old / "graph_data.json").read_bytes()))
+    g_new = json.loads(_normalize_stamps((d_new / "graph_data.json").read_bytes()))
+    # Iteration 27 adds registry_<attr>_by_nct beside every stored conflict and
+    # nothing else: without those keys the graphs are equal.
+    assert g_old == _strip_by_nct(g_new) and _same_key_order(g_old, _strip_by_nct(g_new))
     rep_old.pop("generated_at")
     rep_new.pop("generated_at")
-    assert rep_old == rep_new and _same_key_order(rep_old, rep_new)
+    _assert_report_delta(rep_old, rep_new)
 
 
 # Iteration 22: a re-run under another floor never rewrites or misreports AEs
@@ -2103,3 +2112,314 @@ def test_cli_serious_min_pct_needs_results(tmp_path):
         capture_output=True, text=True, timeout=60,
     )
     assert proc.returncode == 2 and "needs --results" in proc.stderr
+
+
+# --- Iteration 27 (999.3): canonical-trial edges, per-NCT conflicts, merged_by_type ---
+
+ITERATION26_COMMIT = "cf9e8b7"
+DUP_NODE = {"id": "trial:achieve_1", "name": f"ACHIEVE-1 ({WITH_RESULTS_A})", "entity_type": "Trial"}
+
+
+def _strip_by_nct(value):
+    """A copy of a parsed graph without any key ending in _by_nct."""
+    if isinstance(value, dict):
+        return {k: _strip_by_nct(v) for k, v in value.items() if not str(k).endswith("_by_nct")}
+    if isinstance(value, list):
+        return [_strip_by_nct(v) for v in value]
+    return value
+
+
+def _collect_by_nct(value, path=()):
+    out = []
+    if isinstance(value, dict):
+        for k, v in value.items():
+            if str(k).endswith("_by_nct"):
+                out.append((path, k, v))
+            else:
+                out.extend(_collect_by_nct(v, (*path, k)))
+    elif isinstance(value, list):
+        for i, v in enumerate(value):
+            out.extend(_collect_by_nct(v, (*path, i)))
+    return out
+
+
+def _assert_report_delta(rep_old, rep_new):
+    """Iteration 27 report vs an older one: only merged_by_type and its Outcome share of merged differ."""
+    assert list(rep_new) == list(rep_old)
+    if "results" not in rep_old:
+        assert rep_old == rep_new
+        return
+    old_block, new_block = dict(rep_old["results"]), dict(rep_new["results"])
+    by_type = new_block.pop("merged_by_type")
+    assert list(by_type) == ["AdverseEvent", "OutcomeAnalysis", "Outcome"]
+    assert new_block["merged"] == old_block["merged"] + by_type["Outcome"]
+    assert new_block["merged"] == sum(by_type.values())
+    new_block["merged"] = old_block["merged"]
+    assert new_block == old_block
+    assert list(rep_new["results"]) == [
+        k for key in old_block for k in ((key, "merged_by_type") if key == "merged" else (key,))
+    ]
+    assert {k: v for k, v in rep_new.items() if k != "results"} == {
+        k: v for k, v in rep_old.items() if k != "results"
+    }
+
+
+def _load_old_enrich(tmp_path, commit, name, monkeypatch):
+    try:
+        shown = subprocess.run(
+            ["git", "-C", str(EPI_ROOT), "show", f"{commit}:domains/clinicaltrials/enrich.py"],
+            capture_output=True, check=True, timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        pytest.skip(f"cannot read {commit} from git: {exc}")
+    path = tmp_path / f"{name}.py"
+    path.write_bytes(shown.stdout)
+    old = _load_enrich(name, path)
+    monkeypatch.setattr(old.time, "sleep", lambda s: None)
+    return old
+
+
+def _enrich_with(module, directory, bodies, **kwargs):
+    with patch.object(module.requests, "get", side_effect=_router(bodies)):
+        return module.enrich_graph(directory, **kwargs)
+
+
+def _registry_edge_keys(links):
+    return sorted(
+        (l["source"], l["relation_type"], l["target"])
+        for l in links if _eattr(l, "source") == "ctgov_results"
+    )
+
+
+@pytest.mark.unit
+def test_refresh02_registry_edges_written_once_from_canonical_trial(enrich, tmp_path):
+    single = _write_graph(tmp_path / "single", [WITH_RESULTS_A])
+    single_report, _ = _run(enrich, single, _all_fixture_bodies(), results=True)
+    dup = _write_graph(tmp_path / "dup", [WITH_RESULTS_A], [DUP_NODE])
+    dup_report, _ = _run(enrich, dup, _all_fixture_bodies(), results=True)
+    s_nodes, s_links = _read_graph(single)
+    d_nodes, d_links = _read_graph(dup)
+
+    canonical = "trial:achieve_1"
+    assert canonical < TRIAL_A
+    assert dup_report["results"] == single_report["results"]
+    assert len(_registry_edge_keys(d_links)) == len(_registry_edge_keys(s_links))
+    assert sorted(x["id"] for x in _registry_nodes(d_nodes)) == sorted(
+        x["id"] for x in _registry_nodes(s_nodes)
+    )
+    registry_trial_edges = [
+        l for l in d_links
+        if _eattr(l, "source") == "ctgov_results"
+        and l["relation_type"] in ("reports_adverse_event", "has_outcome")
+    ]
+    assert registry_trial_edges
+    assert {l["source"] for l in registry_trial_edges} == {canonical}
+    assert not _edges(d_links, "reports_adverse_event", TRIAL_A)
+    assert not _edges(d_links, "has_outcome", TRIAL_A)
+    assert _nattr(d_nodes[TRIAL_A], "same_trial_as") == canonical
+    assert _nattr(d_nodes[canonical], "same_trial_as") is None
+    for tid in (TRIAL_A, canonical):
+        assert d_nodes[tid]["ct_overall_status"]
+    # the same edges as the single-node run, with the canonical source swapped in
+    renamed = sorted(
+        (canonical if src == TRIAL_A else src, rel, tgt)
+        for src, rel, tgt in _registry_edge_keys(s_links)
+    )
+    assert _registry_edge_keys(d_links) == renamed
+
+
+@pytest.mark.unit
+def test_refresh02_single_nct_graph_has_no_same_trial_as(enrich, tmp_path):
+    _write_graph(tmp_path, [WITH_RESULTS_A, WITH_RESULTS_B])
+    _run(enrich, tmp_path, _all_fixture_bodies(), results=True)
+    nodes, _ = _read_graph(tmp_path)
+    assert not [n for n in nodes.values() if _nattr(n, "same_trial_as") is not None]
+
+
+@pytest.mark.unit
+def test_refresh02_duplicate_graph_rerun_is_idempotent(enrich, tmp_path):
+    dup = _write_graph(tmp_path / "dup", [WITH_RESULTS_A], [DUP_NODE])
+    _run(enrich, dup, _all_fixture_bodies(), results=True)
+    first = _normalize_stamps((dup / "graph_data.json").read_bytes())
+    report, _ = _run(enrich, dup, _all_fixture_bodies(), results=True)
+    assert _normalize_stamps((dup / "graph_data.json").read_bytes()) == first
+    assert report["results"]["created"] == 0 and report["results"]["merged"] == 0
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("variant", ["seeded", "duplicate"])
+def test_default_runs_rerun_on_iteration26_graph_is_byte_identical(enrich, tmp_path, monkeypatch, variant):
+    old = _load_old_enrich(tmp_path, ITERATION26_COMMIT, "_ct_enrich_iter26_rerun", monkeypatch)
+    if variant == "seeded":
+        directory = _seeded_graph(tmp_path / "g")
+    else:
+        directory = _write_graph(tmp_path / "g", [WITH_RESULTS_A], [DUP_NODE])
+    bodies = _all_fixture_bodies()
+    _enrich_with(old, directory, bodies, results=True)
+    before = _normalize_stamps((directory / "graph_data.json").read_bytes())
+    report = _enrich_with(enrich, directory, bodies, results=True)
+    assert _normalize_stamps((directory / "graph_data.json").read_bytes()) == before
+    block = report["results"]
+    assert block["created"] == 0 and block["merged"] == 0
+    assert block["merged_by_type"] == {"AdverseEvent": 0, "OutcomeAnalysis": 0, "Outcome": 0}
+    nodes, _ = _read_graph(directory)
+    assert not [n for n in nodes.values() if _nattr(n, "same_trial_as") is not None]
+
+
+@pytest.mark.unit
+def test_default_runs_protocol_only_identical_to_iteration26(enrich, tmp_path, monkeypatch):
+    old = _load_old_enrich(tmp_path, ITERATION26_COMMIT, "_ct_enrich_iter26_plain", monkeypatch)
+    d_old = _seeded_graph(tmp_path / "old")
+    d_new = _seeded_graph(tmp_path / "new")
+    bodies = _all_fixture_bodies()
+    rep_old = _enrich_with(old, d_old, bodies)
+    rep_new = _enrich_with(enrich, d_new, bodies)
+    assert _normalize_stamps((d_old / "graph_data.json").read_bytes()) == _normalize_stamps(
+        (d_new / "graph_data.json").read_bytes()
+    )
+    rep_old.pop("generated_at")
+    rep_new.pop("generated_at")
+    assert rep_old == rep_new and _same_key_order(rep_old, rep_new) and "results" not in rep_new
+
+
+@pytest.mark.unit
+def test_default_runs_fresh_results_delta_is_by_nct_and_merged_by_type(enrich, tmp_path, monkeypatch):
+    old = _load_old_enrich(tmp_path, ITERATION26_COMMIT, "_ct_enrich_iter26_delta", monkeypatch)
+    d_old = _fully_seeded(enrich, tmp_path / "old")
+    d_new = _fully_seeded(enrich, tmp_path / "new")
+    bodies = _all_fixture_bodies()
+    rep_old = _enrich_with(old, d_old, bodies, results=True)
+    rep_new = _enrich_with(enrich, d_new, bodies, results=True)
+    g_old = json.loads(_normalize_stamps((d_old / "graph_data.json").read_bytes()))
+    g_new = json.loads(_normalize_stamps((d_new / "graph_data.json").read_bytes()))
+    stripped = _strip_by_nct(g_new)
+    assert g_old == stripped and _same_key_order(g_old, stripped)
+    added = _collect_by_nct(g_new)
+    assert added
+    for path, key, mapping in added:
+        holder = g_new
+        for step in path:
+            holder = holder[step]
+        plain = holder[key[: -len("_by_nct")]]
+        assert isinstance(mapping, dict) and mapping
+        assert plain in mapping.values()
+    rep_old.pop("generated_at")
+    rep_new.pop("generated_at")
+    _assert_report_delta(rep_old, rep_new)
+    assert rep_new["results"]["merged_by_type"]["Outcome"] >= 1
+
+
+def _stub_kg():
+    import networkx as nx
+    from types import SimpleNamespace
+
+    return SimpleNamespace(graph=nx.MultiDiGraph())
+
+
+@pytest.mark.unit
+def test_refresh03_three_trials_keep_every_conflicting_value(enrich):
+    kg = _stub_kg()
+    kg.graph.add_node("adverseevent:nausea", name="Nausea", entity_type="AdverseEvent",
+                      attributes={"reported_term": "Nausea"})
+    counters = enrich._new_counters()
+    for nct, term in (("NCT00000001", "nausea"), ("NCT00000002", "NAUSEA "), ("NCT00000003", "Nausea")):
+        enrich._merge_into_node(
+            kg, "adverseevent:nausea", {"reported_term": term}, nct, counters,
+            rename={"reported_term": "registry_term"}, count=True,
+        )
+    attrs = kg.graph.nodes["adverseevent:nausea"]["attributes"]
+    assert attrs["reported_term"] == "Nausea"
+    assert attrs["registry_term"] == "nausea"
+    assert attrs["registry_term_by_nct"] == {"NCT00000001": "nausea", "NCT00000002": "NAUSEA "}
+    assert attrs["ctgov_nct_ids"] == ["NCT00000001", "NCT00000002", "NCT00000003"]
+    assert counters["merged"] == 3 and counters["merged_by_type"]["AdverseEvent"] == 3
+
+
+@pytest.mark.unit
+def test_refresh03_plain_attribute_conflicts_across_three_ncts(enrich):
+    target = {"enrollment": 10}
+    for nct, value in (("NCT00000001", 11), ("NCT00000002", 12), ("NCT00000003", 13)):
+        enrich._merge_attrs(target, {"enrollment": value}, nct=nct)
+    assert target["registry_enrollment"] == 11
+    assert target["registry_enrollment_by_nct"] == {
+        "NCT00000001": 11, "NCT00000002": 12, "NCT00000003": 13,
+    }
+    # without an NCT the legacy behaviour is unchanged
+    legacy = {"enrollment": 10}
+    enrich._merge_attrs(legacy, {"enrollment": 11})
+    assert legacy == {"enrollment": 10, "registry_enrollment": 11}
+
+
+@pytest.mark.unit
+def test_refresh03_held_stat_group_conflicts_keep_by_nct(enrich):
+    target = {"p_value": "0.04", "effect_estimate": 1.2}
+    attrs = {"p_value": "0.01", "p_value_num": 0.01, "effect_estimate": 1.5, "effect_measure": "Mean Difference"}
+    enrich._merge_attrs(target, attrs, groups=enrich.ANALYSIS_STAT_GROUPS, nct="NCT00000001")
+    assert target["p_value"] == "0.04" and "effect_measure" not in target
+    assert target["registry_p_value"] == "0.01"
+    assert target["registry_p_value_by_nct"] == {"NCT00000001": "0.01"}
+    assert target["registry_effect_estimate_by_nct"] == {"NCT00000001": 1.5}
+    assert target["registry_effect_measure_by_nct"] == {"NCT00000001": "Mean Difference"}
+    assert target["registry_p_value_num_by_nct"] == {"NCT00000001": 0.01}
+
+
+@pytest.mark.unit
+def test_refresh03_merged_extracted_edge_keeps_by_nct(enrich):
+    kg = _stub_kg()
+    kg.graph.add_node("trial:a", entity_type="Trial")
+    kg.graph.add_node("ae:x", entity_type="AdverseEvent")
+    kg.graph.add_edge(
+        "trial:a", "ae:x", key="trial:a|reports_adverse_event|ae:x",
+        relation_type="reports_adverse_event", attributes={"n_affected": 999},
+    )
+    counters = enrich._new_counters()
+    for nct, n in (("NCT00000001", 5), ("NCT00000002", 6)):
+        assert enrich._upsert_edge(
+            kg, "trial:a", "reports_adverse_event", "ae:x", nct, "ev", {"n_affected": n}, counters,
+        )
+    attrs = kg.graph.edges["trial:a", "ae:x", "trial:a|reports_adverse_event|ae:x"]["attributes"]
+    assert attrs["n_affected"] == 999
+    assert attrs["registry_n_affected"] == 5
+    assert attrs["registry_n_affected_by_nct"] == {"NCT00000001": 5, "NCT00000002": 6}
+
+
+@pytest.mark.unit
+def test_refresh03_registry_node_merge_across_trials_keeps_by_nct(enrich, tmp_path):
+    _seeded_graph(tmp_path)
+    _run(enrich, tmp_path, _all_fixture_bodies(), results=True)
+    nodes, _ = _read_graph(tmp_path)
+    with_by_nct = [n for n in nodes.values() if _collect_by_nct(n.get("attributes") or {})]
+    assert with_by_nct
+    for node in with_by_nct:
+        attrs = node["attributes"]
+        for _, key, mapping in _collect_by_nct(attrs):
+            base = key[: -len("_by_nct")]
+            assert attrs[base] in mapping.values()
+            assert set(mapping) <= set(attrs["ctgov_nct_ids"])
+
+
+@pytest.mark.unit
+def test_refresh03_report_counts_outcome_merges_by_type(enrich, tmp_path):
+    _fully_seeded(enrich, tmp_path)
+    outcome_id = "outcome:glycated_hemoglobin_hba1c"
+    before = _read_graph(tmp_path)[0][outcome_id]
+    report, _ = _run(enrich, tmp_path, _all_fixture_bodies(), results=True)
+    block = report["results"]
+    keys = list(block)
+    assert keys[keys.index("merged") + 1] == "merged_by_type"
+    by_type = block["merged_by_type"]
+    assert list(by_type) == ["AdverseEvent", "OutcomeAnalysis", "Outcome"]
+    assert block["merged"] == sum(by_type.values())
+    assert by_type["Outcome"] >= 1
+    assert _read_graph(tmp_path)[0][outcome_id] == before  # the extracted Outcome is untouched
+    again, _ = _run(enrich, tmp_path, _all_fixture_bodies(), results=True)
+    assert again["results"]["merged"] == 0
+    assert again["results"]["merged_by_type"] == {"AdverseEvent": 0, "OutcomeAnalysis": 0, "Outcome": 0}
+
+
+@pytest.mark.unit
+def test_refresh03_empty_results_block_has_merged_by_type(enrich):
+    block = enrich._empty_results_block()
+    keys = list(block)
+    assert keys[keys.index("merged") + 1] == "merged_by_type"
+    assert block["merged_by_type"] == {"AdverseEvent": 0, "OutcomeAnalysis": 0, "Outcome": 0}
