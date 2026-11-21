@@ -2883,3 +2883,146 @@ def test_default_runs_identical_to_iteration27(enrich, tmp_path, monkeypatch, va
     assert rep_old == rep_new
     assert _same_key_order(rep_old, rep_new) and list(rep_old) == list(rep_new)
     assert "cache" not in rep_new and "refresh" not in rep_new.get("results", {})
+
+
+# --- Iteration 29 (999.3): --refresh-results on an unchanged payload is a no-op ---
+
+ITERATION28_COMMIT = "c7aa6f9"
+COLLIDING_MEASURE = 0
+COLLIDING_TIME_FRAME = "Week 99"
+
+
+def _colliding_study():
+    """Study A with a second outcome measure that has the title and unit of
+    measure 0 but another time frame and type (a title collision in one trial)."""
+    study = _study(WITH_RESULTS_A)
+    measures = study["resultsSection"]["outcomeMeasuresModule"]["outcomeMeasures"]
+    extra = copy.deepcopy(measures[COLLIDING_MEASURE])
+    extra["timeFrame"] = COLLIDING_TIME_FRAME
+    extra["type"] = "SECONDARY" if str(extra.get("type")).upper() == "PRIMARY" else "PRIMARY"
+    measures.append(extra)
+    return study
+
+
+def _shared_placebo_graph(directory: Path):
+    """Seeded graph whose placebo cohort is enrolled by both trials, so the
+    registry observed_in edges on it are shared by two NCTs."""
+    return _seeded_graph(directory, extra_links=[_link(TRIAL_B, "enrolls", COHORT_PLACEBO)])
+
+
+def _shared_observed_in(links):
+    return [
+        l for l in _edges(links, "observed_in", tgt=COHORT_PLACEBO)
+        if _eattr(l, "source") == "ctgov_results" and len(_eattr(l, "ctgov_nct_ids") or []) > 1
+    ]
+
+
+def _assert_refresh_noop(enrich, directory, bodies):
+    before = _normalize_stamps((directory / "graph_data.json").read_bytes())
+    report, _ = _run(enrich, directory, bodies, results=True, refresh=True)
+    assert _normalize_stamps((directory / "graph_data.json").read_bytes()) == before
+    refresh = report["results"]["refresh"]
+    assert refresh["trials_refreshed"] >= 1
+    assert (refresh["updated_nodes"], refresh["updated_edges"], refresh["withdrawn"], refresh["restored"]) == (0, 0, 0, 0)
+    assert report["results"]["created"] == 0 and report["results"]["merged"] == 0
+    return report
+
+
+@pytest.mark.unit
+def test_refresh01_title_colliding_measures_keep_first_measure(enrich, tmp_path):
+    study = _colliding_study()
+    first = study["resultsSection"]["outcomeMeasuresModule"]["outcomeMeasures"][COLLIDING_MEASURE]
+    bodies = {**_all_fixture_bodies(), WITH_RESULTS_A: study}
+    directory = _write_graph(tmp_path / "g", [WITH_RESULTS_A, WITH_RESULTS_B])
+    _run(enrich, directory, bodies, results=True)
+    nodes, _ = _read_graph(directory)
+    outcome = [
+        n for n in _registry_nodes(nodes, "Outcome")
+        if _same_title(n["name"], first["title"]) and WITH_RESULTS_A in (_nattr(n, "ctgov_nct_ids") or [])
+    ]
+    assert len(outcome) == 1
+    assert _nattr(outcome[0], "timeframe") == first["timeFrame"]
+
+    _assert_refresh_noop(enrich, directory, bodies)
+    nodes, _ = _read_graph(directory)
+    assert _nattr(nodes[outcome[0]["id"]], "timeframe") == first["timeFrame"]
+    assert _nattr(nodes[outcome[0]["id"]], "endpoint_type") == _nattr(outcome[0], "endpoint_type")
+
+
+def _same_title(a, b) -> bool:
+    return " ".join(str(a).lower().split()) == " ".join(str(b).lower().split())
+
+
+@pytest.mark.unit
+def test_refresh01_shared_cohort_edges_get_no_new_bookkeeping(enrich, tmp_path):
+    directory = _shared_placebo_graph(tmp_path / "g")
+    _run(enrich, directory, _all_fixture_bodies(), results=True)
+    _, links = _read_graph(directory)
+    shared = _shared_observed_in(links)
+    assert shared  # the fixture really has registry edges shared by both NCTs
+    _assert_refresh_noop(enrich, directory, _all_fixture_bodies())
+    _, links1 = _read_graph(directory)
+    assert _shared_observed_in(links1) == shared
+
+
+@pytest.mark.unit
+def test_refresh01_unchanged_payload_is_noop_on_fully_seeded_graph(enrich, tmp_path):
+    """Title collision, shared cohort, extracted AE and analysis seeds together."""
+    _, ae_node, ae_link, _ = _extracted_ae_seed(enrich)
+    _, an_nodes, an_links = _extracted_analysis_seed(enrich)
+    directory = _seeded_graph(
+        tmp_path / "g", [ae_node, *an_nodes],
+        [ae_link, *an_links, _link(TRIAL_B, "enrolls", COHORT_PLACEBO)],
+    )
+    bodies = {**_all_fixture_bodies(), WITH_RESULTS_A: _colliding_study()}
+    _run(enrich, directory, bodies, results=True)
+    _assert_refresh_noop(enrich, directory, bodies)
+    _assert_refresh_noop(enrich, directory, bodies)
+
+
+@pytest.mark.unit
+def test_refresh01_first_import_and_refresh_agree_on_shared_edges(enrich, tmp_path):
+    """A refresh with a changed payload of the NCT that does not own a shared
+    registry edge leaves that edge as a first import of the changed payload has it."""
+    mutated = _bodies(_mutated_study())
+    refreshed = _shared_placebo_graph(tmp_path / "r")
+    _run(enrich, refreshed, _all_fixture_bodies(), results=True)
+    _run(enrich, refreshed, mutated, results=True, refresh=True)
+    fresh = _shared_placebo_graph(tmp_path / "f")
+    _run(enrich, fresh, mutated, results=True)
+    _, r_links = _read_graph(refreshed)
+    _, f_links = _read_graph(fresh)
+    key = lambda l: (l["source"], l["target"])
+    r_shared = {key(l): l.get("attributes") for l in _shared_observed_in(r_links) if _eattr(l, "ctgov_nct_ids")[0] != WITH_RESULTS_A}
+    f_shared = {key(l): l.get("attributes") for l in _shared_observed_in(f_links) if _eattr(l, "ctgov_nct_ids")[0] != WITH_RESULTS_A}
+    # a refresh never removes this NCT from an edge it was recorded on
+    gone = f"adverseevent:{REFRESH_TERM_REMOVED.lower()}"
+    r_shared = {k: v for k, v in r_shared.items() if k[0] != gone}
+    f_shared = {k: v for k, v in f_shared.items() if k[0] != gone}
+    assert r_shared and r_shared == f_shared
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("variant", ["protocol_only", "fresh_results", "rerun", "colliding_shared"])
+def test_default_runs_identical_to_iteration28(enrich, tmp_path, monkeypatch, variant):
+    old = _load_old_enrich(tmp_path, ITERATION28_COMMIT, "_ct_enrich_iter28", monkeypatch)
+    bodies = _all_fixture_bodies()
+    if variant == "colliding_shared":
+        bodies = {**bodies, WITH_RESULTS_A: _colliding_study()}
+        d_old = _shared_placebo_graph(tmp_path / "old")
+        d_new = _shared_placebo_graph(tmp_path / "new")
+    else:
+        d_old = _fully_seeded(enrich, tmp_path / "old")
+        d_new = _fully_seeded(enrich, tmp_path / "new")
+    kwargs = {} if variant == "protocol_only" else {"results": True}
+    if variant == "rerun":
+        _enrich_with(old, d_old, bodies, results=True)
+        _enrich_with(old, d_new, bodies, results=True)
+    rep_old = _enrich_with(old, d_old, bodies, **kwargs)
+    rep_new = _enrich_with(enrich, d_new, bodies, **kwargs)
+    assert _normalize_stamps((d_old / "graph_data.json").read_bytes()) == _normalize_stamps(
+        (d_new / "graph_data.json").read_bytes()
+    )
+    rep_old.pop("generated_at")
+    rep_new.pop("generated_at")
+    assert rep_old == rep_new and _same_key_order(rep_old, rep_new)
