@@ -26,7 +26,7 @@ DOMAIN_NAMES = [
 ]
 
 COUNTS = {
-    "drug-discovery": (17, 30),
+    "drug-discovery": (17, 33),
     "contracts": (9, 9),
     "clinicaltrials": (17, 26),
     "pharmacovigilance": (12, 21),
@@ -100,7 +100,7 @@ RELATION_CATS: dict[str, dict[str, list[str]]] = {
         "mechanism": [
             "TARGETS", "INHIBITS", "ACTIVATES", "BINDS_TO", "HAS_MECHANISM",
             "PARTICIPATES_IN", "INTERACTS_WITH", "METABOLIZES", "PHOSPHORYLATES",
-            "FORMS_COMPLEX_WITH", "REGULATES_EXPRESSION",
+            "FORMS_COMPLEX_WITH", "REGULATES_EXPRESSION", "PRODUCES_METABOLITE",
         ],
         "therapeutic": ["INDICATED_FOR", "CONTRAINDICATED_FOR", "EVALUATED_IN", "COMBINED_WITH"],
         "causal": ["CAUSES", "IMPLICATED_IN", "CONFERS_RESISTANCE_TO"],
@@ -111,7 +111,7 @@ RELATION_CATS: dict[str, dict[str, list[str]]] = {
         ],
         "organizational": ["DEVELOPS"],
         "provenance": ["PUBLISHED_IN"],
-        "regulatory": ["GRANTS_APPROVAL_FOR"],
+        "regulatory": ["GRANTS_APPROVAL_FOR", "APPLIES_TO", "ISSUES"],
     },
     "contracts": {
         "organizational": ["OBLIGATED_TO", "SIGNS", "PROVIDES_SERVICE", "HELD_AT"],

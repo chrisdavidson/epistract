@@ -105,3 +105,34 @@ def test_ct_investigator_and_site_survive_build(tmp_path):
     got = {(nodes[l["source"]]["name"], l["relation_type"], nodes[l["target"]]["name"])
            for l in g["links"] if l["relation_type"] != "MENTIONED_IN"}
     assert got == set(rels)
+
+
+@pytest.mark.parametrize("domain", DOMAINS)
+def test_typed_relations_reach_every_entity_type(domain):
+    """When a domain types its relations, every entity type must be reachable.
+
+    An entity type no relation can touch is pruned as isolated at build time
+    (clinicaltrials Investigator/Site, drug-discovery METABOLITE before the
+    Domain Builder iterations that fixed them).
+    """
+    schema = _schema(domain)
+    rels = [c for c in schema["relation_types"].values() if isinstance(c, dict)]
+    typed = [c for c in rels if c.get("source_types") and c.get("target_types")]
+    if len(typed) < len(rels):
+        pytest.skip(f"{domain} has untyped relations")
+    touched = set()
+    for c in typed:
+        touched |= set(c["source_types"]) | set(c["target_types"])
+    assert set(schema["entity_types"]) - touched == set()
+
+
+def test_drug_discovery_skill_matches_schema():
+    """Every SKILL.md relation entry states the schema's endpoint types."""
+    skill = (ROOT / "domains" / "drug-discovery" / "SKILL.md").read_text()
+    rels = _schema("drug-discovery")["relation_types"]
+    for m in re.finditer(r"#### ([A-Z_]+)\n((?:(?!#### |### ).*\n)*)", skill):
+        if m.group(1) not in rels:
+            continue
+        src = re.search(r"\*\*Source types:\*\* (.*)", m.group(2)).group(1).split(", ")
+        tgt = re.search(r"\*\*Target types:\*\* (.*)", m.group(2)).group(1).split(", ")
+        assert (src, tgt) == (rels[m.group(1)]["source_types"], rels[m.group(1)]["target_types"]), m.group(1)
