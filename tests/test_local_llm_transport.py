@@ -371,3 +371,61 @@ def test_openrouter_connection_error_is_transient(monkeypatch, sleeps):
         call_llm("s", "u", config=cfg)
     assert ei.value.connect is True
     assert len(sleeps) == 2
+
+
+def test_llamacpp_embedding_only_500_is_fatal_no_retry(fake_openai_server, sleeps):
+    """UAT finding: llama.cpp serving an embedding model answers chat with HTTP 500
+    "does not support logits computation"; it must be fatal, not retried."""
+    body = {
+        "error": {
+            "code": 500,
+            "message": "the current context does not support logits computation. skipping",
+            "type": "server_error",
+        }
+    }
+    fake_openai_server.queue_status(500, body)
+    with pytest.raises(LLMFatalError):
+        call_llm("s", "u", config=_cfg(fake_openai_server))
+    assert len(_chat_requests(fake_openai_server)) == 1
+    assert sleeps == []
+
+
+def test_llamacpp_embedding_only_reported_as_not_chat(fake_openai_server):
+    """UAT finding: llm check labels the llama.cpp embedding-only reply as not_chat."""
+    from core import llm_local
+
+    fake_openai_server.queue_status(
+        500, {"error": {"message": "the current context does not support logits computation"}}
+    )
+    result = llm_local.check_chat(_cfg(fake_openai_server))
+    assert result["ok"] is False
+    assert result["kind"] == "not_chat"
+
+
+def test_json_mode_sends_response_format_for_local(fake_openai_server):
+    """UAT finding: JSON mode bounds small-model replies without a fixed budget."""
+    call_llm("s", "u", config=_cfg(fake_openai_server), json_mode=True)
+    body = _chat_requests(fake_openai_server)[-1]["json"]
+    assert body["response_format"] == {"type": "json_object"}
+
+
+def test_json_mode_off_by_default(fake_openai_server):
+    call_llm("s", "u", config=_cfg(fake_openai_server))
+    assert "response_format" not in _chat_requests(fake_openai_server)[-1]["json"]
+
+
+def test_json_mode_rejected_falls_back_once_and_is_remembered(fake_openai_server, sleeps):
+    """A server rejecting json_object (LM Studio) is resent once without it,
+    and later calls to that server no longer send it."""
+    fake_openai_server.queue_status(
+        400, {"error": "'response_format.type' must be 'json_schema' or 'text'"}
+    )
+    cfg = _cfg(fake_openai_server)
+    call_llm("s", "u", config=cfg, json_mode=True)
+    reqs = _chat_requests(fake_openai_server)
+    assert len(reqs) == 2
+    assert "response_format" in reqs[0]["json"]
+    assert "response_format" not in reqs[1]["json"]
+    assert sleeps == []
+    call_llm("s", "u", config=cfg, json_mode=True)
+    assert "response_format" not in _chat_requests(fake_openai_server)[-1]["json"]

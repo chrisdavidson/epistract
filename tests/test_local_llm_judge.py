@@ -541,3 +541,44 @@ def test_small_run_end_check_uses_looser_limit():
     big = {"calls": 25, "llm_judged": 19, "fallback": 6, "errors": ["x"]}
     with pytest.raises(JudgeAbort):
         _final_check(big)  # 24% > 20% once the sample is large enough
+
+
+def test_local_judge_requests_json_mode(fake_openai_server, monkeypatch):
+    """UAT finding: the local judge asks for a JSON object reply."""
+    monkeypatch.setenv("EPISTRACT_LLM_BASE_URL", fake_openai_server.base_url)
+    fake_openai_server.queue_content(GOOD)
+    judge = make_llm_judge()
+    judge({"source": "a", "target": "b", "relation_type": "R"}, "a relates to b")
+    reqs = [r for r in fake_openai_server.requests if r["path"].endswith("/chat/completions")]
+    assert reqs[-1]["json"]["response_format"] == {"type": "json_object"}
+
+
+def test_progress_prints_on_time_interval(monkeypatch):
+    """UAT finding: a slow server still shows progress (time-based cadence)."""
+    monkeypatch.setattr(triple_judge, "PROGRESS_INTERVAL_S", 0.0)
+    judge, _ = _counting_judge()
+    out = io.StringIO()
+    judge_graph(_graph(3), judge_fn=judge, progress=True, progress_every=1000, stream=out)
+    assert out.getvalue().count("judge:") >= 3
+
+
+def test_progress_eta_ignores_no_evidence_links():
+    """UAT finding: ETA must not count instant no-evidence links."""
+    import re
+
+    g = _graph(4)
+    g["links"] += [{"source": "x", "target": f"d{i}", "relation_type": "MENTIONED_IN",
+                    "evidence": ""} for i in range(40)]
+    import time as _time
+
+    def slow(system, user, **kw):
+        _time.sleep(0.2)
+        return GOOD
+
+    judge = make_llm_judge(call_fn=slow)
+    out = io.StringIO()
+    judge_graph(g, judge_fn=judge, progress=True, progress_every=2, stream=out)
+    first = out.getvalue().splitlines()[0]  # after 2 live calls (~0.4 s), 2 remain
+    mm, ss = map(int, re.search(r"ETA (\d+):(\d+)", first).groups())
+    # 2 remaining calls ~0.4 s; counting the 40 instant links would give ~8 s
+    assert mm * 60 + ss <= 2

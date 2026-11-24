@@ -116,6 +116,16 @@ _CONTEXT_RE = re.compile(
     re.I,
 )
 
+# The server says this model cannot generate chat replies at all (reranker or
+# embedding-only model). llama.cpp reports an embedding-only model as HTTP 500
+# "the current context does not support logits computation" (seen in UAT), so
+# this is checked before the 5xx -> transient rule: retrying cannot help.
+_NOT_CHAT_BODY_RE = re.compile(
+    r"\b(?:rerank|embedding) model\b|does not support chat"
+    r"|cannot be used with the chat|does not support logits",
+    re.I,
+)
+
 # A 429 whose reset is further away than this is a quota, not a rate limit.
 QUOTA_RESET_HORIZON_S = 120
 # Retry-After up to this is a transient rate limit (we wait it out); above it
@@ -348,6 +358,7 @@ def call_llm(
     temperature: float = 0.3,
     effort: str | None = None,
     timeout: float = 120.0,
+    json_mode: bool = False,
 ) -> str:
     """Make a single synchronous LLM call and return the assistant text.
 
@@ -366,6 +377,11 @@ def call_llm(
             for reasoning depth and token spend; it is the replacement for
             temperature on the Anthropic-native path.
         timeout: Request timeout in seconds.
+        json_mode: Local provider only. Ask the server for a JSON object reply
+            (``response_format: json_object``). llama.cpp, vLLM and Ollama then
+            stop generating at the closing brace, which bounds the reply length
+            without a fixed token budget. A server that rejects the option is
+            retried once without it and remembered. Ignored for cloud providers.
 
     Note on `temperature`:
         Current Anthropic models (Opus 5, Sonnet 5, Opus 4.8, Opus 4.7) removed
@@ -397,7 +413,9 @@ def call_llm(
         )
 
     if config.provider == "local":
-        return _call_local(config, system, user, max_tokens, temperature, timeout)
+        return _call_local(
+            config, system, user, max_tokens, temperature, timeout, json_mode=json_mode
+        )
     if max_tokens is None:
         raise ValueError("max_tokens=None is only valid for the local provider")
     if config.provider == "anthropic":
@@ -521,6 +539,11 @@ def _with_retry(
     raise AssertionError("unreachable")  # pragma: no cover
 
 
+# Local servers that rejected ``response_format: json_object`` (per base URL).
+_JSON_MODE_UNSUPPORTED: set[str] = set()
+_JSON_MODE_REJECTED_RE = re.compile(r"response_format|json_object|json_schema", re.I)
+
+
 def _call_local(
     config: LLMConfig,
     system: str,
@@ -528,6 +551,8 @@ def _call_local(
     max_tokens: int | None,
     temperature: float,
     timeout: float,
+    *,
+    json_mode: bool = False,
 ) -> str:
     """Call a local OpenAI-compatible server (llama.cpp, Ollama, vLLM, LM Studio).
 
@@ -553,6 +578,8 @@ def _call_local(
     }
     if max_tokens is not None:
         payload["max_tokens"] = max_tokens
+    if json_mode and config.base_url not in _JSON_MODE_UNSUPPORTED:
+        payload["response_format"] = {"type": "json_object"}
     url = f"{config.base_url}/chat/completions"
     label = "local server"
 
@@ -576,6 +603,16 @@ def _call_local(
             raise LLMTransientError(
                 f"{label} {config.base_url} request failed: {type(e).__name__}"
             ) from e
+        if (
+            resp.status_code == 400
+            and "response_format" in payload
+            and _JSON_MODE_REJECTED_RE.search(resp.text or "")
+        ):
+            # e.g. LM Studio only accepts json_schema: drop JSON mode for this
+            # server and resend once (not counted as a retry attempt).
+            _JSON_MODE_UNSUPPORTED.add(config.base_url)
+            del payload["response_format"]
+            return attempt()
         if not 200 <= resp.status_code < 300:
             raise _error_for_status(
                 resp.status_code, resp.headers, resp.text, label, config.base_url
@@ -756,6 +793,8 @@ def classify_error(
         if retry_after is not None and retry_after > RETRY_AFTER_CAP_S:
             return ERR_QUOTA
         return ERR_RATE_LIMIT
+    if status is not None and _NOT_CHAT_BODY_RE.search(body):
+        return ERR_FATAL
     if status == 413:
         return ERR_PER_ITEM
     if status == 400 and _CONTEXT_RE.search(body):
