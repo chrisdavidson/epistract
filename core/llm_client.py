@@ -172,6 +172,10 @@ def _resolve_openrouter() -> LLMConfig | None:
     )
 
 
+# (api_base, model) pairs already announced on stderr (cleared by llm_local.clear_cache).
+_ANNOUNCED_MODELS: set = set()
+
+
 def _resolve_local() -> LLMConfig | None:
     """Local OpenAI-compatible server from EPISTRACT_LLM_* (None when no base URL)."""
     raw_url = os.environ.get("EPISTRACT_LLM_BASE_URL", "").strip()
@@ -196,7 +200,9 @@ def _resolve_local() -> LLMConfig | None:
                 f"could not determine a chat model at {api_base}; set "
                 "EPISTRACT_LLM_MODEL (no chat-capable model is served)"
             )
-        print(f"[epistract] local LLM model: {model} ({api_base})", file=sys.stderr)
+        if (api_base, model) not in _ANNOUNCED_MODELS:
+            _ANNOUNCED_MODELS.add((api_base, model))
+            print(f"[epistract] local LLM model: {model} ({api_base})", file=sys.stderr)
     return LLMConfig(
         real_key or LOCAL_PLACEHOLDER_KEY,
         api_base,

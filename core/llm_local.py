@@ -36,6 +36,9 @@ def clear_cache() -> None:
     _MODELS_CACHE.clear()
     _CTX_CACHE.clear()
     _MODELS_FAIL_CACHE.clear()
+    from . import llm_client
+
+    llm_client._ANNOUNCED_MODELS.clear()
 
 
 def _root(api_base: str) -> str:

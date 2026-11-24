@@ -363,3 +363,32 @@ def test_kind_for_not_chat_is_specific():
     assert llm_local._kind_for(RuntimeError("x is a rerank model and cannot be used with the chat/completions endpoint")) == "not_chat"
     assert llm_local._kind_for(RuntimeError("bad input: the embedding vector was echoed")) == "error"
     assert llm_local._kind_for(RuntimeError("connection refused")) == "unreachable"
+
+
+def test_auto_pick_announced_once_per_process(fake_openai_server, monkeypatch, capsys):
+    """WR-05: repeated resolves print the auto-picked model line only once."""
+    monkeypatch.setenv("EPISTRACT_LLM_BASE_URL", fake_openai_server.base_url)
+    for _ in range(3):
+        llm_client.resolve_api_config()
+    err = capsys.readouterr().err
+    assert err.count("local LLM model:") == 1
+    llm_local.clear_cache()
+    llm_client.resolve_api_config()
+    assert capsys.readouterr().err.count("local LLM model:") == 1
+
+
+def test_dead_server_not_reprobed_every_resolve(monkeypatch):
+    """WR-05: after one failed discovery, further resolves fail fast from the memo."""
+    monkeypatch.setenv("EPISTRACT_LLM_BASE_URL", "http://127.0.0.1:9")
+    calls = []
+    real = llm_local._list_models_uncached
+
+    def counting(*a, **k):
+        calls.append(1)
+        return real(*a, **k)
+
+    monkeypatch.setattr(llm_local, "_list_models_uncached", counting)
+    for _ in range(3):
+        with pytest.raises(llm_client.LLMConfigError):
+            llm_client.resolve_api_config()
+    assert len(calls) == 1
