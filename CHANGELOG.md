@@ -4,6 +4,10 @@ All notable changes to epistract are documented here. This project follows [Sema
 
 ## [Unreleased]
 
+## [3.6.0] — 2026-11-24
+
+**Local LLM provider: run the judge, narrator, workbench chat and corpus extraction against your own OpenAI-compatible server.** Set `EPISTRACT_LLM_BASE_URL` to a llama.cpp, Ollama, vLLM or LM Studio server and epistract picks the chat model, reads the context window to size replies, and no longer falls back silently: `enhance --llm` checks the server first, aborts on repeated failures, shows progress and resumes after an interruption. `python -m core.cli llm check` verifies the setup. Accepted against Phi-3-mini-4k on llama.cpp: 473/473 relations judged by the LLM, 0 fallbacks, 98.3% agreement with the earlier out-of-tree run (fork PRs #32–#37).
+
 ### Changed
 - **`enhance --llm` aborts instead of silently using the lexical judge:** the provider is preflighted before judging and the command exits 1 when none is configured, the server is unreachable or the model does not serve chat. During the run it stops (exit 1, nothing written) when the first 5 calls fail, 5 calls in a row fail, any call hits a quota, fatal or connection error, or the fallback rate is above 20% once at least 20 calls were made (runs under 20 calls abort at the end above 50%). Ctrl-C exits 130.
 - **LLM provider priority:** `EPISTRACT_LLM_BASE_URL` takes priority over the Foundry, Anthropic and OpenRouter keys, and `EPISTRACT_LLM_PROVIDER` (`local|anthropic|openrouter|foundry`) overrides everything and fails loudly when its credentials are missing. Cloud keys are never sent to the local URL.
