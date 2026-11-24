@@ -19,8 +19,13 @@ Callers should import `resolve_api_config()` + `call_llm()` and handle the
 """
 from __future__ import annotations
 
+import json
+import math
 import os
+import re
 import sys
+import time
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
@@ -58,6 +63,71 @@ class LLMConfigError(RuntimeError):
 
 class LLMCallError(RuntimeError):
     """Raised when the LLM call itself fails."""
+
+
+class LLMQuotaError(LLMCallError):
+    """A daily/monthly quota is exhausted; retrying will not help."""
+
+    def __init__(self, message: str, reset_at: float | None = None):
+        super().__init__(message)
+        self.reset_at = reset_at  # epoch seconds, when known
+
+
+class LLMFatalError(LLMCallError):
+    """A deterministic failure (bad model, auth, endpoint); retrying cannot help."""
+
+    def __init__(self, message: str, status: int | None = None):
+        super().__init__(message)
+        self.status = status
+
+
+class LLMTransientError(LLMCallError):
+    """A retryable failure (rate limit, 5xx, timeout, connection problem)."""
+
+    def __init__(self, message: str, connect: bool = False, retryable: bool = True):
+        super().__init__(message)
+        self.connect = connect
+        self.retryable = retryable  # False: transient, but re-sending won't help
+
+
+class _RateLimited(LLMTransientError):
+    """Transient 429 carrying the server's Retry-After hint."""
+
+    def __init__(self, message: str, retry_after: float | None = None):
+        super().__init__(message)
+        self.retry_after = retry_after
+
+
+# classify_error() results.
+ERR_QUOTA = "quota"
+ERR_RATE_LIMIT = "rate_limit"
+ERR_FATAL = "fatal"
+ERR_PER_ITEM = "per_item"
+ERR_TRANSIENT = "transient"
+
+_QUOTA_RE = re.compile(
+    r"per-day|per day|daily|quota|free-models-per-day"
+    r"|insufficient[\w\s-]{0,20}(?:credit|quota|balance|fund)",
+    re.I,
+)
+_CONTEXT_RE = re.compile(
+    r"too long|exceed|too large|maximum.*tokens"
+    r"|context[\w\s-]{0,20}(?:length|window|size|exceed|too long|maximum)",
+    re.I,
+)
+
+# A 429 whose reset is further away than this is a quota, not a rate limit.
+QUOTA_RESET_HORIZON_S = 120
+# Retry-After up to this is a transient rate limit (we wait it out); above it
+# the 429 is treated as a quota and fails fast with the reset time.
+RETRY_AFTER_CAP_S = 60
+RETRY_ANNOUNCE_S = 5  # waits at least this long are announced on stderr
+RETRY_MAX_ATTEMPTS = 3
+RETRY_BACKOFF_S = (2.0, 4.0, 8.0)
+_ERROR_EXCERPT_CHARS = 300
+
+# Indirection so tests can record sleeps instead of waiting.
+_sleep = time.sleep
 
 
 @dataclass(frozen=True)
@@ -271,7 +341,7 @@ def call_llm(
     user: str,
     *,
     config: LLMConfig | None = None,
-    max_tokens: int = 4096,
+    max_tokens: int | None = 4096,
     temperature: float = 0.3,
     effort: str | None = None,
     timeout: float = 120.0,
@@ -282,7 +352,8 @@ def call_llm(
         system: System prompt (domain persona + graph context).
         user: User message (the narrator task).
         config: Optional pre-resolved config. If None, calls resolve_api_config().
-        max_tokens: Output token cap. On current Anthropic models this budget is
+        max_tokens: Output token cap; ``None`` (local provider only) omits the
+            field so the server bounds the reply by its own context window. On current Anthropic models this budget is
             shared with thinking tokens, so leave headroom above the expected
             answer length or the response truncates mid-output.
         temperature: OpenRouter path only — see below. 0.0 = deterministic,
@@ -306,7 +377,11 @@ def call_llm(
 
     Raises:
         LLMConfigError: credentials missing or incomplete.
-        LLMCallError: network/API failure; wraps the underlying exception.
+        LLMQuotaError: daily/monthly quota exhausted (never retried).
+        LLMFatalError: deterministic failure such as a bad model or auth (never retried).
+        LLMTransientError: rate limit, 5xx, timeout or connection failure that
+            persisted through the bounded retries.
+        LLMCallError: any other failure, including a per-item context overflow.
     """
     if config is None:
         config = resolve_api_config()
@@ -318,6 +393,10 @@ def call_llm(
             "EPISTRACT_LLM_BASE_URL (local OpenAI-compatible server)."
         )
 
+    if config.provider == "local":
+        return _call_local(config, system, user, max_tokens, temperature, timeout)
+    if max_tokens is None:
+        raise ValueError("max_tokens=None is only valid for the local provider")
     if config.provider == "anthropic":
         return _call_anthropic(config, system, user, max_tokens, effort, timeout)
     return _call_openrouter(config, system, user, max_tokens, temperature, timeout)
@@ -373,6 +452,143 @@ def _call_anthropic(
     return _strip_fences("".join(parts))
 
 
+def _excerpt(body: str | None) -> str:
+    return (body or "").strip().replace("\n", " ")[:_ERROR_EXCERPT_CHARS]
+
+
+def _error_for_status(
+    status: int,
+    headers: Mapping[str, str] | None,
+    body: str | None,
+    label: str,
+    base_url: str,
+) -> LLMCallError:
+    """Build the typed exception for a non-2xx response (no headers/keys leaked)."""
+    kind = classify_error(status, headers, body)
+    msg = f"{label} {base_url} returned HTTP {status}: {_excerpt(body)}"
+    if kind == ERR_QUOTA:
+        reset = _reset_at(headers)
+        if reset is None:
+            ra = _retry_after(headers)
+            if ra is not None:
+                reset = time.time() + ra
+        if reset is not None:
+            wait = max(0, int(reset - time.time()))
+            msg += f" (rate limit resets in about {wait} s)"
+        return LLMQuotaError(msg, reset_at=reset)
+    if kind == ERR_FATAL:
+        return LLMFatalError(msg, status=status)
+    if kind == ERR_PER_ITEM:
+        return LLMCallError(msg)
+    if kind == ERR_RATE_LIMIT:
+        return _RateLimited(msg, retry_after=_retry_after(headers))
+    return LLMTransientError(msg)
+
+
+def _with_retry(
+    fn: Callable[[], str],
+    *,
+    sleep: Callable[[float], None] | None = None,
+    provider: str = "local",
+):
+    """Run ``fn`` with the single bounded retry policy.
+
+    Only LLMTransientError (including rate-limit 429s) is retried, up to
+    RETRY_MAX_ATTEMPTS attempts; Retry-After is honoured but capped. Quota,
+    fatal and per-item errors propagate immediately.
+    """
+    for attempt in range(RETRY_MAX_ATTEMPTS):
+        try:
+            return fn()
+        except LLMTransientError as e:
+            if attempt == RETRY_MAX_ATTEMPTS - 1 or not e.retryable:
+                raise
+            hint = e.retry_after if isinstance(e, _RateLimited) else None
+            delay = min(hint if hint is not None else RETRY_BACKOFF_S[attempt],
+                        RETRY_AFTER_CAP_S)
+            delay = max(0.0, delay)
+            if delay >= RETRY_ANNOUNCE_S:
+                print(
+                    f"llm: {provider} rate-limited/unavailable, retrying in "
+                    f"{delay:.0f}s (attempt {attempt + 2}/{RETRY_MAX_ATTEMPTS})",
+                    file=sys.stderr,
+                    flush=True,
+                )
+            (sleep or _sleep)(delay)
+    raise AssertionError("unreachable")  # pragma: no cover
+
+
+def _call_local(
+    config: LLMConfig,
+    system: str,
+    user: str,
+    max_tokens: int | None,
+    temperature: float,
+    timeout: float,
+) -> str:
+    """Call a local OpenAI-compatible server (llama.cpp, Ollama, vLLM, LM Studio).
+
+    No Authorization header is sent unless a real key was configured, and the
+    ambient proxy environment is ignored so LAN prompts are not proxied.
+    """
+    try:
+        import httpx
+    except ImportError as e:
+        raise LLMCallError("httpx is required for the local provider") from e
+
+    headers = {"Content-Type": "application/json"}
+    if config.api_key and config.api_key != LOCAL_PLACEHOLDER_KEY:
+        headers["Authorization"] = f"Bearer {config.api_key}"
+    payload: dict = {
+        "model": config.model,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+        "temperature": temperature,
+        "stream": False,
+    }
+    if max_tokens is not None:
+        payload["max_tokens"] = max_tokens
+    url = f"{config.base_url}/chat/completions"
+    label = "local server"
+
+    def attempt() -> str:
+        try:
+            with httpx.Client(timeout=timeout, proxy=None, trust_env=False) as client:
+                resp = client.post(url, headers=headers, json=payload)
+        except httpx.ConnectError as e:
+            raise LLMTransientError(
+                f"cannot connect to {label} {config.base_url}: {type(e).__name__}",
+                connect=True,
+            ) from e
+        except httpx.TimeoutException as e:
+            # Re-sending would queue a second generation behind the one the
+            # server is still running; fail now instead of stalling 3x.
+            raise LLMTransientError(
+                f"{label} {config.base_url} timed out: {type(e).__name__}",
+                retryable=False,
+            ) from e
+        except httpx.HTTPError as e:
+            raise LLMTransientError(
+                f"{label} {config.base_url} request failed: {type(e).__name__}"
+            ) from e
+        if not 200 <= resp.status_code < 300:
+            raise _error_for_status(
+                resp.status_code, resp.headers, resp.text, label, config.base_url
+            )
+        try:
+            content = resp.json()["choices"][0]["message"]["content"]
+        except (ValueError, KeyError, IndexError, TypeError) as e:
+            raise LLMCallError(
+                f"{label} {config.base_url} returned an unexpected body: "
+                f"{_excerpt(resp.text)}"
+            ) from e
+        return _strip_fences(content or "")
+
+    return _with_retry(attempt)
+
+
 def _call_openrouter(
     config: LLMConfig,
     system: str,
@@ -390,19 +606,41 @@ def _call_openrouter(
             "Install: uv pip install openai"
         ) from e
 
-    client = OpenAI(api_key=config.api_key, base_url=config.base_url, timeout=timeout)
-    try:
-        resp = client.chat.completions.create(
-            model=config.model,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-            max_tokens=max_tokens,
-            temperature=temperature,
-        )
-    except Exception as e:  # noqa: BLE001 - openai raises many shapes; all become LLMCallError
-        raise LLMCallError(f"OpenRouter API error: {e}") from e
+    import openai
+
+    # max_retries=0: the SDK's hidden retries would stack on _with_retry.
+    client = OpenAI(
+        api_key=config.api_key,
+        base_url=config.base_url,
+        timeout=timeout,
+        max_retries=0,
+    )
+
+    def attempt():
+        try:
+            return client.chat.completions.create(
+                model=config.model,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+                max_tokens=max_tokens,
+                temperature=temperature,
+            )
+        except openai.APIStatusError as e:
+            raise _error_for_status(
+                e.status_code, e.response.headers, e.response.text,
+                "OpenRouter", config.base_url,
+            ) from e
+        except openai.APIConnectionError as e:
+            raise LLMTransientError(
+                f"OpenRouter connection error: {type(e).__name__}",
+                connect=not isinstance(e, openai.APITimeoutError),
+            ) from e
+        except Exception as e:  # noqa: BLE001 - openai raises many shapes; all become LLMCallError
+            raise LLMCallError(f"OpenRouter API error: {e}") from e
+
+    resp = _with_retry(attempt)
 
     content = (resp.choices[0].message.content or "") if resp.choices else ""
     return _strip_fences(content)
@@ -410,10 +648,115 @@ def _call_openrouter(
 
 def _strip_fences(text: str) -> str:
     """Strip leading/trailing ```markdown...``` fences if present."""
-    import re
-
     text = (text or "").strip()
     if text.startswith("```"):
         text = re.sub(r"^```[a-zA-Z]*\n?", "", text)
         text = re.sub(r"\n?```\s*$", "", text)
     return text.strip()
+
+
+_THINK_RE = re.compile(r"<think>.*?</think>", re.S | re.I)
+_THINK_UNCLOSED_RE = re.compile(r"<think>.*\Z", re.S | re.I)
+
+
+def extract_json_object(text: str) -> dict:
+    """Return the first JSON object in a model reply.
+
+    Tolerates markdown fences, surrounding prose and ``<think>`` blocks. Uses
+    ``raw_decode`` at each ``{`` so trailing text and later objects are ignored.
+    Raises ValueError when no object is present (arrays do not count).
+    """
+    cleaned = _THINK_RE.sub("", _strip_fences(text or ""))
+    cleaned = _THINK_UNCLOSED_RE.sub("", cleaned)
+    decoder = json.JSONDecoder()
+    idx = cleaned.find("{")
+    while idx != -1:
+        end = _balanced_end(cleaned, idx)
+        if end is None:  # truncated outer object: never return an inner one
+            break
+        try:
+            obj, _ = decoder.raw_decode(cleaned, idx)
+        except ValueError:
+            obj = None
+        if isinstance(obj, dict):
+            return obj
+        idx = cleaned.find("{", end)  # skip the whole failed span
+    raise ValueError("no JSON object in model output")
+
+
+def _balanced_end(text: str, start: int) -> int | None:
+    """Index just past the brace-balanced span opening at ``start`` (or None)."""
+    depth = 0
+    in_str = False
+    esc = False
+    for i in range(start, len(text)):
+        c = text[i]
+        if in_str:
+            if esc:
+                esc = False
+            elif c == "\\":
+                esc = True
+            elif c == '"':
+                in_str = False
+        elif c == '"':
+            in_str = True
+        elif c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return i + 1
+    return None
+
+
+def _lower_headers(headers: Mapping[str, str] | None) -> dict[str, str]:
+    return {str(k).lower(): str(v) for k, v in (headers or {}).items()}
+
+
+def _to_float(value: str | None) -> float | None:
+    try:
+        return float(value) if value is not None else None
+    except ValueError:
+        return None
+
+
+def _reset_at(headers: Mapping[str, str] | None) -> float | None:
+    """Epoch seconds at which the rate limit resets (ms values are normalised)."""
+    value = _to_float(_lower_headers(headers).get("x-ratelimit-reset"))
+    if value is None:
+        return None
+    return value / 1000.0 if value > 1e11 else value
+
+
+def _retry_after(headers: Mapping[str, str] | None) -> float | None:
+    v = _to_float(_lower_headers(headers).get("retry-after"))
+    return v if v is not None and math.isfinite(v) and v >= 0 else None
+
+
+def classify_error(
+    status: int | None, headers: Mapping[str, str] | None, body: str | None
+) -> str:
+    """Map an HTTP failure to one of the ERR_* policy classes (pure)."""
+    body = body or ""
+    h = _lower_headers(headers)
+    if status == 429:
+        if _QUOTA_RE.search(body):
+            return ERR_QUOTA
+        reset = _reset_at(h)
+        if (
+            h.get("x-ratelimit-remaining", "").strip() == "0"
+            and reset is not None
+            and reset - time.time() > QUOTA_RESET_HORIZON_S
+        ):
+            return ERR_QUOTA
+        retry_after = _retry_after(h)
+        if retry_after is not None and retry_after > RETRY_AFTER_CAP_S:
+            return ERR_QUOTA
+        return ERR_RATE_LIMIT
+    if status == 413:
+        return ERR_PER_ITEM
+    if status == 400 and _CONTEXT_RE.search(body):
+        return ERR_PER_ITEM
+    if status is None or status == 408 or status >= 500:
+        return ERR_TRANSIENT
+    return ERR_FATAL
