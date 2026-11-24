@@ -51,6 +51,38 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+EPISTRACT_LLM_ENV_VARS = (
+    "EPISTRACT_LLM_BASE_URL",
+    "EPISTRACT_LLM_MODEL",
+    "EPISTRACT_LLM_API_KEY",
+    "EPISTRACT_LLM_PROVIDER",
+    "EPISTRACT_LLM_MAX_TOKENS",
+    "EPISTRACT_LLM_CONTEXT_WINDOW",
+)
+
+
+@pytest.fixture(autouse=True)
+def _scrub_epistract_llm_env(monkeypatch):
+    """Keep a developer's EPISTRACT_LLM_* shell vars and the models memo out of tests."""
+    for var in EPISTRACT_LLM_ENV_VARS:
+        monkeypatch.delenv(var, raising=False)
+    from core import llm_local
+
+    llm_local.clear_cache()
+
+
+@pytest.fixture
+def fake_openai_server():
+    """Started stub OpenAI-compatible server; stopped on teardown."""
+    from tests.fake_openai_server import FakeOpenAIServer
+
+    server = FakeOpenAIServer().start()
+    try:
+        yield server
+    finally:
+        server.stop()
+
+
 @pytest.fixture
 def fixtures_dir():
     """Return the path to the test fixtures directory."""
