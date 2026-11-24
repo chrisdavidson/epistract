@@ -163,7 +163,10 @@ def _normalise_local_root(url: str) -> str:
         raise RuntimeError("EPISTRACT_LLM_BASE_URL is empty")
     if "://" not in raw:
         raw = "http://" + raw
-    parts = urlsplit(raw)
+    try:
+        parts = urlsplit(raw)
+    except ValueError:
+        raise RuntimeError("EPISTRACT_LLM_BASE_URL is not a valid URL") from None
     if parts.scheme not in ("http", "https") or not parts.hostname:
         raise RuntimeError(
             "EPISTRACT_LLM_BASE_URL must be an http(s) URL, got scheme "

@@ -392,3 +392,23 @@ def test_dead_server_not_reprobed_every_resolve(monkeypatch):
         with pytest.raises(llm_client.LLMConfigError):
             llm_client.resolve_api_config()
     assert len(calls) == 1
+
+
+@pytest.mark.parametrize("raw", ["http://[::1", "[::1"])
+def test_normalise_base_url_malformed_is_config_error(raw):
+    """WR-03: urlsplit ValueError (bad IPv6 literal) becomes LLMConfigError."""
+    with pytest.raises(llm_client.LLMConfigError):
+        llm_client.normalise_base_url(raw)
+
+
+def test_resolve_local_malformed_url_is_config_error(monkeypatch):
+    monkeypatch.setenv("EPISTRACT_LLM_BASE_URL", "http://[::1")
+    with pytest.raises(llm_client.LLMConfigError):
+        llm_client.resolve_api_config()
+
+
+def test_workbench_normaliser_malformed_url_no_valueerror():
+    from examples.workbench import api_chat
+
+    with pytest.raises(RuntimeError):
+        api_chat._normalise_local_root("http://[::1")

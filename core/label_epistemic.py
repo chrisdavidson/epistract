@@ -724,6 +724,20 @@ _NARRATOR_USER_PROMPT = (
 )
 
 
+NARRATOR_MIN_OUTPUT_TOKENS = 512
+_NARRATOR_DEFAULT_MAX_TOKENS = 8192
+
+
+def _narrator_env_cap() -> int | None:
+    import os
+
+    try:
+        value = int(os.environ.get("EPISTRACT_LLM_MAX_TOKENS", "").strip())
+    except ValueError:
+        return None
+    return value if value > 0 else None
+
+
 def narrate_claims_layer(
     graph_data: dict,
     claims_layer: dict,
@@ -731,24 +745,51 @@ def narrate_claims_layer(
 ) -> str:
     """Generate the narrative briefing via LLM. Returns markdown string.
 
+    The output budget is 8192 tokens (capped by EPISTRACT_LLM_MAX_TOKENS).
+    When the provider's context window is known the budget is clamped to what
+    remains after the prompt; a prompt that leaves less than
+    NARRATOR_MIN_OUTPUT_TOKENS raises LLMCallError. A local server with an
+    unknown window and no explicit cap gets no max_tokens so the server bounds
+    the reply.
+
     Raises core.llm_client.LLMConfigError when no credentials are set, and
-    core.llm_client.LLMCallError when the API call itself fails. Callers
-    should catch both and fall back to rule-only output.
+    core.llm_client.LLMCallError when the API call itself fails or the prompt
+    does not fit the context window. Callers should catch both and fall back
+    to rule-only output.
     """
-    from core.llm_client import call_llm
+    from core import llm_client
 
     context = _summarize_graph_for_narrator(graph_data, claims_layer)
     system_prompt = f"{persona}\n\n---\n\n{context}"
-    # max_tokens was 4096. On current Anthropic models thinking is on by default
-    # and draws from the same budget, so a narrative that used to fit can now be
-    # truncated mid-sentence. 8192 restores the headroom.
-    narrative = call_llm(
+    config = llm_client.resolve_api_config()
+    env_cap = _narrator_env_cap()
+    # 8192 leaves room for thinking tokens, which share the budget on current
+    # Anthropic models.
+    max_tokens: int | None = _NARRATOR_DEFAULT_MAX_TOKENS
+    if env_cap:
+        max_tokens = min(max_tokens, env_cap)
+    if config is not None and config.provider == "local" and not config.context_window:
+        if not env_cap:
+            max_tokens = None
+    if config is not None and config.context_window:
+        est = (len(system_prompt) + len(_NARRATOR_USER_PROMPT)) // 3 + 1
+        available = config.context_window - est - 64
+        if available < NARRATOR_MIN_OUTPUT_TOKENS:
+            raise llm_client.LLMCallError(
+                f"narrator prompt ~{est} tokens exceeds context "
+                f"{config.context_window} of model {config.model}; use a "
+                "larger-context model for the narrator"
+            )
+        max_tokens = (
+            available if max_tokens is None else min(max_tokens, available)
+        )
+    return llm_client.call_llm(
         system=system_prompt,
         user=_NARRATOR_USER_PROMPT,
-        max_tokens=8192,
+        config=config,
+        max_tokens=max_tokens,
         temperature=0.3,
     )
-    return narrative
 
 
 def analyze_epistemic(
