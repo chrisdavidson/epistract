@@ -1,8 +1,11 @@
 """Synchronous LLM client with provider auto-detection.
 
 Uses the same provider priority as `examples/workbench/api_chat._resolve_api_config()`
-(Azure Foundry → Anthropic direct → OpenRouter), but returns a sync call path for
-pipeline scripts like `core/label_epistemic.py`.
+(Azure Foundry → Anthropic direct → OpenRouter), plus a `local` provider for any
+OpenAI-compatible server (llama.cpp, Ollama, vLLM, LM Studio) selected by
+`EPISTRACT_LLM_BASE_URL`, which takes priority over the cloud keys
+(`EPISTRACT_LLM_PROVIDER` forces a specific provider). It returns a sync call path
+for pipeline scripts like `core/label_epistemic.py`.
 
 The two implementations are deliberately independent: `examples/` is the consumer
 layer and depends on core's *output*, not its code (see CLAUDE.md §Layers). They are
@@ -17,7 +20,9 @@ Callers should import `resolve_api_config()` + `call_llm()` and handle the
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 
 # ---------------------------------------------------------------------------
 # Model defaults
@@ -35,6 +40,17 @@ DEFAULT_OPENROUTER_MODEL = "anthropic/claude-sonnet-4.6"
 # a newer model with AZURE_FOUNDRY_DEPLOYMENT.
 DEFAULT_FOUNDRY_DEPLOYMENT = "claude-sonnet-4-6"
 
+# Sent as the api_key of a keyless local server; the transport omits the
+# Authorization header when the key equals this value.
+LOCAL_PLACEHOLDER_KEY = "local-no-key"
+
+# When True, EPISTRACT_LLM_BASE_URL wins over Foundry/Anthropic/OpenRouter keys.
+# When False, it is only used after those find no key; EPISTRACT_LLM_PROVIDER
+# still overrides either way.
+LOCAL_BASE_URL_WINS = True
+
+VALID_PROVIDERS = ("local", "anthropic", "openrouter", "foundry")
+
 
 class LLMConfigError(RuntimeError):
     """Raised when credentials are set but incomplete (e.g., Foundry key without endpoint)."""
@@ -49,7 +65,8 @@ class LLMConfig:
     api_key: str
     base_url: str  # For anthropic-native: full /v1/messages URL. For OpenRouter: /v1 base.
     model: str
-    provider: str  # "anthropic" | "openrouter"
+    provider: str  # "anthropic" | "openrouter" | "local"
+    context_window: int | None = None  # local provider only; None = unknown
 
 
 def _ensure_messages_suffix(url: str) -> str:
@@ -62,61 +79,177 @@ def _ensure_messages_suffix(url: str) -> str:
     return url + "/v1/messages"
 
 
-def resolve_api_config() -> LLMConfig | None:
-    """Return configured LLMConfig, or None when no credentials are present.
+def normalise_base_url(url: str) -> str:
+    """Return the OpenAI-compatible API base (``<root>/v1``) for a user-supplied URL.
 
-    Priority: Azure Foundry (Azure AI Foundry or custom Anthropic gateway) →
-    Anthropic direct → OpenRouter. Raises LLMConfigError when Foundry key is
-    set but endpoint config is missing (never silently falls through).
+    Accepts ``host:port``, ``http://host:port``, ``.../v1`` and
+    ``.../v1/chat/completions``. Userinfo is stripped; only http(s) is allowed.
     """
+    raw = (url or "").strip()
+    if not raw:
+        raise LLMConfigError("EPISTRACT_LLM_BASE_URL is empty")
+    if "://" not in raw:
+        raw = "http://" + raw
+    parts = urlsplit(raw)
+    if parts.scheme not in ("http", "https") or not parts.hostname:
+        raise LLMConfigError(
+            f"EPISTRACT_LLM_BASE_URL must be an http(s) URL, got scheme "
+            f"{parts.scheme!r}"
+        )
+    host = parts.hostname
+    if ":" in host:  # IPv6 literal
+        host = f"[{host}]"
+    if parts.port:
+        host = f"{host}:{parts.port}"
+    path = parts.path.rstrip("/")
+    if path.endswith("/chat/completions"):
+        path = path[: -len("/chat/completions")]
+    path = path.rstrip("/")
+    if path.endswith("/v1"):
+        path = path[: -len("/v1")]
+    return f"{parts.scheme}://{host}{path}/v1"
+
+
+def _resolve_foundry() -> LLMConfig | None:
     foundry_key = os.environ.get("AZURE_FOUNDRY_API_KEY") or os.environ.get(
         "ANTHROPIC_FOUNDRY_API_KEY"
     )
-    if foundry_key:
-        custom_base = (
-            os.environ.get("AZURE_FOUNDRY_BASE_URL")
-            or os.environ.get("ANTHROPIC_FOUNDRY_BASE_URL")
-            or ""
-        ).strip()
-        resource = os.environ.get("AZURE_FOUNDRY_RESOURCE", "").strip()
-        deployment = (
-            os.environ.get("AZURE_FOUNDRY_DEPLOYMENT")
-            or os.environ.get("ANTHROPIC_FOUNDRY_DEPLOYMENT")
-            or DEFAULT_FOUNDRY_DEPLOYMENT
+    if not foundry_key:
+        return None
+    custom_base = (
+        os.environ.get("AZURE_FOUNDRY_BASE_URL")
+        or os.environ.get("ANTHROPIC_FOUNDRY_BASE_URL")
+        or ""
+    ).strip()
+    resource = os.environ.get("AZURE_FOUNDRY_RESOURCE", "").strip()
+    deployment = (
+        os.environ.get("AZURE_FOUNDRY_DEPLOYMENT")
+        or os.environ.get("ANTHROPIC_FOUNDRY_DEPLOYMENT")
+        or DEFAULT_FOUNDRY_DEPLOYMENT
+    )
+    if custom_base:
+        base_url = _ensure_messages_suffix(custom_base)
+    elif resource:
+        base_url = f"https://{resource}.services.ai.azure.com/anthropic/v1/messages"
+    else:
+        raise LLMConfigError(
+            "Foundry API key is set but neither AZURE_FOUNDRY_BASE_URL "
+            "(or ANTHROPIC_FOUNDRY_BASE_URL) nor AZURE_FOUNDRY_RESOURCE "
+            "is configured. Set one and retry, or unset the key to fall "
+            "back to ANTHROPIC_API_KEY / OPENROUTER_API_KEY."
         )
-        if custom_base:
-            base_url = _ensure_messages_suffix(custom_base)
-        elif resource:
-            base_url = (
-                f"https://{resource}.services.ai.azure.com/anthropic/v1/messages"
-            )
-        else:
-            raise LLMConfigError(
-                "Foundry API key is set but neither AZURE_FOUNDRY_BASE_URL "
-                "(or ANTHROPIC_FOUNDRY_BASE_URL) nor AZURE_FOUNDRY_RESOURCE "
-                "is configured. Set one and retry, or unset the key to fall "
-                "back to ANTHROPIC_API_KEY / OPENROUTER_API_KEY."
-            )
-        return LLMConfig(foundry_key, base_url, deployment, "anthropic")
+    return LLMConfig(foundry_key, base_url, deployment, "anthropic")
 
+
+def _resolve_anthropic() -> LLMConfig | None:
     anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
-    if anthropic_key:
-        return LLMConfig(
-            anthropic_key,
-            "https://api.anthropic.com/v1/messages",
-            DEFAULT_ANTHROPIC_MODEL,
-            "anthropic",
-        )
+    if not anthropic_key:
+        return None
+    return LLMConfig(
+        anthropic_key,
+        "https://api.anthropic.com/v1/messages",
+        DEFAULT_ANTHROPIC_MODEL,
+        "anthropic",
+    )
 
+
+def _resolve_openrouter() -> LLMConfig | None:
     openrouter_key = os.environ.get("OPENROUTER_API_KEY")
-    if openrouter_key:
-        return LLMConfig(
-            openrouter_key,
-            "https://openrouter.ai/api/v1",
-            os.environ.get("OPENROUTER_MODEL", DEFAULT_OPENROUTER_MODEL),
-            "openrouter",
-        )
+    if not openrouter_key:
+        return None
+    return LLMConfig(
+        openrouter_key,
+        "https://openrouter.ai/api/v1",
+        os.environ.get("OPENROUTER_MODEL", DEFAULT_OPENROUTER_MODEL),
+        "openrouter",
+    )
 
+
+def _resolve_local() -> LLMConfig | None:
+    """Local OpenAI-compatible server from EPISTRACT_LLM_* (None when no base URL)."""
+    raw_url = os.environ.get("EPISTRACT_LLM_BASE_URL", "").strip()
+    if not raw_url:
+        return None
+    from .llm_local import list_models, pick_chat_model, probe_context
+
+    api_base = normalise_base_url(raw_url)
+    real_key = os.environ.get("EPISTRACT_LLM_API_KEY", "").strip() or None
+    model = os.environ.get("EPISTRACT_LLM_MODEL", "").strip()
+    if not model:
+        try:
+            ids = [m["id"] for m in list_models(api_base, real_key)]
+        except LLMCallError as e:
+            raise LLMConfigError(
+                f"could not determine a chat model at {api_base}; set "
+                f"EPISTRACT_LLM_MODEL ({e})"
+            ) from e
+        model = pick_chat_model(ids) or ""
+        if not model:
+            raise LLMConfigError(
+                f"could not determine a chat model at {api_base}; set "
+                "EPISTRACT_LLM_MODEL (no chat-capable model is served)"
+            )
+        print(f"[epistract] local LLM model: {model} ({api_base})", file=sys.stderr)
+    return LLMConfig(
+        real_key or LOCAL_PLACEHOLDER_KEY,
+        api_base,
+        model,
+        "local",
+        probe_context(api_base, model, real_key),
+    )
+
+
+_MISSING_HINT = {
+    "local": "EPISTRACT_LLM_BASE_URL",
+    "anthropic": "ANTHROPIC_API_KEY (or AZURE_FOUNDRY_API_KEY for a gateway)",
+    "openrouter": "OPENROUTER_API_KEY",
+    "foundry": "AZURE_FOUNDRY_API_KEY with AZURE_FOUNDRY_BASE_URL or AZURE_FOUNDRY_RESOURCE",
+}
+
+
+def resolve_api_config() -> LLMConfig | None:
+    """Return configured LLMConfig, or None when no credentials are present.
+
+    Priority: EPISTRACT_LLM_PROVIDER (explicit, fail-loud) → local
+    (EPISTRACT_LLM_BASE_URL, see LOCAL_BASE_URL_WINS) → Azure Foundry (Azure AI
+    Foundry or custom Anthropic gateway) → Anthropic direct → OpenRouter.
+    Raises LLMConfigError when Foundry key is set but endpoint config is
+    missing, or when a forced provider lacks its credentials (never silently
+    falls through).
+    """
+    forced = os.environ.get("EPISTRACT_LLM_PROVIDER", "").strip().lower()
+    if forced:
+        if forced not in VALID_PROVIDERS:
+            raise LLMConfigError(
+                f"EPISTRACT_LLM_PROVIDER={forced!r} is not one of "
+                f"{', '.join(VALID_PROVIDERS)}"
+            )
+        resolver = {
+            "local": _resolve_local,
+            "anthropic": lambda: _resolve_anthropic() or _resolve_foundry(),
+            "openrouter": _resolve_openrouter,
+            "foundry": _resolve_foundry,
+        }[forced]
+        cfg = resolver()
+        if cfg is None:
+            raise LLMConfigError(
+                f"EPISTRACT_LLM_PROVIDER={forced} but {_MISSING_HINT[forced]} "
+                "is not set"
+            )
+        return cfg
+
+    if LOCAL_BASE_URL_WINS:
+        cfg = _resolve_local()
+        if cfg is not None:
+            return cfg
+
+    for resolver in (_resolve_foundry, _resolve_anthropic, _resolve_openrouter):
+        cfg = resolver()
+        if cfg is not None:
+            return cfg
+
+    if not LOCAL_BASE_URL_WINS:
+        return _resolve_local()
     return None
 
 
@@ -168,7 +301,8 @@ def call_llm(
         raise LLMConfigError(
             "No API key found. Set one of: AZURE_FOUNDRY_API_KEY (with "
             "AZURE_FOUNDRY_BASE_URL or AZURE_FOUNDRY_RESOURCE); "
-            "ANTHROPIC_API_KEY; OPENROUTER_API_KEY."
+            "ANTHROPIC_API_KEY; OPENROUTER_API_KEY; "
+            "EPISTRACT_LLM_BASE_URL (local OpenAI-compatible server)."
         )
 
     if config.provider == "anthropic":

@@ -196,7 +196,7 @@ class FakeOpenAIServer:
         self._httpd.daemon_threads = True
         self._httpd.stub = self  # type: ignore[attr-defined]
         self.base_url = f"http://127.0.0.1:{self._httpd.server_address[1]}"
-        self._thread = threading.Thread(target=self._httpd.serve_forever, daemon=True)
+        self._thread = threading.Thread(target=self._httpd.serve_forever, kwargs={"poll_interval": 0.02}, daemon=True)
         self._thread.start()
         return self
 
