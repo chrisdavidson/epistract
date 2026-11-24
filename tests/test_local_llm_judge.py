@@ -346,8 +346,8 @@ def _counting_judge(fail_on=None):
 def test_checkpoint_written_without_fallbacks(tmp_path):
     p = tmp_path / "ck.jsonl"
     judge, _ = _counting_judge(fail_on=2)
-    with pytest.raises(JudgeAbort):  # 1/3 fallbacks trips the end-of-run check
-        judge_graph(_graph(3), judge_fn=judge, checkpoint_path=p)
+    summary = judge_graph(_graph(3), judge_fn=judge, checkpoint_path=p)
+    assert summary["fallback"] == 1  # 1/3 is under the small-run limit (50%)
     lines = [json.loads(x) for x in p.read_text().splitlines()]
     assert lines[0]["type"] == "header" and lines[0]["prompt_version"] == JUDGE_PROMPT_VERSION
     assert [x["id"].split("#")[0] for x in lines[1:]] == ["r0", "r2"]
@@ -527,3 +527,17 @@ def test_lexical_judge_never_touches_llm_checkpoint(tmp_path):
     judge_graph(_graph(3), judge_fn=lambda t, e: {"verdict": "supported", "score": 1.0, "reason": ""},
                 checkpoint_path=p, resume=False)
     assert p.read_text() == before
+
+
+def test_small_run_end_check_uses_looser_limit():
+    """LOCAL-04: under ABORT_MIN_SAMPLE calls the end-of-run limit is 50%, not 20%."""
+    from core.triple_judge import _final_check
+
+    ok = {"calls": 3, "llm_judged": 2, "fallback": 1, "errors": ["x"]}
+    _final_check(ok)  # 33% < 50%: no abort
+    bad = {"calls": 4, "llm_judged": 1, "fallback": 3, "errors": ["x"]}
+    with pytest.raises(JudgeAbort):
+        _final_check(bad)  # 75% > 50%
+    big = {"calls": 25, "llm_judged": 19, "fallback": 6, "errors": ["x"]}
+    with pytest.raises(JudgeAbort):
+        _final_check(big)  # 24% > 20% once the sample is large enough

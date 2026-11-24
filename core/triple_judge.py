@@ -45,6 +45,7 @@ JUDGE_PROMPT_VERSION = "2"
 ABORT_FIRST_N = 5  # abort when this many calls in a row all failed from the start
 ABORT_MIN_SAMPLE = 20  # fallback-rate check starts at this many calls
 ABORT_MAX_FALLBACK_RATE = 0.2
+ABORT_SMALL_RUN_FALLBACK_RATE = 0.5  # end-of-run limit when fewer than ABORT_MIN_SAMPLE calls
 ABORT_CONSECUTIVE = 5  # abort after this many failures in a row, at any point
 DEFAULT_JUDGE_MAX_TOKENS = 2048
 CTX_MARGIN_TOKENS = 64
@@ -188,10 +189,13 @@ def _final_check(stats: dict) -> None:
     last = (stats["errors"] or ["unknown"])[-1]
     if stats["llm_judged"] == 0:
         raise JudgeAbort(f"none of {calls} judge calls produced an LLM verdict; last error: {last}", stats)
-    if stats["fallback"] / calls > ABORT_MAX_FALLBACK_RATE:
+    # Small runs get a looser rate so one hiccup on a tiny graph does not abort;
+    # sustained failure is still caught by ABORT_CONSECUTIVE / connect errors.
+    limit = ABORT_MAX_FALLBACK_RATE if calls >= ABORT_MIN_SAMPLE else ABORT_SMALL_RUN_FALLBACK_RATE
+    if stats["fallback"] / calls > limit:
         raise JudgeAbort(
             f"{stats['fallback']} of {calls} judge calls fell back to the lexical "
-            f"verdict (more than {ABORT_MAX_FALLBACK_RATE:.0%}); last error: {last}",
+            f"verdict (more than {limit:.0%}); last error: {last}",
             stats,
         )
 
