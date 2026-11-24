@@ -123,6 +123,22 @@ def cmd_search(args) -> int:
     return 0
 
 
+def _preflight_message(pre: dict, cfg) -> str:
+    kind = pre.get("kind")
+    err = pre.get("error")
+    if kind == "not_chat":
+        return (
+            f"error: model {cfg.model} is not a chat model (e.g. a rerank or "
+            "embedding model). Set EPISTRACT_LLM_MODEL or OPENROUTER_MODEL to a "
+            f"chat model. Server said: {err}"
+        )
+    if kind == "unreachable":
+        return f"error: cannot reach {cfg.base_url} - is the server running? ({err})"
+    if kind == "quota":
+        return f"error: provider quota or daily limit reached: {err}"
+    return f"error: LLM preflight failed ({kind}): {err}"
+
+
 def cmd_enhance(args) -> int:
     """Run arXiv-backed quality passes over the project's built graph.
 
@@ -132,8 +148,11 @@ def cmd_enhance(args) -> int:
       --epistemic  bi-temporal contradiction layer + graded hedge scoring (Zep)
 
     Operates on <root>/graph_data.json and writes back in place, plus an
-    enhancement_report.json. Uses lexical fallbacks unless an LLM is
-    configured, so it runs offline.
+    enhancement_report.json. Uses lexical fallbacks unless --llm is given,
+    so it runs offline. With --llm the provider is preflighted before any
+    relation is judged; a judge abort (or Ctrl-C) exits non-zero without
+    touching the graph or the report and keeps <root>/.judge_checkpoint.jsonl
+    so the next run resumes (--fresh discards it).
     """
     from . import entity_resolution_v2 as erv2
     from . import epistemic_temporal as et
@@ -166,13 +185,15 @@ def cmd_enhance(args) -> int:
             "merged_ids": len(res["merge_map"]),
         }
 
+    checkpoint = Path(project["root"]) / ".judge_checkpoint.jsonl"
     if args.judge or run_all:
         judge_fn = None
+        cfg = None
         if args.llm:
             try:
                 judge_fn = triple_judge.make_llm_judge()
             except LLMConfigError as e:
-                print(f"error: {e}", file=sys.stderr)
+                print(f"error: --llm needs an LLM provider: {e}", file=sys.stderr)
                 return 1
             except ImportError as e:
                 print(
@@ -182,17 +203,54 @@ def cmd_enhance(args) -> int:
                     file=sys.stderr,
                 )
                 return 1
+            cfg = getattr(judge_fn, "config", None)
+            if cfg is not None:
+                print(
+                    f"LLM judge: provider={cfg.provider} model={cfg.model} "
+                    f"base_url={cfg.base_url}",
+                    file=sys.stderr,
+                )
+                from . import llm_local
+
+                pre = llm_local.check_chat(cfg)
+                if not pre["ok"]:
+                    print(_preflight_message(pre, cfg), file=sys.stderr)
+                    return 1
         try:
-            report["judge"] = triple_judge.judge_graph(graph, judge_fn=judge_fn)
+            report["judge"] = triple_judge.judge_graph(
+                graph,
+                judge_fn=judge_fn,
+                checkpoint_path=checkpoint if args.llm else None,
+                resume=not args.fresh,
+                progress=bool(args.llm),
+            )
         except triple_judge.JudgeAbort as e:
             st = e.stats or {}
             print(f"error: LLM judge aborted: {e}", file=sys.stderr)
             print(
-                f"  llm_judged={st.get('llm_judged', 0)} "
-                f"fallback={st.get('fallback', 0)}; nothing was written",
+                f"  calls={st.get('calls', 0)} llm_judged={st.get('llm_judged', 0)} "
+                f"fallback={st.get('fallback', 0)}; nothing was written; "
+                f"checkpoint kept at {checkpoint} - re-run to resume, "
+                "or pass --fresh to start over",
                 file=sys.stderr,
             )
             return 1
+        except KeyboardInterrupt:
+            print(
+                "Interrupted; nothing was written; checkpoint kept at "
+                f"{checkpoint} - re-run to resume",
+                file=sys.stderr,
+            )
+            return 130
+        report["judge"].update(
+            {
+                "mode": "llm" if args.llm else "lexical",
+                "provider": getattr(cfg, "provider", None),
+                "model": getattr(cfg, "model", None),
+                "base_url": getattr(cfg, "base_url", None),
+                "aborted": False,
+            }
+        )
 
     if args.epistemic or run_all:
         links = graph.get(link_key, [])
@@ -213,6 +271,8 @@ def cmd_enhance(args) -> int:
     (Path(project["root"]) / "enhancement_report.json").write_text(
         json.dumps(report, indent=2) + "\n"
     )
+    if args.llm:
+        checkpoint.unlink(missing_ok=True)
 
     if args.json:
         print(json.dumps(report, indent=2))
@@ -229,6 +289,12 @@ def cmd_enhance(args) -> int:
             f"  triple judge: {j['verdict_counts']} — {j['gated_count']} gated "
             f"(score < {j['min_score']})"
         )
+        if j.get("mode") == "llm":
+            print(
+                f"    llm_judged={j['llm_judged']} fallback={j['fallback']} "
+                f"skipped_no_evidence={j['skipped_no_evidence']} "
+                f"resumed={j['resumed']}"
+            )
     if "epistemic" in report:
         e = report["epistemic"]
         print(
@@ -441,7 +507,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_enhance.add_argument(
         "--llm",
         action="store_true",
-        help="Use the configured LLM (default: lexical fallback)",
+        help="Use the configured LLM provider (EPISTRACT_LLM_BASE_URL for a "
+        "local server; aborts instead of silently falling back)",
+    )
+    p_enhance.add_argument(
+        "--fresh",
+        action="store_true",
+        help="Ignore any judge checkpoint and re-judge every relation",
     )
     p_enhance.add_argument("--json", action="store_true")
     p_enhance.set_defaults(func=cmd_enhance)
