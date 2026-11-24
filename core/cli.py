@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -140,6 +141,17 @@ def _preflight_message(pre: dict, cfg) -> str:
     return f"error: LLM preflight failed ({kind}): {err}"
 
 
+def _atomic_write_text(path: Path, text: str) -> None:
+    """Write via a temp file in the same directory, then os.replace."""
+    tmp = path.with_name(path.name + ".tmp")
+    try:
+        tmp.write_text(text)
+        os.replace(tmp, path)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
+
+
 def cmd_enhance(args) -> int:
     """Run arXiv-backed quality passes over the project's built graph.
 
@@ -187,6 +199,7 @@ def cmd_enhance(args) -> int:
         }
 
     checkpoint = Path(project["root"]) / ".judge_checkpoint.jsonl"
+    judged_llm = False
     if args.judge or run_all:
         judge_fn = None
         cfg = None
@@ -196,6 +209,9 @@ def cmd_enhance(args) -> int:
             except LLMConfigError as e:
                 print(f"error: --llm needs an LLM provider: {e}", file=sys.stderr)
                 return 1
+            except KeyboardInterrupt:
+                print("interrupted", file=sys.stderr)
+                return 130
             except ImportError as e:
                 print(
                     f"Error: --llm requires an LLM client but it could not be "
@@ -213,7 +229,11 @@ def cmd_enhance(args) -> int:
                 )
                 from . import llm_local
 
-                pre = llm_local.check_chat(cfg)
+                try:
+                    pre = llm_local.check_chat(cfg)
+                except KeyboardInterrupt:
+                    print("interrupted", file=sys.stderr)
+                    return 130
                 if not pre["ok"]:
                     print(_preflight_message(pre, cfg), file=sys.stderr)
                     return 1
@@ -243,6 +263,7 @@ def cmd_enhance(args) -> int:
                 file=sys.stderr,
             )
             return 130
+        judged_llm = bool(args.llm)
         report["judge"].update(
             {
                 "mode": "llm" if args.llm else "lexical",
@@ -268,11 +289,10 @@ def cmd_enhance(args) -> int:
             "invalidated": temporal["invalidated"],
         }
 
-    graph_path.write_text(json.dumps(graph, indent=2) + "\n")
-    (Path(project["root"]) / "enhancement_report.json").write_text(
-        json.dumps(report, indent=2) + "\n"
-    )
-    if args.llm:
+    report_path = Path(project["root"]) / "enhancement_report.json"
+    _atomic_write_text(report_path, json.dumps(report, indent=2) + "\n")
+    _atomic_write_text(graph_path, json.dumps(graph, indent=2) + "\n")
+    if judged_llm:
         checkpoint.unlink(missing_ok=True)
 
     if args.json:

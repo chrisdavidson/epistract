@@ -265,3 +265,84 @@ def test_narrator_env_cap(monkeypatch):
     seen = _patch_narrator(monkeypatch, _local(4096))
     _narrate(100)
     assert seen["max_tokens"] == 300
+
+
+def _seed_checkpoint(root):
+    ckpt = root / ".judge_checkpoint.jsonl"
+    ckpt.write_text('{"type": "header"}\n')
+    return ckpt
+
+
+@pytest.mark.parametrize("flag", ["--resolve", "--epistemic"])
+def test_enhance_llm_without_judge_keeps_checkpoint(
+    project, fake_openai_server, monkeypatch, flag
+):
+    """WR-01: only a completed LLM judge may delete the checkpoint."""
+    monkeypatch.setenv("EPISTRACT_LLM_BASE_URL", fake_openai_server.base_url)
+    ckpt = _seed_checkpoint(project)
+    assert cli.main(["enhance", "--project", "loc", flag, "--llm"]) == 0
+    assert ckpt.exists()
+
+
+def test_enhance_atomic_write_failure_keeps_graph_and_checkpoint(
+    project, fake_openai_server, monkeypatch
+):
+    """WR-02: a failure while replacing the graph leaves it intact + checkpoint."""
+    monkeypatch.setenv("EPISTRACT_LLM_BASE_URL", fake_openai_server.base_url)
+    before = (project / "graph_data.json").read_text()
+    ckpt = _seed_checkpoint(project)
+    real = cli.os.replace
+
+    def boom(src, dst):
+        if Path(dst).name == "graph_data.json":
+            raise OSError("disk full")
+        return real(src, dst)
+
+    monkeypatch.setattr(cli.os, "replace", boom)
+    with pytest.raises(OSError):
+        _enhance()
+    assert (project / "graph_data.json").read_text() == before
+    assert ckpt.exists()
+    assert not list(project.glob("*.tmp"))
+
+
+def test_enhance_malformed_base_url_clean_error(project, monkeypatch, capsys):
+    """WR-03: no traceback, exit 1, nothing written."""
+    monkeypatch.setenv("EPISTRACT_LLM_BASE_URL", "http://[::1")
+    before = (project / "graph_data.json").read_text()
+    assert _enhance() == 1
+    assert "EPISTRACT_LLM_BASE_URL" in capsys.readouterr().err
+    _unchanged(project, before)
+
+
+def test_llm_check_malformed_base_url_clean_error(monkeypatch, capsys):
+    monkeypatch.setenv("EPISTRACT_LLM_BASE_URL", "http://[::1")
+    assert cli.main(["llm", "check"]) == 1
+    assert "EPISTRACT_LLM_BASE_URL" in capsys.readouterr().err
+
+
+def test_enhance_ctrl_c_during_preflight(project, fake_openai_server, monkeypatch, capsys):
+    """IN-02: Ctrl-C in the preflight prints `interrupted`, returns 130."""
+    from core import llm_local
+
+    monkeypatch.setenv("EPISTRACT_LLM_BASE_URL", fake_openai_server.base_url)
+
+    def raise_ki(cfg):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(llm_local, "check_chat", raise_ki)
+    before = (project / "graph_data.json").read_text()
+    assert _enhance() == 130
+    assert "interrupted" in capsys.readouterr().err
+    _unchanged(project, before)
+
+
+def test_enhance_ctrl_c_during_make_llm_judge(project, monkeypatch, capsys):
+    def raise_ki(*a, **k):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(triple_judge, "make_llm_judge", raise_ki)
+    before = (project / "graph_data.json").read_text()
+    assert _enhance() == 130
+    assert "interrupted" in capsys.readouterr().err
+    _unchanged(project, before)
