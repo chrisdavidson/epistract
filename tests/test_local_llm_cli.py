@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from core import cli, registry, triple_judge
+from core.llm_client import LLMCallError, LLMConfig
 
 MODEL = "Phi-3-mini-4k-instruct-q4.gguf"
 N_LINKS = 5
@@ -152,3 +153,115 @@ def test_enhance_lexical_report_has_no_provider(project):
     j = json.loads((project / "enhancement_report.json").read_text())["judge"]
     assert j["mode"] == "lexical" and j["provider"] is None
     assert not (project / ".judge_checkpoint.jsonl").exists()
+
+
+# -- llm check ----------------------------------------------------------------
+def test_llm_check_ok(fake_openai_server, monkeypatch, capsys):
+    monkeypatch.setenv("EPISTRACT_LLM_BASE_URL", fake_openai_server.base_url)
+    assert cli.main(["llm", "check"]) == 0
+    out = capsys.readouterr().out
+    for needle in ("local", fake_openai_server.base_url + "/v1", MODEL, "4096", "chat: ok"):
+        assert needle in out
+
+
+def test_llm_check_json_has_no_key(fake_openai_server, monkeypatch, capsys):
+    monkeypatch.setenv("EPISTRACT_LLM_BASE_URL", fake_openai_server.base_url)
+    assert cli.main(["llm", "check", "--json"]) == 0
+    raw = capsys.readouterr().out
+    data = json.loads(raw)
+    assert set(data) >= {
+        "provider", "base_url", "model", "context_window", "models", "chat_ok", "kind", "error",
+    }
+    assert "api_key" not in data and "local-no-key" not in raw
+    assert data["models"] == [MODEL] and data["chat_ok"] is True
+
+
+def test_llm_check_rerank_model_fails(fake_openai_server, monkeypatch, capsys):
+    monkeypatch.setenv("EPISTRACT_LLM_BASE_URL", fake_openai_server.base_url)
+    fake_openai_server.queue_400_rerank()
+    assert cli.main(["llm", "check", "--json"]) == 1
+    data = json.loads(capsys.readouterr().out)
+    assert data["kind"] == "not_chat" and data["chat_ok"] is False
+
+
+def test_llm_check_no_provider(capsys):
+    assert cli.main(["llm", "check"]) == 1
+    assert "EPISTRACT_LLM_BASE_URL" in capsys.readouterr().err
+
+
+def test_llm_check_bogus_provider(monkeypatch, capsys):
+    monkeypatch.setenv("EPISTRACT_LLM_PROVIDER", "bogus")
+    assert cli.main(["llm", "check"]) == 1
+    assert "Traceback" not in capsys.readouterr().err
+
+
+# -- narrator context guard ---------------------------------------------------
+def _patch_narrator(monkeypatch, cfg):
+    from core import llm_client
+
+    seen = {}
+
+    def fake_call(system, user, **kw):
+        seen.update(kw)
+        return "briefing"
+
+    monkeypatch.setattr(llm_client, "resolve_api_config", lambda: cfg)
+    monkeypatch.setattr(llm_client, "call_llm", fake_call)
+    return seen
+
+
+def _narrate(system_chars):
+    from core import label_epistemic as le
+
+    le._summarize_graph_for_narrator = lambda g, c: "x" * system_chars  # type: ignore[assignment]
+    return le.narrate_claims_layer({}, {}, "persona")
+
+
+@pytest.fixture(autouse=True)
+def _restore_summarizer():
+    from core import label_epistemic as le
+
+    orig = le._summarize_graph_for_narrator
+    yield
+    le._summarize_graph_for_narrator = orig
+
+
+def _local(ctx):
+    return LLMConfig("local-no-key", "http://h/v1", "m", "local", ctx)
+
+
+def test_narrator_oversized_prompt_raises(monkeypatch):
+    _patch_narrator(monkeypatch, _local(4096))
+    with pytest.raises(LLMCallError) as ei:
+        _narrate(30000)
+    assert "exceeds context" in str(ei.value) and "4096" in str(ei.value)
+
+
+def test_narrator_clamps_max_tokens_to_window(monkeypatch):
+    from core import label_epistemic as le
+
+    cfg = _local(4096)
+    seen = _patch_narrator(monkeypatch, cfg)
+    assert _narrate(3000) == "briefing"
+    est = (len("persona\n\n---\n\n") + 3000 + len(le._NARRATOR_USER_PROMPT)) // 3 + 1
+    assert seen["max_tokens"] == min(8192, 4096 - est - 64)
+    assert seen["config"] is cfg
+
+
+def test_narrator_cloud_keeps_8192(monkeypatch):
+    seen = _patch_narrator(monkeypatch, LLMConfig("k", "http://h", "m", "anthropic", None))
+    _narrate(100)
+    assert seen["max_tokens"] == 8192
+
+
+def test_narrator_local_unknown_window_omits_max_tokens(monkeypatch):
+    seen = _patch_narrator(monkeypatch, _local(None))
+    _narrate(100)
+    assert seen["max_tokens"] is None
+
+
+def test_narrator_env_cap(monkeypatch):
+    monkeypatch.setenv("EPISTRACT_LLM_MAX_TOKENS", "300")
+    seen = _patch_narrator(monkeypatch, _local(4096))
+    _narrate(100)
+    assert seen["max_tokens"] == 300

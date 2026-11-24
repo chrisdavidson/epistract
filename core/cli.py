@@ -9,6 +9,7 @@ Usage:
     python3 -m core.cli index [--project NAME] [--rebuild]
     python3 -m core.cli search <query> [--project NAME] [--type T] [-k N] [--expand]
     python3 -m core.cli enhance [--project NAME] [--judge] [--resolve] [--epistemic]
+    python3 -m core.cli llm check [--json]
     python3 -m core.cli export --format okf [--project NAME] [--out DIR]
                                 [--no-evidence] [--min-confidence F]
     python3 -m core.cli projects list|info <name>|delete <name> [--purge]
@@ -30,7 +31,7 @@ from pathlib import Path
 from . import index_db
 from . import registry
 from .graph_retrieval import expand_from_seeds
-from .llm_client import LLMConfigError
+from .llm_client import LOCAL_PLACEHOLDER_KEY, LLMCallError, LLMConfigError
 from .registry import ProjectError
 
 
@@ -304,6 +305,74 @@ def cmd_enhance(args) -> int:
     return 0
 
 
+_NO_PROVIDER_MSG = (
+    "No LLM provider configured. Set EPISTRACT_LLM_BASE_URL for a local "
+    "OpenAI-compatible server, or ANTHROPIC_API_KEY / OPENROUTER_API_KEY / "
+    "AZURE_FOUNDRY_API_KEY."
+)
+
+_CHECK_HINTS = {
+    "not_chat": "the model does not serve chat completions; pick a chat model "
+    "(EPISTRACT_LLM_MODEL / OPENROUTER_MODEL)",
+    "unreachable": "the server is not reachable; is it running at the base URL?",
+    "quota": "the provider's quota or daily limit is exhausted",
+}
+
+
+def cmd_llm_check(args) -> int:
+    """Report the resolved LLM provider and whether it serves chat completions."""
+    from . import llm_local
+    from .llm_client import resolve_api_config
+
+    try:
+        cfg = resolve_api_config()
+    except LLMConfigError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    if cfg is None:
+        print(f"error: {_NO_PROVIDER_MSG}", file=sys.stderr)
+        return 1
+
+    models: list[str] = []
+    note = None
+    if cfg.provider == "local":
+        real_key = None if cfg.api_key == LOCAL_PLACEHOLDER_KEY else cfg.api_key
+        try:
+            models = [m["id"] for m in llm_local.list_models(cfg.base_url, real_key)]
+        except LLMCallError as e:
+            note = str(e)
+    pre = llm_local.check_chat(cfg)
+    result = {
+        "provider": cfg.provider,
+        "base_url": cfg.base_url,
+        "model": cfg.model,
+        "context_window": cfg.context_window,
+        "models": models,
+        "chat_ok": bool(pre["ok"]),
+        "kind": pre["kind"],
+        "error": pre["error"],
+    }
+    if args.json:
+        print(json.dumps(result, indent=2))
+        return 0 if pre["ok"] else 1
+    ctx = cfg.context_window if cfg.context_window else "unknown"
+    print(f"provider:       {cfg.provider}")
+    print(f"base url:       {cfg.base_url}")
+    print(f"model:          {cfg.model}")
+    print(f"context window: {ctx}")
+    print(f"served models:  {', '.join(models) if models else '(none listed)'}")
+    if note:
+        print(f"  note: could not list models: {note}")
+    if pre["ok"]:
+        print("chat: ok")
+        return 0
+    print(f"chat: FAILED ({pre['kind']}): {pre['error']}")
+    hint = _CHECK_HINTS.get(pre["kind"])
+    if hint:
+        print(f"  hint: {hint}")
+    return 1
+
+
 def cmd_export(args) -> int:
     """Export the project's graph as an OKF bundle.
 
@@ -517,6 +586,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_enhance.add_argument("--json", action="store_true")
     p_enhance.set_defaults(func=cmd_enhance)
+
+    p_llm = sub.add_parser("llm", help="Inspect the configured LLM provider")
+    llm_sub = p_llm.add_subparsers(dest="action", required=True)
+    p_llm_check = llm_sub.add_parser(
+        "check", help="Verify the provider serves chat completions"
+    )
+    p_llm_check.add_argument("--json", action="store_true")
+    p_llm_check.set_defaults(func=cmd_llm_check)
 
     p_export = sub.add_parser("export", help="Export the graph (currently: OKF bundle)")
     p_export.add_argument(
