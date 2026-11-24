@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 
 import httpx
@@ -302,3 +303,230 @@ def test_connect_error_without_base_url_keeps_generic_hint():
         httpx.ConnectError("x"), provider_label="OpenRouter", model="m"
     )
     assert "internet connection" in info["hint"]
+
+
+# ---------------------------------------------------------------------------
+# Streaming, /api/models and /api/health against the stub server
+# ---------------------------------------------------------------------------
+
+
+def _sse_events(resp) -> list[dict]:
+    events = []
+    for line in resp.text.splitlines():
+        if line.startswith("data:"):
+            try:
+                events.append(json.loads(line[5:].strip()))
+            except ValueError:
+                pass
+    return events
+
+
+def _chat(client, **body):
+    return client.post("/api/chat", json={"question": "hi", "history": [], **body})
+
+
+def _completions(server):
+    return [r for r in server.requests if r["path"] == "/v1/chat/completions"]
+
+
+@pytest.fixture
+def local_server(fake_openai_server, monkeypatch):
+    monkeypatch.setenv("EPISTRACT_LLM_BASE_URL", fake_openai_server.base_url)
+    return fake_openai_server
+
+
+def test_chat_streams_local_answer_without_cloud_headers(client, local_server):
+    """LOCAL-03: only the base URL set -> streamed answer, auto-detected model."""
+    local_server.queue_sse(["Hel", "lo"])
+    resp = _chat(client)
+    assert resp.status_code == 200
+    events = _sse_events(resp)
+    text = "".join(e["content"] for e in events if e.get("type") == "text")
+    assert text == "Hello"
+    assert events[-1]["type"] == "done"
+    assert not [e for e in events if e.get("type") == "error"]
+    req = _completions(local_server)[0]
+    assert req["json"]["model"] == _MODEL
+    for header in ("authorization", "http-referer", "x-title"):
+        assert header not in req["headers"]
+
+
+def test_chat_sends_only_authorization_when_key_set(client, local_server, monkeypatch):
+    monkeypatch.setenv("EPISTRACT_LLM_API_KEY", "k")
+    local_server.queue_sse(["ok"])
+    _chat(client)
+    headers = _completions(local_server)[0]["headers"]
+    assert headers["authorization"] == "Bearer k"
+    assert "http-referer" not in headers and "x-title" not in headers
+
+
+def test_d02_cloud_key_never_sent_to_local_server(client, local_server, monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-cloud")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-cloud")
+    local_server.queue_sse(["ok"])
+    _chat(client)
+    req = _completions(local_server)[0]
+    assert "authorization" not in req["headers"]
+    assert "x-api-key" not in req["headers"]
+
+
+def test_chat_local_has_no_max_tokens_unless_configured(client, local_server, monkeypatch):
+    local_server.queue_sse(["a"])
+    _chat(client)
+    assert "max_tokens" not in _completions(local_server)[0]["json"]
+    monkeypatch.setenv("EPISTRACT_LLM_MAX_TOKENS", "300")
+    local_server.queue_sse(["a"])
+    _chat(client)
+    assert _completions(local_server)[1]["json"]["max_tokens"] == 300
+
+
+def test_chat_openrouter_keeps_max_tokens(monkeypatch):
+    captured = {}
+
+    class _Resp:
+        status_code = 200
+        headers: dict = {}
+
+        async def aiter_lines(self):
+            yield "data: [DONE]"
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+    class _Client:
+        def __init__(self, **kw):
+            captured["init"] = kw
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        def stream(self, method, url, **kw):
+            captured["json"] = kw["json"]
+            captured["headers"] = kw["headers"]
+            return _Resp()
+
+    monkeypatch.setattr(api_chat.httpx, "AsyncClient", _Client)
+
+    async def drain():
+        return [
+            e
+            async for e in api_chat._stream_openai_compat(
+                "k", "https://openrouter.ai/api/v1/chat/completions", "m", "s", [], "openrouter"
+            )
+        ]
+
+    asyncio.run(drain())
+    assert captured["json"]["max_tokens"] == 4096
+    assert captured["headers"]["HTTP-Referer"]
+    assert captured["init"].get("trust_env", True) is True
+
+
+def test_chat_request_model_is_forwarded(client, local_server):
+    local_server.queue_sse(["a"])
+    _chat(client, model="other-model")
+    assert _completions(local_server)[0]["json"]["model"] == "other-model"
+
+
+def test_chat_outbound_host_is_always_the_env_host(client, local_server):
+    """T-11-11: a hostile model string cannot redirect the request."""
+    local_server.queue_sse(["a"])
+    _chat(client, model="http://evil.example/v1")
+    reqs = _completions(local_server)
+    assert reqs and reqs[0]["json"]["model"] == "http://evil.example/v1"
+
+
+def test_chat_without_any_model_reports_env_var(client, local_server):
+    local_server.models = []
+    resp = _chat(client)
+    errors = [e for e in _sse_events(resp) if e.get("type") == "error"]
+    assert errors and "EPISTRACT_LLM_MODEL" in errors[0]["message"]
+    assert not _completions(local_server)
+
+
+def test_chat_unreachable_server_hint(client, monkeypatch):
+    monkeypatch.setenv("EPISTRACT_LLM_BASE_URL", "http://127.0.0.1:9")
+    monkeypatch.setenv("EPISTRACT_LLM_MODEL", "m")
+    errors = [e for e in _sse_events(_chat(client)) if e.get("type") == "error"]
+    assert errors
+    assert "Is the server running at http://127.0.0.1:9?" in errors[0]["hint"]
+    assert "Local model server" in errors[0]["message"]
+
+
+def test_chat_local_daily_429(client, local_server):
+    local_server.queue_429_daily()
+    errors = [e for e in _sse_events(_chat(client)) if e.get("type") == "error"]
+    assert errors[0]["title"] == "Daily limit reached"
+    assert "Local model server" in errors[0]["message"]
+
+
+def test_chat_ignores_env_proxy_for_local(client, local_server, monkeypatch):
+    monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:9")
+    monkeypatch.setenv("http_proxy", "http://127.0.0.1:9")
+    monkeypatch.delenv("NO_PROXY", raising=False)
+    monkeypatch.delenv("no_proxy", raising=False)
+    local_server.queue_sse(["ok"])
+    events = _sse_events(_chat(client))
+    assert any(e.get("type") == "text" for e in events)
+
+
+def test_models_endpoint_local(client, local_server):
+    body = client.get("/api/models").json()
+    assert body == {
+        "provider": "local",
+        "default_model": _MODEL,
+        "models": [{"id": _MODEL, "label": _MODEL}],
+    }
+
+
+def test_models_endpoint_local_configured_default(client, local_server, monkeypatch):
+    monkeypatch.setenv("EPISTRACT_LLM_MODEL", "chosen")
+    assert client.get("/api/models").json()["default_model"] == "chosen"
+
+
+def test_models_endpoint_local_degraded_when_server_down(client, monkeypatch):
+    monkeypatch.setenv("EPISTRACT_LLM_BASE_URL", "http://127.0.0.1:9")
+    monkeypatch.setenv("EPISTRACT_LLM_MODEL", "m")
+    resp = client.get("/api/models")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["provider"] == "local"
+    assert body["degraded"] is True
+    assert body["models"] == [{"id": "m", "label": "m"}]
+
+
+def test_models_endpoint_never_leaks_key_or_url(client, local_server, monkeypatch):
+    monkeypatch.setenv("EPISTRACT_LLM_API_KEY", "super-secret")
+    text = client.get("/api/models").text + client.get("/api/health").text
+    assert "super-secret" not in text
+    assert local_server.base_url not in text
+
+
+def test_health_reports_local(client, local_server):
+    body = client.get("/api/health").json()
+    assert body["llm_provider"] == "local"
+    assert body["has_api_key"] is True
+
+
+def test_health_and_models_unchanged_for_anthropic(client, monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk")
+    health = client.get("/api/health").json()
+    assert (health["llm_provider"], health["has_api_key"]) == ("anthropic", True)
+    models = client.get("/api/models").json()
+    assert models["provider"] == "anthropic"
+    assert models["models"] == api_chat.PROVIDER_MODELS["anthropic"]
+
+
+def test_health_and_models_with_no_provider(client):
+    health = client.get("/api/health").json()
+    assert (health["llm_provider"], health["has_api_key"]) == (None, False)
+    assert client.get("/api/models").json() == {
+        "provider": None,
+        "default_model": None,
+        "models": [],
+    }

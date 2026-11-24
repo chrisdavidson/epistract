@@ -416,28 +416,12 @@ def create_app(output_dir: Path, domain: str | None = None) -> FastAPI:
 
     @app.get("/api/health")
     async def health():
-        import os
+        from examples.workbench.api_chat import active_provider
 
         data = app.state.data
-        # Which LLM provider the chat panel will use on the next request.
-        # Order mirrors api_chat._resolve_api_config(). AZURE_FOUNDRY_* and
-        # ANTHROPIC_FOUNDRY_* are accepted as aliases.
-        has_foundry = bool(
-            os.environ.get("AZURE_FOUNDRY_API_KEY")
-            or os.environ.get("ANTHROPIC_FOUNDRY_API_KEY")
-        )
-        if has_foundry:
-            has_custom_base = bool(
-                os.environ.get("AZURE_FOUNDRY_BASE_URL")
-                or os.environ.get("ANTHROPIC_FOUNDRY_BASE_URL")
-            )
-            provider = "azure-foundry-custom" if has_custom_base else "azure-foundry"
-        elif os.environ.get("ANTHROPIC_API_KEY"):
-            provider = "anthropic"
-        elif os.environ.get("OPENROUTER_API_KEY"):
-            provider = "openrouter"
-        else:
-            provider = None
+        # Which LLM provider the chat panel will use on the next request;
+        # shared with /api/models and mirrors api_chat._resolve_api_config().
+        provider = active_provider()
         return {
             "status": "ok",
             "output_dir": str(data.output_dir),
@@ -445,11 +429,7 @@ def create_app(output_dir: Path, domain: str | None = None) -> FastAPI:
             "edges": len(data.get_edges()),
             "documents": len(data.documents),
             "has_claims": bool(data.claims_layer),
-            "has_api_key": bool(
-                has_foundry
-                or os.environ.get("ANTHROPIC_API_KEY")
-                or os.environ.get("OPENROUTER_API_KEY")
-            ),
+            "has_api_key": provider is not None,
             "llm_provider": provider,
         }
 
@@ -457,22 +437,50 @@ def create_app(output_dir: Path, domain: str | None = None) -> FastAPI:
     async def get_models():
         """Return the curated model list for the active LLM provider.
 
-        Detection mirrors /api/health. We intentionally do NOT call
-        api_chat._resolve_api_config() because that function raises
-        RuntimeError when Foundry keys are set without a base URL or
-        resource — which would break this endpoint on every page-load.
-        Foundry returns a single-entry list (deployment name) so the
-        frontend hides the selector (only one choice available).
+        Detection uses api_chat.active_provider(), shared with /api/health,
+        which never raises (a Foundry key without a base URL or resource would
+        otherwise break this endpoint on every page-load). Foundry returns a
+        single-entry list (deployment name) so the frontend hides the selector.
+        The local provider lists the server's own /v1/models; when the server
+        is unreachable it returns one degraded entry instead of an error. The
+        server URL always comes from EPISTRACT_LLM_BASE_URL, never the request.
         """
         import os
 
-        from examples.workbench.api_chat import PROVIDER_MODELS
+        import httpx
 
-        has_foundry = bool(
-            os.environ.get("AZURE_FOUNDRY_API_KEY")
-            or os.environ.get("ANTHROPIC_FOUNDRY_API_KEY")
+        from examples.workbench.api_chat import (
+            PROVIDER_MODELS,
+            _autodetect_local_model,
+            _resolve_api_config,
+            active_provider,
+            list_local_models,
         )
-        if has_foundry:
+
+        active = active_provider()
+        if active == "local":
+            try:
+                _, base_url, model, _ = _resolve_api_config()
+            except RuntimeError:
+                return {"provider": None, "default_model": None, "models": []}
+            try:
+                models = await list_local_models(base_url)
+            except (httpx.HTTPError, ValueError):
+                return {
+                    "provider": "local",
+                    "default_model": model or None,
+                    "models": [{"id": model, "label": model or "local model"}],
+                    "degraded": True,
+                }
+            default = model or await _autodetect_local_model(base_url)
+            if not default and models:
+                default = models[0]["id"]
+            return {
+                "provider": "local",
+                "default_model": default or None,
+                "models": models,
+            }
+        if active in ("azure-foundry", "azure-foundry-custom"):
             from examples.workbench.api_chat import DEFAULT_FOUNDRY_DEPLOYMENT
 
             deployment = (
@@ -480,24 +488,19 @@ def create_app(output_dir: Path, domain: str | None = None) -> FastAPI:
                 or os.environ.get("ANTHROPIC_FOUNDRY_DEPLOYMENT")
                 or DEFAULT_FOUNDRY_DEPLOYMENT
             )
-            has_custom_base = bool(
-                os.environ.get("AZURE_FOUNDRY_BASE_URL")
-                or os.environ.get("ANTHROPIC_FOUNDRY_BASE_URL")
-            )
-            provider = "azure-foundry-custom" if has_custom_base else "azure-foundry"
             return {
-                "provider": provider,
+                "provider": active,
                 "default_model": deployment,
                 "models": [{"id": deployment, "label": deployment}],
             }
-        if os.environ.get("ANTHROPIC_API_KEY"):
+        if active == "anthropic":
             models = PROVIDER_MODELS["anthropic"]
             return {
                 "provider": "anthropic",
                 "default_model": models[0]["id"],
                 "models": models,
             }
-        if os.environ.get("OPENROUTER_API_KEY"):
+        if active == "openrouter":
             models = await _fetch_or_models()
             default = _OPENROUTER_DEFAULT_MODEL
             if not any(m.get("id") == default for m in models):

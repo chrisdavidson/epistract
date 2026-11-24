@@ -491,9 +491,22 @@ async def chat(request: Request, body: ChatRequest):
                 "No API key found. Set one of: "
                 "AZURE_FOUNDRY_API_KEY (or ANTHROPIC_FOUNDRY_API_KEY) with either "
                 "AZURE_FOUNDRY_BASE_URL or AZURE_FOUNDRY_RESOURCE; "
-                "ANTHROPIC_API_KEY; or OPENROUTER_API_KEY."
+                "ANTHROPIC_API_KEY; OPENROUTER_API_KEY; or EPISTRACT_LLM_BASE_URL "
+                "(local OpenAI-compatible server)."
             )
         )
+
+    if provider == "local" and not model:
+        model = await _autodetect_local_model(base_url)
+        if not model:
+            return EventSourceResponse(
+                _error_stream(
+                    "Could not determine a chat model at the local server; "
+                    "set EPISTRACT_LLM_MODEL.",
+                    title="No local model available",
+                    hint="Set EPISTRACT_LLM_MODEL and restart the workbench.",
+                )
+            )
 
     data = request.app.state.data
 
@@ -522,7 +535,9 @@ async def chat(request: Request, body: ChatRequest):
         )
     else:
         return EventSourceResponse(
-            _stream_openai_compat(api_key, base_url, model, system, messages),
+            _stream_openai_compat(
+                api_key, base_url, model, system, messages, provider
+            ),
             media_type="text/event-stream",
         )
 
@@ -615,28 +630,59 @@ async def _stream_anthropic(
     yield {"data": json.dumps({"type": "done"})}
 
 
+def _local_max_tokens() -> int | None:
+    """Optional output cap for a local server (EPISTRACT_LLM_MAX_TOKENS)."""
+    raw = os.environ.get("EPISTRACT_LLM_MAX_TOKENS", "").strip()
+    try:
+        value = int(raw)
+    except ValueError:
+        return None
+    return value if value > 0 else None
+
+
 async def _stream_openai_compat(
-    api_key: str, base_url: str, model: str, system: str, messages: list[dict]
+    api_key: str,
+    base_url: str,
+    model: str,
+    system: str,
+    messages: list[dict],
+    provider: str = "openrouter",
 ) -> AsyncGenerator[dict, None]:
-    """Stream via OpenAI-compatible API (OpenRouter) using httpx."""
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://github.com/epistract",
-        "X-Title": "Epistract Workbench",
-    }
+    """Stream via an OpenAI-compatible API (OpenRouter or a local server)."""
+    is_local = provider == "local"
+    headers = {"Content-Type": "application/json"}
+    if is_local:
+        # Only an explicitly configured EPISTRACT_LLM_API_KEY goes on the wire;
+        # OpenRouter attribution headers are never sent to a local server.
+        if api_key != LOCAL_PLACEHOLDER_KEY:
+            headers["Authorization"] = f"Bearer {api_key}"
+    else:
+        headers["Authorization"] = f"Bearer {api_key}"
+        headers["HTTP-Referer"] = "https://github.com/epistract"
+        headers["X-Title"] = "Epistract Workbench"
     # OpenAI format: system message goes in messages array
     oai_messages = [{"role": "system", "content": system}] + messages
-    payload = {
+    payload: dict = {
         "model": model,
-        "max_tokens": 4096,
         "messages": oai_messages,
         "stream": True,
     }
+    if is_local:
+        # No fixed budget: a hard-coded 4096 can exceed a small model's context
+        # window. The server bounds generation by its own window unless the
+        # operator sets an explicit cap.
+        cap = _local_max_tokens()
+        if cap is not None:
+            payload["max_tokens"] = cap
+    else:
+        payload["max_tokens"] = 4096
 
-    label = provider_label("openrouter", base_url)
+    label = provider_label(provider, base_url)
     try:
-        async with httpx.AsyncClient(timeout=120.0, proxy=None) as client:
+        # A local server is never reached through an ambient HTTP(S)_PROXY.
+        async with httpx.AsyncClient(
+            timeout=120.0, proxy=None, trust_env=not is_local
+        ) as client:
             async with client.stream("POST", base_url, json=payload, headers=headers) as resp:
                 if resp.status_code != 200:
                     error_body = await resp.aread()
@@ -646,6 +692,7 @@ async def _stream_openai_compat(
                             error_body.decode(errors="replace"),
                             provider_label=label,
                             model=model,
+                            headers=getattr(resp, "headers", None),
                         )
                     )
                     yield {"data": json.dumps({"type": "done"})}
@@ -685,7 +732,9 @@ async def _stream_openai_compat(
                     except json.JSONDecodeError:
                         continue
     except Exception as e:
-        yield error_event(describe_exception(e, provider_label=label, model=model))
+        yield error_event(describe_exception(
+                e, provider_label=label, model=model, base_url=base_url
+            ))
 
     yield {"data": json.dumps({"type": "done"})}
 
