@@ -90,8 +90,9 @@ lexical result when:
 
 - the first 5 calls all fail, or 5 calls in a row fail;
 - any call hits a quota, fatal or connection error;
-- at the end, more than 20% of the calls fell back (more than 50% when there were fewer
-  than 20 calls).
+- once at least 20 calls have been made, more than 20% of them fell back (checked during
+  the run and again at the end);
+- at the end of a run with fewer than 20 calls, more than 50% fell back.
 
 Rate limits are retried up to 3 attempts. A `Retry-After` of 60 s or less is waited
 out (announced on stderr when it is 5 s or more). A longer one, or a daily-limit
@@ -103,8 +104,9 @@ for Ctrl-C.
 
 ### Progress, checkpoint and resume
 
-Progress prints to stderr. Each judged relation is appended to
-`<project>/.judge_checkpoint.jsonl`. After an abort or Ctrl-C, run the same command
+Progress prints to stderr. Each relation that got a real LLM verdict is appended to
+`<project>/.judge_checkpoint.jsonl` (relations that fell back to the lexical verdict are
+not saved, so they are judged again on resume). After an abort or Ctrl-C, run the same command
 again and the judge resumes from the checkpoint automatically (`resumed` in the report
 counts the relations restored from it). `--fresh` ignores the checkpoint and re-judges
 everything. The checkpoint is deleted after a successful run, and the graph and report
@@ -112,8 +114,8 @@ are written atomically.
 
 ### Report fields
 
-With `--llm`, the `judge` block of `enhancement_report.json` carries `mode` (`llm` or
-`lexical`), `provider`, `model`, `base_url`, `llm_judged`, `fallback`, `resumed`,
+The `judge` block of `enhancement_report.json` carries `mode` (`llm` or `lexical`;
+for lexical runs `provider`, `model` and `base_url` are `null`), `provider`, `model`, `base_url`, `llm_judged`, `fallback`, `resumed`,
 `skipped_no_evidence`, `aborted` (always `false` in a written report) and `errors`
 (up to 5 sample messages).
 
