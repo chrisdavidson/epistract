@@ -99,13 +99,20 @@ def normalise_base_url(url: str) -> str:
     host = parts.hostname
     if ":" in host:  # IPv6 literal
         host = f"[{host}]"
-    if parts.port:
-        host = f"{host}:{parts.port}"
+    try:
+        port = parts.port
+    except ValueError:
+        raise LLMConfigError(
+            "EPISTRACT_LLM_BASE_URL has an invalid port (expected 0-65535)"
+        ) from None
+    if port is not None:
+        host = f"{host}:{port}"
     path = parts.path.rstrip("/")
-    if path.endswith("/chat/completions"):
-        path = path[: -len("/chat/completions")]
-    path = path.rstrip("/")
-    if path.endswith("/v1"):
+    for suffix in ("/chat/completions", "/completions", "/models"):
+        if path.lower().endswith(suffix):
+            path = path[: -len(suffix)].rstrip("/")
+            break
+    if path.lower().endswith("/v1"):
         path = path[: -len("/v1")]
     return f"{parts.scheme}://{host}{path}/v1"
 

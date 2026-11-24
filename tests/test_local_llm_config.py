@@ -138,6 +138,28 @@ def test_normalise_base_url(raw, expected):
     assert llm_client.normalise_base_url(raw) == expected
 
 
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("http://h:0", "http://h:0/v1"),
+        ("HTTP://H:1/V1", "http://h:1/v1"),
+        ("http://h:1/v1/models", "http://h:1/v1"),
+        ("http://h:1/v1/completions", "http://h:1/v1"),
+        ("http://h:1/V1/Chat/Completions", "http://h:1/v1"),
+    ],
+)
+def test_normalise_base_url_edge_cases(raw, expected):
+    """WR-02: port 0 kept, suffix matching case-insensitive, /models stripped."""
+    assert llm_client.normalise_base_url(raw) == expected
+
+
+@pytest.mark.parametrize("raw", ["http://h:abc", "http://h:99999"])
+def test_normalise_base_url_bad_port_is_config_error(raw):
+    """WR-01: a bad port raises LLMConfigError, not a bare ValueError."""
+    with pytest.raises(llm_client.LLMConfigError):
+        llm_client.normalise_base_url(raw)
+
+
 def test_normalise_base_url_rejects_other_schemes():
     with pytest.raises(llm_client.LLMConfigError):
         llm_client.normalise_base_url("ftp://h")
