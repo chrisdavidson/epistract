@@ -126,7 +126,7 @@ Epistract is a plugin for [Claude Code](https://claude.ai/claude-code). Two step
 **Optional:**
 - RDKit — checks chemical structure codes (SMILES) for correctness
 - Biopython — checks DNA and protein sequences
-- An API key for an AI provider (Azure Foundry, Anthropic, or OpenRouter) — needed only for the chat panel and the narrator briefing. Building the graph and extracting facts work without one. The default Anthropic model is Claude Sonnet 5.
+- An API key for an AI provider (Azure Foundry, Anthropic, or OpenRouter), or a local OpenAI-compatible server (llama.cpp, Ollama, vLLM, LM Studio; no key needed) — needed only for the chat panel and the narrator briefing. Building the graph and extracting facts work without one. The default Anthropic model is Claude Sonnet 5.
 
 Full install steps, troubleshooting, and Azure Foundry / company gateway setup: [docs/WORKBENCH.md](docs/WORKBENCH.md#install).
 
@@ -262,7 +262,7 @@ Full walkthrough: **[docs/PROJECTS.md](docs/PROJECTS.md)**.
 - [docs/DOMAINS.md](docs/DOMAINS.md) — per-domain schemas, scenarios, showcase files
 - [docs/COMMANDS.md](docs/COMMANDS.md) — full `/epistract:*` reference
 - [docs/PROJECTS.md](docs/PROJECTS.md) — named, reusable knowledge bases (init / add / index / search / enhance)
-- [docs/WORKBENCH.md](docs/WORKBENCH.md) — using the workbench, AI provider setup (Azure / Anthropic / OpenRouter), install troubleshooting
+- [docs/WORKBENCH.md](docs/WORKBENCH.md) — using the workbench, AI provider setup (Azure / Anthropic / OpenRouter / local OpenAI-compatible server), install troubleshooting
 - [docs/ADDING-DOMAINS.md](docs/ADDING-DOMAINS.md) — domain wizard, building a domain by hand, crosswalk setup
 - [docs/PIPELINE-CAPACITY.md](docs/PIPELINE-CAPACITY.md) — supported file types, limits, what works and what doesn't
 - [docs/CONFIDENCE-SCORING.md](docs/CONFIDENCE-SCORING.md) — how confidence scores are assigned, combined and interpreted

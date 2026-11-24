@@ -619,6 +619,46 @@ These are real research questions a PhD scientist would ask. Each tests whether 
 
 ---
 
+## Phase 11 — Local LLM provider (LOCAL-01..LOCAL-12)
+
+### UT-058: Resolver, URL normaliser and server probes (context window order, model pick, env priority)
+- **Traces to:** LOCAL-01, LOCAL-02, LOCAL-12 (D-01, D-02)
+- **Test:** `tests/test_local_llm_config.py`
+- **Pass criteria:** every test in the file passes with no `EPISTRACT_LLM_*` variable set and again with `EPISTRACT_LLM_BASE_URL=http://127.0.0.1:9` exported (the conftest scrub isolates the suite).
+- **Dependency:** Stub server (`tests/fake_openai_server.py`); no network, no API keys.
+
+### UT-059: Local transport, `classify_error`, retry policy (3 attempts, Retry-After cap), tolerant JSON extraction
+- **Traces to:** LOCAL-05, LOCAL-06 (D-04, D-05)
+- **Test:** `tests/test_local_llm_transport.py`
+- **Pass criteria:** every test in the file passes with no `EPISTRACT_LLM_*` variable set and again with `EPISTRACT_LLM_BASE_URL=http://127.0.0.1:9` exported (the conftest scrub isolates the suite).
+- **Dependency:** Stub server; no network, no API keys.
+
+### UT-060: Workbench resolver, streaming, model picker, health and error messages for a local server
+- **Traces to:** LOCAL-02, LOCAL-03 (D-02, D-03)
+- **Test:** `tests/test_local_llm_workbench.py`
+- **Pass criteria:** every test in the file passes with no `EPISTRACT_LLM_*` variable set and again with `EPISTRACT_LLM_BASE_URL=http://127.0.0.1:9` exported (the conftest scrub isolates the suite).
+- **Dependency:** Stub server; no network, no API keys.
+
+### UT-061: Judge fallback accounting, abort rules, strict parsing, derived `max_tokens`, progress, checkpoint and resume
+- **Traces to:** LOCAL-04, LOCAL-06, LOCAL-08 (D-04, D-05, D-07)
+- **Test:** `tests/test_local_llm_judge.py`
+- **Pass criteria:** every test in the file passes with no `EPISTRACT_LLM_*` variable set and again with `EPISTRACT_LLM_BASE_URL=http://127.0.0.1:9` exported (the conftest scrub isolates the suite).
+- **Dependency:** Stub server, synthetic graph; no network, no API keys.
+
+### UT-062: `enhance --llm` preflight, abort exit codes, `--fresh`, `llm check`, narrator context guard
+- **Traces to:** LOCAL-04, LOCAL-08, LOCAL-09 (D-04, D-07, D-08)
+- **Test:** `tests/test_local_llm_cli.py`
+- **Pass criteria:** every test in the file passes with no `EPISTRACT_LLM_*` variable set and again with `EPISTRACT_LLM_BASE_URL=http://127.0.0.1:9` exported (the conftest scrub isolates the suite).
+- **Dependency:** Stub server, tmp project; no network, no API keys.
+
+### UT-063: `extract_corpus.py --base-url`, context-fit warning, quota/fatal exit 3
+- **Traces to:** LOCAL-10 (D-09)
+- **Test:** `tests/test_extract_corpus_local.py`
+- **Pass criteria:** every test in the file passes with no `EPISTRACT_LLM_*` variable set and again with `EPISTRACT_LLM_BASE_URL=http://127.0.0.1:9` exported (the conftest scrub isolates the suite).
+- **Dependency:** Stub server, tmp corpus; no network, no API keys.
+
+---
+
 ## 4. Traceability Matrix
 
 | Requirement | Domain Spec Section | Entity Types Tested | Relation Types Tested | Test Corpus |
@@ -660,3 +700,9 @@ These are real research questions a PhD scientist would ask. Each tests whether 
 | UT-053 | FIDL-08 (D-07, D-08, D-17) | N/A (path shim) | N/A | tmp_path synthetic paths |
 | UT-054 | FIDL-08 (D-09, D-10, D-11, D-18) | N/A (schema bypass) | N/A | Synthetic schema dict |
 | FT-020 | FIDL-08 (D-09, D-10, D-11, D-19) | N/A (e2e wizard) | N/A | tests/fixtures/wizard/schema.json |
+| UT-058 | LOCAL-01, LOCAL-02, LOCAL-12 (D-01, D-02) | N/A (Resolver) | N/A | Stub server (`tests/fake_openai_server.py`) |
+| UT-059 | LOCAL-05, LOCAL-06 (D-04, D-05) | N/A (Local transport) | N/A | Stub server |
+| UT-060 | LOCAL-02, LOCAL-03 (D-02, D-03) | N/A (Workbench resolver) | N/A | Stub server |
+| UT-061 | LOCAL-04, LOCAL-06, LOCAL-08 (D-04, D-05, D-07) | N/A (Judge fallback accounting) | N/A | Stub server, synthetic graph |
+| UT-062 | LOCAL-04, LOCAL-08, LOCAL-09 (D-04, D-07, D-08) | N/A (`enhance --llm` preflight) | N/A | Stub server, tmp project |
+| UT-063 | LOCAL-10 (D-09) | N/A (`extract_corpus.py --base-url`) | N/A | Stub server, tmp corpus |

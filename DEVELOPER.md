@@ -15,9 +15,10 @@ This document is for developers extending, debugging, or integrating with Epistr
 7. [Molecular Validation Pipeline](#molecular-validation-pipeline)
 8. [Plugin Component Reference](#plugin-component-reference)
 9. [Data Formats](#data-formats)
-10. [Testing & Validation](#testing--validation)
-11. [Phase 2: Neo4j & Vector RAG](#phase-2-neo4j--vector-rag)
-12. [Contributing](#contributing)
+10. [LLM Providers](#llm-providers)
+11. [Testing & Validation](#testing--validation)
+12. [Phase 2: Neo4j & Vector RAG](#phase-2-neo4j--vector-rag)
+13. [Contributing](#contributing)
 
 ---
 
@@ -536,6 +537,35 @@ epistract-output/
   ]
 }
 ```
+
+---
+
+## LLM Providers
+
+Three call sites share one provider contract: `core/llm_client.py` (the judge in `core/triple_judge.py`, the narrator in `core/label_epistemic.py`, `llm check`), `examples/workbench/api_chat.py` (chat streaming, model picker, health) and `scripts/extract_corpus.py` (batch extraction).
+
+| Provider | Selected by | Notes |
+|---|---|---|
+| `local` | `EPISTRACT_LLM_BASE_URL` | OpenAI-compatible server (llama.cpp, Ollama, vLLM, LM Studio). No key needed; `EPISTRACT_LLM_API_KEY` is sent as `Authorization` only when set. Model from `EPISTRACT_LLM_MODEL` or the first chat-capable id of `/v1/models`. |
+| `foundry` | `AZURE_FOUNDRY_API_KEY` (+ base URL or resource) | Anthropic-native format. |
+| `anthropic` | `ANTHROPIC_API_KEY` | Native format. |
+| `openrouter` | `OPENROUTER_API_KEY` | OpenAI-compatible format. |
+
+### Resolver precedence
+
+`EPISTRACT_LLM_PROVIDER` (`local|anthropic|openrouter|foundry`, explicit, raises when that provider's credentials are missing) > `EPISTRACT_LLM_BASE_URL` > Foundry > Anthropic > OpenRouter. A cloud key is never sent to the local URL, and the local key is read only from `EPISTRACT_LLM_API_KEY`.
+
+The resolver exists twice on purpose: `core.llm_client.resolve_api_config` and `examples.workbench.api_chat._resolve_api_config`. The workbench is a consumer layer and must not import `core`, so each file carries its own copy of the URL normaliser, the provider order and the `LOCAL_BASE_URL_WINS` switch. `LOCAL_BASE_URL_WINS = True` puts the local server ahead of the cloud keys; `False` makes it the last fallback (an explicit `EPISTRACT_LLM_PROVIDER` still wins). Flip both constants together, and keep the two resolvers in step when you change either (grep `LOCAL_BASE_URL_WINS`).
+
+### Moving parts
+
+- `core/llm_local.py` - read-only probes of the local server: `/v1/models`, the context window (`probe_context`: env override, llama.cpp, vLLM, LM Studio loaded window, Ollama `num_ctx`) and `check_chat`. Probes never raise, use `trust_env=False` and a 3 s timeout, and memoise results (`clear_cache()` resets them).
+- `core/llm_client.py` - `call_llm` and the retry policy. `classify_error(status, headers, body)` maps a failure to `quota` (daily or quota wording, a reset far away, or `Retry-After` over 60 s; never retried), `rate_limit` (retried, up to 3 attempts, `Retry-After` honoured up to 60 s), `per_item` (413, or 400 with a context-length message), `transient` (no status, 408, 5xx) or `fatal`. These surface as `LLMQuotaError`, `LLMFatalError`, `LLMTransientError` and `LLMCallError`; a bad configuration is `LLMConfigError`. The Anthropic SDK is built with `max_retries=0` so its hidden retries do not stack on ours. `extract_json_object` pulls JSON out of chatty small-model replies.
+- `core/triple_judge.py` - judge accounting, abort rules (`JudgeAbort`), derived `max_tokens` and the checkpoint file.
+
+### Test fixtures
+
+`tests/fake_openai_server.py` is a stdlib stub server with llama.cpp-shaped `/v1/models`, `/props` and `/health`, optional vLLM, LM Studio and Ollama probe endpoints, and a scriptable `/v1/chat/completions` (content, SSE, 400, 429 daily and transient, dropped connection). Use the `fake_openai_server` fixture. `tests/conftest.py` has an autouse fixture that deletes the six `EPISTRACT_LLM_*` variables and calls `llm_local.clear_cache()` so a developer's shell cannot leak into tests; run the suite once with `EPISTRACT_LLM_BASE_URL=http://127.0.0.1:9` exported to prove it.
 
 ---
 

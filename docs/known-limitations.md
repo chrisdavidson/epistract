@@ -301,4 +301,43 @@ Mixed Latin + non-Latin (`"中文 Analysis"`) yields just the Latin portion (`"a
 
 ---
 
+## Small local models
+
+`EPISTRACT_LLM_BASE_URL` points every LLM pass (judge, narrator, workbench chat, `extract_corpus`) at a local OpenAI-compatible server. Small local models work for some passes and not for others.
+
+### How the context window is found
+
+Per server, in this order: the `EPISTRACT_LLM_CONTEXT_WINDOW` override; llama.cpp (`/v1/models` `meta.n_ctx` and `/props` `n_ctx`, the smaller of the two, which is the per-slot window under `--parallel`); vLLM `max_model_len`; LM Studio `loaded_context_length` (the loaded window, not the trained maximum); Ollama `num_ctx`, only when the model sets one. Ollama's trained `context_length` is ignored because the server does not use it by default. If none answers, the window is unknown.
+
+`max_tokens` is derived from the window, never from a fixed local budget. The judge sends `min(2048, window - prompt estimate - 64)` (`EPISTRACT_LLM_MAX_TOKENS` replaces the 2048 cap). The narrator caps at 8192 with the same clamp. When the window is unknown, requests to a local server omit `max_tokens` and the server applies its own limit.
+
+### What a 4k-context model can do
+
+| Pass | 4k context |
+|---|---|
+| Triple judge (`enhance --judge --llm`) | Works. One relation and its evidence span fit easily. |
+| Narrator (`/epistract:epistemic`) | Limited. The output budget is clamped to the room left after the prompt. Under 512 tokens of room the narrator is skipped with an "exceeds context" reason and the rule-based output stands. |
+| Extraction (`scripts/extract_corpus.py`) | Does not fit. Chunks plus the schema prompt need a larger window; the script prints a context-fit warning and carries on (it warns only). |
+
+### Other caveats
+
+- **Thinking models** spend part of the output budget on reasoning. A reply that never reaches the JSON verdict counts as a fallback, and enough of them trip the judge's abort rules. Use a non-thinking model or raise the budget.
+- **Throughput.** A server with one slot judges about 15 relations a minute, so about 30 minutes for 470 relations. A read timeout on a local server is a per-relation fallback and is not retried.
+- **Aborts, not silent fallbacks.** `enhance --llm` stops when the first 5 calls fail, 5 calls in a row fail, any call hits a quota, fatal or connection error, or more than 20% of the calls fell back at the end (more than 50% for runs under 20 calls). The checkpoint lets the next run resume.
+- **No-evidence relations** are never sent to the LLM; they keep the verdict `unsupported` (score 0.0, gated).
+- **`response_format`.** LM Studio rejects `response_format: json_object`; epistract does not send it and reads JSON out of the reply text.
+- **Tested against a stub.** The test suite runs against a stub OpenAI-compatible server shaped like llama.cpp, with vLLM, LM Studio and Ollama probe responses scripted from their documentation. Ollama, vLLM and LM Studio have not been tried against real servers.
+- **Telegram bot.** `examples/telegram_bot` is unchanged and stays Anthropic-only; `EPISTRACT_LLM_BASE_URL` does not affect it.
+- **Priority surprise.** A set `EPISTRACT_LLM_BASE_URL` routes every pass, including the workbench, to the local server even when cloud keys are set. Use `EPISTRACT_LLM_PROVIDER=anthropic|openrouter|foundry` to override. The local key is read only from `EPISTRACT_LLM_API_KEY`; cloud keys are never sent to the local URL.
+- **No TLS enforcement.** `http://` base URLs are accepted. Using plain http to a host outside your LAN is your choice; epistract does not block it.
+- **Proxies.** Requests to a local server ignore `HTTP_PROXY`/`HTTPS_PROXY`, so a corporate proxy cannot intercept them.
+
+### Check the setup
+
+```bash
+python -m core.cli llm check [--json]
+```
+
+---
+
 *Last updated: 2026-04-22 — FIDL-08 Phase 19 complete (Wizard & CLI Ergonomics); FIDL-07, FIDL-06, FIDL-05 entries preserved.*
