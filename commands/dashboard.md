@@ -92,10 +92,11 @@ Workbench appearance and behavior is domain-configurable via `domains/<name>/wor
     - `AZURE_FOUNDRY_BASE_URL` (or alias `ANTHROPIC_FOUNDRY_BASE_URL`) — full custom gateway URL. Use this when you route through an API management gateway, private endpoint, or reverse proxy with a non-standard hostname. `/v1/messages` is appended automatically if missing.
     - `AZURE_FOUNDRY_RESOURCE` — standard Azure resource name. The workbench builds `https://<resource>.services.ai.azure.com/anthropic/v1/messages`.
     - Optional: `AZURE_FOUNDRY_DEPLOYMENT` (or alias `ANTHROPIC_FOUNDRY_DEPLOYMENT`) — deployment/model name, defaults to `claude-sonnet-4-6`.
-  - **Anthropic direct** — `ANTHROPIC_API_KEY` (uses `claude-sonnet-4-20250514`)
-  - **OpenRouter** — `OPENROUTER_API_KEY` (uses `anthropic/claude-sonnet-4`)
+  - **Anthropic direct** — `ANTHROPIC_API_KEY` (uses `claude-sonnet-5`)
+  - **OpenRouter** — `OPENROUTER_API_KEY` (uses `anthropic/claude-sonnet-4.6`)
+  - **Local OpenAI-compatible server** (llama.cpp, Ollama, vLLM, LM Studio) — `EPISTRACT_LLM_BASE_URL` (for example `http://localhost:8080`). No API key is needed. Optional: `EPISTRACT_LLM_MODEL` (default: the first chat model the server lists) and `EPISTRACT_LLM_API_KEY` (sent only when set).
 
-Provider detection runs in that order — whichever key is set first wins. If a Foundry API key is set without **either** `AZURE_FOUNDRY_BASE_URL` or `AZURE_FOUNDRY_RESOURCE`, the chat panel returns a clear error listing both options instead of falling through to a different provider (fails loud on misconfiguration).
+Provider detection runs in this order — whichever matches first wins: `EPISTRACT_LLM_PROVIDER` (an explicit `local`, `anthropic`, `openrouter` or `foundry`), then `EPISTRACT_LLM_BASE_URL`, then the Foundry, Anthropic and OpenRouter keys. A set `EPISTRACT_LLM_BASE_URL` therefore wins over cloud keys; cloud keys are never sent to the local URL. To keep using a cloud provider while the variable is set, set `EPISTRACT_LLM_PROVIDER` to it. An explicit `EPISTRACT_LLM_PROVIDER` fails with an error when that provider's credentials are missing. If a Foundry API key is set without **either** `AZURE_FOUNDRY_BASE_URL` or `AZURE_FOUNDRY_RESOURCE`, the chat panel returns a clear error listing both options instead of falling through to a different provider (fails loud on misconfiguration).
 
 ## Notes
 
