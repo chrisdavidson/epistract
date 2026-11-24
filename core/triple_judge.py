@@ -11,16 +11,55 @@ subject, object, and a relation cue appear in the evidence span) so the gate
 works offline and is fully testable. Pass `judge_fn(triple, evidence) -> dict`
 to defer to an LLM (via core/llm_client.call_llm) for calibrated judgments.
 
+The LLM judge is honest about failure: it counts every fallback to the lexical
+verdict, and raises JudgeAbort on quota/fatal errors, an unreachable server, or
+when too many replies are unusable, so a run can never "succeed" with lexical
+verdicts masquerading as LLM verdicts.
+
 Verdict schema: {"verdict": "supported"|"unsupported"|"partial",
 "score": float in [0,1], "reason": str}.
 """
 
 from __future__ import annotations
 
+import functools
+import hashlib
 import json
+import os
 import re
+import sys
+import time
+from pathlib import Path
 
 from .hedging import hedge_score
+from .llm_client import (
+    LLMCallError,
+    LLMConfigError,
+    LLMFatalError,
+    LLMQuotaError,
+    LLMTransientError,
+    extract_json_object,
+)
+
+JUDGE_PROMPT_VERSION = "2"
+ABORT_FIRST_N = 5  # abort when this many calls in a row all failed from the start
+ABORT_MIN_SAMPLE = 20  # fallback-rate check starts at this many calls
+ABORT_MAX_FALLBACK_RATE = 0.2
+DEFAULT_JUDGE_MAX_TOKENS = 2048
+CTX_MARGIN_TOKENS = 64
+JUDGE_MIN_OUTPUT_TOKENS = 64
+_VALID_VERDICTS = ("supported", "partial", "unsupported")
+_VERDICT_DEFAULT_SCORE = {"supported": 0.9, "partial": 0.5, "unsupported": 0.1}
+_MAX_ERRORS = 5
+_ERROR_CHARS = 200
+
+
+class JudgeAbort(RuntimeError):
+    """The judge run cannot produce trustworthy LLM verdicts and was stopped."""
+
+    def __init__(self, message: str, stats: dict | None = None):
+        super().__init__(message)
+        self.stats = stats or {}
 
 _JUDGE_SYSTEM = (
     "You are a knowledge-graph triple validator. Given a (subject, relation, "
@@ -75,91 +114,337 @@ def lexical_judge(triple: dict, evidence: str) -> dict:
     return {"verdict": verdict, "score": round(score, 4), "reason": reason}
 
 
-def make_llm_judge(call_fn=None):
-    """Build a judge_fn backed by an LLM. call_fn defaults to llm_client.call_llm.
+def _estimate_tokens(text: str) -> int:
+    """Conservative token estimate (small-vocabulary models tokenise densely)."""
+    return len(text) // 3 + 1
 
-    The returned judge falls back to the lexical judge if the LLM output
-    cannot be parsed, so a flaky endpoint never crashes the gate.
+
+def _env_max_tokens() -> int | None:
+    raw = os.environ.get("EPISTRACT_LLM_MAX_TOKENS", "").strip()
+    try:
+        value = int(raw)
+    except ValueError:
+        return None
+    return value if value > 0 else None
+
+
+def judge_max_tokens(config, prompt_tokens: int) -> int | None:
+    """Output budget for one judge call, derived from the context window.
+
+    Known window: min(cap, window - prompt - margin), where cap is
+    EPISTRACT_LLM_MAX_TOKENS when set, else DEFAULT_JUDGE_MAX_TOKENS. Unknown
+    window on the local provider: the env cap if set, else None (the server
+    applies its own limit). Other providers: cap.
+    """
+    env_cap = _env_max_tokens()
+    cap = env_cap or DEFAULT_JUDGE_MAX_TOKENS
+    ctx = getattr(config, "context_window", None)
+    if ctx:
+        return min(cap, ctx - prompt_tokens - CTX_MARGIN_TOKENS)
+    if getattr(config, "provider", None) == "local":
+        return env_cap
+    return cap
+
+
+def _new_stats() -> dict:
+    return {
+        "calls": 0,
+        "llm_judged": 0,
+        "fallback": 0,
+        "consecutive_failures": 0,
+        "errors": [],
+    }
+
+
+def _check_abort(stats: dict) -> None:
+    calls = stats["calls"]
+    if calls >= ABORT_FIRST_N and stats["llm_judged"] == 0:
+        raise JudgeAbort(
+            f"the first {calls} judge calls all failed; last error: "
+            f"{(stats['errors'] or ['unknown'])[-1]}",
+            stats,
+        )
+    if calls >= ABORT_MIN_SAMPLE and stats["fallback"] / calls > ABORT_MAX_FALLBACK_RATE:
+        raise JudgeAbort(
+            f"{stats['fallback']} of {calls} judge calls fell back to the lexical "
+            f"verdict (more than {ABORT_MAX_FALLBACK_RATE:.0%}); last error: "
+            f"{(stats['errors'] or ['unknown'])[-1]}",
+            stats,
+        )
+
+
+def _parse_reply(raw: str) -> dict:
+    """Validate a judge reply into a 3-key verdict; ValueError when unusable."""
+    parsed = extract_json_object(raw)
+    verdict = str(parsed.get("verdict", "")).strip().lower()
+    if verdict not in _VALID_VERDICTS:
+        raise ValueError(f"unknown verdict {parsed.get('verdict')!r}")
+    if parsed.get("score") is None:
+        score = _VERDICT_DEFAULT_SCORE[verdict]
+    else:
+        score = float(parsed["score"])
+        if score != score:  # NaN
+            raise ValueError("score is NaN")
+    return {
+        "verdict": verdict,
+        "score": max(0.0, min(1.0, score)),
+        "reason": str(parsed.get("reason", ""))[:120],
+    }
+
+
+def make_llm_judge(call_fn=None, *, config=None):
+    """Build a judge_fn backed by an LLM; ``call_fn`` defaults to ``call_llm``.
+
+    With no ``call_fn`` the provider config is resolved eagerly and
+    LLMConfigError is raised when no credentials exist. The returned callable
+    exposes ``stats`` (calls, llm_judged, fallback, consecutive_failures,
+    errors), ``config`` and ``model``. A single unusable reply degrades to the
+    lexical verdict and is counted as a fallback. Quota, fatal and config
+    errors, a first-call connection failure, and too many fallbacks raise
+    JudgeAbort.
     """
     if call_fn is None:
-        from .llm_client import call_llm as call_fn  # noqa: PLC0415
+        from .llm_client import call_llm, resolve_api_config  # noqa: PLC0415
+
+        config = config or resolve_api_config()
+        if config is None:
+            raise LLMConfigError(
+                "No API key found. Set one of: AZURE_FOUNDRY_API_KEY (with "
+                "AZURE_FOUNDRY_BASE_URL or AZURE_FOUNDRY_RESOURCE); "
+                "ANTHROPIC_API_KEY; OPENROUTER_API_KEY; "
+                "EPISTRACT_LLM_BASE_URL (local OpenAI-compatible server)."
+            )
+        call_fn = functools.partial(call_llm, config=config)
+
+    provider = getattr(config, "provider", None)
+    send_effort = provider not in ("local", "openrouter")
+    stats = _new_stats()
+
+    def _build(triple: dict, evidence: str) -> tuple[str, int | None]:
+        ev = evidence or ""
+        while True:
+            user = json.dumps(
+                {
+                    "subject": _name_of(triple.get("source", "")),
+                    "relation": triple.get("relation_type", ""),
+                    "object": _name_of(triple.get("target", "")),
+                    "evidence": ev,
+                }
+            )
+            if config is None:
+                return user, DEFAULT_JUDGE_MAX_TOKENS
+            max_tokens = judge_max_tokens(config, _estimate_tokens(_JUDGE_SYSTEM + user))
+            if max_tokens is None or max_tokens >= JUDGE_MIN_OUTPUT_TOKENS or not ev:
+                if max_tokens is not None:
+                    max_tokens = max(max_tokens, JUDGE_MIN_OUTPUT_TOKENS)
+                return user, max_tokens
+            ev = ev[: len(ev) // 2]
+
+    def _fail(triple: dict, evidence: str, exc: Exception) -> dict:
+        stats["fallback"] += 1
+        stats["consecutive_failures"] += 1
+        if len(stats["errors"]) < _MAX_ERRORS:
+            stats["errors"].append(f"{type(exc).__name__}: {exc}"[:_ERROR_CHARS])
+        _check_abort(stats)
+        return lexical_judge(triple, evidence)
 
     def _judge(triple: dict, evidence: str) -> dict:
-        user = json.dumps(
-            {
-                "subject": _name_of(triple.get("source", "")),
-                "relation": triple.get("relation_type", ""),
-                "object": _name_of(triple.get("target", "")),
-                "evidence": evidence,
-            }
-        )
+        stats["calls"] += 1
+        user, max_tokens = _build(triple, evidence)
+        kwargs = {"max_tokens": max_tokens, "temperature": 0.0}
+        if send_effort:
+            kwargs["effort"] = "low"
         try:
-            # effort="low" replaces temperature=0.0 as the determinism control on
-            # the Anthropic path (temperature is rejected by current models).
-            # temperature is still passed for the OpenRouter path.
-            #
-            # max_tokens was 200. On current models thinking is on by default and
-            # shares this budget, so 200 tokens could be consumed entirely by
-            # thinking, leaving no JSON verdict — json.loads would then fail and
-            # silently degrade every judgment to lexical_judge below. 2048 leaves
-            # room for low-effort thinking plus the small JSON payload.
-            raw = call_fn(
-                _JUDGE_SYSTEM,
-                user,
-                max_tokens=2048,
-                temperature=0.0,
-                effort="low",
-            )
-            parsed = json.loads(raw)
-            return {
-                "verdict": parsed.get("verdict", "partial"),
-                "score": max(0.0, min(1.0, float(parsed.get("score", 0.5)))),
-                "reason": str(parsed.get("reason", ""))[:120],
-            }
-        except Exception:  # noqa: BLE001 — any failure degrades to lexical
-            return lexical_judge(triple, evidence)
+            raw = call_fn(_JUDGE_SYSTEM, user, **kwargs)
+            verdict = _parse_reply(raw)
+        except (LLMQuotaError, LLMFatalError, LLMConfigError) as e:
+            raise JudgeAbort(f"{type(e).__name__}: {e}"[:_ERROR_CHARS], stats) from e
+        except LLMTransientError as e:
+            if e.connect and stats["llm_judged"] == 0:
+                raise JudgeAbort(f"cannot reach the LLM server: {e}"[:_ERROR_CHARS], stats) from e
+            return _fail(triple, evidence, e)
+        except (LLMCallError, ValueError, TypeError, KeyError) as e:
+            return _fail(triple, evidence, e)
+        stats["consecutive_failures"] = 0
+        stats["llm_judged"] += 1
+        return verdict
 
+    _judge.stats = stats
+    _judge.config = config
+    _judge.model = getattr(config, "model", None) or "custom"
     return _judge
+
+
+def link_key(link: dict) -> str:
+    """Stable id for a link: its relation_id, else source|relation_type|target."""
+    rid = link.get("relation_id")
+    if rid:
+        return str(rid)
+    return f"{link.get('source')}|{link.get('relation_type')}|{link.get('target')}"
+
+
+def graph_hash(links: list[dict], model: str) -> str:
+    """Hash binding a checkpoint to the links' evidence, the model and the prompt."""
+    payload = json.dumps(
+        sorted((link_key(lk), lk.get("evidence") or "") for lk in links)
+    )
+    digest = hashlib.blake2b()
+    digest.update(payload.encode("utf-8"))
+    digest.update(str(model).encode("utf-8"))
+    digest.update(JUDGE_PROMPT_VERSION.encode("utf-8"))
+    return digest.hexdigest()
+
+
+def _valid_cached(v) -> bool:
+    if not isinstance(v, dict) or v.get("verdict") not in _VALID_VERDICTS:
+        return False
+    score = v.get("score")
+    return isinstance(score, (int, float)) and not isinstance(score, bool) and 0.0 <= score <= 1.0
+
+
+def _load_checkpoint(path: Path, ghash: str) -> dict | None:
+    """Cached verdicts when the header hash matches, else None (start fresh)."""
+    try:
+        with path.open(encoding="utf-8") as fh:
+            header = json.loads(fh.readline())
+            if not isinstance(header, dict) or header.get("graph_hash") != ghash:
+                return None
+            cached: dict = {}
+            for line in fh:
+                try:
+                    rec = json.loads(line)
+                    key, v = rec["id"], rec["v"]
+                except (ValueError, KeyError, TypeError):
+                    continue
+                if _valid_cached(v):
+                    cached[str(key)] = {
+                        "verdict": v["verdict"],
+                        "score": float(v["score"]),
+                        "reason": str(v.get("reason", ""))[:120],
+                    }
+            return cached
+    except (OSError, ValueError):
+        return None
 
 
 def judge_graph(
     graph_data: dict,
     judge_fn=None,
     min_score: float = 0.35,
+    *,
+    checkpoint_path: Path | None = None,
+    resume: bool = True,
+    progress: bool = False,
+    progress_every: int = 10,
+    stream=None,
 ) -> dict:
     """Judge every relation in a graph and annotate edges with the verdict.
 
     Mutates each link with judge_verdict / judge_score / judge_reason and a
     boolean `gated` (True when score < min_score → the triple is a
-    filtering candidate). Returns a summary with counts and the flagged list.
+    filtering candidate). Links without evidence text keep the lexical
+    verdict (unsupported, 0.0) and never reach the judge. With
+    ``checkpoint_path`` each real LLM verdict is appended to a JSONL file and
+    reused on the next run when the graph hash matches. JudgeAbort propagates;
+    verdicts written so far stay in the checkpoint.
     """
     judge = judge_fn or lexical_judge
+    stats = getattr(judge, "stats", None)
     links = graph_data.get("links", graph_data.get("edges", []))
     counts = {"supported": 0, "partial": 0, "unsupported": 0}
     flagged: list[dict] = []
+    resumed = 0
+    skipped_no_evidence = 0
+    live = 0
+    total = len(links)
+    out = stream or sys.stderr
+    started = time.monotonic()
 
-    for link in links:
-        verdict = judge(link, link.get("evidence", ""))
-        link["judge_verdict"] = verdict["verdict"]
-        link["judge_score"] = verdict["score"]
-        link["judge_reason"] = verdict["reason"]
-        link["gated"] = verdict["score"] < min_score
-        counts[verdict["verdict"]] = counts.get(verdict["verdict"], 0) + 1
-        if link["gated"]:
-            flagged.append(
-                {
-                    "source": link.get("source"),
-                    "target": link.get("target"),
-                    "relation_type": link.get("relation_type"),
-                    "score": verdict["score"],
-                    "reason": verdict["reason"],
-                }
+    cached: dict = {}
+    ckpt = None
+    if checkpoint_path is not None:
+        checkpoint_path = Path(checkpoint_path)
+        ghash = graph_hash(links, getattr(judge, "model", "custom"))
+        loaded = _load_checkpoint(checkpoint_path, ghash) if resume else None
+        if loaded is None:
+            ckpt = checkpoint_path.open("w", encoding="utf-8")
+            ckpt.write(
+                json.dumps(
+                    {
+                        "type": "header",
+                        "graph_hash": ghash,
+                        "model": getattr(judge, "model", "custom"),
+                        "prompt_version": JUDGE_PROMPT_VERSION,
+                    }
+                )
+                + "\n"
             )
+            ckpt.flush()
+        else:
+            cached = loaded
+            ckpt = checkpoint_path.open("a", encoding="utf-8")
+
+    def _report(i: int) -> None:
+        elapsed = max(time.monotonic() - started, 1e-9)
+        rate = live / elapsed * 60.0
+        eta = int((total - i) / (live / elapsed)) if live else 0
+        mm, ss = divmod(eta, 60)
+        done = stats or {}
+        print(
+            f"  judge: {i}/{total} ({rate:.1f}/min, ETA {mm}:{ss:02d}) "
+            f"llm={done.get('llm_judged', 0)} fallback={done.get('fallback', 0)} "
+            f"resumed={resumed}",
+            file=out,
+            flush=True,
+        )
+
+    try:
+        for i, link in enumerate(links, 1):
+            evidence = link.get("evidence", "")
+            key = link_key(link)
+            if not (evidence or "").strip():
+                verdict = lexical_judge(link, "")
+                skipped_no_evidence += 1
+            elif key in cached:
+                verdict = cached[key]
+                resumed += 1
+            else:
+                before = stats["llm_judged"] if stats is not None else 0
+                live += 1
+                verdict = judge(link, evidence)
+                if ckpt is not None and stats is not None and stats["llm_judged"] > before:
+                    ckpt.write(json.dumps({"id": key, "v": verdict}) + "\n")
+                    ckpt.flush()
+            link["judge_verdict"] = verdict["verdict"]
+            link["judge_score"] = verdict["score"]
+            link["judge_reason"] = verdict["reason"]
+            link["gated"] = verdict["score"] < min_score
+            counts[verdict["verdict"]] = counts.get(verdict["verdict"], 0) + 1
+            if link["gated"]:
+                flagged.append(
+                    {
+                        "source": link.get("source"),
+                        "target": link.get("target"),
+                        "relation_type": link.get("relation_type"),
+                        "score": verdict["score"],
+                        "reason": verdict["reason"],
+                    }
+                )
+            if progress and (i % max(1, progress_every) == 0 or i == total):
+                _report(i)
+    finally:
+        if ckpt is not None:
+            ckpt.close()
 
     return {
-        "total": len(links),
+        "total": total,
         "verdict_counts": counts,
         "gated_count": len(flagged),
         "min_score": min_score,
         "flagged": flagged,
+        "llm_judged": stats["llm_judged"] if stats else 0,
+        "fallback": stats["fallback"] if stats else 0,
+        "resumed": resumed,
+        "skipped_no_evidence": skipped_no_evidence,
+        "errors": list(stats["errors"]) if stats else [],
     }
