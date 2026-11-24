@@ -24,7 +24,7 @@ import os
 import re
 import sys
 import time
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
@@ -330,7 +330,7 @@ def call_llm(
     user: str,
     *,
     config: LLMConfig | None = None,
-    max_tokens: int = 4096,
+    max_tokens: int | None = 4096,
     temperature: float = 0.3,
     effort: str | None = None,
     timeout: float = 120.0,
@@ -341,7 +341,8 @@ def call_llm(
         system: System prompt (domain persona + graph context).
         user: User message (the narrator task).
         config: Optional pre-resolved config. If None, calls resolve_api_config().
-        max_tokens: Output token cap. On current Anthropic models this budget is
+        max_tokens: Output token cap; ``None`` (local provider only) omits the
+            field so the server bounds the reply by its own context window. On current Anthropic models this budget is
             shared with thinking tokens, so leave headroom above the expected
             answer length or the response truncates mid-output.
         temperature: OpenRouter path only — see below. 0.0 = deterministic,
@@ -365,7 +366,11 @@ def call_llm(
 
     Raises:
         LLMConfigError: credentials missing or incomplete.
-        LLMCallError: network/API failure; wraps the underlying exception.
+        LLMQuotaError: daily/monthly quota exhausted (never retried).
+        LLMFatalError: deterministic failure such as a bad model or auth (never retried).
+        LLMTransientError: rate limit, 5xx, timeout or connection failure that
+            persisted through the bounded retries.
+        LLMCallError: any other failure, including a per-item context overflow.
     """
     if config is None:
         config = resolve_api_config()
@@ -377,6 +382,10 @@ def call_llm(
             "EPISTRACT_LLM_BASE_URL (local OpenAI-compatible server)."
         )
 
+    if config.provider == "local":
+        return _call_local(config, system, user, max_tokens, temperature, timeout)
+    if max_tokens is None:
+        raise ValueError("max_tokens=None is only valid for the local provider")
     if config.provider == "anthropic":
         return _call_anthropic(config, system, user, max_tokens, effort, timeout)
     return _call_openrouter(config, system, user, max_tokens, temperature, timeout)
@@ -432,6 +441,115 @@ def _call_anthropic(
     return _strip_fences("".join(parts))
 
 
+def _excerpt(body: str | None) -> str:
+    return (body or "").strip().replace("\n", " ")[:_ERROR_EXCERPT_CHARS]
+
+
+def _error_for_status(
+    status: int,
+    headers: Mapping[str, str] | None,
+    body: str | None,
+    label: str,
+    base_url: str,
+) -> LLMCallError:
+    """Build the typed exception for a non-2xx response (no headers/keys leaked)."""
+    kind = classify_error(status, headers, body)
+    msg = f"{label} {base_url} returned HTTP {status}: {_excerpt(body)}"
+    if kind == ERR_QUOTA:
+        return LLMQuotaError(msg, reset_at=_reset_at(headers))
+    if kind == ERR_FATAL:
+        return LLMFatalError(msg, status=status)
+    if kind == ERR_PER_ITEM:
+        return LLMCallError(msg)
+    if kind == ERR_RATE_LIMIT:
+        return _RateLimited(msg, retry_after=_retry_after(headers))
+    return LLMTransientError(msg)
+
+
+def _with_retry(fn: Callable[[], str], *, sleep: Callable[[float], None] | None = None):
+    """Run ``fn`` with the single bounded retry policy.
+
+    Only LLMTransientError (including rate-limit 429s) is retried, up to
+    RETRY_MAX_ATTEMPTS attempts; Retry-After is honoured but capped. Quota,
+    fatal and per-item errors propagate immediately.
+    """
+    for attempt in range(RETRY_MAX_ATTEMPTS):
+        try:
+            return fn()
+        except LLMTransientError as e:
+            if attempt == RETRY_MAX_ATTEMPTS - 1:
+                raise
+            hint = e.retry_after if isinstance(e, _RateLimited) else None
+            delay = min(hint if hint is not None else RETRY_BACKOFF_S[attempt],
+                        RETRY_AFTER_CAP_S)
+            (sleep or _sleep)(delay)
+    raise AssertionError("unreachable")  # pragma: no cover
+
+
+def _call_local(
+    config: LLMConfig,
+    system: str,
+    user: str,
+    max_tokens: int | None,
+    temperature: float,
+    timeout: float,
+) -> str:
+    """Call a local OpenAI-compatible server (llama.cpp, Ollama, vLLM, LM Studio).
+
+    No Authorization header is sent unless a real key was configured, and the
+    ambient proxy environment is ignored so LAN prompts are not proxied.
+    """
+    try:
+        import httpx
+    except ImportError as e:
+        raise LLMCallError("httpx is required for the local provider") from e
+
+    headers = {"Content-Type": "application/json"}
+    if config.api_key and config.api_key != LOCAL_PLACEHOLDER_KEY:
+        headers["Authorization"] = f"Bearer {config.api_key}"
+    payload: dict = {
+        "model": config.model,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+        "temperature": temperature,
+        "stream": False,
+    }
+    if max_tokens is not None:
+        payload["max_tokens"] = max_tokens
+    url = f"{config.base_url}/chat/completions"
+    label = "local server"
+
+    def attempt() -> str:
+        try:
+            with httpx.Client(timeout=timeout, proxy=None, trust_env=False) as client:
+                resp = client.post(url, headers=headers, json=payload)
+        except httpx.ConnectError as e:
+            raise LLMTransientError(
+                f"cannot connect to {label} {config.base_url}: {type(e).__name__}",
+                connect=True,
+            ) from e
+        except httpx.HTTPError as e:
+            raise LLMTransientError(
+                f"{label} {config.base_url} request failed: {type(e).__name__}"
+            ) from e
+        if not 200 <= resp.status_code < 300:
+            raise _error_for_status(
+                resp.status_code, resp.headers, resp.text, label, config.base_url
+            )
+        try:
+            content = resp.json()["choices"][0]["message"]["content"]
+        except (ValueError, KeyError, IndexError, TypeError) as e:
+            raise LLMCallError(
+                f"{label} {config.base_url} returned an unexpected body: "
+                f"{_excerpt(resp.text)}"
+            ) from e
+        return _strip_fences(content or "")
+
+    return _with_retry(attempt)
+
+
 def _call_openrouter(
     config: LLMConfig,
     system: str,
@@ -449,19 +567,41 @@ def _call_openrouter(
             "Install: uv pip install openai"
         ) from e
 
-    client = OpenAI(api_key=config.api_key, base_url=config.base_url, timeout=timeout)
-    try:
-        resp = client.chat.completions.create(
-            model=config.model,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-            max_tokens=max_tokens,
-            temperature=temperature,
-        )
-    except Exception as e:  # noqa: BLE001 - openai raises many shapes; all become LLMCallError
-        raise LLMCallError(f"OpenRouter API error: {e}") from e
+    import openai
+
+    # max_retries=0: the SDK's hidden retries would stack on _with_retry.
+    client = OpenAI(
+        api_key=config.api_key,
+        base_url=config.base_url,
+        timeout=timeout,
+        max_retries=0,
+    )
+
+    def attempt():
+        try:
+            return client.chat.completions.create(
+                model=config.model,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+                max_tokens=max_tokens,
+                temperature=temperature,
+            )
+        except openai.APIStatusError as e:
+            raise _error_for_status(
+                e.status_code, e.response.headers, e.response.text,
+                "OpenRouter", config.base_url,
+            ) from e
+        except openai.APIConnectionError as e:
+            raise LLMTransientError(
+                f"OpenRouter connection error: {type(e).__name__}",
+                connect=not isinstance(e, openai.APITimeoutError),
+            ) from e
+        except Exception as e:  # noqa: BLE001 - openai raises many shapes; all become LLMCallError
+            raise LLMCallError(f"OpenRouter API error: {e}") from e
+
+    resp = _with_retry(attempt)
 
     content = (resp.choices[0].message.content or "") if resp.choices else ""
     return _strip_fences(content)
