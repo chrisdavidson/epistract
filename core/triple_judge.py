@@ -45,6 +45,7 @@ JUDGE_PROMPT_VERSION = "2"
 ABORT_FIRST_N = 5  # abort when this many calls in a row all failed from the start
 ABORT_MIN_SAMPLE = 20  # fallback-rate check starts at this many calls
 ABORT_MAX_FALLBACK_RATE = 0.2
+ABORT_CONSECUTIVE = 5  # abort after this many failures in a row, at any point
 DEFAULT_JUDGE_MAX_TOKENS = 2048
 CTX_MARGIN_TOKENS = 64
 JUDGE_MIN_OUTPUT_TOKENS = 64
@@ -164,11 +165,33 @@ def _check_abort(stats: dict) -> None:
             f"{(stats['errors'] or ['unknown'])[-1]}",
             stats,
         )
+    if stats["consecutive_failures"] >= ABORT_CONSECUTIVE:
+        raise JudgeAbort(
+            f"{stats['consecutive_failures']} judge calls in a row failed; last error: "
+            f"{(stats['errors'] or ['unknown'])[-1]}",
+            stats,
+        )
     if calls >= ABORT_MIN_SAMPLE and stats["fallback"] / calls > ABORT_MAX_FALLBACK_RATE:
         raise JudgeAbort(
             f"{stats['fallback']} of {calls} judge calls fell back to the lexical "
             f"verdict (more than {ABORT_MAX_FALLBACK_RATE:.0%}); last error: "
             f"{(stats['errors'] or ['unknown'])[-1]}",
+            stats,
+        )
+
+
+def _final_check(stats: dict) -> None:
+    """End-of-run abort check with no minimum sample size."""
+    calls = stats["calls"]
+    if calls <= 0:
+        return
+    last = (stats["errors"] or ["unknown"])[-1]
+    if stats["llm_judged"] == 0:
+        raise JudgeAbort(f"none of {calls} judge calls produced an LLM verdict; last error: {last}", stats)
+    if stats["fallback"] / calls > ABORT_MAX_FALLBACK_RATE:
+        raise JudgeAbort(
+            f"{stats['fallback']} of {calls} judge calls fell back to the lexical "
+            f"verdict (more than {ABORT_MAX_FALLBACK_RATE:.0%}); last error: {last}",
             stats,
         )
 
@@ -198,10 +221,11 @@ def make_llm_judge(call_fn=None, *, config=None):
     With no ``call_fn`` the provider config is resolved eagerly and
     LLMConfigError is raised when no credentials exist. The returned callable
     exposes ``stats`` (calls, llm_judged, fallback, consecutive_failures,
-    errors), ``config`` and ``model``. A single unusable reply degrades to the
+    errors), ``config``, ``model`` and ``finalize()`` (the end-of-run abort
+    check, called by judge_graph). A single unusable reply degrades to the
     lexical verdict and is counted as a fallback. Quota, fatal and config
-    errors, a first-call connection failure, and too many fallbacks raise
-    JudgeAbort.
+    errors, any connection failure (after transport retries), consecutive
+    failures and too many fallbacks raise JudgeAbort.
     """
     if call_fn is None:
         from .llm_client import call_llm, resolve_api_config  # noqa: PLC0415
@@ -260,7 +284,7 @@ def make_llm_judge(call_fn=None, *, config=None):
         except (LLMQuotaError, LLMFatalError, LLMConfigError) as e:
             raise JudgeAbort(f"{type(e).__name__}: {e}"[:_ERROR_CHARS], stats) from e
         except LLMTransientError as e:
-            if e.connect and stats["llm_judged"] == 0:
+            if e.connect:
                 raise JudgeAbort(f"cannot reach the LLM server: {e}"[:_ERROR_CHARS], stats) from e
             return _fail(triple, evidence, e)
         except (LLMCallError, ValueError, TypeError, KeyError) as e:
@@ -270,6 +294,7 @@ def make_llm_judge(call_fn=None, *, config=None):
         return verdict
 
     _judge.stats = stats
+    _judge.finalize = lambda: _final_check(stats)
     _judge.config = config
     _judge.model = getattr(config, "model", None) or "custom"
     return _judge
@@ -281,6 +306,12 @@ def link_key(link: dict) -> str:
     if rid:
         return str(rid)
     return f"{link.get('source')}|{link.get('relation_type')}|{link.get('target')}"
+
+
+def record_key(link: dict) -> str:
+    """Checkpoint record key: link_key plus a short hash of the evidence text."""
+    digest = hashlib.blake2b((link.get("evidence") or "").encode("utf-8"), digest_size=8)
+    return f"{link_key(link)}#{digest.hexdigest()}"
 
 
 def graph_hash(links: list[dict], model: str) -> str:
@@ -314,6 +345,7 @@ def _load_checkpoint(path: Path, ghash: str) -> dict | None:
                 try:
                     rec = json.loads(line)
                     key, v = rec["id"], rec["v"]
+                    origin = rec.get("origin", "llm")
                 except (ValueError, KeyError, TypeError):
                     continue
                 if _valid_cached(v):
@@ -321,6 +353,7 @@ def _load_checkpoint(path: Path, ghash: str) -> dict | None:
                         "verdict": v["verdict"],
                         "score": float(v["score"]),
                         "reason": str(v.get("reason", ""))[:120],
+                        "origin": str(origin),
                     }
             return cached
     except (OSError, ValueError):
@@ -354,6 +387,7 @@ def judge_graph(
     counts = {"supported": 0, "partial": 0, "unsupported": 0}
     flagged: list[dict] = []
     resumed = 0
+    resumed_llm = 0
     skipped_no_evidence = 0
     live = 0
     total = len(links)
@@ -362,7 +396,10 @@ def judge_graph(
 
     cached: dict = {}
     ckpt = None
-    if checkpoint_path is not None:
+    # Only an LLM judge (one exposing live stats) may own a checkpoint; a
+    # lexical/plain judge must never truncate or rewrite an LLM checkpoint.
+    llm_judge = stats is not None
+    if checkpoint_path is not None and llm_judge:
         checkpoint_path = Path(checkpoint_path)
         ghash = graph_hash(links, getattr(judge, "model", "custom"))
         loaded = _load_checkpoint(checkpoint_path, ghash) if resume else None
@@ -382,7 +419,18 @@ def judge_graph(
             ckpt.flush()
         else:
             cached = loaded
+            needs_nl = False
+            try:
+                with checkpoint_path.open("rb") as raw:
+                    raw.seek(0, 2)
+                    if raw.tell() > 0:
+                        raw.seek(-1, 2)
+                        needs_nl = raw.read(1) != b"\n"
+            except OSError:
+                pass
             ckpt = checkpoint_path.open("a", encoding="utf-8")
+            if needs_nl:  # torn last line from a crash: terminate it
+                ckpt.write("\n")
 
     def _report(i: int) -> None:
         elapsed = max(time.monotonic() - started, 1e-9)
@@ -401,19 +449,21 @@ def judge_graph(
     try:
         for i, link in enumerate(links, 1):
             evidence = link.get("evidence", "")
-            key = link_key(link)
+            key = record_key(link)
             if not (evidence or "").strip():
                 verdict = lexical_judge(link, "")
                 skipped_no_evidence += 1
             elif key in cached:
                 verdict = cached[key]
                 resumed += 1
+                if verdict.get("origin") == "llm":
+                    resumed_llm += 1
             else:
                 before = stats["llm_judged"] if stats is not None else 0
                 live += 1
                 verdict = judge(link, evidence)
                 if ckpt is not None and stats is not None and stats["llm_judged"] > before:
-                    ckpt.write(json.dumps({"id": key, "v": verdict}) + "\n")
+                    ckpt.write(json.dumps({"id": key, "v": verdict, "origin": "llm"}) + "\n")
                     ckpt.flush()
             link["judge_verdict"] = verdict["verdict"]
             link["judge_score"] = verdict["score"]
@@ -432,6 +482,8 @@ def judge_graph(
                 )
             if progress and (i % max(1, progress_every) == 0 or i == total):
                 _report(i)
+        if stats is not None and hasattr(judge, "finalize"):
+            judge.finalize()
     finally:
         if ckpt is not None:
             ckpt.close()
@@ -442,7 +494,7 @@ def judge_graph(
         "gated_count": len(flagged),
         "min_score": min_score,
         "flagged": flagged,
-        "llm_judged": stats["llm_judged"] if stats else 0,
+        "llm_judged": (stats["llm_judged"] if stats else 0) + resumed_llm,
         "fallback": stats["fallback"] if stats else 0,
         "resumed": resumed,
         "skipped_no_evidence": skipped_no_evidence,

@@ -119,11 +119,11 @@ def test_connect_error_before_success_aborts():
         judge(TRIPLE, "ev")
 
 
-def test_connect_error_after_success_is_fallback():
+def test_connect_error_after_success_aborts():
     judge = make_llm_judge(call_fn=_seq([GOOD, LLMTransientError("blip", connect=True)]))
     judge(TRIPLE, "ev")
-    judge(TRIPLE, "ev")
-    assert judge.stats["fallback"] == 1 and judge.stats["llm_judged"] == 1
+    with pytest.raises(JudgeAbort):
+        judge(TRIPLE, "ev")
 
 
 def test_local_read_timeout_is_per_item_fallback_not_abort():
@@ -183,10 +183,10 @@ def test_other_call_errors_are_fallbacks():
 
 
 def test_errors_capped_and_truncated():
-    judge = make_llm_judge(call_fn=_seq([GOOD] + [LLMCallError("x" * 500)] * 5))
-    for _ in range(6):
+    judge = make_llm_judge(call_fn=_seq([GOOD] + [LLMCallError("x" * 500)] * 4))
+    for _ in range(5):
         judge(TRIPLE, "ev")
-    assert len(judge.stats["errors"]) == 5
+    assert len(judge.stats["errors"]) == 4
     assert all(len(e) <= 200 for e in judge.stats["errors"])
 
 
@@ -308,9 +308,9 @@ def test_plain_callable_still_works_and_summary_has_additive_keys():
 
 
 def test_summary_reports_judge_stats():
-    judge = make_llm_judge(call_fn=_seq([GOOD, "not json", GOOD]))
-    summary = judge_graph(_graph(3), judge_fn=judge)
-    assert summary["llm_judged"] == 2 and summary["fallback"] == 1 and len(summary["errors"]) == 1
+    judge = make_llm_judge(call_fn=_seq([GOOD] * 5 + ["not json"] + [GOOD] * 4))
+    summary = judge_graph(_graph(10), judge_fn=judge)
+    assert summary["llm_judged"] == 9 and summary["fallback"] == 1 and len(summary["errors"]) == 1
 
 
 # -- keys / hash ------------------------------------------------------------
@@ -346,10 +346,12 @@ def _counting_judge(fail_on=None):
 def test_checkpoint_written_without_fallbacks(tmp_path):
     p = tmp_path / "ck.jsonl"
     judge, _ = _counting_judge(fail_on=2)
-    judge_graph(_graph(3), judge_fn=judge, checkpoint_path=p)
+    with pytest.raises(JudgeAbort):  # 1/3 fallbacks trips the end-of-run check
+        judge_graph(_graph(3), judge_fn=judge, checkpoint_path=p)
     lines = [json.loads(x) for x in p.read_text().splitlines()]
     assert lines[0]["type"] == "header" and lines[0]["prompt_version"] == JUDGE_PROMPT_VERSION
-    assert [x["id"] for x in lines[1:]] == ["r0", "r2"]
+    assert [x["id"].split("#")[0] for x in lines[1:]] == ["r0", "r2"]
+    assert all(x["origin"] == "llm" for x in lines[1:])
     assert set(lines[1]["v"]) == {"verdict", "score", "reason"}
 
 
@@ -391,10 +393,10 @@ def test_malformed_and_invalid_checkpoint_lines_are_skipped(tmp_path):
     judge_graph(_graph(3), judge_fn=judge, checkpoint_path=p)
     with p.open("a") as fh:
         fh.write("{broken\n")
-        fh.write(json.dumps({"id": "r1", "v": {"verdict": "bogus", "score": 0.5}}) + "\n")
+        fh.write(json.dumps({"id": triple_judge.record_key(_graph(3)["links"][1]), "v": {"verdict": "bogus", "score": 0.5}}) + "\n")
     lines = p.read_text().splitlines()
     # drop the genuine r1 record so only the invalid one remains for r1
-    keep = [ln for ln in lines if '"id": "r1"' not in ln or "bogus" in ln]
+    keep = [ln for ln in lines if '"id": "r1#' not in ln or "bogus" in ln]
     p.write_text("\n".join(keep) + "\n")
     judge2, calls2 = _counting_judge()
     summary = judge_graph(_graph(3), judge_fn=judge2, checkpoint_path=p)
@@ -435,3 +437,93 @@ def test_progress_off_by_default(capsys):
     judge_graph(_graph(3), judge_fn=judge)
     cap = capsys.readouterr()
     assert cap.err == "" and cap.out == ""
+
+
+# -- review-fix: abort rules, checkpoint integrity ---------------------------
+def test_small_graph_with_mostly_fallbacks_aborts():
+    replies = [GOOD] + ["not json"] * 4 + [GOOD] + ["not json"] * 9
+    judge = make_llm_judge(call_fn=_seq(replies))
+    with pytest.raises(JudgeAbort):
+        judge_graph(_graph(15), judge_fn=judge)
+
+
+def test_consecutive_failures_abort_after_many_successes():
+    replies = [GOOD] * 100 + ["not json"] * 5
+    judge = make_llm_judge(call_fn=_seq(replies))
+    with pytest.raises(JudgeAbort, match="in a row"):
+        judge_graph(_graph(105), judge_fn=judge)
+
+
+def test_connect_error_after_successes_aborts_immediately():
+    replies = [GOOD] * 100 + [LLMTransientError("down", connect=True)]
+    judge = make_llm_judge(call_fn=_seq(replies))
+    with pytest.raises(JudgeAbort, match="cannot reach"):
+        judge_graph(_graph(130), judge_fn=judge)
+    assert judge.stats["calls"] == 101
+
+
+def test_read_timeout_is_per_item_fallback():
+    replies = [GOOD] * 30 + [LLMTransientError("timeout")] + [GOOD] * 5
+    judge = make_llm_judge(call_fn=_seq(replies))
+    summary = judge_graph(_graph(36), judge_fn=judge)
+    assert summary["fallback"] == 1 and summary["llm_judged"] == 35
+
+
+def test_checkpoint_key_collision_uses_evidence():
+    def mk():
+        return {"links": [
+            {"source": "a:x", "target": "b:y", "relation_type": "R",
+             "evidence": "x causes y here."},
+            {"source": "a:x", "target": "b:y", "relation_type": "R",
+             "evidence": "nothing at all"},
+        ]}
+
+    def fn(system, user, **kw):
+        ok = "causes" in user
+        v = "supported" if ok else "unsupported"
+        return json.dumps({"verdict": v, "score": 0.9 if ok else 0.1, "reason": "r"})
+
+    import pathlib
+    import tempfile
+    p = pathlib.Path(tempfile.mkdtemp()) / "ck.jsonl"
+    g1 = mk()
+    judge_graph(g1, judge_fn=make_llm_judge(call_fn=fn), checkpoint_path=p)
+    g2 = mk()
+    summary = judge_graph(g2, judge_fn=make_llm_judge(call_fn=fn), checkpoint_path=p)
+    assert summary["resumed"] == 2
+    assert [lk["judge_verdict"] for lk in g2["links"]] == ["supported", "unsupported"]
+
+
+def test_torn_checkpoint_line_does_not_swallow_next_record(tmp_path):
+    p = tmp_path / "ck.jsonl"
+    judge, _ = _counting_judge()
+    judge_graph(_graph(3), judge_fn=judge, checkpoint_path=p)
+    lines = p.read_text().splitlines()
+    p.write_text("\n".join(lines[:2]) + "\n" + lines[2][:15])  # r1 torn, no newline
+    judge2, calls2 = _counting_judge()
+    judge_graph(_graph(3), judge_fn=judge2, checkpoint_path=p)
+    assert calls2["n"] == 2
+    judge3, calls3 = _counting_judge()
+    summary = judge_graph(_graph(3), judge_fn=judge3, checkpoint_path=p)
+    assert calls3["n"] == 0 and summary["resumed"] == 3
+
+
+def test_fully_resumed_run_reports_same_llm_judged(tmp_path):
+    p = tmp_path / "ck.jsonl"
+    judge, _ = _counting_judge()
+    fresh = judge_graph(_graph(4), judge_fn=judge, checkpoint_path=p)
+    judge2, _ = _counting_judge()
+    resumed = judge_graph(_graph(4), judge_fn=judge2, checkpoint_path=p)
+    assert resumed["llm_judged"] == fresh["llm_judged"] == 4
+    assert resumed["resumed"] == 4 and resumed["fallback"] == 0
+
+
+def test_lexical_judge_never_touches_llm_checkpoint(tmp_path):
+    p = tmp_path / "ck.jsonl"
+    judge, _ = _counting_judge()
+    judge_graph(_graph(3), judge_fn=judge, checkpoint_path=p)
+    before = p.read_text()
+    judge_graph(_graph(3), judge_fn=None, checkpoint_path=p)
+    judge_graph(_graph(3), judge_fn=lambda t, e: {"verdict": "supported", "score": 1.0, "reason": ""},
+                checkpoint_path=p, resume=False)
+    assert p.read_text() == before
