@@ -541,3 +541,22 @@ def test_small_run_end_check_uses_looser_limit():
     big = {"calls": 25, "llm_judged": 19, "fallback": 6, "errors": ["x"]}
     with pytest.raises(JudgeAbort):
         _final_check(big)  # 24% > 20% once the sample is large enough
+
+
+def test_local_judge_requests_json_mode(fake_openai_server, monkeypatch):
+    """UAT finding: the local judge asks for a JSON object reply."""
+    monkeypatch.setenv("EPISTRACT_LLM_BASE_URL", fake_openai_server.base_url)
+    fake_openai_server.queue_content(GOOD)
+    judge = make_llm_judge()
+    judge({"source": "a", "target": "b", "relation_type": "R"}, "a relates to b")
+    reqs = [r for r in fake_openai_server.requests if r["path"].endswith("/chat/completions")]
+    assert reqs[-1]["json"]["response_format"] == {"type": "json_object"}
+
+
+def test_progress_prints_on_time_interval(monkeypatch):
+    """UAT finding: a slow server still shows progress (time-based cadence)."""
+    monkeypatch.setattr(triple_judge, "PROGRESS_INTERVAL_S", 0.0)
+    judge, _ = _counting_judge()
+    out = io.StringIO()
+    judge_graph(_graph(3), judge_fn=judge, progress=True, progress_every=1000, stream=out)
+    assert out.getvalue().count("judge:") >= 3

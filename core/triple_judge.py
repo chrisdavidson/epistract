@@ -46,6 +46,7 @@ ABORT_FIRST_N = 5  # abort when this many calls in a row all failed from the sta
 ABORT_MIN_SAMPLE = 20  # fallback-rate check starts at this many calls
 ABORT_MAX_FALLBACK_RATE = 0.2
 ABORT_SMALL_RUN_FALLBACK_RATE = 0.5  # end-of-run limit when fewer than ABORT_MIN_SAMPLE calls
+PROGRESS_INTERVAL_S = 30.0  # also print progress at least this often (slow servers)
 ABORT_CONSECUTIVE = 5  # abort after this many failures in a row, at any point
 DEFAULT_JUDGE_MAX_TOKENS = 2048
 CTX_MARGIN_TOKENS = 64
@@ -282,6 +283,10 @@ def make_llm_judge(call_fn=None, *, config=None):
         kwargs = {"max_tokens": max_tokens, "temperature": 0.0}
         if send_effort:
             kwargs["effort"] = "low"
+        if provider == "local":
+            # JSON mode ends generation at the closing brace, so a small model
+            # cannot ramble for minutes even though max_tokens is window-derived.
+            kwargs["json_mode"] = True
         try:
             raw = call_fn(_JUDGE_SYSTEM, user, **kwargs)
             verdict = _parse_reply(raw)
@@ -436,7 +441,10 @@ def judge_graph(
             if needs_nl:  # torn last line from a crash: terminate it
                 ckpt.write("\n")
 
+    last_report = [time.monotonic()]
+
     def _report(i: int) -> None:
+        last_report[0] = time.monotonic()
         elapsed = max(time.monotonic() - started, 1e-9)
         rate = live / elapsed * 60.0
         eta = int((total - i) / (live / elapsed)) if live else 0
@@ -484,7 +492,11 @@ def judge_graph(
                         "reason": verdict["reason"],
                     }
                 )
-            if progress and (i % max(1, progress_every) == 0 or i == total):
+            if progress and (
+                i % max(1, progress_every) == 0
+                or i == total
+                or time.monotonic() - last_report[0] >= PROGRESS_INTERVAL_S
+            ):
                 _report(i)
         if stats is not None and hasattr(judge, "finalize"):
             judge.finalize()

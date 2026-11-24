@@ -39,6 +39,7 @@ def clear_cache() -> None:
     from . import llm_client
 
     llm_client._ANNOUNCED_MODELS.clear()
+    llm_client._JSON_MODE_UNSUPPORTED.clear()
 
 
 def _root(api_base: str) -> str:
