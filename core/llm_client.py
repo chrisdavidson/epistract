@@ -116,6 +116,16 @@ _CONTEXT_RE = re.compile(
     re.I,
 )
 
+# The server says this model cannot generate chat replies at all (reranker or
+# embedding-only model). llama.cpp reports an embedding-only model as HTTP 500
+# "the current context does not support logits computation" (seen in UAT), so
+# this is checked before the 5xx -> transient rule: retrying cannot help.
+_NOT_CHAT_BODY_RE = re.compile(
+    r"\b(?:rerank|embedding) model\b|does not support chat"
+    r"|cannot be used with the chat|does not support logits",
+    re.I,
+)
+
 # A 429 whose reset is further away than this is a quota, not a rate limit.
 QUOTA_RESET_HORIZON_S = 120
 # Retry-After up to this is a transient rate limit (we wait it out); above it
@@ -756,6 +766,8 @@ def classify_error(
         if retry_after is not None and retry_after > RETRY_AFTER_CAP_S:
             return ERR_QUOTA
         return ERR_RATE_LIMIT
+    if status is not None and _NOT_CHAT_BODY_RE.search(body):
+        return ERR_FATAL
     if status == 413:
         return ERR_PER_ITEM
     if status == 400 and _CONTEXT_RE.search(body):

@@ -371,3 +371,32 @@ def test_openrouter_connection_error_is_transient(monkeypatch, sleeps):
         call_llm("s", "u", config=cfg)
     assert ei.value.connect is True
     assert len(sleeps) == 2
+
+
+def test_llamacpp_embedding_only_500_is_fatal_no_retry(fake_openai_server, sleeps):
+    """UAT finding: llama.cpp serving an embedding model answers chat with HTTP 500
+    "does not support logits computation"; it must be fatal, not retried."""
+    body = {
+        "error": {
+            "code": 500,
+            "message": "the current context does not support logits computation. skipping",
+            "type": "server_error",
+        }
+    }
+    fake_openai_server.queue_status(500, body)
+    with pytest.raises(LLMFatalError):
+        call_llm("s", "u", config=_cfg(fake_openai_server))
+    assert len(_chat_requests(fake_openai_server)) == 1
+    assert sleeps == []
+
+
+def test_llamacpp_embedding_only_reported_as_not_chat(fake_openai_server):
+    """UAT finding: llm check labels the llama.cpp embedding-only reply as not_chat."""
+    from core import llm_local
+
+    fake_openai_server.queue_status(
+        500, {"error": {"message": "the current context does not support logits computation"}}
+    )
+    result = llm_local.check_chat(_cfg(fake_openai_server))
+    assert result["ok"] is False
+    assert result["kind"] == "not_chat"

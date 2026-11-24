@@ -16,7 +16,7 @@ from .llm_client import LLMCallError, LLMConfig, LLMConfigError, call_llm
 NON_CHAT_MODEL_RE = re.compile(r"embed|rerank|bge|e5-|nomic", re.IGNORECASE)
 _NOT_CHAT_RE = re.compile(
     r"\b(?:rerank|embedding) model\b|does not support chat"
-    r"|cannot be used with the chat",
+    r"|cannot be used with the chat|does not support logits",
     re.IGNORECASE,
 )
 
