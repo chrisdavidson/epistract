@@ -560,3 +560,25 @@ def test_progress_prints_on_time_interval(monkeypatch):
     out = io.StringIO()
     judge_graph(_graph(3), judge_fn=judge, progress=True, progress_every=1000, stream=out)
     assert out.getvalue().count("judge:") >= 3
+
+
+def test_progress_eta_ignores_no_evidence_links():
+    """UAT finding: ETA must not count instant no-evidence links."""
+    import re
+
+    g = _graph(4)
+    g["links"] += [{"source": "x", "target": f"d{i}", "relation_type": "MENTIONED_IN",
+                    "evidence": ""} for i in range(40)]
+    import time as _time
+
+    def slow(system, user, **kw):
+        _time.sleep(0.2)
+        return GOOD
+
+    judge = make_llm_judge(call_fn=slow)
+    out = io.StringIO()
+    judge_graph(g, judge_fn=judge, progress=True, progress_every=2, stream=out)
+    first = out.getvalue().splitlines()[0]  # after 2 live calls (~0.4 s), 2 remain
+    mm, ss = map(int, re.search(r"ETA (\d+):(\d+)", first).groups())
+    # 2 remaining calls ~0.4 s; counting the 40 instant links would give ~8 s
+    assert mm * 60 + ss <= 2

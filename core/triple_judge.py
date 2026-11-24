@@ -442,12 +442,21 @@ def judge_graph(
                 ckpt.write("\n")
 
     last_report = [time.monotonic()]
+    pending: list = [None]
 
     def _report(i: int) -> None:
         last_report[0] = time.monotonic()
         elapsed = max(time.monotonic() - started, 1e-9)
         rate = live / elapsed * 60.0
-        eta = int((total - i) / (live / elapsed)) if live else 0
+        # ETA counts only links that still need a live call: no-evidence links
+        # and checkpointed verdicts take no time.
+        if pending[0] is None:
+            pending[0] = sum(
+                1
+                for lk in links
+                if (lk.get("evidence") or "").strip() and record_key(lk) not in cached
+            )
+        eta = int(max(pending[0] - live, 0) / (live / elapsed)) if live else 0
         mm, ss = divmod(eta, 60)
         done = stats or {}
         print(
