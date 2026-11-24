@@ -19,8 +19,12 @@ Callers should import `resolve_api_config()` + `call_llm()` and handle the
 """
 from __future__ import annotations
 
+import json
 import os
+import re
 import sys
+import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
@@ -58,6 +62,61 @@ class LLMConfigError(RuntimeError):
 
 class LLMCallError(RuntimeError):
     """Raised when the LLM call itself fails."""
+
+
+class LLMQuotaError(LLMCallError):
+    """A daily/monthly quota is exhausted; retrying will not help."""
+
+    def __init__(self, message: str, reset_at: float | None = None):
+        super().__init__(message)
+        self.reset_at = reset_at  # epoch seconds, when known
+
+
+class LLMFatalError(LLMCallError):
+    """A deterministic failure (bad model, auth, endpoint); retrying cannot help."""
+
+    def __init__(self, message: str, status: int | None = None):
+        super().__init__(message)
+        self.status = status
+
+
+class LLMTransientError(LLMCallError):
+    """A retryable failure (rate limit, 5xx, timeout, connection problem)."""
+
+    def __init__(self, message: str, connect: bool = False):
+        super().__init__(message)
+        self.connect = connect
+
+
+class _RateLimited(LLMTransientError):
+    """Transient 429 carrying the server's Retry-After hint."""
+
+    def __init__(self, message: str, retry_after: float | None = None):
+        super().__init__(message)
+        self.retry_after = retry_after
+
+
+# classify_error() results.
+ERR_QUOTA = "quota"
+ERR_RATE_LIMIT = "rate_limit"
+ERR_FATAL = "fatal"
+ERR_PER_ITEM = "per_item"
+ERR_TRANSIENT = "transient"
+
+_QUOTA_RE = re.compile(
+    r"per-day|per day|daily|quota|insufficient|free-models-per-day", re.I
+)
+_CONTEXT_RE = re.compile(r"context|too long|exceed|too large|maximum.*tokens", re.I)
+
+# A 429 whose reset is further away than this is a quota, not a rate limit.
+QUOTA_RESET_HORIZON_S = 120
+RETRY_AFTER_CAP_S = 30
+RETRY_MAX_ATTEMPTS = 3
+RETRY_BACKOFF_S = (2.0, 4.0, 8.0)
+_ERROR_EXCERPT_CHARS = 300
+
+# Indirection so tests can record sleeps instead of waiting.
+_sleep = time.sleep
 
 
 @dataclass(frozen=True)
@@ -410,10 +469,84 @@ def _call_openrouter(
 
 def _strip_fences(text: str) -> str:
     """Strip leading/trailing ```markdown...``` fences if present."""
-    import re
-
     text = (text or "").strip()
     if text.startswith("```"):
         text = re.sub(r"^```[a-zA-Z]*\n?", "", text)
         text = re.sub(r"\n?```\s*$", "", text)
     return text.strip()
+
+
+_THINK_RE = re.compile(r"<think>.*?</think>", re.S | re.I)
+
+
+def extract_json_object(text: str) -> dict:
+    """Return the first JSON object in a model reply.
+
+    Tolerates markdown fences, surrounding prose and ``<think>`` blocks. Uses
+    ``raw_decode`` at each ``{`` so trailing text and later objects are ignored.
+    Raises ValueError when no object is present (arrays do not count).
+    """
+    cleaned = _THINK_RE.sub("", _strip_fences(text or ""))
+    decoder = json.JSONDecoder()
+    idx = cleaned.find("{")
+    while idx != -1:
+        try:
+            obj, _ = decoder.raw_decode(cleaned, idx)
+        except ValueError:
+            obj = None
+        if isinstance(obj, dict):
+            return obj
+        idx = cleaned.find("{", idx + 1)
+    raise ValueError("no JSON object in model output")
+
+
+def _lower_headers(headers: Mapping[str, str] | None) -> dict[str, str]:
+    return {str(k).lower(): str(v) for k, v in (headers or {}).items()}
+
+
+def _to_float(value: str | None) -> float | None:
+    try:
+        return float(value) if value is not None else None
+    except ValueError:
+        return None
+
+
+def _reset_at(headers: Mapping[str, str] | None) -> float | None:
+    """Epoch seconds at which the rate limit resets (ms values are normalised)."""
+    value = _to_float(_lower_headers(headers).get("x-ratelimit-reset"))
+    if value is None:
+        return None
+    return value / 1000.0 if value > 1e11 else value
+
+
+def _retry_after(headers: Mapping[str, str] | None) -> float | None:
+    return _to_float(_lower_headers(headers).get("retry-after"))
+
+
+def classify_error(
+    status: int | None, headers: Mapping[str, str] | None, body: str | None
+) -> str:
+    """Map an HTTP failure to one of the ERR_* policy classes (pure)."""
+    body = body or ""
+    h = _lower_headers(headers)
+    if status == 429:
+        if _QUOTA_RE.search(body):
+            return ERR_QUOTA
+        reset = _reset_at(h)
+        if (
+            h.get("x-ratelimit-remaining", "").strip() == "0"
+            and reset is not None
+            and reset - time.time() > QUOTA_RESET_HORIZON_S
+        ):
+            return ERR_QUOTA
+        retry_after = _retry_after(h)
+        if retry_after is not None and retry_after > RETRY_AFTER_CAP_S:
+            return ERR_QUOTA
+        return ERR_RATE_LIMIT
+    if status == 413:
+        return ERR_PER_ITEM
+    if status == 400 and _CONTEXT_RE.search(body):
+        return ERR_PER_ITEM
+    if status is None or status == 408 or status >= 500:
+        return ERR_TRANSIENT
+    return ERR_FATAL
