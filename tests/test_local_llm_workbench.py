@@ -221,3 +221,84 @@ def test_autodetect_returns_empty_on_failure(fake_openai_server):
     _clear_local_models_cache()
     fake_openai_server.models = ["bge-m3"]
     assert asyncio.run(_autodetect_local_model(fake_openai_server.base_url)) == ""
+
+
+# ---------------------------------------------------------------------------
+# Error messages
+# ---------------------------------------------------------------------------
+
+from examples.workbench.chat_errors import (  # noqa: E402
+    _env_var_for,
+    describe_exception,
+    describe_provider_error,
+    provider_label,
+)
+
+_DAILY_BODY = '{"error":{"message":"Rate limit exceeded: free-models-per-day"}}'
+
+
+def test_local_label_and_env_var():
+    label = provider_label("local", "http://h:9996/v1/chat/completions")
+    assert label == "Local model server"
+    assert _env_var_for(label) == "EPISTRACT_LLM_BASE_URL"
+    assert provider_label("openrouter", "") == "OpenRouter"
+    assert provider_label("anthropic", "https://api.anthropic.com/v1/messages") == "Anthropic"
+    assert provider_label("anthropic", "https://gw/v1/messages") == "Azure AI Foundry"
+
+
+def test_local_401_hint_mentions_api_key_var():
+    info = describe_provider_error(401, "", provider_label="Local model server", model="m")
+    assert "EPISTRACT_LLM_API_KEY" in info["hint"]
+    assert "Local model server" in info["message"]
+
+
+def test_daily_429_worded_as_daily_limit():
+    info = describe_provider_error(
+        429, _DAILY_BODY, provider_label="OpenRouter", model="x"
+    )
+    assert info["title"] == "Daily limit reached"
+    assert "daily" in info["message"]
+
+
+def test_daily_429_by_headers_includes_reset_time():
+    reset_s = time.time() + 6 * 3600
+    info = describe_provider_error(
+        429,
+        '{"error":{"message":"slow down"}}',
+        provider_label="OpenRouter",
+        model="x",
+        headers={"X-RateLimit-Remaining": "0", "X-RateLimit-Reset": str(int(reset_s * 1000))},
+    )
+    assert info["title"] == "Daily limit reached"
+    from datetime import datetime, timezone
+
+    assert datetime.fromtimestamp(reset_s, tz=timezone.utc).strftime("%H:%M") in info["hint"]
+    assert "UTC" in info["hint"]
+
+
+def test_plain_429_keeps_rate_limited_wording():
+    info = describe_provider_error(
+        429,
+        '{"error":{"message":"Too many requests"}}',
+        provider_label="OpenRouter",
+        model="x",
+        headers={"X-RateLimit-Remaining": "0", "X-RateLimit-Reset": str(int((time.time() + 5) * 1000))},
+    )
+    assert info["title"] == "Rate limited"
+
+
+def test_connect_error_local_hint_names_server():
+    info = describe_exception(
+        httpx.ConnectError("x"),
+        provider_label="Local model server",
+        model="m",
+        base_url="http://h:9996/v1/chat/completions",
+    )
+    assert info["hint"] == "Is the server running at http://h:9996?"
+
+
+def test_connect_error_without_base_url_keeps_generic_hint():
+    info = describe_exception(
+        httpx.ConnectError("x"), provider_label="OpenRouter", model="m"
+    )
+    assert "internet connection" in info["hint"]

@@ -15,6 +15,9 @@ from __future__ import annotations
 
 import json
 import re
+import time
+from collections.abc import Mapping
+from datetime import datetime, timezone
 
 import httpx
 
@@ -28,6 +31,16 @@ _MODEL_MISSING_RE = re.compile(
 )
 
 
+# Duplicate of core.llm_client's quota rule (the consumer layer does not import
+# core/). A 429 whose reset is further away than the horizon is a quota, not a
+# transient rate limit.
+_QUOTA_RE = re.compile(
+    r"per-day|per day|daily|quota|insufficient|free-models-per-day", re.IGNORECASE
+)
+_QUOTA_RESET_HORIZON_S = 120
+LOCAL_LABEL = "Local model server"
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -39,6 +52,8 @@ def provider_label(provider: str, base_url: str) -> str:
         return "OpenRouter"
     if provider == "anthropic" and "anthropic.com" in base_url:
         return "Anthropic"
+    if provider == "local":
+        return LOCAL_LABEL
     return "Azure AI Foundry"
 
 
@@ -48,6 +63,8 @@ def _env_var_for(label: str) -> str:
         return "OPENROUTER_API_KEY"
     if label == "Anthropic":
         return "ANTHROPIC_API_KEY"
+    if label == LOCAL_LABEL:
+        return "EPISTRACT_LLM_BASE_URL"
     return "AZURE_FOUNDRY_API_KEY"
 
 
@@ -73,6 +90,55 @@ def _parse_body(body: str) -> tuple[str, str | None, dict]:
     return text, None, {}
 
 
+def _header(headers: Mapping[str, str] | None, name: str) -> str | None:
+    if not headers:
+        return None
+    lowered = name.lower()
+    for key, value in headers.items():
+        if key.lower() == lowered:
+            return value
+    return None
+
+
+def _is_daily_quota(
+    body_msg: str, headers: Mapping[str, str] | None
+) -> tuple[bool, float | None]:
+    """Return (is_quota, reset_epoch_seconds) for a 429.
+
+    Quota when the message names a daily/quota limit, or the key has no
+    requests remaining and the reset is more than two minutes away.
+    """
+    reset: float | None = None
+    raw_reset = _header(headers, "X-RateLimit-Reset")
+    if raw_reset:
+        try:
+            value = float(raw_reset)
+            reset = value / 1000.0 if value > 1e11 else value
+        except ValueError:
+            reset = None
+    if _QUOTA_RE.search(body_msg or ""):
+        return True, reset
+    remaining = _header(headers, "X-RateLimit-Remaining")
+    if (
+        remaining is not None
+        and remaining.strip() == "0"
+        and reset is not None
+        and reset - time.time() > _QUOTA_RESET_HORIZON_S
+    ):
+        return True, reset
+    return False, reset
+
+
+def _local_root(base_url: str) -> str:
+    root = base_url.rstrip("/")
+    for suffix in ("/chat/completions", "/v1"):
+        if root.lower().endswith(suffix):
+            root = root[: -len(suffix)].rstrip("/")
+    if root.lower().endswith("/v1"):
+        root = root[: -len("/v1")]
+    return root
+
+
 def _truncate(text: str) -> str:
     if len(text) > DETAIL_LIMIT:
         return text[:DETAIL_LIMIT] + "…"
@@ -95,7 +161,12 @@ def _info(title: str, message: str, hint: str, detail: str, status: int | None) 
 
 
 def describe_provider_error(
-    status: int | None, body: str, *, provider_label: str, model: str
+    status: int | None,
+    body: str,
+    *,
+    provider_label: str,
+    model: str,
+    headers: Mapping[str, str] | None = None,
 ) -> dict:
     """Describe an HTTP or in-stream provider error in plain language."""
     label = provider_label
@@ -106,6 +177,13 @@ def describe_provider_error(
     def make(title: str, message: str, hint: str) -> dict:
         return _info(title, message, hint, detail, status)
 
+    if (status == 401 or etype == "authentication_error") and label == LOCAL_LABEL:
+        return make(
+            "API key not accepted",
+            f"{label} rejected the API key.",
+            "The local server requires an API key: set EPISTRACT_LLM_API_KEY, "
+            "then restart the workbench.",
+        )
     if status == 401 or etype == "authentication_error":
         return make(
             "API key not accepted",
@@ -173,6 +251,18 @@ def describe_provider_error(
             "Try again, or choose a faster model.",
         )
     if status == 429 or etype == "rate_limit_error":
+        daily, reset = _is_daily_quota(msg, headers)
+        if daily:
+            if reset is not None:
+                when = datetime.fromtimestamp(reset, tz=timezone.utc).strftime("%H:%M")
+                hint = f"Resets at {when} UTC. Pick another model in the meantime."
+            else:
+                hint = "Pick another model or try again tomorrow."
+            return make(
+                "Daily limit reached",
+                f"{label} says the daily limit for this key or free model has been reached.",
+                hint,
+            )
         return make(
             "Rate limited",
             f"{label} is limiting how many requests this key or model can make.",
@@ -192,7 +282,9 @@ def describe_provider_error(
     )
 
 
-def describe_exception(exc: BaseException, *, provider_label: str, model: str) -> dict:
+def describe_exception(
+    exc: BaseException, *, provider_label: str, model: str, base_url: str = ""
+) -> dict:
     """Describe a client-side exception (timeout, connection failure, other)."""
     label = provider_label
     text = str(exc)
@@ -207,6 +299,14 @@ def describe_exception(exc: BaseException, *, provider_label: str, model: str) -
             None,
         )
     if isinstance(exc, (httpx.ConnectError, httpx.NetworkError)):
+        if label == LOCAL_LABEL and base_url:
+            return _info(
+                "Couldn't reach the model provider",
+                f"The workbench could not connect to {label}.",
+                f"Is the server running at {_local_root(base_url)}?",
+                detail,
+                None,
+            )
         return _info(
             "Couldn't reach the model provider",
             f"The workbench could not connect to {label}.",
