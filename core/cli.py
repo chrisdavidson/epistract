@@ -30,6 +30,7 @@ from pathlib import Path
 from . import index_db
 from . import registry
 from .graph_retrieval import expand_from_seeds
+from .llm_client import LLMConfigError
 from .registry import ProjectError
 
 
@@ -170,6 +171,9 @@ def cmd_enhance(args) -> int:
         if args.llm:
             try:
                 judge_fn = triple_judge.make_llm_judge()
+            except LLMConfigError as e:
+                print(f"error: {e}", file=sys.stderr)
+                return 1
             except ImportError as e:
                 print(
                     f"Error: --llm requires an LLM client but it could not be "
@@ -178,7 +182,17 @@ def cmd_enhance(args) -> int:
                     file=sys.stderr,
                 )
                 return 1
-        report["judge"] = triple_judge.judge_graph(graph, judge_fn=judge_fn)
+        try:
+            report["judge"] = triple_judge.judge_graph(graph, judge_fn=judge_fn)
+        except triple_judge.JudgeAbort as e:
+            st = e.stats or {}
+            print(f"error: LLM judge aborted: {e}", file=sys.stderr)
+            print(
+                f"  llm_judged={st.get('llm_judged', 0)} "
+                f"fallback={st.get('fallback', 0)}; nothing was written",
+                file=sys.stderr,
+            )
+            return 1
 
     if args.epistemic or run_all:
         links = graph.get(link_key, [])

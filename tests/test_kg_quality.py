@@ -558,3 +558,51 @@ def test_cli_enhance_llm_import_guard(tmp_path, monkeypatch, capsys):
     ), "expected exit code 1 when the LLM client cannot be imported"
     err = capsys.readouterr().err
     assert "--llm" in err, f"stderr should mention --llm guidance, got: {err!r}"
+
+
+def _enhance_project(tmp_path, monkeypatch):
+    import json as _json
+
+    from core import registry
+
+    monkeypatch.setenv("EPISTRACT_HOME", str(tmp_path / "home"))
+    monkeypatch.delenv("EPISTRACT_PROJECT", raising=False)
+    project = registry.init_project("enh2", root=tmp_path / "enh2", domain="drug-discovery")
+    graph = {"nodes": [], "links": [
+        {"source": "a:x", "target": "b:y", "relation_type": "R", "evidence": "x acts on y."}
+    ]}
+    gp = Path(project["root"]) / "graph_data.json"
+    gp.write_text(_json.dumps(graph))
+    return project, gp
+
+
+def test_cli_enhance_llm_without_config_is_clean_error(tmp_path, monkeypatch, capsys):
+    from core import cli
+
+    project, gp = _enhance_project(tmp_path, monkeypatch)
+    for var in ("AZURE_FOUNDRY_API_KEY", "ANTHROPIC_API_KEY", "OPENROUTER_API_KEY",
+                "EPISTRACT_LLM_BASE_URL", "EPISTRACT_LLM_PROVIDER"):
+        monkeypatch.delenv(var, raising=False)
+    before = gp.read_text()
+    assert cli.main(["enhance", "--project", "enh2", "--judge", "--llm"]) == 1
+    assert "error:" in capsys.readouterr().err
+    assert gp.read_text() == before
+    assert not (Path(project["root"]) / "enhancement_report.json").exists()
+
+
+def test_cli_enhance_judge_abort_writes_nothing(tmp_path, monkeypatch, capsys):
+    from core import cli, triple_judge
+
+    project, gp = _enhance_project(tmp_path, monkeypatch)
+
+    def boom(*a, **kw):
+        raise triple_judge.JudgeAbort("server gone", {"llm_judged": 3, "fallback": 2})
+
+    monkeypatch.setattr(triple_judge, "make_llm_judge", lambda: object())
+    monkeypatch.setattr(triple_judge, "judge_graph", boom)
+    before = gp.read_text()
+    assert cli.main(["enhance", "--project", "enh2", "--judge", "--llm"]) == 1
+    err = capsys.readouterr().err
+    assert "LLM judge aborted: server gone" in err and "llm_judged=3" in err
+    assert gp.read_text() == before
+    assert not (Path(project["root"]) / "enhancement_report.json").exists()
