@@ -111,6 +111,12 @@ def _resolve_target(base_url_arg: str | None, model_arg: str | None) -> dict:
         "EPISTRACT_LLM_BASE_URL", ""
     ).strip()
     if base_url_arg:
+        if provider_env == "openrouter":
+            print(
+                "notice: --base-url overrides EPISTRACT_LLM_PROVIDER=openrouter; "
+                "using the local server",
+                file=sys.stderr,
+            )
         provider = "local"
     elif provider_env:
         provider = provider_env

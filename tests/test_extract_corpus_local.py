@@ -288,3 +288,11 @@ def test_call_llm_stub_returns_entities_and_zero_cost(ec, fake_openai_server):
     ents, rels, cost, tokens = ec.call_llm(_client(fake_openai_server), "m", "s", "c")
     assert ents == [{"name": "A", "entity_type": "X"}]
     assert cost == 0.0 and tokens == 12
+
+
+def test_base_url_overriding_openrouter_provider_prints_notice(monkeypatch, capsys):
+    mod = _load()
+    monkeypatch.setenv("EPISTRACT_LLM_PROVIDER", "openrouter")
+    target = mod._resolve_target("http://localhost:1234/v1", "m")
+    assert target["provider"] == "local"
+    assert "overrides EPISTRACT_LLM_PROVIDER=openrouter" in capsys.readouterr().err
