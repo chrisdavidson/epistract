@@ -469,7 +469,7 @@ def create_app(output_dir: Path, domain: str | None = None) -> FastAPI:
                 return {
                     "provider": "local",
                     "default_model": model or None,
-                    "models": [{"id": model, "label": model or "local model"}],
+                    "models": [{"id": model, "label": model}] if model else [],
                     "degraded": True,
                 }
             default = model or await _autodetect_local_model(base_url)

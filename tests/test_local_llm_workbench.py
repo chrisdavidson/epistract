@@ -530,3 +530,11 @@ def test_health_and_models_with_no_provider(client):
         "default_model": None,
         "models": [],
     }
+
+
+def test_models_endpoint_degraded_without_model_has_no_empty_id(client, monkeypatch):
+    monkeypatch.setenv("EPISTRACT_LLM_BASE_URL", "http://127.0.0.1:9")
+    monkeypatch.delenv("EPISTRACT_LLM_MODEL", raising=False)
+    body = client.get("/api/models").json()
+    assert body["degraded"] is True
+    assert body["models"] == []

@@ -35,7 +35,9 @@ _MODEL_MISSING_RE = re.compile(
 # core/). A 429 whose reset is further away than the horizon is a quota, not a
 # transient rate limit.
 _QUOTA_RE = re.compile(
-    r"per-day|per day|daily|quota|insufficient|free-models-per-day", re.IGNORECASE
+    r"per-day|per day|daily|quota|free-models-per-day"
+    r"|insufficient[\w\s-]{0,20}(?:credit|quota|balance|fund)",
+    re.IGNORECASE,
 )
 _QUOTA_RESET_HORIZON_S = 120
 LOCAL_LABEL = "Local model server"
