@@ -90,7 +90,9 @@ class _Handler(BaseHTTPRequestHandler):
                 },
             )
         elif path == "/props":
-            if s.props_n_ctx is None:
+            if s.props_status is not None:
+                self._send_json(s.props_status, {"error": "forced"})
+            elif s.props_n_ctx is None:
                 self._send_json(404, {"error": "not found"})
             else:
                 self._send_json(
@@ -99,10 +101,15 @@ class _Handler(BaseHTTPRequestHandler):
         elif path == "/health":
             self._send_json(200, {"status": "ok"})
         elif path.startswith("/api/v0/models/"):
-            if s.lmstudio_ctx is None:
+            if s.lmstudio_ctx is None and s.lmstudio_max_ctx is None:
                 self._send_json(404, {"error": "not found"})
             else:
-                self._send_json(200, {"loaded_context_length": s.lmstudio_ctx})
+                payload = {}
+                if s.lmstudio_ctx is not None:
+                    payload["loaded_context_length"] = s.lmstudio_ctx
+                if s.lmstudio_max_ctx is not None:
+                    payload["max_context_length"] = s.lmstudio_max_ctx
+                self._send_json(200, payload)
         else:
             self._send_json(404, {"error": "not found"})
 
@@ -184,6 +191,8 @@ class FakeOpenAIServer:
         self.props_n_ctx: int | None = 4096
         self.max_model_len: int | None = None
         self.lmstudio_ctx: int | None = None
+        self.lmstudio_max_ctx: int | None = None
+        self.props_status: int | None = None  # force /props to this HTTP status
         self.ollama_parameters: str | None = None
         self.models_status: int = 200
         self.default_content: str = _DEFAULT_CONTENT

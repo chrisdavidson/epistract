@@ -81,6 +81,49 @@ def test_probe_context_lmstudio(fake_openai_server):
     assert llm_local.probe_context(_api(fake_openai_server), "Phi-3-mini-4k-instruct-q4.gguf") == 8192
 
 
+def test_probe_context_lmstudio_ignores_trained_max(fake_openai_server):
+    """WR-03: max_context_length is the trained limit, not the loaded window."""
+    fake_openai_server.n_ctx = None
+    fake_openai_server.props_n_ctx = None
+    fake_openai_server.lmstudio_max_ctx = 131072
+    assert llm_local.probe_context(_api(fake_openai_server), "Phi-3-mini-4k-instruct-q4.gguf") is None
+
+
+def test_probe_context_lmstudio_url_quotes_model(fake_openai_server, monkeypatch):
+    """WR-03: model ids with ?, # or / must not break the request path."""
+    urls = []
+
+    def fake_get_json(url, api_key, *, post=None):
+        urls.append(url)
+        return None
+
+    monkeypatch.setattr(llm_local, "_get_json", fake_get_json)
+    llm_local.probe_context(_api(fake_openai_server), "org/m?x#y")
+    assert any(u.endswith("/api/v0/models/org%2Fm%3Fx%23y") for u in urls)
+
+
+def test_probe_context_does_not_cache_transient_failure(fake_openai_server):
+    """WR-04: a 503 from /props must not pin 'unknown' for the process."""
+    api = _api(fake_openai_server)
+    model = "Phi-3-mini-4k-instruct-q4.gguf"
+    fake_openai_server.n_ctx = None
+    fake_openai_server.props_status = 503
+    assert llm_local.probe_context(api, model) is None
+    assert llm_local._CTX_CACHE == {}
+    fake_openai_server.props_status = None
+    assert llm_local.probe_context(api, model) == 4096
+
+
+def test_probe_context_caches_definitive_unknown(fake_openai_server):
+    """WR-04: a server that answers 404 everywhere is a definitive None (memoised)."""
+    api = _api(fake_openai_server)
+    model = "Phi-3-mini-4k-instruct-q4.gguf"
+    fake_openai_server.n_ctx = None
+    fake_openai_server.props_n_ctx = None
+    assert llm_local.probe_context(api, model) is None
+    assert llm_local._CTX_CACHE == {(api, model): None}
+
+
 def test_probe_context_ollama_num_ctx(fake_openai_server):
     fake_openai_server.n_ctx = None
     fake_openai_server.props_n_ctx = None
@@ -113,6 +156,36 @@ def test_probe_context_ignores_invalid_override(fake_openai_server, monkeypatch,
 def test_models_cache_populated(fake_openai_server):
     llm_local.list_models(_api(fake_openai_server))
     assert llm_local._MODELS_CACHE
+
+
+def test_failed_list_models_is_memoised_briefly(fake_openai_server, monkeypatch):
+    """WR-05: a dead/broken server is not re-probed on every call; TTL expires."""
+    api = _api(fake_openai_server)
+    fake_openai_server.models_status = 500
+    with pytest.raises(LLMCallError):
+        llm_local.list_models(api)
+    n = len(fake_openai_server.requests)
+    fake_openai_server.models_status = 200
+    with pytest.raises(LLMCallError):
+        llm_local.list_models(api)
+    assert len(fake_openai_server.requests) == n  # served from the failure memo
+    real = llm_local.time.monotonic()
+    monkeypatch.setattr(llm_local.time, "monotonic", lambda: real + 3600)
+    assert llm_local.list_models(api)  # TTL expired, retried and recovered
+    llm_local.clear_cache()
+    assert llm_local._MODELS_FAIL_CACHE == {}
+
+
+def test_probes_ignore_proxy_env(fake_openai_server, monkeypatch):
+    """WR-06: HTTP(S)_PROXY must not capture local probes (and the bearer key)."""
+    monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:9")
+    monkeypatch.setenv("http_proxy", "http://127.0.0.1:9")
+    monkeypatch.delenv("NO_PROXY", raising=False)
+    monkeypatch.delenv("no_proxy", raising=False)
+    api = _api(fake_openai_server)
+    assert llm_local.list_models(api, api_key="k")
+    fake_openai_server.n_ctx = None
+    assert llm_local.probe_context(api, "Phi-3-mini-4k-instruct-q4.gguf", "k") == 4096
 
 
 def test_models_cache_cleared_between_tests():
@@ -283,3 +356,10 @@ def test_local_auto_pick_skips_embedding(fake_openai_server, monkeypatch):
     fake_openai_server.models = ["nomic-embed-text", "qwen2.5:7b"]
     monkeypatch.setenv("EPISTRACT_LLM_BASE_URL", fake_openai_server.base_url)
     assert llm_client.resolve_api_config().model == "qwen2.5:7b"
+
+
+def test_kind_for_not_chat_is_specific():
+    """IN-01: only the not-a-chat-model phrasing maps to not_chat."""
+    assert llm_local._kind_for(RuntimeError("x is a rerank model and cannot be used with the chat/completions endpoint")) == "not_chat"
+    assert llm_local._kind_for(RuntimeError("bad input: the embedding vector was echoed")) == "error"
+    assert llm_local._kind_for(RuntimeError("connection refused")) == "unreachable"

@@ -8,24 +8,34 @@ from __future__ import annotations
 
 import os
 import re
+import time
+from urllib.parse import quote
 
 from .llm_client import LLMCallError, LLMConfig, LLMConfigError, call_llm
 
 NON_CHAT_MODEL_RE = re.compile(r"embed|rerank|bge|e5-|nomic", re.IGNORECASE)
 _NOT_CHAT_RE = re.compile(
-    r"rerank|embedding|does not support chat|cannot be used with the chat",
+    r"\b(?:rerank|embedding) model\b|does not support chat"
+    r"|cannot be used with the chat",
     re.IGNORECASE,
 )
 
 # Memo keyed by api_base (model lists) and (api_base, model) (context windows).
 _MODELS_CACHE: dict = {}
 _CTX_CACHE: dict = {}
+# Short-lived memo of failed list_models calls: api_base -> (monotonic ts, message),
+# so a dead server does not cost a full timeout on every call.
+_MODELS_FAIL_CACHE: dict = {}
+_FAIL_TTL_S = 30.0
+# Sentinel from _get_json: transport error or transient HTTP status (not memoised).
+_TRANSIENT = object()
 
 
 def clear_cache() -> None:
     """Forget every memoised probe result (tests reuse ephemeral ports)."""
     _MODELS_CACHE.clear()
     _CTX_CACHE.clear()
+    _MODELS_FAIL_CACHE.clear()
 
 
 def _root(api_base: str) -> str:
@@ -54,10 +64,25 @@ def list_models(
     """
     if api_base in _MODELS_CACHE:
         return _MODELS_CACHE[api_base]
+    failed = _MODELS_FAIL_CACHE.get(api_base)
+    if failed is not None:
+        if time.monotonic() - failed[0] < _FAIL_TTL_S:
+            raise LLMCallError(failed[1])
+        del _MODELS_FAIL_CACHE[api_base]
+    try:
+        return _list_models_uncached(api_base, api_key, timeout)
+    except LLMCallError as e:
+        _MODELS_FAIL_CACHE[api_base] = (time.monotonic(), str(e))
+        raise
+
+
+def _list_models_uncached(
+    api_base: str, api_key: str | None, timeout: float
+) -> list[dict]:
     try:
         import httpx
 
-        with httpx.Client(timeout=timeout, proxy=None) as client:
+        with httpx.Client(timeout=timeout, proxy=None, trust_env=False) as client:
             resp = client.get(f"{api_base}/models", headers=_headers(api_key))
         if resp.status_code != 200:
             raise LLMCallError(
@@ -99,16 +124,18 @@ def _get_json(url: str, api_key: str | None, *, post: dict | None = None):
     try:
         import httpx
 
-        with httpx.Client(timeout=3.0, proxy=None) as client:
+        with httpx.Client(timeout=3.0, proxy=None, trust_env=False) as client:
             if post is None:
                 resp = client.get(url, headers=_headers(api_key))
             else:
                 resp = client.post(url, headers=_headers(api_key), json=post)
+        if resp.status_code in (408, 425, 429) or resp.status_code >= 500:
+            return _TRANSIENT
         if resp.status_code != 200:
-            return None
+            return None  # definitive: endpoint absent or refused
         return resp.json()
     except Exception:  # noqa: BLE001 - probes never raise
-        return None
+        return _TRANSIENT
 
 
 def probe_context(api_base: str, model: str, api_key: str | None = None) -> int | None:
@@ -131,22 +158,30 @@ def probe_context(api_base: str, model: str, api_key: str | None = None) -> int 
     key = (api_base, model)
     if key in _CTX_CACHE:
         return _CTX_CACHE[key]
-    result = _probe_context_uncached(api_base, model, api_key)
-    _CTX_CACHE[key] = result
+    result, definitive = _probe_context_uncached(api_base, model, api_key)
+    # Never memoise an unknown that came from a transport/HTTP failure: the server
+    # may still be loading and a later call should be able to learn the window.
+    if result is not None or definitive:
+        _CTX_CACHE[key] = result
     return result
 
 
 def _probe_context_uncached(
     api_base: str, model: str, api_key: str | None
-) -> int | None:
+) -> tuple[int | None, bool]:
+    """Return ``(window, definitive)``; ``definitive`` is False if any probe failed transiently."""
     root = _root(api_base)
+    definitive = True
     try:
         entry = next((m for m in list_models(api_base, api_key) if m["id"] == model), None)
     except LLMCallError:
         entry = None
+        definitive = False
     models_ctx = entry["n_ctx"] if entry else None
 
     props = _get_json(f"{root}/props", api_key)
+    if props is _TRANSIENT:
+        definitive = False
     props_ctx = None
     if isinstance(props, dict):
         settings = props.get("default_generation_settings")
@@ -155,22 +190,26 @@ def _probe_context_uncached(
 
     found = [v for v in (models_ctx, props_ctx) if v]
     if found:
-        return min(found)
+        return min(found), True
 
-    lm = _get_json(f"{root}/api/v0/models/{model}", api_key)
-    if isinstance(lm, dict):
-        ctx = _positive_int(lm.get("loaded_context_length")) or _positive_int(
-            lm.get("max_context_length")
-        )
+    # LM Studio: only the loaded window counts; max_context_length is the trained
+    # limit (like Ollama's context_length, deliberately ignored).
+    lm = _get_json(f"{root}/api/v0/models/{quote(model, safe='')}", api_key)
+    if lm is _TRANSIENT:
+        definitive = False
+    elif isinstance(lm, dict):
+        ctx = _positive_int(lm.get("loaded_context_length"))
         if ctx:
-            return ctx
+            return ctx, True
 
     show = _get_json(f"{root}/api/show", api_key, post={"model": model})
-    if isinstance(show, dict) and isinstance(show.get("parameters"), str):
+    if show is _TRANSIENT:
+        definitive = False
+    elif isinstance(show, dict) and isinstance(show.get("parameters"), str):
         m = re.search(r"^\s*num_ctx\s+(\d+)", show["parameters"], re.MULTILINE)
         if m:
-            return _positive_int(int(m.group(1)))
-    return None
+            return _positive_int(int(m.group(1))), True
+    return None, definitive
 
 
 def _kind_for(exc: Exception) -> str:
@@ -182,8 +221,6 @@ def _kind_for(exc: Exception) -> str:
         return "quota"
     if "Fatal" in name:
         return "fatal"
-    if "Transient" in name and re.search(r"connect|refused|unreachable", text, re.I):
-        return "unreachable"
     if re.search(r"connect|refused|unreachable", text, re.I):
         return "unreachable"
     return "error"
