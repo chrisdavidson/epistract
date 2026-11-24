@@ -61,6 +61,27 @@ def test_classify_429_long_retry_after_is_quota():
     assert classify_error(429, {"Retry-After": "3600"}, "") == ERR_QUOTA
 
 
+def test_classify_429_retry_after_60_is_rate_limit():
+    assert classify_error(429, {"Retry-After": "60"}, "") == ERR_RATE_LIMIT
+    assert classify_error(429, {"Retry-After": "61"}, "") == ERR_QUOTA
+
+
+@pytest.mark.parametrize("val", ["-5", "nan", "inf", "-inf"])
+def test_retry_after_invalid_values_are_ignored(val):
+    assert llm_client._retry_after({"Retry-After": val}) is None
+    assert classify_error(429, {"Retry-After": val}, "") == ERR_RATE_LIMIT
+
+
+def test_insufficient_capacity_429_is_not_quota():
+    assert classify_error(429, {}, "insufficient capacity, try later") == ERR_RATE_LIMIT
+    assert classify_error(429, {}, "insufficient credits") == ERR_QUOTA
+
+
+def test_context_word_alone_is_not_overflow():
+    assert classify_error(400, {}, "context must be string") == ERR_FATAL
+    assert classify_error(400, {}, "context length exceeded") == ERR_PER_ITEM
+
+
 def test_classify_fatal_statuses():
     body = "x is a rerank model and cannot be used with the chat/completions endpoint"
     assert classify_error(400, {}, body) == ERR_FATAL
@@ -85,10 +106,25 @@ def test_classify_headers_case_insensitive():
 
 
 # -- extract_json_object ----------------------------------------------------
+def test_extract_json_truncated_outer_raises():
+    with pytest.raises(ValueError):
+        extract_json_object('{"a": {"b": 1}, "c": ')
+
+
+def test_extract_json_unclosed_think_dropped():
+    with pytest.raises(ValueError):
+        extract_json_object('<think>maybe {"draft":1} no close...')
+
+
+def test_extract_json_skips_failed_prose_braces():
+    assert extract_json_object('use {braces} then {"a": 1}') == {"a": 1}
+
+
 def test_extract_json_variants():
     assert extract_json_object(f'{FENCE}json\n{{"a": 1}}\n{FENCE}') == {"a": 1}
     assert extract_json_object('Sure! {"a": 1} hope that helps }') == {"a": 1}
     assert extract_json_object('<think>x {y}</think>{"a": 2}') == {"a": 2}
+    assert extract_json_object('{"a": 1}<think>trailing {"z":2}') == {"a": 1}
     assert extract_json_object('{"a": {"b": 1}} {"c": 2}') == {"a": {"b": 1}}
 
 
@@ -189,6 +225,50 @@ def test_retry_after_is_capped(fake_openai_server, sleeps):
     fake_openai_server.queue_content("ok")
     assert call_llm("s", "u", config=_cfg(fake_openai_server)) == "ok"
     assert all(s <= llm_client.RETRY_AFTER_CAP_S for s in sleeps)
+
+
+def test_negative_retry_after_does_not_crash(fake_openai_server, sleeps):
+    fake_openai_server.queue_status(429, {"error": "x"}, {"Retry-After": "-5"})
+    fake_openai_server.queue_content("ok")
+    assert call_llm("s", "u", config=_cfg(fake_openai_server)) == "ok"
+    assert all(s >= 0 for s in sleeps)
+
+
+def test_long_retry_after_429_is_quota_with_reset(fake_openai_server, sleeps):
+    fake_openai_server.queue_status(429, {"error": "x"}, {"Retry-After": "300"})
+    with pytest.raises(LLMQuotaError) as ei:
+        call_llm("s", "u", config=_cfg(fake_openai_server))
+    assert sleeps == []
+    assert ei.value.reset_at is not None
+    assert "resets in" in str(ei.value)
+
+
+def test_long_wait_is_announced_on_stderr(fake_openai_server, sleeps, capsys):
+    fake_openai_server.queue_status(429, {"error": "x"}, {"Retry-After": "45"})
+    fake_openai_server.queue_content("ok")
+    assert call_llm("s", "u", config=_cfg(fake_openai_server)) == "ok"
+    assert sleeps == [45]
+    err = capsys.readouterr().err
+    assert "retrying in 45s (attempt 2/3)" in err
+
+
+def test_read_timeout_is_not_retried(monkeypatch, sleeps):
+    calls = []
+
+    class Boom:
+        def __init__(self, *a, **k): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def post(self, *a, **k):
+            calls.append(1)
+            raise httpx.ReadTimeout("slow")
+
+    monkeypatch.setattr(httpx, "Client", Boom)
+    cfg = LLMConfig(LOCAL_PLACEHOLDER_KEY, "http://127.0.0.1:1/v1", "m", "local")
+    with pytest.raises(LLMTransientError):
+        call_llm("s", "u", config=cfg)
+    assert len(calls) == 1
+    assert sleeps == []
 
 
 def test_three_500s_raise_transient(fake_openai_server, sleeps):

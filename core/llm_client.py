@@ -20,6 +20,7 @@ Callers should import `resolve_api_config()` + `call_llm()` and handle the
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import sys
@@ -83,9 +84,10 @@ class LLMFatalError(LLMCallError):
 class LLMTransientError(LLMCallError):
     """A retryable failure (rate limit, 5xx, timeout, connection problem)."""
 
-    def __init__(self, message: str, connect: bool = False):
+    def __init__(self, message: str, connect: bool = False, retryable: bool = True):
         super().__init__(message)
         self.connect = connect
+        self.retryable = retryable  # False: transient, but re-sending won't help
 
 
 class _RateLimited(LLMTransientError):
@@ -104,13 +106,22 @@ ERR_PER_ITEM = "per_item"
 ERR_TRANSIENT = "transient"
 
 _QUOTA_RE = re.compile(
-    r"per-day|per day|daily|quota|insufficient|free-models-per-day", re.I
+    r"per-day|per day|daily|quota|free-models-per-day"
+    r"|insufficient[\w\s-]{0,20}(?:credit|quota|balance|fund)",
+    re.I,
 )
-_CONTEXT_RE = re.compile(r"context|too long|exceed|too large|maximum.*tokens", re.I)
+_CONTEXT_RE = re.compile(
+    r"too long|exceed|too large|maximum.*tokens"
+    r"|context[\w\s-]{0,20}(?:length|window|size|exceed|too long|maximum)",
+    re.I,
+)
 
 # A 429 whose reset is further away than this is a quota, not a rate limit.
 QUOTA_RESET_HORIZON_S = 120
-RETRY_AFTER_CAP_S = 30
+# Retry-After up to this is a transient rate limit (we wait it out); above it
+# the 429 is treated as a quota and fails fast with the reset time.
+RETRY_AFTER_CAP_S = 60
+RETRY_ANNOUNCE_S = 5  # waits at least this long are announced on stderr
 RETRY_MAX_ATTEMPTS = 3
 RETRY_BACKOFF_S = (2.0, 4.0, 8.0)
 _ERROR_EXCERPT_CHARS = 300
@@ -456,7 +467,15 @@ def _error_for_status(
     kind = classify_error(status, headers, body)
     msg = f"{label} {base_url} returned HTTP {status}: {_excerpt(body)}"
     if kind == ERR_QUOTA:
-        return LLMQuotaError(msg, reset_at=_reset_at(headers))
+        reset = _reset_at(headers)
+        if reset is None:
+            ra = _retry_after(headers)
+            if ra is not None:
+                reset = time.time() + ra
+        if reset is not None:
+            wait = max(0, int(reset - time.time()))
+            msg += f" (rate limit resets in about {wait} s)"
+        return LLMQuotaError(msg, reset_at=reset)
     if kind == ERR_FATAL:
         return LLMFatalError(msg, status=status)
     if kind == ERR_PER_ITEM:
@@ -466,7 +485,12 @@ def _error_for_status(
     return LLMTransientError(msg)
 
 
-def _with_retry(fn: Callable[[], str], *, sleep: Callable[[float], None] | None = None):
+def _with_retry(
+    fn: Callable[[], str],
+    *,
+    sleep: Callable[[float], None] | None = None,
+    provider: str = "local",
+):
     """Run ``fn`` with the single bounded retry policy.
 
     Only LLMTransientError (including rate-limit 429s) is retried, up to
@@ -477,11 +501,19 @@ def _with_retry(fn: Callable[[], str], *, sleep: Callable[[float], None] | None 
         try:
             return fn()
         except LLMTransientError as e:
-            if attempt == RETRY_MAX_ATTEMPTS - 1:
+            if attempt == RETRY_MAX_ATTEMPTS - 1 or not e.retryable:
                 raise
             hint = e.retry_after if isinstance(e, _RateLimited) else None
             delay = min(hint if hint is not None else RETRY_BACKOFF_S[attempt],
                         RETRY_AFTER_CAP_S)
+            delay = max(0.0, delay)
+            if delay >= RETRY_ANNOUNCE_S:
+                print(
+                    f"llm: {provider} rate-limited/unavailable, retrying in "
+                    f"{delay:.0f}s (attempt {attempt + 2}/{RETRY_MAX_ATTEMPTS})",
+                    file=sys.stderr,
+                    flush=True,
+                )
             (sleep or _sleep)(delay)
     raise AssertionError("unreachable")  # pragma: no cover
 
@@ -529,6 +561,13 @@ def _call_local(
             raise LLMTransientError(
                 f"cannot connect to {label} {config.base_url}: {type(e).__name__}",
                 connect=True,
+            ) from e
+        except httpx.TimeoutException as e:
+            # Re-sending would queue a second generation behind the one the
+            # server is still running; fail now instead of stalling 3x.
+            raise LLMTransientError(
+                f"{label} {config.base_url} timed out: {type(e).__name__}",
+                retryable=False,
             ) from e
         except httpx.HTTPError as e:
             raise LLMTransientError(
@@ -617,6 +656,7 @@ def _strip_fences(text: str) -> str:
 
 
 _THINK_RE = re.compile(r"<think>.*?</think>", re.S | re.I)
+_THINK_UNCLOSED_RE = re.compile(r"<think>.*\Z", re.S | re.I)
 
 
 def extract_json_object(text: str) -> dict:
@@ -627,17 +667,46 @@ def extract_json_object(text: str) -> dict:
     Raises ValueError when no object is present (arrays do not count).
     """
     cleaned = _THINK_RE.sub("", _strip_fences(text or ""))
+    cleaned = _THINK_UNCLOSED_RE.sub("", cleaned)
     decoder = json.JSONDecoder()
     idx = cleaned.find("{")
     while idx != -1:
+        end = _balanced_end(cleaned, idx)
+        if end is None:  # truncated outer object: never return an inner one
+            break
         try:
             obj, _ = decoder.raw_decode(cleaned, idx)
         except ValueError:
             obj = None
         if isinstance(obj, dict):
             return obj
-        idx = cleaned.find("{", idx + 1)
+        idx = cleaned.find("{", end)  # skip the whole failed span
     raise ValueError("no JSON object in model output")
+
+
+def _balanced_end(text: str, start: int) -> int | None:
+    """Index just past the brace-balanced span opening at ``start`` (or None)."""
+    depth = 0
+    in_str = False
+    esc = False
+    for i in range(start, len(text)):
+        c = text[i]
+        if in_str:
+            if esc:
+                esc = False
+            elif c == "\\":
+                esc = True
+            elif c == '"':
+                in_str = False
+        elif c == '"':
+            in_str = True
+        elif c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return i + 1
+    return None
 
 
 def _lower_headers(headers: Mapping[str, str] | None) -> dict[str, str]:
@@ -660,7 +729,8 @@ def _reset_at(headers: Mapping[str, str] | None) -> float | None:
 
 
 def _retry_after(headers: Mapping[str, str] | None) -> float | None:
-    return _to_float(_lower_headers(headers).get("retry-after"))
+    v = _to_float(_lower_headers(headers).get("retry-after"))
+    return v if v is not None and math.isfinite(v) and v >= 0 else None
 
 
 def classify_error(
