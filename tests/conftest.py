@@ -63,9 +63,12 @@ EPISTRACT_LLM_ENV_VARS = (
 
 @pytest.fixture(autouse=True)
 def _scrub_epistract_llm_env(monkeypatch):
-    """Keep a developer's EPISTRACT_LLM_* shell vars out of tests."""
+    """Keep a developer's EPISTRACT_LLM_* shell vars and the models memo out of tests."""
     for var in EPISTRACT_LLM_ENV_VARS:
         monkeypatch.delenv(var, raising=False)
+    from core import llm_local
+
+    llm_local.clear_cache()
 
 
 @pytest.fixture
