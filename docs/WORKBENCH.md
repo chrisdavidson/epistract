@@ -23,7 +23,7 @@ Epistract runs as a [Claude Code](https://claude.ai/claude-code) plugin. Two-ste
 Optional (enabled automatically when detected):
 - **RDKit** — molecular validation for drug-discovery SMILES / InChIKeys
 - **Biopython** — sequence validation for DNA / RNA / protein sequences
-- **Azure AI Foundry, Anthropic, or OpenRouter API key** — only needed for the chat panel and the epistemic narrator. Graph, extraction, and rule-based epistemic analysis all work without an LLM key.
+- **Azure AI Foundry, Anthropic, or OpenRouter API key, or a local OpenAI-compatible server** — only needed for the chat panel and the epistemic narrator. Graph, extraction, and rule-based epistemic analysis all work without an LLM key.
 
 ### Step 1 — Install the plugin in Claude Code
 
@@ -91,15 +91,36 @@ The `persona` field serves **both** surfaces: the workbench chat uses it as its 
 
 The chat panel and the epistemic narrator share credential-resolution logic. Priority:
 
-1. **Azure AI Foundry** — `AZURE_FOUNDRY_API_KEY` (or alias `ANTHROPIC_FOUNDRY_API_KEY`) plus **one** endpoint selector:
+0. **`EPISTRACT_LLM_PROVIDER`** — `local`, `anthropic`, `openrouter` or `foundry`. An explicit choice that **fails loud** (an error naming the missing variables) when that provider's credentials are missing, instead of falling through to another one.
+1. **Local server** — `EPISTRACT_LLM_BASE_URL` (llama.cpp, Ollama, vLLM, LM Studio). No API key needed. See [Local server](#local-openai-compatible-server).
+2. **Azure AI Foundry** — `AZURE_FOUNDRY_API_KEY` (or alias `ANTHROPIC_FOUNDRY_API_KEY`) plus **one** endpoint selector:
    - `AZURE_FOUNDRY_BASE_URL` (or alias `ANTHROPIC_FOUNDRY_BASE_URL`) — full custom gateway URL for enterprise deployments behind API management, private endpoints, or reverse proxies. `/v1/messages` is auto-appended if missing.
    - `AZURE_FOUNDRY_RESOURCE` — standard Azure resource name. The workbench builds `https://<resource>.services.ai.azure.com/anthropic/v1/messages`.
    - Optional: `AZURE_FOUNDRY_DEPLOYMENT` (or alias `ANTHROPIC_FOUNDRY_DEPLOYMENT`) — deployment/model name, defaults to `claude-sonnet-4-6`.
    - **Fails loud** if the API key is set but neither `AZURE_FOUNDRY_BASE_URL` nor `AZURE_FOUNDRY_RESOURCE` is configured.
-2. **`ANTHROPIC_API_KEY`** → calls Anthropic directly with `claude-sonnet-4-20250514`.
-3. **`OPENROUTER_API_KEY`** → calls OpenRouter with `anthropic/claude-sonnet-4.6`.
+3. **`ANTHROPIC_API_KEY`** → calls Anthropic directly with `claude-sonnet-5`.
+4. **`OPENROUTER_API_KEY`** → calls OpenRouter with `anthropic/claude-sonnet-4.6`.
 
 Set one of these in your shell before launching. The graph, sources, and rule-based epistemic analysis all work without any LLM credentials — only the chat panel and the narrator need them.
+
+Because the local server ranks above the cloud keys, a set `EPISTRACT_LLM_BASE_URL` sends the chat panel and the narrator to it even when cloud keys are also set. Cloud keys are never sent to the local URL. To use a cloud provider anyway, set `EPISTRACT_LLM_PROVIDER` to it.
+
+### Local OpenAI-compatible server
+
+```bash
+export EPISTRACT_LLM_BASE_URL="http://localhost:8080"   # host:port, with or without /v1
+export EPISTRACT_LLM_MODEL="<model-id>"                 # optional; default: first chat model of /v1/models
+export EPISTRACT_LLM_API_KEY="<your-key>"               # optional; sent only when set
+export EPISTRACT_LLM_MAX_TOKENS="1024"                  # optional cap on the reply length
+export EPISTRACT_LLM_CONTEXT_WINDOW="4096"              # optional; overrides the window read from the server
+/epistract:dashboard ./my-graph-output --domain drug-discovery
+```
+
+- The model picker lists the server's own `/v1/models` (embedding and rerank models are skipped). The server URL always comes from `EPISTRACT_LLM_BASE_URL`, never from the browser.
+- If the server is down when the page loads, the picker shows the configured model with a degraded flag instead of failing.
+- With a known context window the reply length is clamped to what is left after the prompt; with an unknown one `max_tokens` is omitted and the server applies its own limit.
+- Check the setup first with `python -m core.cli llm check`.
+- For what small local models can and cannot do, see [known-limitations.md](known-limitations.md#small-local-models).
 
 ### Azure AI Foundry — standard endpoint
 
@@ -140,7 +161,10 @@ export OPENROUTER_API_KEY="sk-or-..."
 
 ## Troubleshooting
 
-- **"No API key found"** in chat or narrator → set one of the env vars above, restart the workbench.
+- **"No API key found"** in chat or narrator → set one of the env vars above, restart the workbench. For a local server no key is needed: set `EPISTRACT_LLM_BASE_URL`.
+- **"Is the server running at ..."** → the local server does not answer at `EPISTRACT_LLM_BASE_URL`. Start it, or check the host and port with `python -m core.cli llm check`.
+- **A "daily limit" message** → the provider's daily or quota limit for this key or free model is exhausted; the message names the reset time when the provider gave one. Retrying will not help until then; switch model or provider.
+- **Chat goes to the local server although a cloud key is set** → `EPISTRACT_LLM_BASE_URL` wins over cloud keys. Unset it, or set `EPISTRACT_LLM_PROVIDER` to the provider you want.
 - **Workbench shows generic persona / default title** → `graph_data.json` has no `metadata.domain`. Rebuild with `/epistract:ingest --domain <name>` to populate the field, or pass `--domain` explicitly to the dashboard command.
 - **`ModuleNotFoundError: No module named 'yaml'` (or `uvicorn`, `fastapi`, `sse_starlette`) on launch** → the venv is missing the workbench extra. Run `uv pip install -r pyproject.toml --extra workbench`, or re-run `/epistract:setup`.
 - **`/epistract:setup` fails on Python 3.14** → prebuilt wheels may not exist yet. Use 3.13 or 3.12.

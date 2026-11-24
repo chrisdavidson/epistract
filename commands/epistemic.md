@@ -81,9 +81,13 @@ not `--force`, which discards the joins and cross-domain findings.
 
 ### Narrator credentials (same priority as workbench chat)
 
-1. `AZURE_FOUNDRY_API_KEY` (with `AZURE_FOUNDRY_BASE_URL` or `AZURE_FOUNDRY_RESOURCE`) — Azure AI Foundry or custom Anthropic gateway.
-2. `ANTHROPIC_API_KEY` — direct Anthropic API.
-3. `OPENROUTER_API_KEY` — OpenRouter (OpenAI-compatible).
+1. `EPISTRACT_LLM_PROVIDER` (`local`, `anthropic`, `openrouter` or `foundry`) — forces one provider and fails with an error when its credentials are missing.
+2. `EPISTRACT_LLM_BASE_URL` — a local OpenAI-compatible server (llama.cpp, Ollama, vLLM, LM Studio). No key needed; optional `EPISTRACT_LLM_MODEL` and `EPISTRACT_LLM_API_KEY`. It wins over the cloud keys below, which are never sent to it.
+3. `AZURE_FOUNDRY_API_KEY` (with `AZURE_FOUNDRY_BASE_URL` or `AZURE_FOUNDRY_RESOURCE`) — Azure AI Foundry or custom Anthropic gateway.
+4. `ANTHROPIC_API_KEY` — direct Anthropic API.
+5. `OPENROUTER_API_KEY` — OpenRouter (OpenAI-compatible).
+
+The narrator asks for up to 8192 output tokens, capped by `EPISTRACT_LLM_MAX_TOKENS` and clamped to what is left of the model's context window after the prompt. When the prompt leaves under 512 tokens of room the narrator is skipped with an "exceeds context" reason and the rule-based output stands; use a larger-context model for the narrator. Check the setup with `python3 -m core.cli llm check`.
 
 ### Narrator persona — single source of truth
 
