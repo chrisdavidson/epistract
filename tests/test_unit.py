@@ -2676,6 +2676,12 @@ def test_ut057_narrator_non_blocking_on_missing_credentials(tmp_path, monkeypatc
         "ANTHROPIC_FOUNDRY_API_KEY",
         "ANTHROPIC_API_KEY",
         "OPENROUTER_API_KEY",
+        "EPISTRACT_LLM_BASE_URL",
+        "EPISTRACT_LLM_MODEL",
+        "EPISTRACT_LLM_API_KEY",
+        "EPISTRACT_LLM_PROVIDER",
+        "EPISTRACT_LLM_MAX_TOKENS",
+        "EPISTRACT_LLM_CONTEXT_WINDOW",
     ):
         monkeypatch.delenv(var, raising=False)
 
@@ -3273,6 +3279,12 @@ WORKBENCH_LLM_ENV_VARS = (
     "ANTHROPIC_FOUNDRY_DEPLOYMENT",
     "ANTHROPIC_API_KEY",
     "OPENROUTER_API_KEY",
+    "EPISTRACT_LLM_BASE_URL",
+    "EPISTRACT_LLM_MODEL",
+    "EPISTRACT_LLM_API_KEY",
+    "EPISTRACT_LLM_PROVIDER",
+    "EPISTRACT_LLM_MAX_TOKENS",
+    "EPISTRACT_LLM_CONTEXT_WINDOW",
 )
 
 
